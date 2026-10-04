@@ -361,11 +361,26 @@ def _loop_amazon_ventas():
             from routers.amazon import _hacer_sync_ventas_amazon, _configurado
             if _configurado():
                 res = _hacer_sync_ventas_amazon()
-                if res.get("procesadas"):
-                    print(f"[amazon-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
+                if res.get("procesadas") or res.get("enviados") or res.get("cancelados"):
+                    print(f"[amazon-ventas] nuevas: {res['procesadas']} de {res['revisadas']} revisadas, enviadas: {res['enviados']}, canceladas: {res['cancelados']}")
         except Exception as e:
             print(f"[amazon-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)
+
+def _loop_amazon_stock():
+    """Cada 30 minutos manda a Amazon el stock del ERP de lo ya publicado (solo si la cuenta está activa y no es sandbox)."""
+    _time.sleep(1700)
+    while True:
+        try:
+            from routers.amazon import _hacer_sync_stock_amazon
+            res = _hacer_sync_stock_amazon()
+            if res.get("actualizados"):
+                print(f"[amazon-stock] Existencias enviadas: {res['actualizados']} de {res['revisados']} publicaciones")
+            if res.get("errores"):
+                print(f"[amazon-stock] errores: {res['errores'][:3]}")
+        except Exception as e:
+            print(f"[amazon-stock] Error en loop: {e}")
+        _time.sleep(30 * 60)
 
 def _loop_tiktok_sync():
     """Sincroniza inventario con TikTok Shop cada 30 minutos si hay token activo."""
@@ -566,6 +581,10 @@ def _iniciar_hilos():
     t3c = threading.Thread(target=_loop_amazon_ventas, daemon=True)
     t3c.start()
     print("[amazon-ventas] Hilo de sincronización de ventas iniciado (cada 10 min, solo si hay credenciales)")
+    # Amazon: existencias de lo publicado
+    t3d = threading.Thread(target=_loop_amazon_stock, daemon=True)
+    t3d.start()
+    print("[amazon-stock] Hilo de existencias iniciado (cada 30 min, solo con la cuenta activa)")
     # Correo entrante: avisar a admins del panel
     t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
     t4.start()

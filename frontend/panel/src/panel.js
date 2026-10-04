@@ -29061,11 +29061,32 @@ window._amzCargarEstado = async () => {
           ${_amzBtn('📤 Mandar existencias', 'window._amzInventario(this)')}
         </div>
         <div id="amz-inv-resultado"></div>`)}
+      ${_amzCard('Preparación para vender', 'Lista de verificación: conexión real, cuenta activa en México y qué datos de tus productos le faltan a Amazon.', `
+        <div style="margin-bottom:0.75rem">${_amzBtn('✅ Revisar ahora', 'window._amzPreparacion(this)')}</div>
+        <div id="amz-preparacion"></div>`)}
+      ${_amzCard('Publicar productos', 'Se arma la publicación, Amazon la REVISA sin crear nada y solo si no hay errores se publica (modelo completo con colores y tallas).', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.6rem">
+          <select id="amz-pub-sku" style="flex:2;min-width:240px;padding:0.55rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:0.85rem"><option value="">Cargando modelos...</option></select>
+          <input id="amz-pub-precio" type="number" min="1" step="0.01" placeholder="Precio (vacío = el de la tienda)" style="flex:1;min-width:190px;padding:0.55rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:0.85rem">
+        </div>
+        <label style="font-size:0.8rem;color:#555;display:block;margin-bottom:0.5rem"><input type="checkbox" id="amz-pub-var" checked> Agrupar colores y tallas como una sola publicación (variaciones)</label>
+        <details style="margin-bottom:0.7rem"><summary style="cursor:pointer;font-size:0.8rem;color:#1d4ed8">Ajustes avanzados (si Amazon pide un dato que falta)</summary>
+          <p style="font-size:0.74rem;color:#888;margin:6px 0 4px">Atributos extra en JSON, ej. <code>{"style":[{"value":"Casual","language_tag":"es_MX","marketplace_id":"A1AM78C64UM0Y8"}]}</code></p>
+          <textarea id="amz-pub-extra" rows="3" style="width:100%;padding:0.5rem;border:1px solid #ddd;border-radius:8px;font-family:monospace;font-size:0.76rem"></textarea>
+          <p style="font-size:0.74rem;color:#888;margin:6px 0 4px">Atributos a quitar (separados por coma)</p>
+          <input id="amz-pub-quitar" type="text" style="width:100%;padding:0.5rem;border:1px solid #ddd;border-radius:8px;font-size:0.8rem">
+        </details>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.7rem">
+          ${_amzBtn('🔍 Revisar con Amazon (no publica)', 'window._amzRevisarPub(this)')}
+          <button id="amz-pub-boton" disabled onclick="window._amzPublicar(this)" style="padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#16a34a;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;opacity:0.45">🚀 Publicar en Amazon</button>
+        </div>
+        <div id="amz-pub-resultado"></div>`)}
       <div style="padding:0.9rem 1.1rem;background:#eff6ff;border-radius:10px;font-size:0.82rem;color:#1e3a8a">
-        <b>Publicar productos:</b> siguiente fase — primero se baja de Amazon el esquema oficial de zapatos para México (así no se arma a ciegas, como pasó con Walmart).<br>
+        <b>Publicar productos:</b> siempre se revisa con Amazon antes de crear nada. Las existencias de lo publicado se mandan solas cada 30 min.<br>
         <b>Etiquetas de envío y preguntas de clientes:</b> la API de mensajes de Amazon solo permite <i>enviar</i> mensajes, no leer preguntas; las guías de Amazon Envíos hay que confirmar si están disponibles para México con la cuenta activa. Mientras tanto se manejan en Seller Central:
         <a href="https://sellercentral.amazon.com.mx" target="_blank" rel="noopener" style="color:#1d4ed8;font-weight:700">abrir Seller Central</a>.
       </div>`
+    window._amzCargarModelos()
   } catch (e) {
     box.style.background = '#fef2f2'
     box.innerHTML = `<span style="color:#991b1b">Error al conectar con el servidor: ${_amzEsc(e.message)}</span>`
@@ -29128,6 +29149,102 @@ window._amzEnviar = async (id) => {
     if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
     alert('Envío confirmado en Amazon.'); window._amzVerPedidos()
   } catch (e) { alert('No se pudo confirmar el envío: ' + e.message) }
+}
+
+window._amzPreparacion = async (btn) => {
+  const out = document.getElementById('amz-preparacion')
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Revisando...'; btn.disabled = true
+  out.innerHTML = ''
+  try {
+    const res = await fetch(`${API}/amazon/preparacion`)
+    const d = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
+    const fila = (x) => `<div style="padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+      <span style="font-weight:700;color:${x.ok ? '#166534' : '#b91c1c'}">${x.ok ? '✅' : '❌'} ${_amzEsc(x.titulo)}</span>
+      ${x.detalle ? `<br><span style="color:#666;font-size:0.78rem">${_amzEsc(x.detalle)}</span>` : ''}
+      ${(!x.ok && x.accion) ? `<br><span style="color:#92400e;font-size:0.78rem">👉 ${_amzEsc(x.accion)}</span>` : ''}</div>`
+    const falt = Object.entries(d.faltan || {}).filter(([, v]) => v.length)
+    out.innerHTML = `<div style="border:1px solid #eee;border-radius:8px;overflow:hidden">${d.pasos.map(fila).join('')}</div>
+      ${falt.length ? `<div style="margin-top:8px;font-size:0.78rem;color:#555">${falt.map(([k, v]) => `<div><b>${_amzEsc(k.replace('_', ' '))}</b>: ${v.map(_amzEsc).join(', ')}</div>`).join('')}</div>` : ''}
+      <div style="margin-top:10px;padding:0.7rem 0.9rem;background:#fffbeb;border-radius:8px;font-size:0.8rem;color:#92400e"><b>Pendiente de tu lado en Seller Central:</b><ul style="margin:6px 0 0 18px;padding:0">${(d.pendientes_en_seller_central || []).map(t => `<li>${_amzEsc(t)}</li>`).join('')}</ul></div>`
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${_amzEsc(_amzMsg(e.message))}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
+window._amzCargarModelos = async () => {
+  const sel = document.getElementById('amz-pub-sku')
+  if (!sel) return
+  try {
+    const prods = await fetch(`${API}/productos/`).then(r => r.json())
+    const lista = (Array.isArray(prods) ? prods : []).filter(p => p.activo && p.categoria !== 'accesorios' && p.sku_interno).sort((a, b) => String(a.sku_interno).localeCompare(String(b.sku_interno)))
+    window._amzProductos = Object.fromEntries(lista.map(p => [p.sku_interno, p]))
+    sel.innerHTML = '<option value="">Elige un modelo...</option>' + lista.map(p => `<option value="${_amzEsc(p.sku_interno)}">${_amzEsc(p.sku_interno)} — ${_amzEsc(String(p.nombre || '').slice(0, 60))}</option>`).join('')
+    sel.onchange = () => {
+      const p = window._amzProductos[sel.value]
+      const inp = document.getElementById('amz-pub-precio')
+      if (inp) inp.placeholder = p ? `Precio (vacío = $${Math.round((parseFloat(p.precio_menudeo) || 0) + (p.es_oferta ? 0 : 80))}, el de la tienda)` : 'Precio (vacío = el de la tienda)'
+      window._amzUltimaRevision = null
+      const b = document.getElementById('amz-pub-boton'); if (b) { b.disabled = true; b.style.opacity = '0.45' }
+    }
+  } catch (e) { sel.innerHTML = '<option value="">No se pudieron cargar los modelos</option>' }
+}
+
+window._amzDatosPub = () => {
+  const sku = (document.getElementById('amz-pub-sku')?.value || '').trim()
+  if (!sku) { alert('Elige un modelo.'); return null }
+  const d = { sku_interno: sku, variaciones: !!document.getElementById('amz-pub-var')?.checked }
+  const precio = (document.getElementById('amz-pub-precio')?.value || '').trim()
+  if (precio) d.precio = parseFloat(precio)
+  const extra = (document.getElementById('amz-pub-extra')?.value || '').trim()
+  if (extra) { try { d.atributos_extra = JSON.parse(extra) } catch (e) { alert('Los atributos extra no son un JSON válido.'); return null } }
+  const quitar = (document.getElementById('amz-pub-quitar')?.value || '').split(',').map(x => x.trim()).filter(Boolean)
+  if (quitar.length) d.quitar = quitar
+  return d
+}
+
+window._amzRevisarPub = async (btn) => {
+  const d = window._amzDatosPub(); if (!d) return
+  const out = document.getElementById('amz-pub-resultado')
+  const boton = document.getElementById('amz-pub-boton'); boton.disabled = true; boton.style.opacity = '0.45'
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Revisando con Amazon...'; btn.disabled = true
+  out.innerHTML = ''
+  try {
+    const res = await fetch(`${API}/amazon/publicar/revisar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })
+    const r = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(r.detail || JSON.stringify(r)))
+    window._amzUltimaRevision = r.listo_para_publicar ? d : null
+    const problemas = r.problemas || []
+    out.innerHTML = `
+      <div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${r.listo_para_publicar ? '#f0fdf4' : '#fffbeb'};color:${r.listo_para_publicar ? '#166534' : '#92400e'}">
+        <b>${_amzEsc(r.sku_interno)}</b> · ${r.listados} publicación(es) (${r.colores.length} color(es), ${r.tallas.length} talla(s)) · precio $${Number(r.precio).toLocaleString('es-MX')}<br>
+        ${r.error_conexion ? `⚠️ ${_amzEsc(_amzMsg(r.error_conexion))}` : (r.listo_para_publicar ? '✅ Amazon la revisó y no encontró errores: ya se puede publicar.' : `❌ Amazon encontró ${r.errores} error(es): corrígelos (o añade el atributo en Ajustes avanzados) y vuelve a revisar.`)}
+      </div>
+      ${problemas.length ? `<div style="margin-top:8px;max-height:260px;overflow:auto;border:1px solid #eee;border-radius:8px">${problemas.map(x => `
+        <div style="padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:0.78rem"><b style="color:${(x.gravedad || '').toUpperCase() === 'ERROR' ? '#b91c1c' : '#b45309'}">${_amzEsc(x.gravedad)}</b> · <span style="font-family:monospace">${_amzEsc(x.sku)}</span><br>${_amzEsc(x.mensaje)}${(x.atributos || []).length ? `<br><span style="color:#666">Atributo(s): ${x.atributos.map(_amzEsc).join(', ')}</span>` : ''}</div>`).join('')}</div>` : ''}
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:0.78rem;color:#1d4ed8">Ver lo que se mandaría (ejemplo de una talla)</summary><pre style="max-height:260px;overflow:auto;background:#f8f8f8;padding:8px;border-radius:8px;font-size:0.72rem">${_amzEsc(JSON.stringify(r.ejemplo, null, 2))}</pre></details>`
+    if (r.listo_para_publicar) { boton.disabled = false; boton.style.opacity = '1' }
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${_amzEsc(_amzMsg(e.message))}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
+window._amzPublicar = async (btn) => {
+  const d = window._amzUltimaRevision
+  if (!d) { alert('Primero revisa la publicación con Amazon.'); return }
+  if (!confirm(`¿Publicar ${d.sku_interno} en Amazon México? Se crearán las publicaciones reales con las existencias actuales.`)) return
+  const out = document.getElementById('amz-pub-resultado')
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Publicando...'; btn.disabled = true
+  try {
+    const res = await fetch(`${API}/amazon/publicar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...d, confirmar: true }) })
+    const r = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(r.detail || JSON.stringify(r)))
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${r.ok ? '#f0fdf4' : '#fffbeb'};color:${r.ok ? '#166534' : '#92400e'}">
+      ${r.ok ? `✅ Publicado: ${r.publicados} publicación(es). Amazon puede tardar unos minutos en mostrarlas.` : `⚠️ ${_amzEsc(_amzMsg(r.motivo || (r.fallidos + ' publicación(es) con problema')))}`}</div>`
+    window._amzUltimaRevision = null
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${_amzEsc(_amzMsg(e.message))}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = true; btn.style.opacity = '0.45' }
 }
 
 window._amzInventario = async (btn) => {
