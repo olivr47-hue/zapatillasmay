@@ -258,6 +258,8 @@ function _ja(v) {
 window._ja = _ja
 // Escapa texto que viene de clientes (mensajes, nombres de perfil) antes de meterlo en innerHTML
 window._escWA = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+// Alias corto: escapa texto de clientes al armar HTML (Clientes, Pedidos, Carritos, tickets)
+const _e = window._escWA
 window._linkifyWA = (textoEscapado) => String(textoEscapado == null ? '' : textoEscapado)
   .replace(/((?:https?:\/\/|www\.)[^\s<]+)/gi, (m) => {
     let url = m, cola = ''
@@ -4291,10 +4293,10 @@ async function cargarCRM() {
               <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
                    onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
                 <div style="width:36px;height:36px;border-radius:50%;background:#fff8e1;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#f57f17;flex-shrink:0">
-                  ${c.nombre.charAt(0).toUpperCase()}
+                  ${_e(c.nombre.charAt(0).toUpperCase())}
                 </div>
                 <div style="flex:1">
-                  <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+                  <p style="font-size:0.85rem;font-weight:600">${_e(c.nombre)}</p>
                   <p style="font-size:0.72rem;color:#888">Hace ${c.diasSinComprar} días sin comprar · $${c.totalGastado.toFixed(0)} total</p>
                 </div>
                 ${c.telefono ? `<a href="https://wa.me/${c.lada||'52'}${c.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WA</a>` : ''}
@@ -4333,10 +4335,10 @@ async function cargarCRM() {
                onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
             <span style="font-size:0.85rem;font-weight:700;color:${idx < 3 ? '#f57f17' : '#aaa'};min-width:20px">${idx+1}</span>
             <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
-              ${c.nombre.charAt(0).toUpperCase()}
+              ${_e(c.nombre.charAt(0).toUpperCase())}
             </div>
             <div style="flex:1">
-              <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+              <p style="font-size:0.85rem;font-weight:600">${_e(c.nombre)}</p>
               <p style="font-size:0.72rem;color:#888">${c.totalPedidos} pedidos · ${c.diasSinComprar !== null ? 'Hace ' + c.diasSinComprar + ' días' : 'Sin pedidos'}</p>
             </div>
             <div style="text-align:right">
@@ -4375,10 +4377,10 @@ window.mostrarSegmento = (seg) => {
         <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
              onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
           <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
-            ${c.nombre.charAt(0).toUpperCase()}
+            ${_e(c.nombre.charAt(0).toUpperCase())}
           </div>
           <div style="flex:1">
-            <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+            <p style="font-size:0.85rem;font-weight:600">${_e(c.nombre)}</p>
             <p style="font-size:0.72rem;color:#888">$${c.totalGastado.toFixed(0)} · ${c.totalPedidos} pedidos · ${c.diasSinComprar !== null ? 'Hace ' + c.diasSinComprar + ' días' : 'Sin pedidos'}</p>
           </div>
           ${c.telefono ? `<a href="https://wa.me/${c.lada||'52'}${c.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WhatsApp</a>` : ''}
@@ -4512,7 +4514,7 @@ window.buscarClienteOportunidad = (texto) => {
     <div onclick="seleccionarClienteOportunidad('${c.id}', '${_ja(c.nombre)}')"
          style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
-      ${c.nombre}
+      ${_e(c.nombre)}
     </div>
   `).join('')
 }
@@ -5554,11 +5556,11 @@ window.actualizarVistaCampana = () => {
           onchange="actualizarContadorCampana()"
           style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
         <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
-          ${c.nombre.charAt(0).toUpperCase()}
+          ${_e(c.nombre.charAt(0).toUpperCase())}
         </div>
         <div style="flex:1;min-width:0">
-          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
-          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${c.telefono}</p>
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_e(c.nombre)}</p>
+          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${_e(c.telefono)}</p>
         </div>
         <a href="https://wa.me/${tel}?text=${msgEncoded}" target="_blank"
            style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
@@ -5619,11 +5621,11 @@ window.filtrarClientesCampana = (texto) => {
           onchange="actualizarContadorCampana()"
           style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
         <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
-          ${c.nombre.charAt(0).toUpperCase()}
+          ${_e(c.nombre.charAt(0).toUpperCase())}
         </div>
         <div style="flex:1;min-width:0">
-          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
-          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${c.telefono}</p>
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_e(c.nombre)}</p>
+          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${_e(c.telefono)}</p>
         </div>
         <a href="https://wa.me/${tel}?text=${msgEncoded}" target="_blank"
            style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
@@ -6256,11 +6258,11 @@ window.iniciarCampanaSeleccionados = () => {
         <!-- Cliente actual -->
         <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:12px">
           <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;flex-shrink:0">
-            ${c.nombre.charAt(0).toUpperCase()}
+            ${_e(c.nombre.charAt(0).toUpperCase())}
           </div>
           <div>
-            <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
-            <p style="font-size:0.78rem;color:#888">${c.telefono}</p>
+            <p style="font-weight:700;font-size:0.95rem">${_e(c.nombre)}</p>
+            <p style="font-size:0.78rem;color:#888">${_e(c.telefono)}</p>
           </div>
         </div>
 
@@ -6271,7 +6273,7 @@ window.iniciarCampanaSeleccionados = () => {
         <a href="https://wa.me/${c.tel}?text=${encodeURIComponent(c.mensaje)}" target="_blank"
            onclick="setTimeout(() => document.getElementById('btn-campana-siguiente')?.focus(), 800)"
            style="display:block;background:#25D366;color:white;padding:12px;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;text-align:center;margin-bottom:10px">
-          💬 Abrir WhatsApp con ${c.nombre.split(' ')[0]}
+          💬 Abrir WhatsApp con ${_e(c.nombre.split(' ')[0])}
         </a>
         <div style="display:flex;gap:8px">
           <button onclick="document.getElementById('campana-modal-overlay').remove()"
@@ -6456,22 +6458,22 @@ async function cargarClientes() {
         </div>
         <div id="cli-lista">
           ${clientesEnriquecidos.map(c => `
-            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}" data-frec="${c.frecuente_wa ? 1 : 0}"
+            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${_e(c.nombre.toLowerCase())}" data-tel="${_e(c.telefono || '')}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}" data-frec="${c.frecuente_wa ? 1 : 0}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
                  onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
                  onclick="verCliente('${c.id}')">
               <input type="checkbox" class="cli-sel" data-id="${c.id}" onclick="event.stopPropagation();_cliSelCambio()" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:#E91E8C">
               <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0">
-                ${c.nombre.charAt(0).toUpperCase()}
+                ${_e(c.nombre.charAt(0).toUpperCase())}
               </div>
               <div style="flex:1;min-width:140px">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-                  <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
+                  <p style="font-weight:700;font-size:0.95rem">${_e(c.nombre)}</p>
                   <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${c.segmentoBg};color:${c.segmentoColor}">${c.segmentoLabel}</span>
                   <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#f5f5f5;color:#888">${c.tipo === 'mayoreo' ? 'Mayoreo' : c.tipo === 'zapateria' ? 'Corridas' : 'Menudeo'}</span>
                   ${c.origen === 'tienda' ? '<span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#fdf4ff;color:#7c3aed">🛍️ Tienda</span>' : ''}
                 </div>
-                <p style="font-size:0.78rem;color:#888">${c.telefono || 'Sin teléfono'}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
+                <p style="font-size:0.78rem;color:#888">${_e(c.telefono || 'Sin teléfono')}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
                 ${c.frecuente_wa ? '<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin-top:2px">⭐ Clienta frecuente · recibe novedades</p>' : ''}
                 ${c.numCredito > 0 ? `<p style="font-size:0.72rem;color:#0f766e;font-weight:600;margin-top:2px">💳 ${c.numCredito} pedido${c.numCredito > 1 ? 's' : ''} a crédito · $${c.montoCredito.toLocaleString('es-MX', { maximumFractionDigits: 0 })}</p>` : ''}
                 ${c.comentarios_internos ? `<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${c.comentarios_internos.substring(0,50)}${c.comentarios_internos.length > 50 ? '...' : ''}</p>` : ''}
@@ -8165,7 +8167,7 @@ function renderVariante(i, datos) {
           <div style="display:flex;flex-wrap:wrap;gap:5px">
             ${COLORES_SUGERIDOS.map(c => `
               <div onclick="seleccionarColor(${i}, '${c.hex}', '${_ja(c.nombre)}')"
-                   title="${c.nombre}"
+                   title="${_e(c.nombre)}"
                    style="width:24px;height:24px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
                    onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
               </div>
@@ -9452,7 +9454,7 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div>
           <label class="form-label">Nombre completo *</label>
-          <input class="form-input" id="cli-nombre" placeholder="Nombre del cliente" value="${d.nombre || ''}">
+          <input class="form-input" id="cli-nombre" placeholder="Nombre del cliente" value="${_e(d.nombre || '')}">
         </div>
         <div>
           <label class="form-label">Telefono (WhatsApp)</label>
@@ -9465,10 +9467,10 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
             <option value="57" ${d.lada === '57' ? 'selected' : ''}>­🇨🇴 +57</option>
             <option value="54" ${d.lada === '54' ? 'selected' : ''}>­🇦🇷 +54</option>
             </select>
-            <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
+            <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${_e(d.telefono || '')}">
         </div>
           <label class="form-label">Email</label>
-          <input class="form-input" id="cli-email" type="email" placeholder="correo@ejemplo.com" value="${d.email || ''}">
+          <input class="form-input" id="cli-email" type="email" placeholder="correo@ejemplo.com" value="${_e(d.email || '')}">
         </div>
         <div>
           <label class="form-label">Tipo de cliente *</label>
@@ -9485,11 +9487,11 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
           <div style="grid-column:1/-1">
             <label class="form-label">Calle y numero</label>
-            <input class="form-input" id="cli-direccion" placeholder="Ej: Calle Juarez 123 Col. Centro" value="${d.direccion || ''}">
+            <input class="form-input" id="cli-direccion" placeholder="Ej: Calle Juarez 123 Col. Centro" value="${_e(d.direccion || '')}">
           </div>
           <div>
             <label class="form-label">Ciudad</label>
-            <input class="form-input" id="cli-ciudad" placeholder="Ej: Leon" value="${d.ciudad || ''}">
+            <input class="form-input" id="cli-ciudad" placeholder="Ej: Leon" value="${_e(d.ciudad || '')}">
           </div>
           <div>
             <label class="form-label">Estado</label>
@@ -9645,7 +9647,7 @@ window.verCliente = async (id) => {
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
           <div style="flex:1">
-            <h2 style="font-size:1.3rem;font-weight:700">${c.nombre}</h2>
+            <h2 style="font-size:1.3rem;font-weight:700">${_e(c.nombre)}</h2>
             <p style="font-size:0.82rem;color:#888">${c.tipo === 'mayoreo' ? 'Mayoreo variado' : c.tipo === 'zapateria' ? 'Corridas' : 'Menudeo'} · Cliente desde ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : '—'}</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -9685,19 +9687,19 @@ window.verCliente = async (id) => {
             <div style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;justify-content:space-between">
                 <span style="font-size:0.8rem;color:#888">Teléfono</span>
-                <span style="font-size:0.85rem;font-weight:600">${c.telefono || '—'}</span>
+                <span style="font-size:0.85rem;font-weight:600">${_e(c.telefono || '—')}</span>
               </div>
               <div style="display:flex;justify-content:space-between">
                 <span style="font-size:0.8rem;color:#888">Email</span>
-                <span style="font-size:0.85rem;font-weight:600">${c.email || '—'}</span>
+                <span style="font-size:0.85rem;font-weight:600">${_e(c.email || '—')}</span>
               </div>
               <div style="display:flex;justify-content:space-between">
                 <span style="font-size:0.8rem;color:#888">Ciudad</span>
-                <span style="font-size:0.85rem;font-weight:600">${c.ciudad || '—'}</span>
+                <span style="font-size:0.85rem;font-weight:600">${_e(c.ciudad || '—')}</span>
               </div>
               <div style="display:flex;justify-content:space-between">
                 <span style="font-size:0.8rem;color:#888">Dirección</span>
-                <span style="font-size:0.85rem;font-weight:600;text-align:right;max-width:180px">${c.direccion || '—'}</span>
+                <span style="font-size:0.85rem;font-weight:600;text-align:right;max-width:180px">${_e(c.direccion || '—')}</span>
               </div>
               <div style="display:flex;justify-content:space-between">
                 <span style="font-size:0.8rem;color:#888">Crédito (fiado)</span>
@@ -9827,7 +9829,7 @@ window.verHistorialCliente = async (clienteId) => {
       <div class="table-card" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
-          <h3 style="flex:1">Historial — ${cliente.nombre || 'Cliente'}</h3>
+          <h3 style="flex:1">Historial — ${_e(cliente.nombre || 'Cliente')}</h3>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
@@ -10095,9 +10097,9 @@ function _renderFilaPedido(p) {
     <tr style="${porEnviar && diasEsperando >= 3 ? 'background:#fff7f7' : (porEnviar ? 'background:#f0f7ff' : '')}">
       <td data-label="Pedido" style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0, 8).toUpperCase()}</td>
       <td data-label="Cliente">
-        <strong>${cli}</strong>
-        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
-        ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${tel}</span>` : ''}
+        <strong>${_e(cli)}</strong>
+        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}</span>` : ''}
+        ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(tel)}</span>` : ''}
       </td>
       <td data-label="Canal">${{
         web: '🌐 Web', sucursal: '🏬 Sucursal', whatsapp: '💬 WhatsApp', mercadolibre: '🛒 MercadoLibre',
@@ -10527,7 +10529,7 @@ window.mostrarFormPedido = async () => {
             <label class="form-label">Cliente *</label>
             <select class="form-input" id="ped-cliente" onchange="actualizarTipoCliente()">
               <option value="">Selecciona cliente...</option>
-              ${clientes.map(c => `<option value="${c.id}" data-tipo="${c.tipo}" data-telefono="${c.telefono || ''}">${c.nombre} (${c.tipo})</option>`).join('')}
+              ${clientes.map(c => `<option value="${c.id}" data-tipo="${c.tipo}" data-telefono="${_e(c.telefono || '')}">${_e(c.nombre)} (${c.tipo})</option>`).join('')}
             </select>
           </div>
           <div>
@@ -10857,8 +10859,8 @@ window.abrirPreviewPedido = async (id) => {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.2rem">
           <div style="background:#f9f9f9;border-radius:8px;padding:10px">
             <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Cliente</p>
-            <p style="font-weight:600;font-size:0.88rem">${cliente.nombre || 'Mostrador'}</p>
-            <p style="font-size:0.78rem;color:#888">${cliente.telefono || ''}</p>
+            <p style="font-weight:600;font-size:0.88rem">${_e(cliente.nombre || 'Mostrador')}</p>
+            <p style="font-size:0.78rem;color:#888">${_e(cliente.telefono || '')}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:10px">
             <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Canal / Pago</p>
@@ -10960,9 +10962,9 @@ window.verPedido = async (id) => {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
-            <p style="font-weight:600">${cliente.nombre || p.nombre_cliente || 'Mostrador'}</p>
-            <p style="font-size:0.8rem;color:#888">${cliente.telefono || p.telefono_cliente || ''}</p>
-            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${p.email_cliente}</p>` : ''}
+            <p style="font-weight:600">${_e(cliente.nombre || p.nombre_cliente || 'Mostrador')}</p>
+            <p style="font-size:0.8rem;color:#888">${_e(cliente.telefono || p.telefono_cliente || '')}</p>
+            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${_e(p.email_cliente)}</p>` : ''}
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
@@ -11008,7 +11010,7 @@ window.verPedido = async (id) => {
             ${telEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📞 ${telEnvio}</p>` : ''}
             ${emailEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">✉️ ${emailEnvio}</p>` : ''}
             ${dirFinal ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📍 ${dirFinal}</p>` : '<p style="margin:2px 0;font-size:0.82rem;color:#c62828">⚠ Sin dirección registrada</p>'}
-            ${p.notas ? `<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${p.notas}</p>` : ''}
+            ${p.notas ? `<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${_e(p.notas)}</p>` : ''}
           </div>`
         })()}
 
@@ -12067,7 +12069,7 @@ window.buscarClientePOSM = (texto) => {
     <div onclick="seleccionarClientePOSM('${c.id}','${_ja(c.nombre)}')"
          style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
-      <strong>${c.nombre}</strong>${c.telefono?' · '+c.telefono:''}
+      <strong>${_e(c.nombre)}</strong>${c.telefono?' · '+c.telefono:''}
     </div>
   `).join('')
 }
@@ -12168,7 +12170,7 @@ window.buscarClientePOS = (texto) => {
          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'"
          onmouseout="this.style.background='white'">
-      <strong>${c.nombre}</strong>
+      <strong>${_e(c.nombre)}</strong>
       <span style="color:#888;font-size:0.75rem"> · ${c.tipo || 'menudeo'}</span>
       ${c.telefono ? '<br><span style="color:#888;font-size:0.72rem">' + c.telefono + '</span>' : ''}
     </div>
@@ -14675,7 +14677,7 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
       </div>
       <div class="row">
         <span>Cliente:</span>
-        <span>${cliente.nombre || 'General'}</span>
+        <span>${_e(cliente.nombre || 'General')}</span>
       </div>
       ${Array.isArray(pedido.pagos_detalle) && pedido.pagos_detalle.length > 0 ? `
       <div class="row"><span>Pago combinado:</span><span></span></div>
@@ -14903,15 +14905,15 @@ window.generarPDFPedido = async (pedidoId) => {
           <div class="section-title">Datos del cliente</div>
           <div class="campo">
             <div class="campo-label">Nombre</div>
-            <div class="campo-valor">${cliente.nombre || 'Cliente general'}</div>
+            <div class="campo-valor">${_e(cliente.nombre || 'Cliente general')}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Telefono</div>
-            <div class="campo-valor">${cliente.telefono || '—'}</div>
+            <div class="campo-valor">${_e(cliente.telefono || '—')}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Email</div>
-            <div class="campo-valor">${cliente.email || '—'}</div>
+            <div class="campo-valor">${_e(cliente.email || '—')}</div>
           </div>
         </div>
         <div>
@@ -15085,15 +15087,15 @@ window.generarCotizacionCarrito = async (pedidoId) => {
           <div class="section-title">Datos del cliente</div>
           <div class="campo">
             <div class="campo-label">Nombre</div>
-            <div class="campo-valor">${cliente.nombre || 'Cliente general'}</div>
+            <div class="campo-valor">${_e(cliente.nombre || 'Cliente general')}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Teléfono</div>
-            <div class="campo-valor">${cliente.telefono || '—'}</div>
+            <div class="campo-valor">${_e(cliente.telefono || '—')}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Email</div>
-            <div class="campo-valor">${cliente.email || '—'}</div>
+            <div class="campo-valor">${_e(cliente.email || '—')}</div>
           </div>
         </div>
         <div>
@@ -16297,7 +16299,7 @@ window.mostrarPipelineWA = async function() {
       const esMay = window._esMayoristaWA(c)
       return `
         <div class="wa-kb-card" draggable="true"
-             ondragstart="window._waKbDragStart(event,'${c.telefono}')"
+             ondragstart="window._waKbDragStart(event,'${_ja(c.telefono)}')"
              ondragend="window._waKbDragEnd(event)"
              onclick="window._waKbAbrir('${_ja(c.telefono)}')">
           <div class="wa-kb-card-top">
@@ -18756,7 +18758,7 @@ window.cargarEnviosMasivos = async function() {
         </div>
         <div style="flex:1;min-width:0">
           <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${window._escWA(c.nombre || c.telefono)}</p>
-          <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
+          <p style="font-size:0.72rem;color:#888;margin:0">${_e(c.telefono)}${c.tipo ? ' · ' + c.tipo : ''}</p>
         </div>
       </label>`
     }).join('')
@@ -19177,7 +19179,7 @@ const _renderEnvioLista = (lista) => {
       </div>
       <div style="flex:1;min-width:0">
         <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${window._escWA(c.nombre || c.telefono)}</p>
-        <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${_e(c.telefono)}${c.tipo ? ' · ' + c.tipo : ''}</p>
       </div>
     </label>`
   }).join('')
@@ -20005,8 +20007,8 @@ async function cargarCarritosAbandonados() {
                       <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${horas}<br><span style="font-size:0.7rem">${fmtFecha(p.created_at)}</span></td>
                       <td style="padding:10px 14px">
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
-                          ${email ? `<button onclick="enviarRecordatorioEmail('${p.id}', this, '${(p.nombre_cliente||'').split(' ')[0]}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>` : ''}
-                          ${tel   ? `<button onclick="enviarRecordatorioWA('${p.id}', this, '${(p.nombre_cliente||'').split(' ')[0]}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
+                          ${email ? `<button onclick="enviarRecordatorioEmail('${p.id}', this, '${_ja((p.nombre_cliente||'').split(' ')[0])}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>` : ''}
+                          ${tel   ? `<button onclick="enviarRecordatorioWA('${p.id}', this, '${_ja((p.nombre_cliente||'').split(' ')[0])}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
                         </div>
                         ${yaAvisado ? `<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${fmtFecha(p.recordatorio_pago_enviado_at)}</div>` : ''}
                       </td>
@@ -21393,7 +21395,7 @@ async function cargarCatalogos() {
                 : `<div style="width:100%;aspect-ratio:3/4;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:3rem">📖</div>`}
               <div style="padding:14px">
                 ${c.temporada ? `<p style="font-size:0.68rem;letter-spacing:2px;color:#E91E8C;text-transform:uppercase;margin-bottom:4px">${c.temporada}</p>` : ''}
-                <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${c.nombre}</p>
+                <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${_e(c.nombre)}</p>
                 <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${c.activo ? '✅ Visible' : '🔴 Oculto'}</p>
                 <div style="display:flex;flex-direction:column;gap:6px">
                   <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${c.id}','${_ja((c.nombre||''))}')">📄 Gestionar páginas</button>
@@ -26117,7 +26119,7 @@ async function _gaCargarMetaAds() {
       ${d.campanas.map(c => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
           <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">
-            <span style="font-size:0.78rem;color:#333;font-weight:500">${c.nombre}</span>
+            <span style="font-size:0.78rem;color:#333;font-weight:500">${_e(c.nombre)}</span>
           </div>
           <span style="font-size:0.75rem;color:#888;white-space:nowrap">$${c.gasto.toLocaleString('es-MX',{maximumFractionDigits:0})} · ${c.compras} compras · ROAS ${c.roas}x</span>
         </div>
@@ -26379,7 +26381,7 @@ function _rowReferido(c, mapCodigo) {
   const creditoColor = credito > 0 ? '#2e7d32' : '#aaa'
   return `<tr id="ref-row-${c.id}" style="border-bottom:1px solid #f5f5f5">
     <td style="padding:10px 12px">
-      <p style="font-weight:600;margin:0">${c.nombre || '—'}</p>
+      <p style="font-weight:600;margin:0">${_e(c.nombre || '—')}</p>
       <p style="font-size:0.75rem;color:#888;margin:2px 0 0">${c.email || c.telefono || ''}</p>
     </td>
     <td style="padding:10px 12px">
@@ -26726,8 +26728,8 @@ async function cargarCarritos() {
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${window._escWA(cliente.nombre || 'Sin cliente')}</p>
                       ${cliente.telefono
-                        ? `<p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono} <a href="https://wa.me/52${String(cliente.telefono).replace(/\D/g,'').slice(-10)}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:1px 7px;border-radius:6px;font-size:0.66rem;text-decoration:none;margin-left:4px">WhatsApp</a></p>`
-                        : `<p style="font-size:0.75rem;margin:3px 0 0"><span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 7px;font-weight:700;font-size:0.68rem">⚠ Sin WhatsApp</span>${cliente.email ? ` <a href="mailto:${cliente.email}" onclick="event.stopPropagation()" style="color:#64748b">${cliente.email}</a>` : ''}</p>`}
+                        ? `<p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${_e(cliente.telefono)} <a href="https://wa.me/52${String(cliente.telefono).replace(/\D/g,'').slice(-10)}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:1px 7px;border-radius:6px;font-size:0.66rem;text-decoration:none;margin-left:4px">WhatsApp</a></p>`
+                        : `<p style="font-size:0.75rem;margin:3px 0 0"><span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 7px;font-weight:700;font-size:0.68rem">⚠ Sin WhatsApp</span>${cliente.email ? ` <a href="mailto:${_e(cliente.email)}" onclick="event.stopPropagation()" style="color:#64748b">${_e(cliente.email)}</a>` : ''}</p>`}
                       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
                         ${nQuitar > 0 ? `<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #dc2626;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🚫 ${nQuitar} quitar</span>` : ''}
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
@@ -26828,7 +26830,7 @@ window.buscarClienteNuevoCarrito = function(q) {
   }
   resultados.innerHTML = matches.map(c => `
     <div onclick="seleccionarClienteNuevoCarrito('${c.id}')" style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f5f5f5" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
-      <strong>${c.nombre}</strong>${c.telefono ? ` <span style="color:#888">· ${c.telefono}</span>` : ''}
+      <strong>${_e(c.nombre)}</strong>${c.telefono ? ` <span style="color:#888">· ${_e(c.telefono)}</span>` : ''}
     </div>
   `).join('')
   resultados.style.display = 'block'
@@ -28695,7 +28697,7 @@ window.verSolicitudesLiberacion = async () => {
               ${pr.imagen_principal ? `<img src="${pr.imagen_principal}" style="width:48px;height:48px;object-fit:cover;border-radius:8px">` : ''}
               <div style="flex:1">
                 <p style="font-weight:700;margin:0;font-size:0.88rem">${pr.nombre || s.nombre || 'Producto'} ${s.color ? '· '+s.color : ''} ${s.talla ? 'T'+s.talla : ''}</p>
-                <p style="font-size:0.78rem;color:#888;margin:2px 0 0">${cli.nombre || 'Clienta'} pide quitar ${s.cantidad} par(es)</p>
+                <p style="font-size:0.78rem;color:#888;margin:2px 0 0">${_e(cli.nombre || 'Clienta')} pide quitar ${s.cantidad} par(es)</p>
               </div>
               <button class="btn btn-secondary" style="color:#c62828;border-color:#fca5a5" onclick="rechazarLiberacionItem('${ped.id}','${s.id}')">Negar</button>
               <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="aprobarLiberacionItem('${ped.id}','${s.id}')">Aprobar</button>
@@ -29933,7 +29935,7 @@ window._envRenderLista = () => {
     const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg)
     const hecho = window._envEnviados.has(c.id)
     return `<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9">
-      <div style="flex:1;min-width:0"><strong style="font-size:0.84rem">${c.nombre}</strong><br><span style="font-size:0.7rem;color:#94a3b8">${c.telefono}</span></div>
+      <div style="flex:1;min-width:0"><strong style="font-size:0.84rem">${_e(c.nombre)}</strong><br><span style="font-size:0.7rem;color:#94a3b8">${_e(c.telefono)}</span></div>
       <a href="${url}" target="_blank" rel="noopener" onclick="_envMarcar('${c.id}', this)" class="btn ${hecho ? 'btn-secondary' : 'btn-primary'}" style="font-size:0.75rem;padding:5px 11px;text-decoration:none;${hecho ? '' : 'background:#25D366;border-color:#25D366;color:#fff'}">${hecho ? '✓ Enviado · reabrir' : '💬 Abrir WhatsApp'}</a>
     </div>`
   }).join('') || '<p style="color:#888;font-size:0.82rem;padding:10px 0">Ninguno de los seleccionados tiene teléfono.</p>'
