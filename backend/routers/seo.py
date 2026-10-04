@@ -536,8 +536,13 @@ def _producto_ssr_inner(sku: str, request: Request):
     if not imagenes_seo and '</head>' in template:
         template = template.replace('</head>', '<meta name="robots" content="noindex,follow"></head>', 1)
 
-    if (p.get("categoria") or "").lower() == "tacones" and "<!-- RESEÑAS -->" in template:
-        template = template.replace("<!-- RESEÑAS -->", _GUIA_BANNER_TACONES + "\n<!-- RESEÑAS -->", 1)
+    _gs_cat = GUIA_POR_CATEGORIA.get((p.get("categoria") or "").lower())
+    if _gs_cat and "<!-- RESEÑAS -->" in template:
+        _gs, _gt = _gs_cat[0]
+        _banner = ('<div style="margin:16px;padding:16px 18px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:14px;font-family:DM Sans,sans-serif">'
+                   '<p style="margin:0 0 4px;font-size:0.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a8478;font-weight:700">Guía</p>'
+                   f'<a href="/{_gs}" style="color:#2a1f1a;font-weight:700;text-decoration:none;font-size:0.98rem;line-height:1.35;display:block">{_esc_pagina(_gt)} →</a></div>')
+        template = template.replace("<!-- RESEÑAS -->", _banner + "\n<!-- RESEÑAS -->", 1)
 
     cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
@@ -630,7 +635,14 @@ _GUIA_INDEX_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-str
 _GUIA_TACONES_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-strip{display:none!important}.guia{max-width:760px;margin:0 auto;padding:150px 20px 56px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7;font-size:1rem}.guia p{margin:0 0 14px}.guia ul{padding-left:20px;margin:0 0 14px}.guia li{margin-bottom:8px}.guia .g-miga{font-size:.82rem;color:#9a8478;margin:0 0 14px;line-height:1.4}.guia .g-h1,.guia h2,.g-item b{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}.guia .g-h1{font-family:Cormorant Garamond,Georgia,serif;font-size:clamp(1.7rem,7vw,2.5rem);font-weight:600;line-height:1.15;margin:0 0 10px;color:#2a1f1a}.guia .g-sub{color:#9a8478;font-size:.9rem;margin:0 0 22px;padding-bottom:18px;border-bottom:1px solid #eadcd2}.guia h2{font-family:Cormorant Garamond,Georgia,serif;font-size:clamp(1.35rem,5vw,1.7rem);font-weight:600;line-height:1.25;margin:34px 0 12px;color:#2a1f1a}.guia a.g-link{color:#C0357F;text-decoration:underline;text-underline-offset:2px}.guia table{width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #eadcd2;border-radius:12px;overflow:hidden}.guia th,.guia td{padding:11px 14px;border-bottom:1px solid #eadcd2;text-align:left;font-size:.92rem;vertical-align:top;line-height:1.5}.guia th{background:#f5ece2;font-weight:700}.guia tr:last-child td{border-bottom:none}.guia td:first-child{font-weight:700;color:#7a6055}.g-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:16px 0 8px}.g-card{display:block;text-decoration:none;color:#3a2e28;background:#fff;border:1px solid #eadcd2;border-radius:14px;overflow:hidden}.g-card img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center 70%;display:block;background:#f5ece2}.g-card span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:10px 12px 12px;font-size:.82rem;line-height:1.35;font-weight:600}.g-cta{margin:34px 0;padding:24px 22px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:16px;text-align:center}.g-cta p{margin:0 0 14px}.g-btn{display:inline-block;background:#E91E8C;color:#fff!important;font-weight:700;text-decoration:none!important;padding:13px 28px;border-radius:100px}.g-lista{display:grid;gap:14px;margin-top:8px}.g-item{display:block;text-decoration:none;color:#3a2e28;background:#fff;border:1px solid #eadcd2;border-radius:16px;padding:20px 20px 18px}.g-item b{display:block;font-family:Cormorant Garamond,Georgia,serif;font-size:1.35rem;font-weight:600;line-height:1.25;margin-bottom:6px;color:#2a1f1a}.g-item em{display:block;font-style:normal;color:#7a6055;font-size:.92rem;line-height:1.55;margin-bottom:10px}.g-item i{font-style:normal;font-weight:700;color:#C0357F;font-size:.9rem}@media(min-width:700px){.g-grid{grid-template-columns:repeat(4,1fr)}.guia{padding-top:130px}}@media(max-width:600px){.guia table,.guia thead,.guia tbody,.guia tr,.guia td,.guia th{display:block}.guia thead{display:none}.guia table{border:none}.guia tr{border:1px solid #eadcd2;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}.guia td{border-bottom:1px solid #f1e6dd;padding:9px 14px}.guia td:first-child{background:#f5ece2;color:#2a1f1a}.guia td[data-l]::before{content:attr(data-l);display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#9a8478;font-weight:700;margin-bottom:2px}}</style><section class="guia">\n  <p class="g-miga"><a class="g-link" href="/">Inicio</a> › <a class="g-link" href="/guias">Guías</a> › Tacones de 8 vs 10 cm</p>\n  <h1 class="g-h1">Tacones de 8 cm o de 10 cm: cuál elegir</h1>\n  <p class="g-sub">Por el equipo de Zapatillas May · fábrica de calzado de dama en León, Guanajuato</p>\n  <p>Entre un tacón de 8 cm y uno de 10 cm solo hay dos centímetros, pero se nota mucho al caminar, al estar de pie varias horas y al combinar con la ropa. Esta guía te ayuda a decidir según cómo lo vas a usar.</p>\n  <h2>Comparativa rápida</h2>\n  <table>\n    <thead><tr><th></th><th>Tacón de 8 cm</th><th>Tacón de 10 cm</th></tr></thead>\n    <tbody>\n      <tr><td>Para quién</td><td data-l="Tacón de 8 cm">Quien busca elegancia sin sacrificar tanta comodidad</td><td data-l="Tacón de 10 cm">Quien quiere el máximo estilizado y está acostumbrada al tacón alto</td></tr>\n      <tr><td>Uso recomendado</td><td data-l="Tacón de 8 cm">Oficina, cenas, eventos de varias horas</td><td data-l="Tacón de 10 cm">Fiestas, bodas, salidas de noche, sesiones de fotos</td></tr>\n      <tr><td>Al caminar</td><td data-l="Tacón de 8 cm">Más estable; el pie queda menos inclinado</td><td data-l="Tacón de 10 cm">Exige más equilibrio y se cansa antes el empeine</td></tr>\n      <tr><td>Con plataforma al frente</td><td data-l="Tacón de 8 cm">Casi se siente como un tacón más bajo</td><td data-l="Tacón de 10 cm">Una plataforma de 1–2 cm reduce la inclinación real del pie</td></tr>\n    </tbody>\n  </table>\n  <h2>Cómo elegir según la ocasión</h2>\n  <ul>\n    <li><strong>Si los vas a usar mucho tiempo:</strong> empieza por 8 cm, y si te gustan más altos busca un modelo con plataforma o con tacón de bloque, que reparte mejor el peso que uno de aguja.</li>\n    <li><strong>Si es para un evento específico:</strong> 10 cm da la silueta más alargada en vestidos y faldas largas.</li>\n    <li><strong>Si no estás segura:</strong> prueba una altura intermedia como 9 cm, o elige 8 cm con detalles (tiras, pulsera al tobillo) que den sujeción.</li>\n  </ul>\n  <h2>Consejos para que te queden bien</h2>\n  <ul>\n    <li>Pruébalos por la tarde, cuando el pie está un poco más hinchado, para que no te aprieten al final del día.</li>\n    <li>Revisa la <a class="g-link" href="/tabla-tallas">tabla de tallas</a> y mide tu pie; si estás entre dos tallas, elige la mayor en modelos de punta cerrada.</li>\n    <li>Las tiras al tobillo ayudan a que el pie no se deslice hacia adelante en tacones altos.</li>\n    <li>Camina con ellos unos minutos en casa antes de estrenarlos en un evento largo.</li>\n  </ul>\n  <h2>Modelos de 8 cm</h2>\n  <!--GUIA_TACONES_8-->\n  <h2>Modelos de 10 cm</h2>\n  <!--GUIA_TACONES_10-->\n  <div class="g-cta">\n    <p style="font-size:1.1rem;font-weight:700;margin:0 0 6px">Ver todos los tacones</p>\n    <p style="margin:0 0 16px;color:#7a6055">Filtra por color y talla, y si compras 3 o más pares el descuento se aplica solo en el carrito. Envíos a todo México.</p>\n    <a class="g-btn" href="/tacones">Ver tacones →</a>\n  </div>\n  <h2>Preguntas frecuentes</h2>\n  <p><strong>¿Cuál es la altura de tacón más cómoda?</strong><br>Depende de cada persona, pero para uso de varias horas la mayoría prefiere alturas de 5 a 8 cm, sobre todo en bloque o con plataforma.</p>\n  <p><strong>¿Cada modelo indica su altura?</strong><br>Sí, la ficha de cada producto muestra la altura del tacón en centímetros.</p>\n  <p><strong>¿Hacen envíos a todo México?</strong><br>Sí, enviamos a toda la República en 1 a 3 días hábiles.</p>\n</section>'
 _GUIA_MAYOREO_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-strip{display:none!important}.guia{max-width:760px;margin:0 auto;padding:150px 20px 56px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7;font-size:1rem}.guia p{margin:0 0 14px}.guia ul{padding-left:20px;margin:0 0 14px}.guia li{margin-bottom:8px}.guia .g-miga{font-size:.82rem;color:#9a8478;margin:0 0 14px;line-height:1.4}.guia .g-h1,.guia h2,.g-item b{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}.guia .g-h1{font-family:Cormorant Garamond,Georgia,serif;font-size:clamp(1.7rem,7vw,2.5rem);font-weight:600;line-height:1.15;margin:0 0 10px;color:#2a1f1a}.guia .g-sub{color:#9a8478;font-size:.9rem;margin:0 0 22px;padding-bottom:18px;border-bottom:1px solid #eadcd2}.guia h2{font-family:Cormorant Garamond,Georgia,serif;font-size:clamp(1.35rem,5vw,1.7rem);font-weight:600;line-height:1.25;margin:34px 0 12px;color:#2a1f1a}.guia a.g-link{color:#C0357F;text-decoration:underline;text-underline-offset:2px}.guia table{width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #eadcd2;border-radius:12px;overflow:hidden}.guia th,.guia td{padding:11px 14px;border-bottom:1px solid #eadcd2;text-align:left;font-size:.92rem;vertical-align:top;line-height:1.5}.guia th{background:#f5ece2;font-weight:700}.guia tr:last-child td{border-bottom:none}.guia td:first-child{font-weight:700;color:#7a6055}.g-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:16px 0 8px}.g-card{display:block;text-decoration:none;color:#3a2e28;background:#fff;border:1px solid #eadcd2;border-radius:14px;overflow:hidden}.g-card img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:center 70%;display:block;background:#f5ece2}.g-card span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:10px 12px 12px;font-size:.82rem;line-height:1.35;font-weight:600}.g-cta{margin:34px 0;padding:24px 22px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:16px;text-align:center}.g-cta p{margin:0 0 14px}.g-btn{display:inline-block;background:#E91E8C;color:#fff!important;font-weight:700;text-decoration:none!important;padding:13px 28px;border-radius:100px}.g-lista{display:grid;gap:14px;margin-top:8px}.g-item{display:block;text-decoration:none;color:#3a2e28;background:#fff;border:1px solid #eadcd2;border-radius:16px;padding:20px 20px 18px}.g-item b{display:block;font-family:Cormorant Garamond,Georgia,serif;font-size:1.35rem;font-weight:600;line-height:1.25;margin-bottom:6px;color:#2a1f1a}.g-item em{display:block;font-style:normal;color:#7a6055;font-size:.92rem;line-height:1.55;margin-bottom:10px}.g-item i{font-style:normal;font-weight:700;color:#C0357F;font-size:.9rem}@media(min-width:700px){.g-grid{grid-template-columns:repeat(4,1fr)}.guia{padding-top:130px}}@media(max-width:600px){.guia table,.guia thead,.guia tbody,.guia tr,.guia td,.guia th{display:block}.guia thead{display:none}.guia table{border:none}.guia tr{border:1px solid #eadcd2;border-radius:12px;margin-bottom:12px;overflow:hidden;background:#fff}.guia td{border-bottom:1px solid #f1e6dd;padding:9px 14px}.guia td:first-child{background:#f5ece2;color:#2a1f1a}.guia td[data-l]::before{content:attr(data-l);display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:#9a8478;font-weight:700;margin-bottom:2px}}</style><section class="guia">\n  <p class="g-miga"><a class="g-link" href="/">Inicio</a> › <a class="g-link" href="/guias">Guías</a> › Cómo comprar al mayoreo</p>\n  <h1 class="g-h1">Cómo comprar calzado al mayoreo en León, Guanajuato</h1>\n  <p class="g-sub">Guía para zapaterías, boutiques y revendedoras · directo con la fábrica</p>\n  <p>León es la capital del calzado en México, pero comprar al mayoreo sin conocer a nadie puede ser confuso. Zapatillas May es fábrica de calzado de dama y atiende pedidos de mayoreo a todo el país a través de su <strong>Portal de Mayoristas</strong>. Así funciona.</p>\n  <h2>1. Regístrate en el portal (gratis)</h2>\n  <p>Crea tu cuenta en <a class="g-link" href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener">portal.zapatillasmay.mx</a>. No necesitas tener un local establecido para empezar. Dentro verás el catálogo completo con fotos y tus precios de mayoreo.</p>\n  <h2>2. Entiende qué es una corrida</h2>\n  <p>Una corrida es un mismo modelo en todos los colores y tallas disponibles. Es lo más cómodo para surtir una tienda porque cubres todas las tallas de tus clientas, y es la forma de comprar con el mejor precio por par.</p>\n  <h2>3. Cómo bajan los precios según el volumen</h2>\n  <table>\n    <thead><tr><th>Cantidad</th><th>Descuento por par</th><th>Dónde</th></tr></thead>\n    <tbody>\n      <tr><td>1–2 pares</td><td data-l="Descuento por par">Precio de menudeo</td><td data-l="Dónde">Tienda en línea</td></tr>\n      <tr><td>3–5 pares</td><td data-l="Descuento por par">−$60 MXN</td><td data-l="Dónde">Tienda en línea (automático en el carrito)</td></tr>\n      <tr><td>6 o más pares</td><td data-l="Descuento por par">−$100 MXN</td><td data-l="Dónde">Portal de Mayoristas</td></tr>\n      <tr><td>Corrida completa</td><td data-l="Descuento por par">Hasta −$180 MXN</td><td data-l="Dónde">Portal de Mayoristas</td></tr>\n    </tbody>\n  </table>\n  <p>Los precios de mayoreo se manejan únicamente en el portal; los de la tienda en línea son de menudeo.</p>\n  <h2>4. Arma tu pedido</h2>\n  <p>En el portal armas tu carrito mezclando modelos, colores y tallas, y puedes apartar tus pares. Después das seguimiento a tu pedido desde la misma cuenta.</p>\n  <h2>5. Envío a todo México</h2>\n  <p>Los pedidos de mayoreo se envían por paquetería con número de guía para rastreo. También despachamos a Estados Unidos y Canadá.</p>\n  <h2>Consejos para tu primer pedido</h2>\n  <ul>\n    <li>Combina estilos: así pruebas qué rota mejor en tu zona antes de comprar más de un solo modelo.</li>\n    <li>Revisa la <a class="g-link" href="/tabla-tallas">tabla de tallas</a> para que tus clientas elijan bien y bajen las devoluciones.</li>\n    <li>Si tienes dudas, escríbenos por WhatsApp y una asesora te ayuda a armar el pedido.</li>\n  </ul>\n  <div class="g-cta">\n    <p style="font-size:1.1rem;font-weight:700;margin:0 0 6px">¿Lista para surtir tu tienda?</p>\n    <p style="margin:0 0 16px;color:#7a6055">Regístrate gratis y ve tu catálogo con precios de mayoreo.</p>\n    <a class="g-btn" href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener">Entrar al portal de mayoristas →</a>\n    <p style="margin:14px 0 0"><a class="g-link" href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20mayoreo" target="_blank" rel="noopener">o escríbenos por WhatsApp</a></p>\n  </div>\n</section>'
 
+from routers.seo_guias import GUIAS as _GUIAS_NUEVAS, GUIA_POR_CATEGORIA, construir_guia, construir_indice
+_GUIA_CSS = re.search(r"<style>.*?</style>", _GUIA_TACONES_HTML, re.S).group(0)
+_GUIA_INDEX_HTML = construir_indice(_GUIA_CSS)
+for _s_g, _g_g in _GUIAS_NUEVAS.items():
+    _PAGINAS_SEO[_s_g] = (_g_g["title"], _g_g["desc"])
+
 _PAGINAS_CONTENT = {
+    **{_s_g: construir_guia(_s_g, _GUIA_CSS) for _s_g in _GUIAS_NUEVAS},
     "guias": _GUIA_INDEX_HTML,
     "guia-tacones-8-vs-10-cm": _GUIA_TACONES_HTML,
     "guia-comprar-calzado-mayoreo-leon": _GUIA_MAYOREO_HTML,
@@ -1066,10 +1078,11 @@ def pagina_ssr(slug: str):
                     for _pp in _cat_productos[:15] if _pp.get("sku_interno")
                 )
             _ssr_inner = _h1_tag
-            if slug == "tacones":
-                _ssr_inner += ('<div style="max-width:1100px;margin:10px auto 0;padding:0 20px;font-family:DM Sans,sans-serif">'
-                               '<a href="/guia-tacones-8-vs-10-cm" style="display:block;padding:12px 16px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:12px;color:#2a1f1a;text-decoration:none;font-size:0.9rem;font-weight:600">'
-                               '👠 Guía: ¿tacón de 8 o de 10 cm? Cómo elegir el tuyo →</a></div>')
+            if GUIA_POR_CATEGORIA.get(slug):
+                _ssr_inner += ('<div style="max-width:1100px;margin:10px auto 0;padding:0 20px;font-family:DM Sans,sans-serif;display:grid;gap:8px">'
+                               + "".join(f'<a href="/{_gs}" style="display:block;padding:12px 16px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:12px;color:#2a1f1a;text-decoration:none;font-size:0.9rem;font-weight:600">'
+                                         f'📖 Guía: {_esc_pagina(_gt)} →</a>' for _gs, _gt in GUIA_POR_CATEGORIA[slug])
+                               + '</div>')
             if _prod_links:
                 _ssr_inner += (
                     f'<section aria-hidden="true" style="display:none">'
@@ -1135,7 +1148,29 @@ def pagina_ssr(slug: str):
     return HTMLResponse(content=template)
 
 
-_GUIAS_SLUGS = {"guias", "guia-tacones-8-vs-10-cm", "guia-comprar-calzado-mayoreo-leon"}
+_GUIAS_SLUGS = {"guias", "guia-tacones-8-vs-10-cm", "guia-comprar-calzado-mayoreo-leon"} | set(_GUIAS_NUEVAS)
+
+
+def _guia_grids(template):
+    """Sustituye <!--GRID:categoria:tipo_tacon--> por modelos reales (solo con foto). Devuelve (html, primera_imagen)."""
+    primero = [""]
+
+    def _sub(m):
+        cat, tipo = m.group(1), m.group(2)
+        ck = f"guia_grid_{cat}_{tipo}"
+        lista = cache_get(ck)
+        if lista is None:
+            filas = supabase_get(f"productos?activo=eq.true&categoria=eq.{cat}&select=id,slug,sku_interno,nombre,imagen_principal,tipo_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
+            filas = [x for x in _sin_oferta_interna(filas) if (x.get("imagen_principal") or "").strip()]
+            if tipo:
+                filas = [x for x in filas if (x.get("tipo_tacon") or "").strip().lower() == tipo]
+            lista = filas[:8]
+            cache_set(ck, lista, ttl=900)
+        if lista and not primero[0]:
+            primero[0] = lista[0].get("imagen_principal") or ""
+        return _guia_tarjetas(lista)
+
+    return re.sub(r"<!--GRID:([a-z]+):([a-z_]*)-->", _sub, template), primero[0]
 
 
 def _guia_tarjetas(prods):
@@ -1169,6 +1204,12 @@ def _guia_extras(slug, template, titulo, desc, canonical):
         template = template.replace("<!--GUIA_TACONES_10-->", _guia_tarjetas(grupos["10"]))
     ld = []
     og_img = ""
+    if slug in _GUIAS_NUEVAS:
+        template, _primera = _guia_grids(template)
+        if "res.cloudinary.com" in _primera and "/upload/" in _primera:
+            og_img = _primera.replace("/upload/", "/upload/w_1200,h_630,c_fill,g_auto,f_auto,q_auto/", 1)
+        ld.append({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in _GUIAS_NUEVAS[slug]["faq"]]})
     if slug == "guia-tacones-8-vs-10-cm":
         _g = cache_get("guia_tacones_prods") or {}
         _img = next((x.get("imagen_principal") for x in (_g.get("8") or []) + (_g.get("10") or []) if x.get("imagen_principal")), "")
@@ -1442,6 +1483,12 @@ def sitemap():
             'https://zapatillasmay.mx/guias',
             'https://zapatillasmay.mx/guia-tacones-8-vs-10-cm',
             'https://zapatillasmay.mx/guia-comprar-calzado-mayoreo-leon',
+            'https://zapatillasmay.mx/guia-tacon-aguja-o-bloque',
+            'https://zapatillasmay.mx/guia-botas-o-botines',
+            'https://zapatillasmay.mx/guia-sandalias-segun-ocasion',
+            'https://zapatillasmay.mx/guia-plataformas-como-elegir',
+            'https://zapatillasmay.mx/guia-como-elegir-tu-talla',
+            'https://zapatillasmay.mx/guia-flats-como-elegir',
         ]
         for cat in categorias:
             slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
