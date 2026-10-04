@@ -72,6 +72,7 @@ _PUBLICAS = [(m, _re.compile(r)) for m, r in (
     ("GET",  r"/sucursales/?"), ("GET", r"/sucursales/[^/]+"),
     ("POST", r"/carrito-abandonado/guardar"), ("GET", r"/carrito-abandonado/recuperar/[^/]+"),
     ("GET",  r"/resenas/producto/[^/]+"), ("POST", r"/resenas/producto/[^/]+"),
+    ("GET",  r"/resenas/resumen"),
     ("POST", r"/referidos/validar"),
     ("POST", r"/pinterest/event"),
     ("GET",  r"/seo/(producto|pagina)/[^/]+"), ("GET", r"/seo/config"),
@@ -369,6 +370,19 @@ def _loop_amazon_ventas():
             print(f"[amazon-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)
 
+def _loop_resenas():
+    """Cada 6 horas pide reseña por correo a quien recibió un pedido web hace 7-45 días (una vez por pedido)."""
+    _time.sleep(500)
+    while True:
+        try:
+            res = resenas.procesar_solicitudes()
+            if res.get("enviados"):
+                print(f"[resenas] Solicitudes de reseña enviadas: {res['enviados']}")
+        except Exception as e:
+            print(f"[resenas] Error en loop: {e}")
+        _time.sleep(6 * 60 * 60)
+
+
 def _loop_restock():
     """Cada 10 minutos avisa por push a quien pidió «avísame cuando haya» de lo que ya volvió a tener existencias."""
     _time.sleep(400)
@@ -597,6 +611,9 @@ def _iniciar_hilos():
     t3c.start()
     print("[amazon-ventas] Hilo de sincronización de ventas iniciado (cada 10 min, solo si hay credenciales)")
     # Avisos "volvió el stock" por push
+    t3q = threading.Thread(target=_loop_resenas, daemon=True)
+    t3q.start()
+    print("[resenas] Hilo de solicitud de reseñas iniciado (cada 6 h)")
     t3r = threading.Thread(target=_loop_restock, daemon=True)
     t3r.start()
     print("[restock] Hilo de avisos de stock iniciado (cada 10 min)")

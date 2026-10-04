@@ -184,6 +184,12 @@
 
     <div class="resumen" id="resumen-box"></div>
 
+    <div id="combinar" style="display:none;margin:0 0 16px">
+      <p style="font-size:0.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8B6A54;margin:0 0 10px">Combínalo con</p>
+      <div id="combinar-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>
+      <p style="font-size:0.72rem;color:#8B6A54;margin:8px 0 0;text-align:center">Desde 3 pares el descuento se aplica solo y el envío es gratis desde $1,299.</p>
+    </div>
+
     <div style="text-align:center;font-size:0.73rem;color:#8B6A54;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap">
       <span>🔒 Compra segura</span>
       <span>↩ Devolución en 30 días</span>
@@ -521,6 +527,7 @@ async function refrescarPreciosCarrito() {
     if (!r.ok) return
     const prods = await r.json()
     if (!Array.isArray(prods)) return
+    window._catalogoCarrito = prods
     const por = {}
     prods.forEach(p => { por[p.id] = p })
     let cambio = false
@@ -543,6 +550,32 @@ async function refrescarPreciosCarrito() {
       localStorage.setItem('zm_carrito', JSON.stringify(items))
       setTimeout(() => mostrarToast('Actualizamos los precios de tu carrito'), 300)
     }
+  } catch (e) {}
+}
+
+// "Combínalo con": otros modelos de la misma categoría de lo que ya hay en el carrito (solo con foto, sin los que ya están)
+function combinarCon() {
+  try {
+    const prods = window._catalogoCarrito
+    const items = leerCarrito()
+    if (!Array.isArray(prods) || !items.length) return
+    const ids = new Set(items.map(i => i.producto_id))
+    const cats = new Set(prods.filter(p => ids.has(p.id)).map(p => p.categoria).filter(Boolean))
+    const lista = prods
+      .filter(p => p.activo && !ids.has(p.id) && (cats.size ? cats.has(p.categoria) : true)
+        && (p.imagen_principal || '').trim() && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
+      .sort((a, b) => ((b.destacado || b.nuevo) ? 1 : 0) - ((a.destacado || a.nuevo) ? 1 : 0) || String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+      .slice(0, 3)
+    if (!lista.length) return
+    const img = (u) => (u && u.includes('res.cloudinary.com') && u.includes('/upload/')) ? u.replace('/upload/', '/upload/w_260,h_320,c_fill,g_auto,f_auto,q_auto/') : u
+    const esc = (t) => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+    document.getElementById('combinar-grid').innerHTML = lista.map(p => {
+      const precio = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
+      return `<a href="/producto/${encodeURIComponent(p.slug || p.id)}" style="text-decoration:none;color:inherit;background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:block">
+        <img src="${esc(img(p.imagen_principal))}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;aspect-ratio:4/5;object-fit:cover;display:block;background:#f5ece2">
+        <div style="padding:8px 8px 10px"><div style="font-size:0.7rem;line-height:1.3;max-height:2.6em;overflow:hidden">${esc(p.nombre)}</div><div style="font-size:0.82rem;font-weight:700;margin-top:4px">$${precio.toFixed(0)} MXN</div></div></a>`
+    }).join('')
+    document.getElementById('combinar').style.display = 'block'
   } catch (e) {}
 }
 
@@ -574,6 +607,7 @@ async function init() {
   } catch(e) { /* usa defaults */ }
   await refrescarPreciosCarrito()
   render()
+  combinarCon()
 
   // Cargar pixeles SOLO con consentimiento
   try {

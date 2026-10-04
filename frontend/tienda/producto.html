@@ -254,6 +254,10 @@
     .btn-agregar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(200,150,122,0.55); }
     .btn-agregar:active { transform: scale(0.97); }
     .btn-agregar:disabled { background: linear-gradient(135deg,#e0e0e0,#d0d0d0); cursor: not-allowed; box-shadow: none; color: #aaa; }
+    /* Sin talla/color elegido el botón se ve apagado pero SÍ responde: lleva a la selección y la resalta */
+    .btn-agregar.pendiente { background: linear-gradient(135deg,#d9c3b8,#cdb2a6); box-shadow: none; }
+    @keyframes pulsoSel { 0%,100% { box-shadow: 0 0 0 0 rgba(233,30,140,0); } 30% { box-shadow: 0 0 0 6px rgba(233,30,140,.28); } }
+    .pulsar-sel { animation: pulsoSel 1.1s ease 2; border-radius: 12px; }
     .btn-agregar.listo { background: linear-gradient(135deg,#10b981,#059669); box-shadow: 0 6px 24px rgba(16,185,129,0.4); }
 
     /* ── LIGHTBOX ── */
@@ -591,7 +595,7 @@
   <a id="btn-ver-carrito" href="/carrito" style="display:none;background:var(--pink);color:white;border:none;border-radius:10px;padding:14px 20px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;text-align:center;box-shadow:0 4px 14px rgba(233,30,140,0.35)">
     🛒 Ver carrito (<span id="cart-count-prod">0</span>)
   </a>
-  <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Elige tu talla →</button>
+  <button class="btn-agregar pendiente" id="btn-agregar" onclick="irACarrito()">Elige tu talla →</button>
 
 </div>
 
@@ -1254,11 +1258,13 @@ function actualizarCTA() {
   const varsProd = variantes.filter(v => v.producto_id === producto.id && v.activa !== false)
   if (!colorSeleccionado) {
     btn.textContent = 'Elige tu color →'
-    btn.disabled = true
+    btn.disabled = false
+    btn.classList.add('pendiente')
     btn.classList.remove('listo')
   } else if (!tallaSeleccionada) {
     btn.textContent = 'Elige tu talla →'
-    btn.disabled = true
+    btn.disabled = false
+    btn.classList.add('pendiente')
     btn.classList.remove('listo')
   } else {
     const v = varsProd.find(vv => vv.color === colorSeleccionado && vv.talla === tallaSeleccionada)
@@ -1266,17 +1272,30 @@ function actualizarCTA() {
     if (stock <= 0) {
       btn.textContent = 'Agotado'
       btn.disabled = true
-      btn.classList.remove('listo')
+      btn.classList.remove('listo', 'pendiente')
     } else {
       btn.textContent = '🛒 Agregar al carrito'
       btn.disabled = false
+      btn.classList.remove('pendiente')
       btn.classList.add('listo')
     }
   }
 }
 
+function pedirSeleccion() {
+  // Lleva a la selección que falta (color primero, luego talla) y la resalta
+  const faltaColor = !colorSeleccionado && document.getElementById('color-grid')
+  const destino = document.getElementById(faltaColor ? 'color-grid' : 'talla-grid')
+  if (!destino) return
+  const y = destino.getBoundingClientRect().top + window.scrollY - 150
+  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
+  destino.classList.remove('pulsar-sel'); void destino.offsetWidth; destino.classList.add('pulsar-sel')
+  try { mostrarToast(faltaColor ? 'Elige un color para continuar' : 'Elige tu talla para continuar') } catch (e) {}
+}
+
 function irACarrito() {
-  if (!colorSeleccionado || !tallaSeleccionada || !producto) return
+  if (!producto) return
+  if (!colorSeleccionado || !tallaSeleccionada) { pedirSeleccion(); return }
   const p = producto
   const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
   const variante = varsProd.find(v => v.color === colorSeleccionado && String(v.talla) === String(tallaSeleccionada))
@@ -1363,7 +1382,7 @@ function irACarrito() {
     tallaSeleccionada = null
     document.querySelectorAll('.talla-btn').forEach(b => { b.classList.remove('selected'); b.classList.remove('active') })
     const btn = document.getElementById('btn-agregar')
-    if (btn) { btn.textContent = 'Elige tu talla →'; btn.disabled = true; btn.classList.remove('listo') }
+    if (btn) { btn.textContent = 'Elige tu talla →'; btn.disabled = false; btn.classList.add('pendiente'); btn.classList.remove('listo') }
   }, 480)
 }
 
@@ -2309,6 +2328,8 @@ function cerrarGuiaTallas() {
   function intentarCargar() {
     if (window.producto?.sku_interno) {
       cargarResenas(window.producto.sku_interno)
+      // Viene del correo "¿qué tal te quedaron?": abre directo el formulario de reseña
+      if (new URLSearchParams(location.search).get('resena') === '1') setTimeout(() => { try { mostrarFormResena() } catch (e) {} }, 700)
     } else {
       setTimeout(intentarCargar, 300)
     }
