@@ -11,12 +11,13 @@ const FORMATOS = {
   historia: { w: 1080, h: 1920, label: 'Historia 9:16', nota: 'Historias de Instagram' },
 }
 const ESTILOS = {
-  blanco: { nombre: 'Blanco limpio', bg: ['#fbf8f5', '#f4ece5'], texto: '#2a1a0e', suave: '#8a7b71', acento: '#b5687a', tarjeta: '#ffffff', logo: '/logo-marca.png', oscuro: false },
-  rosa: { nombre: 'Rosa Zapatillas May', bg: ['#fde4ef', '#fff6fa'], texto: '#4a1631', suave: '#a0597f', acento: '#E91E8C', tarjeta: '#ffffff', logo: '/logo-marca.png', oscuro: false },
-  oscuro: { nombre: 'Editorial oscuro', bg: ['#1b1214', '#120c0e'], texto: '#f7ede4', suave: '#b9a597', acento: '#d9b27a', tarjeta: '#241a1c', logo: '/logo-marca-blanco.png', oscuro: true },
-  nude: { nombre: 'Nude cálido', bg: ['#efe2d6', '#e6d3c3'], texto: '#3b2a22', suave: '#7d6759', acento: '#a8654a', tarjeta: '#faf3ec', logo: '/logo-marca.png', oscuro: false },
+  blush: { nombre: 'Rosa blush', bg: ['#fbeeee', '#f6dede'], texto: '#4a2733', suave: '#9a6a76', acento: '#b76e79', oro: '#c9a07f', tarjeta: '#fffaf8', logo: '/logo-marca.png', oscuro: false },
+  champan: { nombre: 'Champán dorado', bg: ['#f5ebdf', '#ead8c3'], texto: '#43302a', suave: '#8c7466', acento: '#b8895d', oro: '#b8895d', tarjeta: '#fffaf3', logo: '/logo-marca.png', oscuro: false, arco: true },
+  perla: { nombre: 'Blanco perla', bg: ['#ffffff', '#f7f1f2'], texto: '#3d2a33', suave: '#98808a', acento: '#c2788a', oro: '#d3b08e', tarjeta: '#ffffff', logo: '/logo-marca.png', oscuro: false },
+  orquidea: { nombre: 'Orquídea oscuro', bg: ['#3b2230', '#2a1622'], texto: '#fbeef0', suave: '#d3b3bd', acento: '#e3a6b4', oro: '#dcc09a', tarjeta: '#43293a', logo: '/logo-marca-blanco.png', oscuro: true },
 }
-const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif'
+const SERIF = '"Montserrat", "Montserrat", Arial, sans-serif'   // títulos y precios
+const SCRIPT = SERIF
 const WA_TXT = '479 224 4560'
 const _cache = { imgs: {} }
 
@@ -34,11 +35,11 @@ const cargarImagen = (url) => {
 const cargarFuentes = async () => {
   if (!document.getElementById('rs-fonts')) {
     const l = document.createElement('link'); l.id = 'rs-fonts'; l.rel = 'stylesheet'
-    l.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@500;700&display=swap'
+    l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap'
     document.head.appendChild(l)
   }
   try {
-    await Promise.all(['700 60px "Playfair Display"', 'italic 600 60px "Playfair Display"', '700 30px "DM Sans"', '500 30px "DM Sans"'].map(f => document.fonts.load(f)))
+    await Promise.all(['400 30px "Montserrat"', '500 30px "Montserrat"', '600 30px "Montserrat"', '700 30px "Montserrat"'].map(f => document.fonts.load(f)))
   } catch (e) {}
 }
 
@@ -74,18 +75,43 @@ const envolver = (ctx, texto, cx, y, maxW, interlineado, maxLineas) => {
   return out.length
 }
 const fondo = (ctx, W, H, E) => {
-  const g = ctx.createLinearGradient(0, 0, W * 0.4, H)
+  const g = ctx.createLinearGradient(0, 0, W * 0.5, H)
   g.addColorStop(0, E.bg[0]); g.addColorStop(1, E.bg[1])
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+  // brillo suave en una esquina (da profundidad sin recargar)
+  const r = ctx.createRadialGradient(W * 0.85, H * 0.08, 10, W * 0.85, H * 0.08, W * 0.7)
+  r.addColorStop(0, E.oscuro ? 'rgba(227,166,180,0.16)' : 'rgba(255,255,255,0.55)'); r.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = r; ctx.fillRect(0, 0, W, H)
 }
-const pastilla = (ctx, texto, x, y, color, txt, tam, alineacion = 'left') => {
-  ctx.font = `700 ${tam}px "DM Sans", sans-serif`
-  const w = ctx.measureText(texto).width + tam * 1.3, h = tam * 1.9
-  const x0 = alineacion === 'center' ? x - w / 2 : x
-  rr(ctx, x0, y, w, h, h / 2); ctx.fillStyle = color; ctx.fill()
-  ctx.fillStyle = txt; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.fillText(texto, x0 + w / 2, y + h / 2 + 1)
-  return { w, h }
+// marco doble finísimo (detalle de papelería fina)
+const marco = (ctx, W, H, E) => {
+  ctx.save(); ctx.strokeStyle = E.oro; ctx.globalAlpha = 0.85
+  ctx.lineWidth = 2.2; rr(ctx, 30, 30, W - 60, H - 60, 4); ctx.stroke()
+  ctx.lineWidth = 0.9; rr(ctx, 42, 42, W - 84, H - 84, 3); ctx.stroke(); ctx.restore()
+}
+const rombo = (ctx, x, y, t, color) => { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillStyle = color; ctx.fillRect(-t / 2, -t / 2, t, t); ctx.restore() }
+const divisor = (ctx, cx, y, ancho, E) => {
+  ctx.save(); ctx.strokeStyle = E.oro; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.9
+  ctx.beginPath(); ctx.moveTo(cx - ancho / 2, y); ctx.lineTo(cx - 16, y); ctx.moveTo(cx + 16, y); ctx.lineTo(cx + ancho / 2, y); ctx.stroke()
+  rombo(ctx, cx, y, 9, E.oro); ctx.restore()
+}
+const sello = (ctx, cx, cy, r, texto, E) => {
+  ctx.save(); ctx.shadowColor = 'rgba(60,20,30,0.25)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = E.acento; ctx.fill(); ctx.restore()
+  ctx.beginPath(); ctx.arc(cx, cy, r - 7, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.6; ctx.stroke()
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.font = `700 ${Math.round(r * 0.3)}px "Montserrat", sans-serif`; ctx.letterSpacing = '2px'
+  ctx.fillText(texto, cx, cy + 2); ctx.letterSpacing = '0px'
+  ctx.font = `${Math.round(r * 0.3)}px "Montserrat", sans-serif`; ctx.fillText('✦', cx, cy - r * 0.42)
+}
+const etiquetaPrecio = (ctx, txt, x, yBase, W, E) => {
+  ctx.font = `700 ${Math.round(W * 0.042)}px ${SERIF}`
+  const tw = ctx.measureText(txt).width + 58, th = Math.round(W * 0.088)
+  ctx.save(); ctx.shadowColor = 'rgba(60,20,30,0.2)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4
+  rr(ctx, x - tw, yBase - th, tw, th, th / 2); ctx.fillStyle = E.oscuro ? '#fff7f2' : '#fffaf8'; ctx.fill(); ctx.restore()
+  ctx.strokeStyle = E.oro; ctx.lineWidth = 1.5; rr(ctx, x - tw + 5, yBase - th + 5, tw - 10, th - 10, (th - 10) / 2); ctx.stroke()
+  ctx.fillStyle = '#4a2733'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillText(txt, x - tw / 2, yBase - th / 2 + 2)
 }
 const logo = async (ctx, E, cx, y, ancho) => {
   const img = await cargarImagen(E.logo)
@@ -95,6 +121,7 @@ const logo = async (ctx, E, cx, y, ancho) => {
   return h
 }
 const moneda = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
+const espaciado = (ctx, px) => { ctx.letterSpacing = px + 'px' }
 
 // ── una lámina de UN modelo ──
 async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
@@ -102,55 +129,52 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
   const img = await cargarImagen(urlFoto)
-  const pad = Math.round(W * 0.06), esHistoria = H > 1500
-  fondo(ctx, W, H, E)
-  if (E.oscuro) { ctx.strokeStyle = E.acento; ctx.globalAlpha = 0.55; ctx.lineWidth = 3; rr(ctx, 26, 26, W - 52, H - 52, 6); ctx.stroke(); ctx.globalAlpha = 1 }
-  // proporciones: cabecera con logo · foto · pie con textos (el pie crece en formatos más cuadrados para que todo quepa)
-  const altoCab = esHistoria ? 210 : Math.round(H * 0.118)
-  const lw = Math.min(W * 0.3, altoCab * 0.74 / 0.342)
-  await logo(ctx, E, W / 2, Math.round(altoCab * 0.14), Math.round(lw))
-  const altoPie = Math.round(H * (esHistoria ? 0.25 : (H <= 1100 ? 0.375 : 0.315)))
+  const pad = Math.round(W * 0.085), esHistoria = H > 1500
+  fondo(ctx, W, H, E); marco(ctx, W, H, E)
+  const altoCab = esHistoria ? 230 : Math.round(H * 0.125)
+  const lw = Math.min(W * 0.3, altoCab * 0.66 / 0.342)
+  await logo(ctx, E, W / 2, Math.round(altoCab * 0.2), Math.round(lw))
+  const altoPie = Math.round(H * (esHistoria ? 0.30 : (H <= 1100 ? 0.385 : 0.36)))
   const fy = altoCab, fh = H - altoCab - altoPie
   const fx = pad, fw = W - pad * 2
-  const arco = E === ESTILOS.nude
-  const radio = arco ? [fw / 2, fw / 2, 34, 34] : 38
-  ctx.save(); ctx.shadowColor = 'rgba(40,20,15,0.22)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14
+  const arco = !!E.arco
+  const radio = arco ? [fw / 2, fw / 2, 30, 30] : [70, 70, 30, 30]
+  // contorno fino desplazado (efecto marco de foto)
+  ctx.save(); ctx.strokeStyle = E.oro; ctx.globalAlpha = 0.9; ctx.lineWidth = 1.8
+  rr(ctx, fx - 13, fy - 13, fw + 26, fh + 26, arco ? [fw / 2 + 13, fw / 2 + 13, 40, 40] : [82, 82, 40, 40]); ctx.stroke(); ctx.restore()
+  ctx.save(); ctx.shadowColor = E.oscuro ? 'rgba(0,0,0,0.5)' : 'rgba(120,60,70,0.28)'; ctx.shadowBlur = 38; ctx.shadowOffsetY = 14
   rr(ctx, fx, fy, fw, fh, radio); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
   foto(ctx, img, fx, fy, fw, fh, radio, opts.ajuste, E.tarjeta)
-  if (opts.nuevo && indiceColor === 0) pastilla(ctx, 'NUEVO', fx + (arco ? fw / 2 - 60 : 26), fy + 26, E.acento, E.oscuro ? '#1b1214' : '#ffffff', Math.round(W * 0.026))
-  if (opts.precio && p.precio) {
-    ctx.font = `700 ${Math.round(W * 0.05)}px ${SERIF}`
-    const txt = moneda(p.precio); const tw = ctx.measureText(txt).width + 54, th = Math.round(W * 0.095)
-    const px = fx + fw - tw - 26, py = fy + fh - th - 26
-    rr(ctx, px, py, tw, th, th / 2); ctx.fillStyle = E.oscuro ? E.acento : '#ffffff'; ctx.fill()
-    ctx.fillStyle = E.oscuro ? '#1b1214' : E.texto; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillText(txt, px + tw / 2, py + th / 2 + 2)
-  }
-  // ── pie: los textos se anclan desde ABAJO (WhatsApp, tallas, puntos de color) y el título ocupa lo que sobra ──
+  if (opts.nuevo && indiceColor === 0) sello(ctx, fx + fw - Math.round(W * 0.075), fy + Math.round(W * 0.075), Math.round(W * 0.062), 'NUEVO', E)
+  if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), fx + fw - 26, fy + fh - 26, W, E)
+  // ── pie: se ancla desde abajo (WhatsApp, tallas, puntos) y el título usa el espacio de arriba ──
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-  const yWA = H - Math.round(H * 0.032)
+  const yWA = H - Math.round(H * 0.058)
   const yTallas = yWA - Math.round(W * 0.056)
-  const yPuntos = (opts.colores && p.colores.length) ? yTallas - Math.round(W * 0.052) : yTallas
-  const y0 = fy + fh + Math.round(W * 0.05)
-  ctx.fillStyle = E.acento; ctx.font = `700 ${Math.round(W * 0.021)}px "DM Sans", sans-serif`
-  const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina.toUpperCase() : 'NUEVA COLECCIÓN'
-  ctx.letterSpacing = '4px'; ctx.fillText(sub, W / 2, y0); ctx.letterSpacing = '0px'
-  const tam = Math.round(W * (esHistoria ? 0.064 : (H <= 1100 ? 0.054 : 0.058))), inter = Math.round(tam * 1.18)
-  ctx.fillStyle = E.texto; ctx.font = `700 ${tam}px ${SERIF}`
-  const maxL = 2   // el pie reserva lugar para dos renglones de título
-  envolver(ctx, p.titulo, W / 2, y0 + Math.round(W * 0.075), W - pad * 2.4, inter, maxL)
-  if (opts.colores && p.colores.length) {
-    const r = Math.round(W * 0.015), sep = r * 2.9, n = Math.min(p.colores.length, 7)
+  const hayPuntos = opts.colores && p.colores.length
+  const yPuntos = hayPuntos ? yTallas - Math.round(W * 0.056) : yTallas
+  const y0 = fy + fh + Math.round(W * 0.078)
+  // texto en letra script, como invitación
+  const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina : 'Nueva colección'
+  ctx.fillStyle = E.acento; ctx.font = `600 ${Math.round(W * 0.024)}px ${SERIF}`; espaciado(ctx, 6)
+  ctx.fillText(sub.toUpperCase(), W / 2, y0); espaciado(ctx, 0)
+  const tam = Math.round(W * (esHistoria ? 0.056 : (H <= 1100 ? 0.044 : 0.048))), inter = Math.round(tam * 1.28)
+  ctx.fillStyle = E.texto; ctx.font = `600 ${tam}px ${SERIF}`
+  envolver(ctx, p.titulo, W / 2, y0 + Math.round(W * 0.07), W - pad * 2.2, inter, H <= 1100 ? 1 : 2)
+  if (hayPuntos) {
+    const r = Math.round(W * 0.0145), sep = r * 3, n = Math.min(p.colores.length, 7)
     const x0 = W / 2 - ((n - 1) * sep) / 2
     p.colores.slice(0, n).forEach((col, i) => {
       ctx.beginPath(); ctx.arc(x0 + i * sep, yPuntos - r * 0.6, r, 0, Math.PI * 2); ctx.fillStyle = col.hex || '#999'; ctx.fill()
-      ctx.lineWidth = 2; ctx.strokeStyle = E.oscuro ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.18)'; ctx.stroke()
+      ctx.lineWidth = 2; ctx.strokeStyle = E.oscuro ? 'rgba(255,255,255,.55)' : E.oro; ctx.stroke()
     })
   }
-  ctx.fillStyle = E.suave; ctx.font = `500 ${Math.round(W * 0.025)}px "DM Sans", sans-serif`
-  ctx.fillText(p.tallas ? `Tallas ${p.tallas}  ·  Envíos a todo México` : 'Envíos a todo México', W / 2, yTallas)
-  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.026)}px "DM Sans", sans-serif`
-  ctx.fillText(`Pídelos por WhatsApp  ${WA_TXT}`, W / 2, yWA)
+  ctx.fillStyle = E.suave; ctx.font = `500 ${Math.round(W * 0.024)}px "Montserrat", sans-serif`; espaciado(ctx, 1.5)
+  ctx.fillText(p.tallas ? `TALLAS ${p.tallas}   ·   ENVÍOS A TODO MÉXICO` : 'ENVÍOS A TODO MÉXICO', W / 2, yTallas)
+  espaciado(ctx, 0)
+  divisor(ctx, W / 2, yWA - Math.round(W * 0.036), Math.round(W * 0.42), E)
+  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.025)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
+  ctx.fillText(`WHATSAPP  ${WA_TXT}`, W / 2, yWA); espaciado(ctx, 0)
   return c
 }
 
@@ -158,58 +182,61 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
 async function laminaCollage(F, E, prods, opts) {
   const { w: W, h: H } = F
   const c = document.createElement('canvas'); c.width = W; c.height = H
-  const ctx = c.getContext('2d'); fondo(ctx, W, H, E)
-  const pad = Math.round(W * 0.05), esHistoria = H > 1500
-  if (E.oscuro) { ctx.strokeStyle = E.acento; ctx.globalAlpha = 0.55; ctx.lineWidth = 3; rr(ctx, 26, 26, W - 52, H - 52, 6); ctx.stroke(); ctx.globalAlpha = 1 }
-  const lh = await logo(ctx, E, W / 2, Math.round(H * 0.035), Math.round(W * 0.3))
-  let y = Math.round(H * 0.035) + lh + Math.round(H * 0.018)
+  const ctx = c.getContext('2d'); fondo(ctx, W, H, E); marco(ctx, W, H, E)
+  const pad = Math.round(W * 0.085)
+  const lh = await logo(ctx, E, W / 2, Math.round(H * 0.05), Math.round(W * 0.27))
+  let y = Math.round(H * 0.05) + lh + Math.round(H * 0.085)
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = E.acento; ctx.font = `700 ${Math.round(W * 0.024)}px "DM Sans", sans-serif`; ctx.letterSpacing = '5px'
-  ctx.fillText('NUEVA COLECCIÓN', W / 2, y + 12); ctx.letterSpacing = '0px'
-  y += Math.round(W * 0.095)
-  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.075)}px ${SERIF}`
-  ctx.fillText('Nuevos modelos', W / 2, y)
+  ctx.fillStyle = E.acento; ctx.font = `600 ${Math.round(W * 0.026)}px ${SERIF}`; espaciado(ctx, 8)
+  ctx.fillText('NUEVA COLECCIÓN', W / 2, y - Math.round(W * 0.075)); espaciado(ctx, 0)
+  ctx.fillStyle = E.texto; ctx.font = `600 ${Math.round(W * 0.07)}px ${SERIF}`; espaciado(ctx, 3)
+  ctx.fillText('NUEVOS MODELOS', W / 2, y); espaciado(ctx, 0)
+  y += Math.round(W * 0.045)
+  divisor(ctx, W / 2, y, Math.round(W * 0.5), E)
   const top = y + Math.round(W * 0.05)
-  const piePx = Math.round(H * 0.075)
+  const piePx = Math.round(H * 0.085)
   const n = Math.min(prods.length, 4)
-  const cols = n === 1 ? 1 : 2, filas = Math.ceil(n / cols)
-  const gap = Math.round(W * 0.025)
-  const aw = H - top - piePx - pad * 0.4
+  const cols = n <= 3 ? n : 2, filas = Math.ceil(n / cols)   // 2-3 modelos: en columnas altas (como la foto); 4: cuadrícula 2x2
+  const gap = Math.round(W * 0.03)
+  const aw = H - top - piePx - Math.round(H * 0.045)
   const cw = (W - pad * 2 - gap * (cols - 1)) / cols, ch = (aw - gap * (filas - 1)) / filas
   for (let i = 0; i < n; i++) {
     const p = prods[i], img = await cargarImagen(p.foto)
     const x = pad + (i % cols) * (cw + gap), yy = top + Math.floor(i / cols) * (ch + gap)
-    ctx.save(); ctx.shadowColor = 'rgba(40,20,15,0.18)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8
-    rr(ctx, x, yy, cw, ch, 28); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
-    foto(ctx, img, x, yy, cw, ch, 28, opts.ajuste, E.tarjeta)
-    if (opts.precio && p.precio) pastilla(ctx, moneda(p.precio), x + 16, yy + ch - Math.round(W * 0.07) - 16, E.oscuro ? E.acento : E.acento, E.oscuro ? '#1b1214' : '#fff', Math.round(W * 0.024))
+    ctx.save(); ctx.shadowColor = E.oscuro ? 'rgba(0,0,0,0.45)' : 'rgba(120,60,70,0.25)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 9
+    rr(ctx, x, yy, cw, ch, [46, 46, 22, 22]); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
+    foto(ctx, img, x, yy, cw, ch, [46, 46, 22, 22], opts.ajuste, E.tarjeta)
+    ctx.strokeStyle = E.oro; ctx.lineWidth = 1.6; rr(ctx, x + 8, yy + 8, cw - 16, ch - 16, [40, 40, 16, 16]); ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1
+    if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), x + cw - 16, yy + ch - 16, W * 0.78, E)
   }
-  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.026)}px "DM Sans", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.fillText(`Pídelos por WhatsApp  ${WA_TXT}  ·  zapatillasmay.mx`, W / 2, H - piePx / 2 - 6)
+  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.024)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  ctx.fillText(`WHATSAPP  ${WA_TXT}   ·   ZAPATILLASMAY.MX`, W / 2, H - Math.round(H * 0.055)); espaciado(ctx, 0)
   return c
 }
 
 // ── portada y cierre del carrusel ──
-async function laminaPortada(F, E, prods, opts) {
-  return laminaCollage(F, E, prods, opts)
-}
+async function laminaPortada(F, E, prods, opts) { return laminaCollage(F, E, prods, opts) }
 async function laminaCierre(F, E) {
   const { w: W, h: H } = F
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
-  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, E.acento); g.addColorStop(1, E.oscuro ? '#8a6a3a' : '#7a2d4d')
+  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, E.oscuro ? '#5a3347' : E.acento); g.addColorStop(1, E.oscuro ? '#2a1622' : '#6e3550')
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2.2; rr(ctx, 30, 30, W - 60, H - 60, 4); ctx.stroke()
+  ctx.lineWidth = 0.9; rr(ctx, 42, 42, W - 84, H - 84, 3); ctx.stroke(); ctx.restore()
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
   const img = await cargarImagen('/logo-marca-blanco.png')
-  if (img) { const w = W * 0.5, h = w * img.height / img.width; ctx.drawImage(img, W / 2 - w / 2, H * 0.17, w, h) }
-  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(W * 0.085)}px ${SERIF}`
-  envolver(ctx, '¿Cuál es tu favorito?', W / 2, H * 0.47, W * 0.8, W * 0.1, 2)
-  ctx.font = `500 ${Math.round(W * 0.036)}px "DM Sans", sans-serif`
-  ctx.fillText('Pídelo por WhatsApp', W / 2, H * 0.66)
-  ctx.font = `700 ${Math.round(W * 0.07)}px "DM Sans", sans-serif`
-  ctx.fillText(WA_TXT, W / 2, H * 0.73)
-  ctx.font = `500 ${Math.round(W * 0.032)}px "DM Sans", sans-serif`
-  ctx.fillText('zapatillasmay.mx  ·  Envíos a todo México', W / 2, H * 0.82)
+  if (img) { const w = W * 0.5, h = w * img.height / img.width; ctx.drawImage(img, W / 2 - w / 2, H * 0.16, w, h) }
+  ctx.fillStyle = '#fff'; ctx.font = `600 ${Math.round(W * 0.075)}px ${SERIF}`
+  envolver(ctx, '¿Cuál es tu favorito?', W / 2, H * 0.46, W * 0.82, W * 0.1, 2)
+  divisor(ctx, W / 2, H * 0.64, W * 0.4, { oro: '#ffffff' })
+  ctx.font = `500 ${Math.round(W * 0.03)}px "Montserrat", sans-serif`; espaciado(ctx, 3)
+  ctx.fillText('PÍDELO POR WHATSAPP', W / 2, H * 0.71); espaciado(ctx, 0)
+  ctx.font = `700 ${Math.round(W * 0.07)}px ${SERIF}`
+  ctx.fillText(WA_TXT, W / 2, H * 0.78)
+  ctx.font = `500 ${Math.round(W * 0.027)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
+  ctx.fillText('ZAPATILLASMAY.MX  ·  ENVÍOS A TODO MÉXICO', W / 2, H * 0.865); espaciado(ctx, 0)
   return c
 }
 
@@ -352,7 +379,7 @@ window.cargarRedes = async function () {
   window.rsHistorial()
 }
 
-const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blanco' }
+const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush' }
 window.rsOpt = (k, v) => {
   OPT[k] = v
   document.querySelectorAll(`#rs-${k} button`).forEach(b => b.classList.toggle('on', b.dataset.v === v))
