@@ -262,7 +262,7 @@ window._linkifyWA = (textoEscapado) => String(textoEscapado == null ? '' : texto
     const p = url.match(/[.,;:!?)\]]+$/)       // la puntuación final no es parte del link
     if (p) { cola = p[0]; url = url.slice(0, -cola.length) }
     const href = /^www\./i.test(url) ? 'https://' + url : url
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#0b6bcb;text-decoration:underline;word-break:break-all">${url}</a>${cola}`
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#0b6bcb;text-decoration:underline;overflow-wrap:anywhere">${url}</a>${cola}`
   })
   .replace(/\n/g, '<br>')
 window._urlWA = (v) => { const u = String(v || '').trim(); return /^https?:\/\//i.test(u) ? window._escWA(u) : '' }
@@ -16150,7 +16150,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
             <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
           </div>
-          <div class="wa-estado-tabs" id="wa-canal-tabs" style="flex-wrap:wrap;row-gap:4px">
+          <div class="wa-estado-tabs" id="wa-canal-tabs" style="${chats.some(c => window._grupoCanalWA(c.canal) !== 'whatsapp') ? '' : 'display:none'}">
             ${window._htmlCanalTabsWA(chats)}
           </div>
           <div class="wa-estado-tabs" id="wa-estado-tabs">
@@ -17826,8 +17826,8 @@ area.style.minHeight = '0'
         <span id="char-count-${telefono}" class="wa-char-count"></span>
       </div>
       <div class="wa-input-row">
-        <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="2"
-                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''}"
+        <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1"
+                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
         <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" title="Enviar (Enter)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -17841,9 +17841,9 @@ area.style.minHeight = '0'
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Notas y tareas
       </span>
-      <span id="wa-nt-arrow" style="font-size:0.7rem">${esMobil ? '▲' : '▼'}</span>
+      <span id="wa-nt-arrow" style="font-size:0.7rem">▲</span>
     </button>
-    <div id="notas-tareas-panel" class="${esMobil ? 'nt-collapsed' : ''}">
+    <div id="notas-tareas-panel" class="nt-collapsed">
       <div class="wa-nt-grid">
         <div>
           <div class="wa-nt-header">
@@ -18105,6 +18105,7 @@ window.enviarMensajeWA = async (telefono) => {
   if (window._enviandoWA) return          // evita doble envío si Enter se presiona dos veces seguidas
   window._enviandoWA = true
   input.value = ''
+  input.style.height = 'auto'             // vuelve a una línea tras enviar
   input.focus()                           // el foco NO se pierde: se puede seguir escribiendo de inmediato
   const agente = window._empleadoActual?.nombre || 'Admin'
   const reply_to_wa_id = window._replyContext?.[telefono] || null

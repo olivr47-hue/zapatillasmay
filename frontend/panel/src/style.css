@@ -1741,3 +1741,41 @@ td:last-child,  th:last-child  { padding-right:18px; }
      la regla genérica la mandaba a scroll horizontal en vez de envolver. */
   .content #ml-tabs, .content #shein-tabs { flex-wrap:wrap !important; overflow-x:visible !important; padding-bottom:0 !important; }
 }
+
+
+/* ═══ Conversaciones: ajustes visuales (lista compacta, cabecera del chat y celular) ═══ */
+/* Lista: los filtros ocupaban casi la mitad de la pantalla; ahora son filas que se deslizan de lado */
+.wa-sidebar-header { padding: 10px 12px 8px !important; }
+.wa-filters { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; margin-top: 6px; }
+.wa-filters::-webkit-scrollbar { display: none; }
+.wa-filters .wa-pill { flex-shrink: 0; white-space: nowrap; }
+#wa-canal-tabs { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; }
+#wa-canal-tabs::-webkit-scrollbar { display: none; }
+#wa-canal-tabs .wa-estado-tab { flex-shrink: 0; white-space: nowrap; }
+.wa-estado-tabs { margin-bottom: 6px !important; }
+
+/* Cabecera del chat: el nombre nunca se parte en vertical y los botones pasan a otra línea si no caben */
+.wa-chat-header { flex-wrap: wrap; gap: 8px 10px; }
+.wa-header-info { flex: 1 1 150px; min-width: 0; }
+.wa-header-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-header-actions { flex: 0 1 auto; }
+.wa-subheader { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.wa-label-select-sm { min-width: 120px; flex: 1 1 120px; max-width: 100%; color: #0f172a !important; background: #fff !important; -webkit-text-fill-color: #0f172a; }
+
+/* Zona de mensajes: protagonista; el cuadro de texto crece solo según lo que escribes */
+#mensajes-area { min-height: 180px; }
+.wa-textarea { min-height: 40px; max-height: 120px; resize: none; line-height: 1.35; }
+
+@media (max-width: 900px) {
+  /* Botones de la cabecera en una sola fila que se desliza (antes se cortaban a la derecha) */
+  .wa-header-actions { flex: 1 1 100%; justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .wa-header-actions::-webkit-scrollbar { display: none; }
+  .wa-header-actions .wa-btn { flex-shrink: 0; padding: 7px 12px; }
+  .wa-subheader { padding: 6px 10px; }
+  .wa-subheader .wa-bot-badge { order: 1; }
+  .wa-subheader .wa-btn { order: 2; flex: 1 1 auto; text-align: center; padding: 7px 10px; }
+  .wa-label-select-sm { order: 3; flex: 1 1 calc(50% - 6px) !important; width: auto !important; max-width: calc(50% - 3px) !important; min-width: 0 !important; font-size: 0.78rem; padding: 6px 8px; }
+  .wa-input-toolbar { overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+  .wa-input-toolbar::-webkit-scrollbar { display: none; }
+  .wa-input-toolbar .wa-tool-btn { flex-shrink: 0; }
+}
