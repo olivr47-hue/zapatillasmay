@@ -1461,6 +1461,7 @@ def sitemap():
                 _pri, _freq = '0.5', 'monthly'
             xml += f'  <url>\n    <loc>{url}</loc>\n    <lastmod>{_today}</lastmod>\n    <changefreq>{_freq}</changefreq>\n    <priority>{_pri}</priority>\n  </url>\n'
         # URLs de producto, cada una con su imagen (SEO de imágenes para Google)
+        productos = [x for x in productos if (x.get('imagen_principal') or '').strip()]   # sin foto no se lista en el sitemap
         for p in productos:
             slug = p.get('slug') or p.get('sku_interno') or p.get('id', '')
             if not slug:
