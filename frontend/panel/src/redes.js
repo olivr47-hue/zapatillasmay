@@ -299,7 +299,7 @@ async function laminaCollage(F, E, prods, opts) {
     MARCOS.collage = { w: cw, h: ch }
     foto(ctx, img, x, yy, cw, ch, [46, 46, 22, 22], opts.ajuste, E.tarjeta, ENC[p.foto])
     ctx.strokeStyle = E.oro; ctx.lineWidth = 1.6; rr(ctx, x + 8, yy + 8, cw - 16, ch - 16, [40, 40, 16, 16]); ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1
-    if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), x + cw - 16, yy + ch - 16, W * 0.78, E)
+    if (opts.precio && p.precio && p.primero !== false) etiquetaPrecio(ctx, moneda(p.precio), x + cw - 16, yy + ch - 16, W * 0.78, E)
   }
   ctx.fillStyle = E.texto; ctx.font = fTxt(W * 0.024, 700); espaciado(ctx, 2)
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -463,7 +463,7 @@ window.cargarRedes = async function () {
 
     <div class="rs-card" id="rs-fotos-card" style="display:none">
       <p class="rs-h">Fotos de cada modelo <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· elige la foto y el color que quieres mostrar</span></p>
-      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px"><b style="color:#E91E8C">Toca una foto</b> para usarla como principal (la del collage, la portada y la primera imagen). <b style="color:#16a34a">Toca el ＋</b> de otras fotos para sumarlas como imágenes extra del carrusel.</p>
+      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px"><b style="color:#E91E8C">Toca una foto</b> para usarla como principal (la del collage, la portada y la primera imagen). <b style="color:#16a34a">Toca el ＋</b> de otras fotos para sumarlas: en el <b>carrusel</b> son imágenes extra y en el <b>collage</b> son recuadros más (hasta 4 por imagen), aunque sean del mismo modelo y color.</p>
       <div id="rs-fotos"></div>
     </div>
 
@@ -738,8 +738,15 @@ window.rsGenerar = async () => {
     }
   }
   if (OPT.tipo === 'collage') {
-    prods.forEach(p => usada(p.foto))
-    for (let i = 0; i < prods.length; i += 4) laminas.push(await laminaCollage(F, E, prods.slice(i, i + 4), opts))
+    // Cada recuadro es una foto: la principal de cada modelo y, además, las fotos extra que se marcaron (✓), aunque sean del
+    // mismo modelo y color (ej. 3 fotos de un mismo zapato). De 4 en 4 por imagen; el precio solo va en la primera foto de cada modelo.
+    const items = []
+    prods.forEach(p => {
+      const extras = ((S.fotos[p.id] && S.fotos[p.id].extras) || []).filter(u => u && u !== p.foto)
+      ;[p.foto, ...extras].forEach((u, k) => items.push({ ...p, foto: u, primero: k === 0 }))
+    })
+    items.forEach(it => usada(it.foto))
+    for (let i = 0; i < items.length; i += 4) laminas.push(await laminaCollage(F, E, items.slice(i, i + 4), opts))
   } else if (OPT.tipo === 'carrusel') {
     if (prods.length > 1) laminas.push(await laminaPortada(F, E, prods.slice(0, 4), opts))
     for (const p of prods) await delProducto(p)
