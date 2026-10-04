@@ -19,6 +19,10 @@ def _avisar_restock(variante_id: str):
         nombre_prod = (var[0].get("productos") or {}).get("nombre") if var else "Un modelo"
         detalle = f"{var[0].get('color','')} T{var[0].get('talla','')}".strip() if var else ""
         for w in watchers:
+            if not w.get("cliente_id"):
+                # sin cliente no hay a quién dirigir el aviso (antes se mandaba a TODOS los suscriptores)
+                supabase_patch(f"restock_watchers?id=eq.{w['id']}", {"notificado": True, "notificado_at": "now()"})
+                continue
             try:
                 enviar_push(
                     "¡Ya volvió el stock! 🎉",
@@ -30,6 +34,30 @@ def _avisar_restock(variante_id: str):
             supabase_patch(f"restock_watchers?id=eq.{w['id']}", {"notificado": True, "notificado_at": "now()"})
     except Exception as e:
         print(f"[inventario] Error avisando restock de {variante_id}: {e}")
+
+
+def procesar_restock() -> dict:
+    """Avisa a quien pidió "avísame cuando haya" de las variantes que YA tienen existencias (suma de sucursales).
+    Antes solo se disparaba al editar a mano una existencia de 0 a más, así que el stock que vuelve por una entrada de
+    mercancía, un traspaso, una devolución o una cancelación nunca avisaba (98 clientas esperando, ninguna avisada).
+    Corre cada 10 min desde main.py."""
+    res = {"avisados": 0, "variantes": 0}
+    pendientes = supabase_get_all("restock_watchers?notificado=eq.false&select=id,variante_id,cliente_id&order=id") or []
+    if not pendientes:
+        return res
+    ids_var = sorted({w["variante_id"] for w in pendientes if w.get("variante_id")})
+    con_stock = set()
+    for i in range(0, len(ids_var), 40):
+        filas = supabase_get_all(f"inventario?variante_id=in.({','.join(ids_var[i:i + 40])})&select=variante_id,cantidad") or []
+        suma = {}
+        for f in filas:
+            suma[f["variante_id"]] = suma.get(f["variante_id"], 0) + int(f.get("cantidad") or 0)
+        con_stock |= {v for v, q in suma.items() if q > 0}
+    for v in sorted(con_stock):
+        res["variantes"] += 1
+        _avisar_restock(v)
+        res["avisados"] += sum(1 for w in pendientes if w.get("variante_id") == v)
+    return res
 
 
 @router.post("/avisame")

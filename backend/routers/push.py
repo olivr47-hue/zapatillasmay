@@ -89,10 +89,10 @@ def desuscribir(body: dict):
     return {"ok": True}
 
 
-def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str) -> bool:
-    """Manda una notificacion a UNA suscripcion. True si se entrego bien."""
+def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str, urgente: bool = False):
+    """Manda una notificacion a UNA suscripcion. Devuelve (entregada: bool, codigo_http o None)."""
     if not _PYWEBPUSH_OK or not VAPID_PRIVATE_KEY:
-        return False
+        return False, None
     try:
         webpush(
             subscription_info={
@@ -106,16 +106,23 @@ def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str) -> bool
             data=json.dumps({"title": titulo, "body": cuerpo, "url": url or "/"}),
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims={"sub": f"mailto:{VAPID_EMAIL}"},
+            # ttl: cuánto tiempo guarda el servicio de push el aviso si el celular está apagado, sin datos o en ahorro de
+            # batería. pywebpush lo trae en 0 = "entrégalo YA o tíralo": con el celular dormido la notificación se perdía
+            # (causa típica de "no me llegan las notificaciones"). 24 h; los avisos de pedido van con urgencia alta.
+            ttl=86400,
+            timeout=10,
+            headers={"Urgency": "high" if urgente else "normal"},
         )
-        return True
+        return True, 201
     except WebPushException as e:
         # 404/410 = la suscripcion ya no existe (usuario desinstalo/bloqueo) -> desactivar
         status = getattr(e.response, "status_code", None)
         if status in (404, 410):
-            supabase_patch(f"push_subscriptions?endpoint=eq.{sub['endpoint']}", {"activa": False})
-        return False
-    except Exception:
-        return False
+            supabase_patch(f"push_subscriptions?endpoint=eq.{_up.quote(str(sub['endpoint']), safe='')}", {"activa": False})
+        return False, status
+    except Exception as e:
+        print(f"[push] error enviando a una suscripción: {e}")
+        return False, None
 
 
 def _ids_del_mismo_cliente(cliente_id: str) -> list:
@@ -135,7 +142,8 @@ def _ids_del_mismo_cliente(cliente_id: str) -> list:
     return [i for i in ids if re.match(r"^[0-9a-fA-F-]{8,36}$", i)]
 
 
-def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cliente_id: str = None, ids: list = None) -> dict:
+def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cliente_id: str = None, ids: list = None,
+                todos: bool = False) -> dict:
     """
     Funcion interna reusable — la llaman otros routers (pedidos, carrito
     abandonado) para mandar una notificacion real a un cliente especifico,
@@ -149,6 +157,10 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
         return {"enviadas": 0, "fallidas": 0, "error": f"pywebpush no disponible: {_import_error}"}
     if not VAPID_PRIVATE_KEY:
         return {"enviadas": 0, "fallidas": 0, "error": "Faltan las llaves VAPID en Railway"}
+    # Sin destino explícito NO se manda a "todos": antes un cliente_id vacío (ej. un aviso de stock de alguien sin ficha)
+    # caía al caso "todos los suscriptores activos" y le llegaba a todo el mundo. Para mandar a todos hay que pedirlo (todos=True).
+    if ids is None and not sitio and not cliente_id and not todos:
+        return {"enviadas": 0, "fallidas": 0, "error": "Sin destinatario: se necesita sitio, cliente_id, ids o todos=True"}
 
     if ids is not None:
         # Validar formato UUID antes de interpolar en la URL de PostgREST (evita
@@ -156,7 +168,9 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
         ids_validos = [i for i in ids if re.match(r'^[0-9a-fA-F-]{8,36}$', str(i))]
         if not ids_validos:
             return {"enviadas": 0, "fallidas": 0, "error": "Ningun id de suscriptor valido"}
-        subs = supabase_get_all(f"push_subscriptions?activa=eq.true&id=in.({','.join(ids_validos)})&select=*")
+        subs = []
+        for i in range(0, len(ids_validos), 40):   # por tandas: una lista muy larga rompía la URL de la consulta
+            subs += supabase_get_all(f"push_subscriptions?activa=eq.true&id=in.({','.join(ids_validos[i:i + 40])})&select=*")
     else:
         filtro = "activa=eq.true"
         if sitio:
@@ -165,19 +179,29 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
             filtro += f"&cliente_id=in.({','.join(_ids_del_mismo_cliente(cliente_id))})"
         subs = supabase_get_all(f"push_subscriptions?{filtro}&select=*")
 
-    enviadas, fallidas = 0, 0
-    for sub in subs:
-        if _enviar_a_suscripcion(sub, titulo, cuerpo, url):
-            enviadas += 1
-            supabase_patch(f"push_subscriptions?id=eq.{sub['id']}", {"ultimo_envio_at": "now()"})
-        else:
-            fallidas += 1
+    # En paralelo: antes era uno por uno y cada envío podía tardar varios segundos (un mensaje de WhatsApp entrante
+    # esperaba a que se avisara a todos los dispositivos del panel antes de terminar de guardarse).
+    urgente = bool(cliente_id) or sitio == "panel"
+    enviadas, fallidas, codigos = 0, 0, {}
+    if subs:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(8, len(subs))) as pool:
+            resultados = list(pool.map(lambda s: _enviar_a_suscripcion(s, titulo, cuerpo, url, urgente), subs))
+        for sub, (ok, codigo) in zip(subs, resultados):
+            if ok:
+                enviadas += 1
+                supabase_patch(f"push_subscriptions?id=eq.{sub['id']}", {"ultimo_envio_at": "now()"})
+            else:
+                fallidas += 1
+                clave = str(codigo or "sin respuesta")
+                codigos[clave] = codigos.get(clave, 0) + 1
 
+    destino = sitio or ("panel+clientes" if todos else ("cliente" if cliente_id else "seleccion"))
     supabase_post("push_notificaciones_log", {
-        "titulo": titulo, "cuerpo": cuerpo, "url": url, "sitio": sitio or "todos",
+        "titulo": titulo, "cuerpo": cuerpo, "url": url, "sitio": destino,
         "enviadas": enviadas, "fallidas": fallidas,
     })
-    return {"enviadas": enviadas, "fallidas": fallidas}
+    return {"enviadas": enviadas, "fallidas": fallidas, "codigos_error": codigos}
 
 
 @router.post("/enviar")
@@ -193,7 +217,9 @@ def enviar_notificacion(body: dict):
     if not titulo or not cuerpo:
         return JSONResponse(status_code=400, content={"error": "titulo y cuerpo son requeridos"})
     ids = body.get("ids") or None
-    return enviar_push(titulo, cuerpo, body.get("url") or "/", body.get("sitio") or None, ids=ids)
+    # el panel ya manda siempre una lista de ids; sin ids ni sitio, mandar a todos es una decisión explícita
+    return enviar_push(titulo, cuerpo, body.get("url") or "/", body.get("sitio") or None, ids=ids,
+                       todos=(ids is None and not body.get("sitio")))
 
 
 @router.get("/suscriptores")
@@ -210,13 +236,13 @@ def listar_suscripciones_individuales():
     """Lista cada suscripcion activa (no solo el conteo) para el checklist de
     "a quien si / a quien no" del envio manual en el panel."""
     return supabase_get_all(
-        "push_subscriptions?activa=eq.true&select=id,sitio,cliente_id,created_at,ultimo_envio_at&order=created_at.desc"
+        "push_subscriptions?activa=eq.true&sitio=neq.panel&select=id,sitio,cliente_id,created_at,ultimo_envio_at&order=created_at.desc"
     )
 
 
 @router.get("/historial")
 def historial_envios():
-    return supabase_get_all("push_notificaciones_log?order=created_at.desc&limit=50")
+    return supabase_get_all("push_notificaciones_log?sitio=neq.panel&order=created_at.desc&limit=50")
 
 
 @router.get("/diagnostico")

@@ -22,7 +22,7 @@
       <span style="font-size:1.6rem;flex-shrink:0">🔔</span>
       <div style="flex:1;min-width:0">
         <p style="margin:0 0 2px;font-size:0.85rem;font-weight:700">Activa avisos</p>
-        <p style="margin:0;font-size:0.78rem;color:#ccc">Te avisamos de tu pedido y ofertas, como WhatsApp.</p>
+        <p style="margin:0;font-size:0.78rem;color:#ccc">Te avisamos de ofertas y novedades, como WhatsApp.</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
         <button id="zm-push-si" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">Activar</button>

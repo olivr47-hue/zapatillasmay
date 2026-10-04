@@ -369,6 +369,19 @@ def _loop_amazon_ventas():
             print(f"[amazon-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)
 
+def _loop_restock():
+    """Cada 10 minutos avisa por push a quien pidió «avísame cuando haya» de lo que ya volvió a tener existencias."""
+    _time.sleep(400)
+    while True:
+        try:
+            from routers.inventario import procesar_restock
+            res = procesar_restock()
+            if res.get("avisados"):
+                print(f"[restock] Avisos enviados: {res['avisados']} ({res['variantes']} variante(s) con stock)")
+        except Exception as e:
+            print(f"[restock] Error en loop: {e}")
+        _time.sleep(10 * 60)
+
 def _loop_amazon_stock():
     """Cada 30 minutos manda a Amazon el stock del ERP de lo ya publicado (solo si la cuenta está activa y no es sandbox)."""
     _time.sleep(1700)
@@ -583,6 +596,10 @@ def _iniciar_hilos():
     t3c = threading.Thread(target=_loop_amazon_ventas, daemon=True)
     t3c.start()
     print("[amazon-ventas] Hilo de sincronización de ventas iniciado (cada 10 min, solo si hay credenciales)")
+    # Avisos "volvió el stock" por push
+    t3r = threading.Thread(target=_loop_restock, daemon=True)
+    t3r.start()
+    print("[restock] Hilo de avisos de stock iniciado (cada 10 min)")
     # Amazon: existencias de lo publicado
     t3d = threading.Thread(target=_loop_amazon_stock, daemon=True)
     t3d.start()

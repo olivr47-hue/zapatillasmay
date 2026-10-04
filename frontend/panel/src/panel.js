@@ -25116,7 +25116,7 @@ window._pushFiltrarChecklist = () => {
         return `
           <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f5f5f5;font-size:0.83rem;cursor:pointer">
             <input type="checkbox" data-sub-id="${s.id}" ${marcado ? 'checked' : ''} onchange="window._pushToggleSub('${s.id}', this.checked)">
-            <span style="flex:1">${etiqueta}${s.telefono ? ' · ' + s.telefono : ''}</span>
+            <span style="flex:1">${_e(etiqueta)}${s.telefono ? ' · ' + _e(s.telefono) : ''}</span>
             <span style="font-size:0.72rem;color:#aaa;background:#f5f5f5;padding:2px 7px;border-radius:6px">${SITIO_TAG[s.sitio] || s.sitio}</span>
           </label>`
       }).join('')
@@ -25179,7 +25179,10 @@ window._pushEnviar = async (btn) => {
     resultado.style.display = 'block'
     resultado.style.background = '#f0fdf4'
     resultado.style.color = '#166534'
-    resultado.textContent = `Enviado a ${data.enviadas ?? 0} suscriptor(es)${data.fallidas ? `, ${data.fallidas} fallidas` : ''}.`
+    const motivos = Object.entries(data.codigos_error || {}).map(([c, n]) => `${n}× ${c === '410' || c === '404' ? 'ya no está suscrito (se desactivó)' : c === 'sin respuesta' ? 'sin respuesta' : 'error ' + c}`).join(', ')
+    resultado.textContent = data.error
+      ? `No se envió: ${data.error}`
+      : `Enviado a ${data.enviadas ?? 0} suscriptor(es)${data.fallidas ? `, ${data.fallidas} fallidas${motivos ? ' (' + motivos + ')' : ''}` : ''}.`
   } catch (e) {
     resultado.style.display = 'block'
     resultado.style.background = '#fef2f2'
@@ -25233,9 +25236,9 @@ async function _pushRenderHistorialTab() {
       ${historial.map(h => `
         <div style="padding:0.9rem 1.25rem;border-bottom:1px solid #f2f2f2;display:flex;justify-content:space-between;gap:1rem;align-items:flex-start">
           <div style="min-width:0">
-            <div style="font-weight:600;font-size:0.88rem">${h.titulo || ''}</div>
-            <div style="font-size:0.8rem;color:#888;margin-top:2px">${h.cuerpo || ''}</div>
-            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">${h.sitio ? h.sitio : 'ambos'} · ${h.created_at ? new Date(h.created_at).toLocaleString('es-MX') : ''}</div>
+            <div style="font-weight:600;font-size:0.88rem">${_e(h.titulo || '')}</div>
+            <div style="font-size:0.8rem;color:#888;margin-top:2px">${_e(h.cuerpo || '')}</div>
+            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">${_e(h.sitio ? h.sitio : 'ambos')} · ${h.created_at ? new Date(h.created_at).toLocaleString('es-MX') : ''}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;font-size:0.78rem">
             ${_mlIcon('checkCircle', 14, '#16a34a')}<span style="color:#16a34a">${h.enviadas || 0}</span>
