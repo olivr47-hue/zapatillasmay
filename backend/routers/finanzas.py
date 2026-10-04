@@ -1133,7 +1133,7 @@ def proyeccion_flujo(sucursal_id: str, dias: int = 60):
             f"&confirmado_at=gte.{hace30}&select=total"
         ) or []
         pedidos_online = supabase_get(
-            f"pedidos?sucursal_id=is.null&status=in.(pagado,enviado)"
+            f"pedidos?sucursal_id=is.null&status=in.(pagado,enviado,entregado)"
             f"&confirmado_at=gte.{hace30}&select=total"
         ) or []
         ventas_30 = sum(float(p['total'] or 0) for p in pedidos_suc + pedidos_online)

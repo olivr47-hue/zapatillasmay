@@ -277,8 +277,8 @@ def _loop_ml_ventas():
         try:
             from routers.mercadolibre import _hacer_sync_entregas
             res2 = _hacer_sync_entregas()
-            if res2.get("actualizados"):
-                print(f"[ml-entregas] Marcados como enviados: {res2['actualizados']} de {res2['revisados']} revisados")
+            if res2.get("actualizados") or res2.get("entregados") or res2.get("cancelados"):
+                print(f"[ml-entregas] enviados: {res2['actualizados']}, entregados: {res2['entregados']}, cancelados: {res2['cancelados']} (de {res2['revisados']} revisados)")
         except Exception as e:
             print(f"[ml-entregas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos

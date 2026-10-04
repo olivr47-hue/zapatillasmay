@@ -36,79 +36,155 @@ _token_cache = {
     "token":      ML_TOKEN_ENV,
     "expires_at": time.time() + 21600 if ML_TOKEN_ENV else 0,  # asume 6h si viene del env
     "refresh":    ML_REFRESH,
+    "error":      None,
 }
+_TOKEN_CLAVE = "ml_token"      # fila de la tabla `configuracion` donde se guarda el token vigente
+_token_db_cargado = False
+_token_lock = threading.Lock()
+
+
+def _token_guardar_db():
+    """MercadoLibre rota el refresh_token en cada renovación (el anterior deja de servir). Si solo
+    vive en memoria, al reiniciar el servidor se pierde y se vuelve a la variable de entorno, que ya
+    quedó vieja. Por eso el token vigente se guarda también en la base. Nunca debe romper nada."""
+    try:
+        valor = json.dumps({
+            "token": _token_cache["token"], "expires_at": _token_cache["expires_at"],
+            "refresh": _token_cache.get("refresh") or "",
+        })
+        existe = supabase_get(f"configuracion?clave=eq.{_TOKEN_CLAVE}&select=clave")
+        if existe:
+            supabase_patch(f"configuracion?clave=eq.{_TOKEN_CLAVE}", {"valor": valor})
+        else:
+            supabase_post("configuracion", {"clave": _TOKEN_CLAVE, "valor": valor})
+    except Exception as e:
+        print(f"[ml] no se pudo guardar el token en la base: {e}")
+
+
+def _token_cargar_db():
+    """Carga una sola vez, al primer uso, el token guardado en la base (si existe)."""
+    global _token_db_cargado
+    if _token_db_cargado:
+        return
+    _token_db_cargado = True
+    try:
+        filas = supabase_get(f"configuracion?clave=eq.{_TOKEN_CLAVE}&select=valor")
+        if not filas:
+            return
+        d = json.loads(filas[0].get("valor") or "{}")
+        if d.get("refresh"):
+            _token_cache["refresh"] = d["refresh"]
+        if d.get("token") and float(d.get("expires_at") or 0) > time.time() + 300:
+            _token_cache["token"] = d["token"]
+            _token_cache["expires_at"] = float(d["expires_at"])
+    except Exception as e:
+        print(f"[ml] no se pudo leer el token guardado: {e}")
+
+
+def _renovar_token() -> bool:
+    """Renueva el access_token con el refresh_token. Prueba primero el más reciente (el que se rotó
+    en la última renovación) y después el de la variable de entorno. Devuelve True si lo logró."""
+    if not (ML_APP_ID and ML_SECRET):
+        _token_cache["error"] = "Faltan ML_APP_ID / ML_CLIENT_SECRET en Railway"
+        return False
+    with _token_lock:
+        candidatos = []
+        for r in (_token_cache.get("refresh"), ML_REFRESH):
+            if r and r not in candidatos:
+                candidatos.append(r)
+        if not candidatos:
+            _token_cache["error"] = "No hay refresh_token: vuelve a autorizar en /ml/auth"
+            return False
+        ultimo_error = ""
+        for refresh in candidatos:
+            body = urllib.parse.urlencode({
+                "grant_type": "refresh_token", "client_id": ML_APP_ID,
+                "client_secret": ML_SECRET, "refresh_token": refresh,
+            }).encode()
+            req = urllib.request.Request(
+                f"{ML_BASE}/oauth/token", data=body, method="POST",
+                headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    resp = json.loads(r.read())
+                _token_cache["token"] = resp["access_token"]
+                _token_cache["expires_at"] = time.time() + resp.get("expires_in", 21600)
+                if resp.get("refresh_token"):
+                    _token_cache["refresh"] = resp["refresh_token"]
+                _token_cache["error"] = None
+                _token_guardar_db()
+                return True
+            except urllib.error.HTTPError as e:
+                try:
+                    ultimo_error = f"{e.code}: {e.read().decode(errors='ignore')[:200]}"
+                except Exception:
+                    ultimo_error = str(e.code)
+            except Exception as e:
+                ultimo_error = str(e)
+        _token_cache["error"] = f"No se pudo renovar el token de MercadoLibre ({ultimo_error}). Vuelve a autorizar en /ml/auth"
+        print(f"[ml] {_token_cache['error']}")
+        return False
+
 
 def get_token() -> str:
-    """Devuelve el token vigente; lo refresca si tiene refresh_token."""
-    now = time.time()
-    # Si el token en caché todavía es válido (con 5 min de margen)
-    if _token_cache["token"] and _token_cache["expires_at"] > now + 300:
+    """Devuelve el token vigente; lo renueva si venció (o está por vencer)."""
+    _token_cargar_db()
+    if _token_cache["token"] and _token_cache["expires_at"] > time.time() + 300:
         return _token_cache["token"]
-
-    # Intentar refrescar con refresh_token
-    # Prioridad: 1) token renovado durante la sesión, 2) variable de entorno
-    refresh = _token_cache.get("refresh") or ML_REFRESH
-    if refresh and ML_APP_ID and ML_SECRET:
-        body = urllib.parse.urlencode({
-            "grant_type":    "refresh_token",
-            "client_id":     ML_APP_ID,
-            "client_secret": ML_SECRET,
-            "refresh_token": refresh,
-        }).encode()
-        req = urllib.request.Request(
-            f"{ML_BASE}/oauth/token",
-            data=body,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req) as r:
-                resp = json.loads(r.read())
-                _token_cache["token"]      = resp["access_token"]
-                _token_cache["expires_at"] = now + resp.get("expires_in", 21600)
-                # Actualizar refresh token si vino uno nuevo
-                if "refresh_token" in resp:
-                    _token_cache["refresh"] = resp["refresh_token"]
-                return _token_cache["token"]
-        except Exception as e:
-            pass  # Caer al token del .env
-
-    # Usar el token del .env tal cual (puede estar vencido)
+    _renovar_token()
     return _token_cache["token"] or ML_TOKEN_ENV
 
 
 def ml_headers():
     return {"Authorization": f"Bearer {get_token()}", "Content-Type": "application/json"}
 
-def ml_get(path: str):
-    req = urllib.request.Request(f"{ML_BASE}{path}", headers=ml_headers())
+
+def _ml_abrir(metodo: str, path: str, data=None):
+    """Llamada a la API de ML con tiempo límite (antes no había y una llamada colgada trababa el hilo)
+    y UN reintento si ML contesta 401 (token vencido antes de lo previsto): renueva y vuelve a intentar."""
+    for intento in (1, 2):
+        cuerpo = json.dumps(data).encode() if data is not None else None
+        req = urllib.request.Request(f"{ML_BASE}{path}", data=cuerpo, headers=ml_headers(), method=metodo)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 401 and intento == 1:
+                _token_cache["expires_at"] = 0
+                if _renovar_token():
+                    continue
+            raise
+
+
+def _detalle_error(e: urllib.error.HTTPError) -> str:
     try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
+        return json.loads(e.read()).get("message", str(e))
+    except Exception:
+        return str(e)
+
+
+def ml_get(path: str):
+    try:
+        return _ml_abrir("GET", path)
     except urllib.error.HTTPError as e:
-        raise HTTPException(status_code=e.code, detail=json.loads(e.read()).get("message", str(e)))
+        raise HTTPException(status_code=e.code, detail=_detalle_error(e))
 
 def ml_put(path: str, data: dict):
-    body = json.dumps(data).encode()
-    req = urllib.request.Request(
-        f"{ML_BASE}{path}", data=body,
-        headers=ml_headers(), method="PUT"
-    )
     try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
+        return _ml_abrir("PUT", path, data)
     except urllib.error.HTTPError as e:
-        body_err = json.loads(e.read())
+        try:
+            body_err = json.loads(e.read())
+        except Exception:
+            body_err = {}
         return {"error": body_err.get("message", str(e)), "cause": body_err.get("cause")}
 
 def ml_post(path: str, data: dict):
-    body = json.dumps(data).encode()
-    req = urllib.request.Request(f"{ML_BASE}{path}", data=body, headers=ml_headers(), method="POST")
     try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
+        return _ml_abrir("POST", path, data)
     except urllib.error.HTTPError as e:
-        raise HTTPException(status_code=e.code, detail=json.loads(e.read()).get("message", str(e)))
+        raise HTTPException(status_code=e.code, detail=_detalle_error(e))
 
 # ─── OAuth — obtener / renovar token ──────────────────────────────────────────
 
@@ -213,6 +289,8 @@ def auth_callback(code: str = "", state: str = "", error: str = ""):
     _token_cache["expires_at"] = time.time() + expires_in
     if refresh_token:
         _token_cache["refresh"] = refresh_token
+    _token_cache["error"] = None
+    _token_guardar_db()
 
     cache_invalidate("ml_items")
 
@@ -253,9 +331,11 @@ def ping():
             "seller_id": info.get("id"),
             "pais": info.get("country_id"),
             "reputacion": info.get("seller_reputation", {}).get("level_id"),
+            "token_expira_en_min": max(0, int((_token_cache["expires_at"] - time.time()) / 60)),
         }
     except HTTPException as e:
-        return {"ok": False, "error": e.detail, "tip": "Actualiza ML_ACCESS_TOKEN en Railway Variables"}
+        return {"ok": False, "error": e.detail, "token_error": _token_cache.get("error"),
+                "tip": "Vuelve a autorizar la cuenta en /ml/auth"}
 
 
 @router.get("/reputacion")
@@ -438,7 +518,7 @@ def descargar_guia(order_id: str):
         headers=ml_headers(),
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             pdf_bytes = r.read()
     except urllib.error.HTTPError as e:
         detalle = e.read().decode(errors="ignore")
@@ -1745,19 +1825,51 @@ def _fue_despachado(shipment: dict) -> bool:
     return False
 
 
+def _hist_ml(pedido_id, accion, detalle=None):
+    """Bitácora del pedido (misma tabla que usa Pedidos). Nunca rompe la sincronización."""
+    try:
+        supabase_post("pedido_historial", {
+            "pedido_id": pedido_id, "accion": accion[:60],
+            "detalle": (detalle or None), "usuario": "MercadoLibre",
+        })
+    except Exception as e:
+        print(f"[ml] no se pudo guardar el historial: {e}")
+
+
+def _cancelar_pedido_ml(pedido: dict, order_id: str) -> int:
+    """La orden se canceló en ML antes de despacharla: el pedido pasa a 'cancelado' y las piezas vuelven al
+    inventario (al crearse el pedido ya se habían descontado). Devuelve cuántas piezas se regresaron."""
+    # Primero se cambia el estado (así, aunque algo falle después, no se regresa el inventario dos veces)
+    supabase_patch(f"pedidos?id=eq.{pedido['id']}", {"status": "cancelado"})
+    devueltas = 0
+    items = supabase_get(f"pedido_items?pedido_id=eq.{pedido['id']}&select=variante_id,cantidad") or []
+    for it in items:
+        vid, cant = it.get("variante_id"), int(it.get("cantidad") or 0)
+        if not vid or cant <= 0:
+            continue
+        filas = supabase_get(f"inventario?variante_id=eq.{vid}&select=sucursal_id,cantidad&order=cantidad.desc")
+        if not filas:
+            continue
+        inventario_ajustar(vid, filas[0]["sucursal_id"], cant)
+        supabase_post("movimientos_inventario", {
+            "variante_id": vid, "sucursal_id": filas[0]["sucursal_id"], "tipo": "entrada",
+            "cantidad": cant, "motivo": f"Cancelación MercadoLibre (orden {order_id})",
+        })
+        devueltas += cant
+    _hist_ml(pedido["id"], "cancelado", f"La orden {order_id} se canceló en MercadoLibre; {devueltas} pieza(s) regresaron al inventario")
+    return devueltas
+
+
 def _hacer_sync_entregas() -> dict:
     """
-    Revisa los pedidos de MercadoLibre que todavía siguen pendientes en el
-    ERP (status pagado/confirmado, o sea siguen en "Por enviar") y consulta
-    en ML el estado real del envío. En cuanto el vendedor entrega el paquete
-    en una agencia de MercadoLibre (substatus 'dropped_off' -- el mismo
-    momento en que a la tienda le llega el correo de ML confirmando la
-    entrega en agencia), el ERP marca el pedido como 'enviado' solo, sin
-    esperar a que el paquete le llegue al cliente final. Así "Por enviar"
-    siempre refleja de verdad los paquetes que TODAVÍA faltan por llevar a
-    la agencia, y no hay riesgo de que se le pase alguno al vendedor.
+    Mantiene al día el estado de los pedidos de MercadoLibre:
+    1) Pendientes (pagado/confirmado = "Por enviar"): en cuanto el vendedor entrega el paquete en una agencia
+       de ML (substatus 'dropped_off', el mismo momento del correo de ML) el pedido pasa a 'enviado'.
+       Si la orden se canceló en ML antes de despacharla, el pedido se cancela y el inventario se regresa.
+    2) Enviados (últimos 60 días): cuando ML marca el envío como 'delivered' el pedido pasa a 'entregado'.
+       Es el único canal donde el ERP da seguimiento a la entrega; en pedidos propios basta con 'enviado'.
     """
-    resultado = {"revisados": 0, "actualizados": 0, "pedidos": [], "errores": []}
+    resultado = {"revisados": 0, "actualizados": 0, "pedidos": [], "cancelados": 0, "entregados": 0, "errores": []}
     try:
         pendientes = supabase_get(
             "pedidos?canal=eq.mercadolibre&status=in.(pagado,confirmado)"
@@ -1770,6 +1882,10 @@ def _hacer_sync_entregas() -> dict:
                 continue
             try:
                 orden = ml_get(f"/orders/{order_id}")
+                if orden.get("status") == "cancelled":
+                    _cancelar_pedido_ml(p, order_id)
+                    resultado["cancelados"] += 1
+                    continue
                 shipment_id = (orden.get("shipping") or {}).get("id")
                 if not shipment_id:
                     continue
@@ -1791,6 +1907,7 @@ def _hacer_sync_entregas() -> dict:
                         "numero_guia": str(shipment_id),
                         "enviado_at":  fecha_despacho,
                     })
+                    _hist_ml(p["id"], "enviado", f"Despachado en agencia de Mercado Envíos (envío {shipment_id})")
                     resultado["actualizados"] += 1
                     resultado["pedidos"].append({
                         "orden": order_id, "cliente": p.get("nombre_cliente"),
@@ -1799,6 +1916,22 @@ def _hacer_sync_entregas() -> dict:
                     })
             except Exception as e:
                 resultado["errores"].append({"orden": order_id, "error": str(e)})
+
+        # 2) enviados -> entregado (numero_guia guarda el id del envío de ML)
+        desde = urllib.parse.quote((datetime.now(timezone.utc) - timedelta(days=60)).isoformat())
+        enviados = supabase_get(
+            "pedidos?canal=eq.mercadolibre&status=eq.enviado&numero_guia=not.is.null"
+            f"&enviado_at=gte.{desde}&select=id,ml_order_id,numero_guia"
+        )
+        for p in enviados or []:
+            try:
+                shipment = ml_get(f"/shipments/{p['numero_guia']}")
+                if shipment.get("status") == "delivered":
+                    supabase_patch(f"pedidos?id=eq.{p['id']}", {"status": "entregado"})
+                    _hist_ml(p["id"], "entregado", "MercadoLibre confirmó la entrega al comprador")
+                    resultado["entregados"] += 1
+            except Exception as e:
+                resultado["errores"].append({"orden": p.get("ml_order_id"), "error": str(e)})
     except Exception as e:
         resultado["errores"].append({"error_general": str(e)})
     return resultado
@@ -2195,5 +2328,7 @@ def actualizar_token(body: dict):
     _token_cache["expires_at"] = time.time() + 21600  # asumir 6h
     if body.get("refresh_token"):
         _token_cache["refresh"] = body["refresh_token"]
+    _token_cache["error"] = None
+    _token_guardar_db()
     cache_invalidate("ml_items")
-    return {"ok": True, "message": "Token actualizado en memoria"}
+    return {"ok": True, "message": "Token actualizado (en memoria y en la base)"}

@@ -20619,7 +20619,7 @@ async function cargarSEO() {
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:0.5rem">🟡 MercadoLibre — Inventario</h3>
           <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
-            Sincroniza el stock de tus <b>96 publicaciones</b> de MercadoLibre con el ERP.<br>
+            Sincroniza el stock de tus publicaciones de MercadoLibre con el ERP.<br>
             Primero verifica las diferencias y luego sincroniza.
           </p>
           <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
@@ -23220,7 +23220,14 @@ async function _mlRenderVentasTab() {
     const ventas = (Array.isArray(data) ? data : []).filter(p => p.canal === 'mercadolibre')
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
-    const totalVentas = ventas.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const totalVentas = ventas.filter(p => p.status !== 'cancelado').reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const _porEstado = (...e) => ventas.filter(p => e.includes(p.status)).length
+    const _ST = {
+      pagado: ['Por enviar', '#b45309', '#fef3c7'], confirmado: ['Por enviar', '#b45309', '#fef3c7'],
+      enviado: ['Enviado', '#1d4ed8', '#dbeafe'], entregado: ['Entregado', '#166534', '#dcfce7'],
+      cancelado: ['Cancelado', '#991b1b', '#fee2e2'],
+    }
+    const _stBadge = (st) => { const [t, c, bg] = _ST[st] || [st, '#555', '#eee']; return `<span style="font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:100px;background:${bg};color:${c}">${t}</span>` }
 
     body.innerHTML = `
       <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
@@ -23229,7 +23236,7 @@ async function _mlRenderVentasTab() {
             <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('dollar', 17, '#3483fa')}</div>
             <div>
               <h3 style="margin:0 0 2px;font-size:1rem">Ventas desde MercadoLibre</h3>
-              <p style="font-size:0.82rem;color:#888;margin:0">Se descuenta el inventario automáticamente cada 10 min al detectarse una venta nueva.</p>
+              <p style="font-size:0.82rem;color:#888;margin:0">Cada 10 min se registran las ventas nuevas, se descuenta el inventario y se actualiza el envío (enviado, entregado o cancelado).</p>
             </div>
           </div>
           ${_mlBtn('refresh', 'Sincronizar ahora', '_mlForzarSyncVentas(this)', 'primary')}
@@ -23245,6 +23252,18 @@ async function _mlRenderVentasTab() {
         <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
           <p style="font-size:1.5rem;font-weight:800;color:#16a34a;margin:0">$${totalVentas.toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
           <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Total vendido</p>
+        </div>
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <p style="font-size:1.5rem;font-weight:800;color:${_porEstado('pagado', 'confirmado') ? '#b45309' : '#16a34a'};margin:0">${_porEstado('pagado', 'confirmado')}</p>
+          <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Por llevar a la agencia</p>
+        </div>
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <p style="font-size:1.5rem;font-weight:800;color:#1d4ed8;margin:0">${_porEstado('enviado')}</p>
+          <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Enviados</p>
+        </div>
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <p style="font-size:1.5rem;font-weight:800;color:#166534;margin:0">${_porEstado('entregado')}</p>
+          <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Entregados</p>
         </div>
       </div>
 
@@ -23268,7 +23287,7 @@ async function _mlRenderVentasTab() {
                   <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;font-family:monospace">${p.ml_order_id || '—'}</td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.82rem">${_escSugerencia(p.nombre_cliente) || '—'}</td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
-                  <td style="padding:0.4rem 0.5rem"><span class="badge badge-success" style="font-size:0.72rem">${p.status}</span></td>
+                  <td style="padding:0.4rem 0.5rem">${_stBadge(p.status)}</td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
                   <td style="padding:0.4rem 0.5rem">${p.ml_order_id ? `<button onclick="window._mlImprimirGuia('${p.ml_order_id}',this)" style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;background:#fff;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:0.74rem;color:#444;font-family:inherit">🖨️ Guía</button>` : ''}</td>
                 </tr>`).join('')}
