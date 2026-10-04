@@ -261,6 +261,7 @@ function renderPC() {
       <!-- Nav -->
       <nav style="flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px" id="pc-nav">
         ${pcNavItem('inicio',   '🏠', 'Mi resumen')}
+        ${pcNavItem('novedades','✨', 'Novedades')}
         ${pcNavItem('catalogo', '👟', 'Productos')}
         ${pcNavItem('catalogos','📥', 'Catálogos')}
         ${pcNavItem('vender',   '💰', 'Vender')}
@@ -512,7 +513,8 @@ function renderPC() {
 }
 
 function pcNavItem(tab, icon, label) {
-  return `<button class="pc-nav-item${pc.tab === tab ? ' activo' : ''}" onclick="pcIrA('${tab}')">${icon} ${label}</button>`
+  const badge = tab === 'novedades' ? '<span id="pc-nov-badge" style="display:none;margin-left:8px;background:#E91E8C;color:#fff;font-size:0.62rem;font-weight:800;padding:2px 7px;border-radius:100px;vertical-align:middle">0</span>' : ''
+  return `<button class="pc-nav-item${pc.tab === tab ? ' activo' : ''}" onclick="pcIrA('${tab}')">${icon} ${label}${badge}</button>`
 }
 
 function pcIrA(tab, _fromBack) {
@@ -529,7 +531,7 @@ function pcIrA(tab, _fromBack) {
     el.classList.toggle('activo', t === tab)
   })
   // "Más" (móvil) se ilumina cuando estás en una sección que vive dentro de ese menú
-  document.getElementById('pc-bn-mas')?.classList.toggle('activo', ['registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(tab))
+  document.getElementById('pc-bn-mas')?.classList.toggle('activo', ['novedades', 'registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(tab))
   const content = document.getElementById('pc-content')
   if (!content) return
   // El polling en vivo del carrito solo debe correr mientras esa pestaña está
@@ -538,6 +540,7 @@ function pcIrA(tab, _fromBack) {
   try {
     switch (tab) {
       case 'inicio':   renderInicio(content); break
+      case 'novedades': renderNovedades(content); break
       case 'catalogo': renderCatalogo(content); break
       case 'catalogos': renderCatalogosDescarga(content); break
       case 'vender':   renderVender(content); break
@@ -694,6 +697,7 @@ async function cargarDatosPC() {
   }
 
   pc.datosCargados = true
+  try { pcActualizarBadgeNov() } catch {}
   // Re-renderizar la pestaña activa con datos
   pcIrA(pc.tab)
   try {
@@ -744,6 +748,8 @@ function renderInicio(el) {
       </h1>
       <p style="font-size:0.85rem;color:var(--pc-muted);margin:0">Resumen de tu cuenta mayoreo</p>
     </div>
+
+    ${pcNovStripHTML()}
 
     <!-- KPIs -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px">
@@ -1853,6 +1859,219 @@ function pcProductoCard(p) {
         `}
       </div>
     </div>`
+}
+
+// ── NOVEDADES ────────────────────────────────────────────────────────────────────────────
+const PC_NOV_KEY = 'pc_novedades_visto'
+const PCN_CSS = `
+.pcn-hero{position:relative;overflow:hidden;border-radius:22px;padding:30px 26px 26px;margin-bottom:22px;color:#fff;background:linear-gradient(135deg,#E91E8C 0%,#b5176f 55%,#7b1450 100%);box-shadow:0 18px 40px rgba(233,30,140,.28)}
+.pcn-hero:before{content:'';position:absolute;right:-70px;top:-70px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.12)}
+.pcn-hero:after{content:'';position:absolute;left:-50px;bottom:-90px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08)}
+.pcn-hero>*{position:relative;z-index:1}
+.pcn-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32);padding:5px 12px;border-radius:100px;font-size:.66rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.pcn-hero h1{margin:12px 0 6px;font-size:clamp(1.9rem,6vw,2.7rem);font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.pcn-hero p.pcn-sub{margin:0 0 18px;font-size:.92rem;opacity:.92;max-width:34em;line-height:1.5}
+.pcn-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.pcn-stat{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:10px 16px;min-width:92px;backdrop-filter:blur(4px)}
+.pcn-stat b{display:block;font-size:1.45rem;font-weight:800;line-height:1.1}
+.pcn-stat span{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.pcn-actions{display:flex;gap:10px;flex-wrap:wrap}
+.pcn-btn{border:none;border-radius:100px;padding:11px 20px;font-family:inherit;font-weight:700;font-size:.82rem;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.pcn-btn:active{transform:scale(.96)}
+.pcn-btn-w{background:#fff;color:#b5176f;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.pcn-btn-g{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.4)}
+.pcn-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none;margin-bottom:6px}
+.pcn-chips::-webkit-scrollbar{display:none}
+.pcn-chip{flex:0 0 auto;border:1px solid var(--pc-border-2);background:var(--pc-card);color:var(--pc-text-3);border-radius:100px;padding:8px 15px;font-family:inherit;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.pcn-chip.on{background:#E91E8C;border-color:#E91E8C;color:#fff}
+.pcn-sec{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 0 12px}
+.pcn-sec h2{margin:0;font-size:1.15rem;font-weight:800;color:var(--pc-text);letter-spacing:-.01em}
+.pcn-sec span{font-size:.75rem;color:var(--pc-muted)}
+.pcn-rail{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 16px;margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.pcn-rail::-webkit-scrollbar{display:none}
+.pcn-spot{flex:0 0 min(272px,76vw);scroll-snap-align:start;position:relative;border-radius:20px;overflow:hidden;cursor:pointer;aspect-ratio:3/4.15;background:var(--pc-card);box-shadow:0 12px 30px rgba(0,0,0,.2);transition:transform .25s,box-shadow .25s;animation:pcnIn .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*70ms)}
+.pcn-spot:hover{transform:translateY(-5px);box-shadow:0 18px 38px rgba(233,30,140,.28)}
+.pcn-spot img{width:100%;height:100%;object-fit:cover;object-position:50% 72%;display:block;transition:transform .7s}
+.pcn-spot:hover img{transform:scale(1.06)}
+.pcn-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 42%,rgba(12,6,14,.88) 100%)}
+.pcn-badge{position:absolute;top:12px;left:12px;background:#fff;color:#E91E8C;font-size:.62rem;font-weight:800;letter-spacing:.07em;padding:5px 11px;border-radius:100px;text-transform:uppercase;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.pcn-tallas{position:absolute;top:12px;right:12px;background:rgba(15,10,18,.62);color:#fff;font-size:.62rem;font-weight:700;padding:5px 10px;border-radius:100px;backdrop-filter:blur(4px)}
+.pcn-info{position:absolute;left:0;right:0;bottom:0;padding:16px;color:#fff}
+.pcn-info h3{margin:0 0 4px;font-size:.92rem;font-weight:700;line-height:1.25;text-shadow:0 2px 8px rgba(0,0,0,.5);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcn-dots{display:flex;gap:5px;margin:6px 0 8px}
+.pcn-dots i{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.85);display:block}
+.pcn-price{display:flex;align-items:baseline;gap:8px;font-size:.72rem;opacity:.95}
+.pcn-price strong{font-size:1.2rem;font-weight:800}
+.pcn-cta{margin-top:11px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#E91E8C;color:#fff;border:none;border-radius:100px;padding:10px 14px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+.pcn-mini{flex:0 0 min(188px,50vw);aspect-ratio:3/4}
+.pcn-mini .pcn-info{padding:12px}
+.pcn-mini .pcn-info h3{font-size:.8rem}
+.pcn-mini .pcn-price strong{font-size:1rem}
+.pcn-strip{margin:0 0 26px}
+.pcn-strip-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.pcn-strip-h h2{margin:0;font-size:1.05rem;font-weight:800;color:var(--pc-text);display:flex;align-items:center;gap:8px}
+.pcn-strip-h h2 em{font-style:normal;background:#E91E8C;color:#fff;font-size:.6rem;font-weight:800;letter-spacing:.08em;padding:3px 8px;border-radius:100px}
+.pcn-strip-h button{font-size:.78rem;font-weight:700;color:#E91E8C;cursor:pointer;background:none;border:none;font-family:inherit;padding:4px 2px}
+@keyframes pcnIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media(max-width:600px){.pcn-hero{padding:22px 18px 20px}.pcn-hero p.pcn-sub{font-size:.85rem;margin-bottom:14px}.pcn-stats{flex-wrap:nowrap;gap:8px;margin-bottom:14px}.pcn-stat{flex:1;min-width:0;padding:9px 10px}.pcn-stat b{font-size:1.2rem}.pcn-stat span{font-size:.56rem;letter-spacing:.03em}.pcn-actions .pcn-btn{flex:1;padding:11px 10px;font-size:.76rem}}
+@media (prefers-reduced-motion:reduce){.pcn-spot{animation:none}.pcn-spot img{transition:none}}
+`
+
+// Existencias totales de un modelo (suma de sus variantes activas); si el inventario no cargó, no se filtra por stock.
+function pcStockModelo(p) {
+  if (!Array.isArray(pc.inventario) || !pc.inventario.length) return 1
+  const ids = new Set((pc.variantes || []).filter(v => v.producto_id === p.id && v.activa !== false).map(v => v.id))
+  return pc.inventario.reduce((s, i) => s + (ids.has(i.variante_id) ? (parseFloat(i.cantidad) || 0) : 0), 0)
+}
+
+// Modelos nuevos: con foto, con existencias y dados de alta en los últimos `dias` días (más recientes primero)
+function pcNovedades(dias) {
+  const lim = Date.now() - dias * 86400000
+  return (pc.productos || [])
+    .filter(p => (p.imagen_principal || '').trim() && p.created_at && new Date(p.created_at).getTime() >= lim && pcStockModelo(p) > 0)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+const pcEdadDias = (p) => Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000)
+const pcEdadTxt = (p) => { const d = pcEdadDias(p); return d <= 0 ? 'Nuevo · hoy' : d === 1 ? 'Nuevo · ayer' : `Nuevo · hace ${d} días` }
+
+const pcEdadCorto = (p) => { const d = pcEdadDias(p); return d <= 0 ? 'Hoy' : d === 1 ? 'Ayer' : `Hace ${d} d` }
+
+function pcTallasDisp(p) {
+  const ids = new Map((pc.variantes || []).filter(v => v.producto_id === p.id && v.activa !== false).map(v => [v.id, v.talla]))
+  const tallas = new Set()
+  ;(pc.inventario || []).forEach(i => { if (ids.has(i.variante_id) && (parseFloat(i.cantidad) || 0) > 0) tallas.add(ids.get(i.variante_id)) })
+  const nums = [...tallas].map(t => parseFloat(t)).filter(n => !isNaN(n)).sort((a, b) => a - b)
+  return nums.length ? (nums[0] === nums[nums.length - 1] ? `T${nums[0]}` : `T${nums[0]}–${nums[nums.length - 1]}`) : ''
+}
+
+function pcNovTarjeta(p, i, mini) {
+  const vars = (pc.variantes || []).filter(v => v.producto_id === p.id && v.activa !== false)
+  const colores = []
+  vars.forEach(v => { if (v.color && !colores.some(c => c.n === v.color)) colores.push({ n: v.color, h: v.color_hex || '#888' }) })
+  const m3 = precioM3(p), m6 = precioM6(p)
+  const tallas = pcTallasDisp(p)
+  return `
+    <div class="pcn-spot${mini ? ' pcn-mini' : ''}" style="--i:${i}" onclick="pcAbrirProducto('${p.id}')">
+      <img src="${esc(p.imagen_principal)}" alt="${esc(p.nombre)}" loading="lazy">
+      <div class="pcn-shade"></div>
+      <span class="pcn-badge">${mini ? pcEdadCorto(p) : pcEdadTxt(p)}</span>
+      ${tallas ? `<span class="pcn-tallas">${tallas}</span>` : ''}
+      <div class="pcn-info">
+        <h3>${esc(p.nombre)}</h3>
+        ${colores.length ? `<div class="pcn-dots">${colores.slice(0, 6).map(c => `<i title="${esc(c.n)}" style="background:${esc(c.h)}"></i>`).join('')}${colores.length > 6 ? `<span style="font-size:.62rem;opacity:.85;align-self:center">+${colores.length - 6}</span>` : ''}</div>` : ''}
+        <div class="pcn-price"><span>6+ pares</span><strong>${money(m6)}</strong>${m3 && !mini ? `<span>· 3-5: ${money(m3)}</span>` : ''}</div>
+        ${mini ? '' : '<button class="pcn-cta" onclick="event.stopPropagation();pcAbrirProducto(\'' + p.id + '\')">Armar mi corrida →</button>'}
+      </div>
+    </div>`
+}
+
+// Cuántos modelos nuevos no ha visto esta clienta (desde su última visita a Novedades; la primera vez cuenta la última semana)
+function pcNovSinVer() {
+  let ultima = 0
+  try { ultima = parseInt(localStorage.getItem(PC_NOV_KEY) || '0') || 0 } catch {}
+  if (!ultima) ultima = Date.now() - 7 * 86400000
+  return pcNovedades(30).filter(p => new Date(p.created_at).getTime() > ultima).length
+}
+
+function pcActualizarBadgeNov() {
+  const b = document.getElementById('pc-nov-badge')
+  if (!b) return
+  const n = pc.tab === 'novedades' ? 0 : pcNovSinVer()
+  b.textContent = n > 9 ? '9+' : String(n)
+  b.style.display = n > 0 ? 'inline-block' : 'none'
+}
+
+// Franja "Recién llegados" para el Inicio
+function pcNovStripHTML() {
+  try {
+    const lista = pcNovedades(30).slice(0, 6)
+    if (!lista.length) return ''
+    return `<style>${PCN_CSS}</style>
+    <div class="pcn-strip">
+      <div class="pcn-strip-h">
+        <h2>Recién llegados <em>NUEVO</em></h2>
+        <button onclick="pcIrA('novedades')">Ver todas →</button>
+      </div>
+      <div class="pcn-rail">${lista.map((p, i) => pcNovTarjeta(p, i, true)).join('')}</div>
+    </div>`
+  } catch (e) { return '' }
+}
+
+function renderNovedades(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+  let todas = pcNovedades(30)
+  let sinFecha = false
+  if (!todas.length) { todas = pcNovedades(365).slice(0, 12); sinFecha = true }   // si no hay nada en 30 días, se muestran los últimos agregados
+  const semana = todas.filter(p => pcEdadDias(p) <= 7).length
+  const cats = [...new Set(todas.map(p => p.categoria).filter(Boolean))]
+  const filtro = cats.includes(pc.novCat) ? pc.novCat : ''
+  const lista = filtro ? todas.filter(p => p.categoria === filtro) : todas
+  const destacados = lista.slice(0, 5)
+  const resto = lista.slice(5)
+  const grupos = [
+    ['Esta semana', resto.filter(p => pcEdadDias(p) <= 7)],
+    ['Hace 1 a 2 semanas', resto.filter(p => pcEdadDias(p) > 7 && pcEdadDias(p) <= 14)],
+    [sinFecha ? 'Agregados antes' : 'Este mes', resto.filter(p => pcEdadDias(p) > 14)],
+  ].filter(([, arr]) => arr.length)
+
+  el.innerHTML = `
+    <style>${PCN_CSS}</style>
+    <div class="pcn-hero">
+      <span class="pcn-pill">✨ Recién llegados</span>
+      <h1>Novedades</h1>
+      <p class="pcn-sub">${sinFecha
+        ? 'Los últimos modelos que agregamos al catálogo. Arma tu corrida antes de que se agoten las tallas.'
+        : 'Los modelos más nuevos de la fábrica, directo a tu portal. Arma tu corrida antes de que se agoten las tallas.'}</p>
+      <div class="pcn-stats">
+        <div class="pcn-stat"><b>${semana}</b><span>Esta semana</span></div>
+        <div class="pcn-stat"><b>${todas.length}</b><span>${sinFecha ? 'Últimos modelos' : 'Últimos 30 días'}</span></div>
+        <div class="pcn-stat"><b>${cats.length}</b><span>Categorías</span></div>
+      </div>
+      <div class="pcn-actions">
+        <button class="pcn-btn pcn-btn-w" onclick="pcCompartirNovedades()">📲 Compartir novedades</button>
+        <button class="pcn-btn pcn-btn-g" onclick="pcIrA('carrito')">🛒 Ver mi carrito</button>
+      </div>
+    </div>
+
+    ${cats.length > 1 ? `<div class="pcn-chips">
+      <button class="pcn-chip${!filtro ? ' on' : ''}" onclick="pcNovCat('')">Todas · ${todas.length}</button>
+      ${cats.map(c => `<button class="pcn-chip${filtro === c ? ' on' : ''}" onclick="pcNovCat('${esc(c)}')">${esc(c.charAt(0).toUpperCase() + c.slice(1))} · ${todas.filter(p => p.categoria === c).length}</button>`).join('')}
+    </div>` : ''}
+
+    ${destacados.length ? `
+    <div class="pcn-sec"><h2>Lo más nuevo</h2><span>Desliza →</span></div>
+    <div class="pcn-rail">${destacados.map((p, i) => pcNovTarjeta(p, i, false)).join('')}</div>` : ''}
+
+    ${grupos.map(([titulo, arr]) => `
+      <div class="pcn-sec"><h2>${titulo}</h2><span>${arr.length} modelo${arr.length !== 1 ? 's' : ''}</span></div>
+      <div class="pc-prod-grid">${arr.map(p => pcProductoCard(p)).join('')}</div>`).join('')}
+
+    <div style="text-align:center;margin:30px 0 10px">
+      <button class="pc-btn pc-btn-secondary" onclick="pcFiltrarCat('');pcIrA('catalogo')" style="padding:11px 22px">Ver todo el catálogo →</button>
+    </div>
+  `
+  try { localStorage.setItem(PC_NOV_KEY, String(Date.now())) } catch {}
+  pcActualizarBadgeNov()
+}
+
+window.pcNovCat = (c) => { pc.novCat = c; renderNovedades() }
+
+// Compartir novedades: abre Productos en modo compartir con todos los modelos nuevos ya seleccionados (solo fotos de portada, sin precios)
+window.pcCompartirNovedades = () => {
+  const lista = pcNovedades(30).length ? pcNovedades(30) : pcNovedades(365).slice(0, 12)
+  const sel = []
+  lista.forEach(p => {
+    const colores = [...new Set((pc.variantes || []).filter(v => v.producto_id === p.id).map(v => v.color).filter(Boolean))]
+    if (colores.length) colores.slice(0, 1).forEach(c => sel.push(`${p.id}::${c}`))   // una foto por modelo
+    else sel.push(`${p.id}::default`)
+  })
+  window._pcModoCompartir = true
+  window._pcCompartirSeleccion = sel
+  pc.filtroNuevos = true
+  pc.filtroCat = ''
+  pcIrA('catalogo')
 }
 
 window.pcCardColor = function(prodId, fotoUrl, swatchEl) {

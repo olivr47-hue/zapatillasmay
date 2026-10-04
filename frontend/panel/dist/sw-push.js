@@ -17,13 +17,19 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/'
+  // El link puede venir relativo ("/portal"): se resuelve contra este sitio. Antes se comparaba "/portal" con la URL completa
+  // de la pestaña, nunca coincidía y siempre se abría una pestaña nueva. Un link a otro sitio se ignora (solo se abre este sitio).
+  let destino = new URL('/', self.location.origin)
+  try {
+    const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin)
+    if (u.origin === self.location.origin) destino = u
+  } catch (e) {}
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
       for (const client of windowClients) {
-        if (client.url === url && 'focus' in client) return client.focus()
+        if (client.url === destino.href && 'focus' in client) return client.focus()
       }
-      if (clients.openWindow) return clients.openWindow(url)
+      if (clients.openWindow) return clients.openWindow(destino.href)
     })
   )
 })
