@@ -16115,7 +16115,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     // Lecturas resilientes: si /productos/ falla o devuelve vacío, NO debe tumbar la lista de chats
     const chatsRaw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
     const chats = Array.isArray(chatsRaw) ? chatsRaw : []
-    const productosRaw = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo').then(r => r.json()).catch(() => [])
+    const productosRaw = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,es_oferta,activo').then(r => r.json()).catch(() => [])
     const productos = Array.isArray(productosRaw) ? productosRaw : []
     const configWA = await fetch(API + '/chatbot/config').then(r => r.json()).catch(() => ({}))
     window._mayaActivaGlobal = configWA.bot_activo !== 'false'
@@ -18663,11 +18663,15 @@ window.filtrarProductosWA = (texto) => {
 window._buildCaption = (id) => {
   const p = (window._productosWA || []).find(x => x.id === id)
   if (!p) return ''
-  return '👠 *' + p.nombre + '*\n\n💰 *Precios:*\n• Menudeo (1-2 pares): $' + p.precio_menudeo +
-    '\n• Mayoreo 3-5 pares: $' + (p.precio_mayoreo3 || (p.precio_menudeo - 30)) +
-    '\n• Mayoreo 6+ pares: $' + (p.precio_mayoreo6 || (p.precio_menudeo - 70)) +
-    '\n• Corrida completa: $' + (p.precio_corrida || (p.precio_menudeo - 100)) +
-    '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx'
+  // Mismos precios que ve la clienta en zapatillasmay.mx: precio del panel + $80 (salvo ofertas); mayoreo 3+ = web - $60
+  const base = parseFloat(p.precio_menudeo) || 0
+  const web = Math.round(p.es_oferta ? base : base + 80)
+  let t = '👠 *' + p.nombre + '*\n\n💰 *Precio:* $' + web + ' MXN'
+  if (!p.es_oferta) {
+    t += '\n• Mayoreo 3+ pares: $' + (web - 60) + ' c/par'
+    if (p.corrida_activa) t += '\n• Corrida completa: $' + Math.round(parseFloat(p.precio_corrida) || (base - 100)) + ' c/par'
+  }
+  return t + '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx'
 }
 
 
