@@ -113,6 +113,12 @@ const modulos = [
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
 let varianteCount = 1
 
+// Escapa texto de clientes (nombres, correos, notas...) al armarlo como HTML: Clientes, Pedidos, Carritos, tickets.
+// A nivel de módulo (no dentro de renderPanel) para que lo vean TODAS las pantallas, y también en window.
+const _e = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+window._e = _e
+if (!window._escWA) window._escWA = _e
+
 export function renderPanel() {
   const _savedModulo = (() => { try { return localStorage.getItem('zm_panel_modulo') } catch(e) { return null } })()
   const _defaultModulo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -258,8 +264,6 @@ function _ja(v) {
 window._ja = _ja
 // Escapa texto que viene de clientes (mensajes, nombres de perfil) antes de meterlo en innerHTML
 window._escWA = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-// Alias corto: escapa texto de clientes al armar HTML (Clientes, Pedidos, Carritos, tickets)
-const _e = window._escWA
 window._linkifyWA = (textoEscapado) => String(textoEscapado == null ? '' : textoEscapado)
   .replace(/((?:https?:\/\/|www\.)[^\s<]+)/gi, (m) => {
     let url = m, cola = ''
@@ -1875,7 +1879,7 @@ async function cargarFinanzas(sucursalElegida) {
     const gastosHoy = gastos.filter(g => g.created_at && _fmtMx(g.created_at) === hoy)
     window._cajaActivaId = cajaActiva ? cajaActiva.id : null
     const totalGastosHoy = gastosHoy.reduce((s, g) => s + parseFloat(g.monto || 0), 0)
-    const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.monto_credito != null ? p.monto_credito : (p.total || 0)), 0)
+    const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.saldo != null ? p.saldo : (p.monto_credito != null ? p.monto_credito : (p.total || 0))), 0)
     const totalCxP = (Array.isArray(cxp) ? cxp : []).reduce((s, o) => s + parseFloat(o.total || 0), 0)
     const cxpVencidas = (Array.isArray(cxp) ? cxp : []).filter(o => o.vencido).length
 
@@ -2338,40 +2342,153 @@ window.mostrarCxC = () => {
   const { cxc } = window._finanzasData
   const container = document.getElementById('fin-tab-contenido')
   if (!container) return
-  const hoy = new Date()
+  const esc = window._escWA
+  const saldoDe = (p) => parseFloat(p.saldo != null ? p.saldo : (p.monto_credito != null ? p.monto_credito : p.total)) || 0
+  const total = cxc.reduce((t, p) => t + saldoDe(p), 0)
+  const vencidoTotal = cxc.filter(p => p.vencido).reduce((t, p) => t + saldoDe(p), 0)
+  const fmt = (n) => '$' + Math.round(n).toLocaleString('es-MX')
+  // Por cliente: la deuda de cada uno de un vistazo
+  const porCliente = {}
+  cxc.forEach(p => {
+    const nom = (p.clientes && p.clientes.nombre) || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente')
+    porCliente[nom] = (porCliente[nom] || 0) + saldoDe(p)
+  })
+  const resumen = Object.entries(porCliente).sort((a, b) => b[1] - a[1])
   container.innerHTML = `
     <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
-      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-        <p style="font-weight:700;font-size:0.9rem">📑 Cuentas por cobrar</p>
-        <span style="font-size:0.78rem;color:#888">${cxc.length} pendientes · $${cxc.reduce((s,p)=>s+parseFloat(p.total||0),0).toFixed(0)} total</span>
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <p style="font-weight:700;font-size:0.9rem">📑 Cuentas por cobrar (crédito)</p>
+        <span style="font-size:0.78rem;color:#888">${cxc.length} pendientes · <strong style="color:#0f172a">${fmt(total)}</strong> por cobrar${vencidoTotal ? ` · <strong style="color:#b91c1c">${fmt(vencidoTotal)} vencido</strong>` : ''}</span>
       </div>
+      ${resumen.length > 1 ? `<div style="padding:10px 1.5rem;border-bottom:1px solid #f5f5f5;font-size:0.76rem;color:#64748b;display:flex;gap:6px 16px;flex-wrap:wrap">${resumen.map(([n, v]) => `<span><strong style="color:#0f172a">${esc(n)}</strong> ${fmt(v)}</span>`).join('')}</div>` : ''}
       ${cxc.length === 0
-        ? '<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por cobrar</div>'
+        ? '<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por cobrar 🎉</div>'
         : cxc.map(p => {
-          const diasVencido = Math.floor((hoy - new Date(p.created_at)) / (1000*60*60*24))
+          const nombre = (p.clientes && p.clientes.nombre) || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente')
+          const tel = (p.clientes && p.clientes.telefono) ? String(p.clientes.telefono).replace(/\D/g, '') : ''
+          const saldo = saldoDe(p)
+          const msg = encodeURIComponent(`Hola ${nombre.split(' ')[0]}, te escribimos de Zapatillas May. Tienes un saldo pendiente de $${Math.round(saldo).toLocaleString('es-MX')} del pedido #${p.id.substring(0, 8).toUpperCase()}. ¿Cuándo podemos recibir tu pago? ¡Gracias!`)
           return `
-            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-              <div style="flex:1">
-                <p style="font-size:0.85rem;font-weight:600">${p.clientes?.nombre || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente')}</p>
-                <p style="font-size:0.72rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')} · Pedido #${p.id.substring(0,8).toUpperCase()}</p>
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <div style="flex:1;min-width:180px">
+                <p style="font-size:0.85rem;font-weight:600">${esc(nombre)}</p>
+                <p style="font-size:0.72rem;color:#888">${new Date(p.confirmado_at || p.created_at).toLocaleDateString('es-MX')} · Pedido #${p.id.substring(0, 8).toUpperCase()}${p.vence ? ' · vence ' + new Date(p.vence + 'T12:00:00').toLocaleDateString('es-MX') : ' · sin fecha de vencimiento'}</p>
+                ${p.abonado > 0 ? `<p style="font-size:0.72rem;color:#166534">Abonado ${fmt(p.abonado)} de ${fmt(p.monto_credito)}</p>` : ''}
               </div>
               <div style="text-align:right">
-                <p style="font-weight:700;color:#f57f17;font-size:1rem">$${parseFloat(p.total||0).toFixed(0)}</p>
-                <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${diasVencido > 30 ? '#ffebee' : '#fff8e1'};color:${diasVencido > 30 ? '#c62828' : '#f57f17'}">
-                  ${diasVencido} días
-                </span>
+                <p style="font-weight:700;color:${p.vencido ? '#b91c1c' : '#f57f17'};font-size:1rem">${fmt(saldo)}</p>
+                ${p.vencido ? `<span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:#ffebee;color:#c62828">${p.dias_atraso} día(s) vencido</span>` : ''}
               </div>
-              ${p.clientes?.telefono ? `
-                <a href="https://wa.me/52${p.clientes.telefono.replace(/\D/g,'')}" target="_blank"
-                   style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;text-decoration:none">
-                  💬 Cobrar
-                </a>
-              ` : ''}
-            </div>
-          `
+              <button class="btn btn-primary" style="padding:6px 12px;font-size:0.78rem" onclick="abrirAbonoCredito('${p.id}','cxc')">💵 Abonar</button>
+              ${tel ? `<a href="https://wa.me/52${tel.slice(-10)}?text=${msg}" target="_blank" style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;text-decoration:none">💬 Cobrar</a>` : ''}
+            </div>`
         }).join('')}
     </div>
   `
+}
+
+// ── Abonos de crédito: lo que el cliente va pagando de un pedido a crédito ──
+window.irACuentasPorCobrar = async () => {
+  navegarA('finanzas')
+  await cargarFinanzas()
+  window.mostrarTabFinanzas('cxc')
+}
+
+window.abrirAbonoCredito = async (pedidoId, origen) => {
+  window._abonoOrigen = origen || 'pedidos'
+  const esc = window._escWA
+  let d = null
+  try {
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/abonos')
+    d = await r.json()
+    if (!r.ok) throw new Error(d.error || 'No se pudo cargar')
+  } catch (e) { alert('No se pudo abrir el pedido: ' + e.message); return }
+  const fmt = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  document.getElementById('modal-abono')?.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-abono'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:460px;width:100%;max-height:90vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💵 Abonos · pedido #${esc(pedidoId.substring(0, 8).toUpperCase())}</h3><button onclick="document.getElementById('modal-abono').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <div style="display:flex;gap:8px;margin:10px 0;text-align:center">
+      <div style="flex:1;background:#f8fafc;border-radius:10px;padding:8px"><p style="margin:0;font-size:0.66rem;color:#64748b;text-transform:uppercase">A crédito</p><p style="margin:2px 0 0;font-weight:700">${fmt(d.credito)}</p></div>
+      <div style="flex:1;background:#f0fdf4;border-radius:10px;padding:8px"><p style="margin:0;font-size:0.66rem;color:#166534;text-transform:uppercase">Abonado</p><p style="margin:2px 0 0;font-weight:700;color:#166534">${fmt(d.abonado)}</p></div>
+      <div style="flex:1;background:${d.saldo > 0 ? '#fef3c7' : '#dcfce7'};border-radius:10px;padding:8px"><p style="margin:0;font-size:0.66rem;color:#92400e;text-transform:uppercase">Saldo</p><p style="margin:2px 0 0;font-weight:700;color:${d.saldo > 0 ? '#b45309' : '#166534'}">${fmt(d.saldo)}</p></div>
+    </div>
+    <p style="font-size:0.76rem;color:#64748b;margin:0 0 8px">Cada abono entra a la caja del día en que lo recibes, como cobranza (no como venta nueva).</p>
+    <div>${(d.pagos || []).map(x => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
+        <span><strong>${fmt(x.monto)}</strong> · ${esc(x.forma_pago)}<br><span style="font-size:0.7rem;color:#94a3b8">${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}${x.nota ? ' · ' + esc(x.nota) : ''}</span></span>
+        <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="borrarAbonoCredito('${pedidoId}','${esc(x.id)}')">Quitar</button>
+      </div>`).join('') || '<p style="font-size:0.8rem;color:#94a3b8;margin:0">Todavía no hay abonos registrados.</p>'}</div>
+    ${d.saldo > 0.009 ? `
+    <div style="border-top:2px solid #f1f5f9;margin-top:10px;padding-top:12px">
+      <p style="font-weight:700;margin:0 0 8px;font-size:0.88rem">Registrar abono</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="abo-monto" type="number" min="1" step="0.01" max="${d.saldo}" class="form-input" placeholder="Monto" style="flex:1;min-width:110px">
+        <select id="abo-forma" class="form-input" style="flex:1;min-width:130px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option></select>
+      </div>
+      <input id="abo-nota" class="form-input" placeholder="Nota (opcional)" style="margin-top:8px;width:100%">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" id="abo-guardar" style="flex:1" onclick="guardarAbonoCredito('${pedidoId}', false)">Guardar abono</button>
+        <button class="btn btn-secondary" id="abo-liquidar" style="flex:1" onclick="guardarAbonoCredito('${pedidoId}', true)">Liquidar saldo (${fmt(d.saldo)})</button>
+      </div>
+    </div>` : '<p style="text-align:center;color:#166534;font-weight:700;margin:12px 0 0">✓ Pedido liquidado</p>'}
+  </div>`
+  document.body.appendChild(m)
+}
+
+window._abonoRefrescar = async () => {
+  const o = window._abonoOrigen
+  if (o === 'cxc') { await cargarFinanzas(); window.mostrarTabFinanzas('cxc') }
+  else await cargarPedidos()
+}
+
+window.guardarAbonoCredito = async (pedidoId, liquidar) => {
+  const monto = parseFloat(document.getElementById('abo-monto').value) || 0
+  if (!liquidar && monto <= 0) { alert('Escribe el monto del abono.'); return }
+  if (liquidar && !confirm('¿Registrar el pago de todo el saldo y dejar el pedido liquidado?')) return
+  const b1 = document.getElementById('abo-guardar'), b2 = document.getElementById('abo-liquidar')
+  b1.disabled = b2.disabled = true
+  try {
+    const body = { forma_pago: document.getElementById('abo-forma').value, nota: document.getElementById('abo-nota').value }
+    if (liquidar) body.liquidar = true; else body.monto = monto
+    if (window._abonoOrigen === 'cxc' && window._finanzasData && window._finanzasData.sucursalId) body.sucursal_id = window._finanzasData.sucursalId
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/abonos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'No se pudo guardar')
+    document.getElementById('modal-abono')?.remove()
+    window.mostrarToastPanel && window.mostrarToastPanel(d.liquidado ? '✅ Pedido liquidado' : '✅ Abono registrado')
+    await window._abonoRefrescar()
+  } catch (e) { alert('Error: ' + e.message); b1.disabled = b2.disabled = false }
+}
+
+window.borrarAbonoCredito = async (pedidoId, pagoId) => {
+  if (!confirm('¿Quitar este abono? Úsalo solo si se capturó por error.')) return
+  const r = await fetch(API + '/pedidos/' + pedidoId + '/abonos/' + pagoId, { method: 'DELETE' })
+  if (!r.ok) { alert('No se pudo quitar el abono.'); return }
+  document.getElementById('modal-abono')?.remove()
+  await window._abonoRefrescar()
+}
+
+// ── Correos a clientes que no se pudieron enviar ──
+window.verCorreosNoEnviados = () => {
+  const esc = window._escWA
+  const lista = window._correosFallidosLista || []
+  document.getElementById('modal-correos-fallidos')?.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-correos-fallidos'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:520px;width:100%;max-height:90vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">✉️ Correos no enviados (7 días)</h3><button onclick="document.getElementById('modal-correos-fallidos').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Un correo deja de aparecer aquí en cuanto se le manda otro del mismo tipo a esa dirección y sale bien.</p>
+    ${lista.map(f => `
+      <div style="padding:8px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
+        <strong>${esc(f.nombre)}</strong> · ${esc(f.destinatario)}<br>
+        <span style="font-size:0.72rem;color:#94a3b8">${new Date(f.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}${f.error ? ' · ' + esc(f.error) : ''}</span>
+      </div>`).join('') || '<p style="color:#94a3b8">Ninguno.</p>'}
+  </div>`
+  document.body.appendChild(m)
 }
 
 window.irACuentasPorPagar = async () => {
@@ -10092,13 +10209,20 @@ function _renderFilaPedido(p) {
     ? `<br><span style="font-size:0.68rem;color:#b45309;font-weight:700">⚠️ Envío pendiente de coordinar</span>` : ''
   const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente'))
   const tel = p.telefono_cliente || (p.clientes && p.clientes.telefono) || ''
+  const _cx = window._cxcMap ? window._cxcMap[p.id] : null
+  const chipCredito = _cx
+    ? `<br><span onclick="abrirAbonoCredito('${p.id}','pedidos')" title="Registrar un abono" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:${_cx.vencido ? '#fee2e2' : '#fef3c7'};color:${_cx.vencido ? '#b91c1c' : '#b45309'}">Debe $${Math.round(_cx.saldo).toLocaleString('es-MX')}${_cx.vencido ? ' · vencido' : ''}</span>`
+    : (window._cxcMap && p.forma_pago === 'credito' && ['confirmado', 'pagado', 'enviado', 'entregado'].includes(p.status)
+      ? '<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:#dcfce7;color:#166534">✓ Liquidado</span>' : '')
+  const correoNoEnviado = p.email_cliente && window._correosFallidos && window._correosFallidos.has(String(p.email_cliente).trim().toLowerCase())
+    ? ' <span style="color:#b91c1c;font-weight:700">· ✉️ correo no enviado</span>' : ''
 
   return `
     <tr style="${porEnviar && diasEsperando >= 3 ? 'background:#fff7f7' : (porEnviar ? 'background:#f0f7ff' : '')}">
       <td data-label="Pedido" style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0, 8).toUpperCase()}</td>
       <td data-label="Cliente">
         <strong>${_e(cli)}</strong>
-        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}</span>` : ''}
+        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}${correoNoEnviado}</span>` : ''}
         ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(tel)}</span>` : ''}
       </td>
       <td data-label="Canal">${{
@@ -10106,7 +10230,7 @@ function _renderFilaPedido(p) {
         portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart',
       }[p.canal] || p.canal || (p.mp_preference_id ? '🌐 Web' : '—')}</td>
       <td data-label="Total"><strong>$${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}</strong></td>
-      <td data-label="Pago">${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
+      <td data-label="Pago">${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}${chipCredito}</td>
       <td data-label="Estado">
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${semaforo}${guiaInfo}${avisoEnvioPendiente}
@@ -10223,6 +10347,17 @@ async function cargarPedidos() {
     window._pedF = { pill: '', estado: '', pago: '', desde: '', hasta: '', q: '' }
     window._pedPagina = 100
 
+    // Saldos de crédito y correos que no se pudieron enviar (si alguno falla, la pantalla sigue igual sin ese dato)
+    const [cxcLista, correosFallidos] = await Promise.all([
+      fetch(API + '/finanzas/cuentas-por-cobrar').then(r => r.json()).then(d => Array.isArray(d) ? d : null).catch(() => null),
+      fetch(API + '/emails/fallidos?dias=7').then(r => r.json()).then(d => (d && Array.isArray(d.fallidos)) ? d.fallidos : []).catch(() => []),
+    ])
+    window._cxcMap = cxcLista ? Object.fromEntries(cxcLista.map(c => [c.id, c])) : null
+    window._correosFallidosLista = correosFallidos
+    window._correosFallidos = new Set(correosFallidos.map(f => f.destinatario))
+    const saldoCxC = (cxcLista || []).reduce((t, c) => t + (parseFloat(c.saldo) || 0), 0)
+    const vencidosCxC = (cxcLista || []).filter(c => c.vencido).length
+
     const hoy = new Date()
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
     const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
@@ -10236,7 +10371,6 @@ async function cargarPedidos() {
     const lista = data.filter(window._pedEsPorEnviar)
     const porEnviar = lista.length
     const porEnviarRojos = lista.filter(p => window._pedDias(p.confirmado_at || p.created_at) >= 3).length
-    const enviadosViejos = data.filter(p => p.status === 'enviado' && window._pedDias(p.enviado_at || p.created_at) >= 7).length
     const apartados = data.filter(p => p.status === 'apartado').length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
     const dataVisible = data.filter(p => !_PED_NO_REAL.includes(p.status))
@@ -10286,9 +10420,6 @@ async function cargarPedidos() {
           ${porEnviar > 0
             ? kpiCard(porEnviar, 'Por enviar', porEnviarRojos > 0 ? `🔴 ${porEnviarRojos} con 3+ días` : 'Confirmados sin guía', porEnviarRojos > 0 ? '#b91c1c' : '#1d4ed8', porEnviarRojos > 0 ? '#fff1f2' : '#eff6ff', porEnviarRojos > 0 ? '#fda4af' : '#93c5fd', "cargarPedidosFiltro('por_enviar')")
             : verde('0', 'Por enviar', 'Sin pendientes')}
-          ${enviadosViejos > 0
-            ? kpiCard(enviadosViejos, 'Enviados sin entrega', 'Hace 7+ días: revisa el rastreo', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('enviados_viejos')")
-            : verde('0', 'Enviados sin entrega', 'Todo al corriente')}
           ${apartados > 0 ? kpiCard(apartados, 'Apartados', 'Esperando cierre', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('apartado')") : ''}
           ${pendienteSPEI > 0
             ? kpiCard(pendienteSPEI, 'SPEI/OXXO pendiente', 'Eligió método, falta pagar', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
@@ -10296,9 +10427,16 @@ async function cargarPedidos() {
           ${abandonados > 0
             ? kpiCard(abandonados, 'Abandonados', 'Fue a pagar y no terminó', '#be123c', '#fff1f2', '#fda4af', "cargarPedidosFiltro('abandonado')")
             : verde('0', 'Abandonados', 'Ninguno')}
-          ${kpiCard(enCredito, 'En crédito', 'Pedidos activos', '#0f766e', '#f0fdfa', '#99f6e4', "cargarPedidosFiltro('credito')")}
+          ${cxcLista
+            ? kpiCard('$' + Math.round(saldoCxC).toLocaleString('es-MX'), 'Por cobrar (crédito)', `${cxcLista.length} pedido(s)${vencidosCxC ? ' · 🔴 ' + vencidosCxC + ' vencido(s)' : ''}`, vencidosCxC ? '#b91c1c' : '#0f766e', vencidosCxC ? '#fff1f2' : '#f0fdfa', vencidosCxC ? '#fda4af' : '#99f6e4', "irACuentasPorCobrar()")
+            : kpiCard(enCredito, 'En crédito', 'Pedidos activos', '#0f766e', '#f0fdfa', '#99f6e4', "cargarPedidosFiltro('credito')")}
         </div>
 
+        ${correosFallidos.length ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:0.85rem;color:#991b1b;font-weight:700">✉️ ${correosFallidos.length} correo(s) a clientes no se enviaron en los últimos 7 días</span>
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.74rem" onclick="verCorreosNoEnviados()">Ver cuáles</button>
+        </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
           <input class="form-input" id="ped-buscar" placeholder="Buscar # pedido, cliente, teléfono, guía o modelo..." style="flex:1;min-width:220px;max-width:340px;${input}" oninput="_pedFiltroCambio()">
           <select class="form-input" id="ped-estado" style="max-width:150px;${input}" onchange="_pedFiltroCambio()">
@@ -10964,7 +11102,7 @@ window.verPedido = async (id) => {
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
             <p style="font-weight:600">${_e(cliente.nombre || p.nombre_cliente || 'Mostrador')}</p>
             <p style="font-size:0.8rem;color:#888">${_e(cliente.telefono || p.telefono_cliente || '')}</p>
-            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${_e(p.email_cliente)}</p>` : ''}
+            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${_e(p.email_cliente)}${window._correosFallidos && window._correosFallidos.has(String(p.email_cliente).trim().toLowerCase()) ? ' <span style="color:#b91c1c;font-weight:700">· ✉️ correo no enviado</span>' : ''}</p>` : ''}
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
@@ -11010,6 +11148,7 @@ window.verPedido = async (id) => {
             ${telEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📞 ${telEnvio}</p>` : ''}
             ${emailEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">✉️ ${emailEnvio}</p>` : ''}
             ${dirFinal ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📍 ${dirFinal}</p>` : '<p style="margin:2px 0;font-size:0.82rem;color:#c62828">⚠ Sin dirección registrada</p>'}
+            ${(window._cxcMap && window._cxcMap[p.id]) ? `<p style="margin:8px 0 0;font-size:0.8rem;border-top:1px solid #dbeafe;padding-top:6px"><span style="color:${window._cxcMap[p.id].vencido ? '#b91c1c' : '#b45309'};font-weight:700">Crédito: debe $${Math.round(window._cxcMap[p.id].saldo).toLocaleString('es-MX')}</span> de $${Math.round(window._cxcMap[p.id].monto_credito).toLocaleString('es-MX')}${window._cxcMap[p.id].vence ? ' · vence ' + window._cxcMap[p.id].vence : ''} <a href="#" onclick="event.preventDefault();abrirAbonoCredito('${p.id}','pedidos')" style="color:#0f766e;font-weight:700;margin-left:6px">Registrar abono</a></p>` : ''}
             ${p.notas ? `<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${_e(p.notas)}</p>` : ''}
           </div>`
         })()}

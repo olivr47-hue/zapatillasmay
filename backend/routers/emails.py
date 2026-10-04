@@ -80,6 +80,43 @@ def historial(limit: int = 100, tipo: str = "", q: str = ""):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+# Correos pensados para el cliente: si uno falla, el panel avisa "no enviado" (los internos no se incluyen)
+_TIPOS_CLIENTE = {
+    "pedido_confirmado": "Confirmación de pedido", "pedido_enviado": "Aviso de envío",
+    "pedido_pendiente_spei": "Pago pendiente", "carrito_abandonado": "Recordatorio de carrito",
+    "mayorista_bienvenida": "Bienvenida mayorista",
+}
+
+
+@router.get("/fallidos")
+def fallidos(dias: int = 7):
+    """Correos a clientes que NO se pudieron enviar en los últimos `dias` días. Si a la misma dirección se le mandó
+    después un correo del mismo tipo con éxito, el fallo ya no cuenta (se resolvió). Para el aviso "no enviado" del panel."""
+    try:
+        import datetime as _d
+        desde = (_d.datetime.now(_d.timezone.utc) - _d.timedelta(days=max(1, min(dias, 60)))).isoformat().replace("+00:00", "Z")
+        tipos = ",".join(_TIPOS_CLIENTE)
+        filas = supabase_get_all(
+            f"emails_enviados?tipo=in.({tipos})&created_at=gte.{desde}&order=created_at.desc"
+            f"&select=destinatario,tipo,asunto,exito,error,created_at"
+        ) or []
+        resueltos = set()
+        salida = []
+        for f in filas:   # más reciente primero: si ya vimos un éxito posterior, el fallo viejo se descarta
+            clave = ((f.get("destinatario") or "").strip().lower(), f.get("tipo"))
+            if f.get("exito"):
+                resueltos.add(clave)
+            elif clave not in resueltos:
+                salida.append({
+                    "destinatario": clave[0], "tipo": f.get("tipo"), "nombre": _TIPOS_CLIENTE.get(f.get("tipo"), f.get("tipo")),
+                    "asunto": f.get("asunto"), "error": (f.get("error") or "")[:200], "created_at": f.get("created_at"),
+                })
+                resueltos.add(clave)   # un solo aviso por destinatario y tipo
+        return {"total": len(salida), "dias": dias, "fallidos": salida}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/{email_id}")
 def detalle(email_id: str):
     """Detalle completo de un correo, incluye el HTML (para verlo tal cual se mandó)."""

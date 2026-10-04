@@ -53,7 +53,7 @@ def _desgloses_con_anticipos(pedidos, sucursal_id, desde_iso, hasta_iso=None):
         ids = [p["id"] for p in pedidos]
         abonos = {}
         for i in range(0, len(ids), 100):
-            for r in supabase_get(f"pedido_pagos?pedido_id=in.({','.join(ids[i:i + 100])})&select=pedido_id,monto") or []:
+            for r in supabase_get(f"pedido_pagos?pedido_id=in.({','.join(ids[i:i + 100])})&or=(tipo.is.null,tipo.neq.abono_credito)&select=pedido_id,monto") or []:
                 abonos[r["pedido_id"]] = abonos.get(r["pedido_id"], 0.0) + float(r.get("monto") or 0)
         salida = []
         for p in pedidos:
@@ -64,7 +64,7 @@ def _desgloses_con_anticipos(pedidos, sucursal_id, desde_iso, hasta_iso=None):
                 k = max(range(len(d)), key=lambda j: d[j][1])
                 d[k] = (d[k][0], max(0.0, d[k][1] - a))
             salida += d
-        filtro = f"pedido_pagos?sucursal_id=eq.{sucursal_id}&created_at=gte.{desde_iso}"
+        filtro = f"pedido_pagos?sucursal_id=eq.{sucursal_id}&or=(tipo.is.null,tipo.neq.abono_credito)&created_at=gte.{desde_iso}"
         if hasta_iso:
             filtro += f"&created_at=lt.{hasta_iso}"
         for r in supabase_get_all(filtro + "&select=forma_pago,monto") or []:
@@ -73,6 +73,21 @@ def _desgloses_con_anticipos(pedidos, sucursal_id, desde_iso, hasta_iso=None):
     except Exception as e:
         print(f"[finanzas] anticipos no considerados en el corte: {e}")
         return [d for p in pedidos for d in _desglose_pago(p)]
+
+
+def _cobranza_credito(sucursal_id, desde_iso, hasta_iso=None):
+    """{forma_pago: monto} de los abonos de crédito recibidos en el periodo (cobranza: dinero que entra a caja sin ser venta nueva)."""
+    out = {}
+    try:
+        filtro = f"pedido_pagos?sucursal_id=eq.{sucursal_id}&tipo=eq.abono_credito&created_at=gte.{desde_iso}"
+        if hasta_iso:
+            filtro += f"&created_at=lt.{hasta_iso}"
+        for r in supabase_get_all(filtro + "&select=forma_pago,monto") or []:
+            fp = _forma_norm(r.get("forma_pago"))
+            out[fp] = out.get(fp, 0.0) + float(r.get("monto") or 0)
+    except Exception as e:
+        print(f"[finanzas] cobranza de crédito no considerada en el corte: {e}")
+    return out
 
 
 # ─── CAJA ────────────────────────────────────────
@@ -155,7 +170,10 @@ def cerrar_caja(id: str, datos: dict):
             gastos_caja = sum(float(g.get("monto") or 0) for g in (supabase_get(f"gastos?caja_id=eq.{id}&select=monto") or []))
         except Exception:
             pass
-        diferencia = monto_cierre - (float(caja[0]['monto_apertura']) + ventas_efectivo - gastos_caja)
+        # Abonos de crédito recibidos hoy: no son ventas nuevas, pero el efectivo SÍ entró al cajón
+        cobranza = _cobranza_credito(caja[0]['sucursal_id'], desde, _inicio_dia_mx(hoy + timedelta(days=1)))
+        cobranza_efectivo = cobranza.get('efectivo', 0.0)
+        diferencia = monto_cierre - (float(caja[0]['monto_apertura']) + ventas_efectivo + cobranza_efectivo - gastos_caja)
         
         supabase_patch(f"cajas?id=eq.{id}", {
             "status": "cerrada",
@@ -167,9 +185,10 @@ def cerrar_caja(id: str, datos: dict):
             "ventas_credito": ventas_credito,
             "total_ventas": total_ventas,
             "diferencia": diferencia,
-            "notas": (str(datos.get("notas", "")) + (f" [Gastos pagados de caja: ${gastos_caja:,.2f}]" if gastos_caja else "")).strip()
+            "notas": (str(datos.get("notas", "")) + (f" [Gastos pagados de caja: ${gastos_caja:,.2f}]" if gastos_caja else "")
+                      + (f" [Cobranza de crédito: " + ", ".join(f"{k} ${v:,.2f}" for k, v in cobranza.items()) + "]" if cobranza else "")).strip()
         })
-        return {"ok": True, "total_ventas": total_ventas, "diferencia": diferencia, "gastos_caja": gastos_caja}
+        return {"ok": True, "total_ventas": total_ventas, "diferencia": diferencia, "gastos_caja": gastos_caja, "cobranza_credito": cobranza}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -644,12 +663,12 @@ def cuentas_por_cobrar():
         # crédito sin que el resto lo sea -- si solo se buscara forma_pago=
         # credito, esa deuda parcial nunca aparecería aquí. Se trae también
         # "combinado" y se filtra/calcula el monto real a crédito en Python.
-        pedidos = supabase_get("pedidos?forma_pago=in.(credito,combinado)&status=in.(confirmado,pagado,entregado,enviado)&select=*,clientes(nombre,telefono)")
-        resultado = []
+        pedidos = supabase_get_all("pedidos?forma_pago=in.(credito,combinado)&status=in.(confirmado,pagado,entregado,enviado)&select=*,clientes(nombre,telefono,dias_credito)")
+        candidatos = []
         for p in pedidos:
             if p.get("forma_pago") == "credito":
                 p["monto_credito"] = float(p.get("total") or 0)
-                resultado.append(p)
+                candidatos.append(p)
             else:
                 monto_credito = sum(
                     float(d.get("monto") or 0) for d in (p.get("pagos_detalle") or [])
@@ -657,7 +676,35 @@ def cuentas_por_cobrar():
                 )
                 if monto_credito > 0:
                     p["monto_credito"] = monto_credito
-                    resultado.append(p)
+                    candidatos.append(p)
+        # Abonos recibidos: el saldo real es lo vendido a crédito menos lo abonado. Un pedido liquidado ya no es cuenta por cobrar.
+        abonos = {}
+        ultimo = {}
+        ids = [p["id"] for p in candidatos]
+        for i in range(0, len(ids), 100):
+            for r in supabase_get(f"pedido_pagos?pedido_id=in.({','.join(ids[i:i + 100])})&tipo=eq.abono_credito&select=pedido_id,monto,created_at") or []:
+                abonos[r["pedido_id"]] = abonos.get(r["pedido_id"], 0.0) + float(r.get("monto") or 0)
+                if str(r.get("created_at") or "") > str(ultimo.get(r["pedido_id"]) or ""):
+                    ultimo[r["pedido_id"]] = r.get("created_at")
+        hoy = _hoy_mx()
+        resultado = []
+        for p in candidatos:
+            ab = round(abonos.get(p["id"], 0.0), 2)
+            saldo = round(float(p["monto_credito"]) - ab, 2)
+            if saldo <= 0.009:
+                continue
+            dias = int(((p.get("clientes") or {}).get("dias_credito")) or 0)
+            f0 = _fecha_mx(p.get("confirmado_at") or p.get("created_at"))
+            vence = (f0 + timedelta(days=dias)) if (f0 and dias > 0) else None   # sin días de crédito definidos no hay fecha de vencimiento
+            p["abonado"] = ab
+            p["saldo"] = saldo
+            p["ultimo_abono"] = ultimo.get(p["id"])
+            p["dias_credito"] = dias
+            p["vence"] = vence.isoformat() if vence else None
+            p["dias_atraso"] = max(0, (hoy - vence).days) if vence else 0
+            p["vencido"] = bool(vence and hoy > vence)
+            resultado.append(p)
+        resultado.sort(key=lambda p: (not p["vencido"], str(p.get("confirmado_at") or p.get("created_at") or "")))
         return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

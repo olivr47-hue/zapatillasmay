@@ -1469,7 +1469,7 @@ def marcar_enviado(id: str, datos: dict, _staff=Depends(require_staff)):
 def listar_anticipos(id: str, _staff=Depends(require_staff)):
     if not _UUID_RE.match(id):
         return JSONResponse(status_code=400, content={"error": "Id inválido"})
-    filas = supabase_get(f"pedido_pagos?pedido_id=eq.{id}&order=created_at.asc") or []
+    filas = supabase_get(f"pedido_pagos?pedido_id=eq.{id}&or=(tipo.is.null,tipo.neq.abono_credito)&order=created_at.asc") or []
     return {"pagos": filas, "total": round(sum(float(f.get("monto") or 0) for f in filas), 2)}
 
 
@@ -1520,6 +1520,93 @@ def borrar_anticipo(id: str, pago_id: str, _staff=Depends(require_staff)):
     supabase_patch(f"pedidos?id=eq.{id}", {"anticipo": nuevo})
     _historial(id, "anticipo_borrado", f"-${monto:,.2f}", _quien(_staff))
     return {"ok": True, "anticipo": nuevo}
+
+
+# ─── Abonos de crédito: lo que el cliente va pagando de un pedido a crédito (cuentas por cobrar) ───
+# Cada abono es un pago (tabla pedido_pagos, tipo 'abono_credito') con fecha y forma de pago. El saldo del pedido es
+# la parte a crédito menos lo abonado. En caja entra como COBRANZA el día que se recibe (no como venta nueva).
+def _monto_credito_pedido(p) -> float:
+    """Parte del pedido que se vendió a crédito: todo si forma_pago='credito'; solo el renglón a crédito si fue combinado."""
+    fp = (p.get("forma_pago") or "").strip().lower()
+    if fp == "credito":
+        return round(float(p.get("total") or 0), 2)
+    if fp == "combinado":
+        return round(sum(float(d.get("monto") or 0) for d in (p.get("pagos_detalle") or [])
+                         if (d.get("forma_pago") or "").strip().lower() == "credito"), 2)
+    return 0.0
+
+
+def _estado_abonos(id: str, p: dict) -> dict:
+    filas = supabase_get(f"pedido_pagos?pedido_id=eq.{id}&tipo=eq.abono_credito&order=created_at.asc") or []
+    credito = _monto_credito_pedido(p)
+    abonado = round(sum(float(f.get("monto") or 0) for f in filas), 2)
+    return {"pagos": filas, "credito": credito, "abonado": abonado, "saldo": max(0.0, round(credito - abonado, 2))}
+
+
+@router.get("/{id}/abonos")
+def listar_abonos(id: str, _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    ped = supabase_get(f"pedidos?id=eq.{id}&select=id,total,forma_pago,pagos_detalle")
+    if not ped:
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    return _estado_abonos(id, ped[0])
+
+
+@router.post("/{id}/abonos")
+def registrar_abono(id: str, datos: dict, _staff=Depends(require_staff)):
+    """Body: {monto, forma_pago, nota?, sucursal_id?} o {liquidar: true, forma_pago} para pagar todo el saldo."""
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    ped = supabase_get(f"pedidos?id=eq.{id}&select=id,status,total,forma_pago,pagos_detalle,sucursal_id")
+    if not ped:
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    p = ped[0]
+    if p.get("status") not in ("confirmado", "pagado", "enviado", "entregado"):
+        return JSONResponse(status_code=409, content={"error": "Solo se abona a pedidos confirmados"})
+    est = _estado_abonos(id, p)
+    if est["credito"] <= 0:
+        return JSONResponse(status_code=409, content={"error": "Este pedido no tiene una parte a crédito"})
+    if est["saldo"] <= 0.009:
+        return JSONResponse(status_code=409, content={"error": "Este pedido ya está liquidado"})
+    if datos.get("liquidar"):
+        monto = est["saldo"]
+    else:
+        try:
+            monto = round(float(datos.get("monto") or 0), 2)
+        except (TypeError, ValueError):
+            monto = 0
+    if monto <= 0:
+        return JSONResponse(status_code=400, content={"error": "El monto debe ser mayor a 0"})
+    if monto > est["saldo"] + 0.01:
+        return JSONResponse(status_code=400, content={"error": f"El abono (${monto:,.2f}) es mayor que el saldo (${est['saldo']:,.2f})"})
+    forma = str(datos.get("forma_pago") or "efectivo").strip().lower()
+    if forma not in ("efectivo", "tarjeta", "transferencia", "spei"):
+        return JSONResponse(status_code=400, content={"error": "Forma de pago no válida"})
+    suc = datos.get("sucursal_id") or p.get("sucursal_id")
+    if not suc:
+        s0 = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
+        suc = s0[0]["id"] if s0 else None
+    supabase_post("pedido_pagos", {
+        "pedido_id": id, "monto": monto, "forma_pago": forma, "tipo": "abono_credito",
+        "nota": (str(datos.get("nota") or "").strip()[:200] or None), "usuario": _quien(_staff), "sucursal_id": suc,
+    })
+    saldo = max(0.0, round(est["saldo"] - monto, 2))
+    _historial(id, "abono_credito", f"+${monto:,.2f} ({forma}); saldo ${saldo:,.2f}" + (" — liquidado" if saldo <= 0.009 else ""), _quien(_staff))
+    return {"ok": True, "abonado": round(est["abonado"] + monto, 2), "saldo": saldo, "liquidado": saldo <= 0.009}
+
+
+@router.delete("/{id}/abonos/{pago_id}")
+def borrar_abono(id: str, pago_id: str, _staff=Depends(require_staff)):
+    if not (_UUID_RE.match(id) and _UUID_RE.match(pago_id)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    fila = supabase_get(f"pedido_pagos?id=eq.{pago_id}&pedido_id=eq.{id}&tipo=eq.abono_credito")
+    if not fila:
+        return JSONResponse(status_code=404, content={"error": "Abono no encontrado"})
+    monto = float(fila[0].get("monto") or 0)
+    supabase_delete(f"pedido_pagos?id=eq.{pago_id}")
+    _historial(id, "abono_borrado", f"-${monto:,.2f}", _quien(_staff))
+    return {"ok": True}
 
 
 # ─── Resumen del carrito / apartado por correo (con plantilla) ───
