@@ -1080,7 +1080,7 @@ def pagina_ssr(slug: str):
             _ssr_inner = _h1_tag
             _guias_html = ""
             if GUIA_POR_CATEGORIA.get(slug):
-                _guias_html = ('<div style="max-width:1100px;margin:0 auto 14px;padding:0 20px;font-family:DM Sans,sans-serif;display:grid;gap:8px">'
+                _guias_html = ('<div style="margin:0;padding:0;font-family:DM Sans,sans-serif;display:grid;gap:8px">'
                                + "".join(f'<a href="/{_gs}" style="display:block;padding:12px 16px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:12px;color:#2a1f1a;text-decoration:none;font-size:0.9rem;font-weight:600">'
                                          f'📖 Guía: {_esc_pagina(_gt)} →</a>' for _gs, _gt in GUIA_POR_CATEGORIA[slug])
                                + '</div>')
@@ -1093,9 +1093,11 @@ def pagina_ssr(slug: str):
             template = template.replace('<div class="section" id="productos-section"',
                                         _ssr_inner + '\n<div class="section" id="productos-section"', 1)
             if _guias_html:
-                # Dentro de la sección de productos (que ya deja espacio bajo el encabezado fijo); antes quedaban escondidas detrás del encabezado
-                template = template.replace('<div class="section" id="productos-section" role="main">',
-                                            '<div class="section" id="productos-section" role="main">' + _guias_html, 1)
+                # Al final de la categoría (después de los productos, antes del pie), no encima de ellos
+                _bloque = ('<section style="max-width:1100px;margin:8px auto 36px;padding:0 20px;font-family:DM Sans,sans-serif">'
+                           '<p style="margin:0 0 10px;font-size:0.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a8478;font-weight:700">Guías para elegir mejor</p>'
+                           + _guias_html + '</section>')
+                template = template.replace('<footer', _bloque + '<footer', 1)
 
         if _cat_productos:
             _items_ld = []
