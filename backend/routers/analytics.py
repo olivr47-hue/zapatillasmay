@@ -17,6 +17,7 @@ import os, json, time, urllib.request, urllib.parse, urllib.error
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 import google_sa as _gsa
+from database import supabase_get_all
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -928,3 +929,518 @@ def horario_trafico():
 
     horas = [{"hora": f"{h}:00", "sesiones": por_hora[h]} for h in sorted(por_hora)]
     return {"configurado": True, "horas": horas}
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Análisis ampliado (2026-10): comparativo, productos, canales/campañas, clientas nuevas vs recurrentes,
+# páginas de entrada, tecnología, demografía, ventas por origen (ERP), Google vs ERP, ROAS y búsquedas.
+# Todos aceptan ?dias= (1-365). Las respuestas se guardan 5 min en memoria: la API de Google tiene cuotas por
+# propiedad y cada pestaña del panel hace varias consultas.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_cache_ga: dict = {}
+
+
+def _con_cache(clave: str, fn, ttl: int = 300):
+    ahora = time.time()
+    hit = _cache_ga.get(clave)
+    if hit and hit[0] > ahora:
+        return hit[1]
+    res = fn()
+    # los errores no se guardan: se reintenta en la siguiente petición
+    if isinstance(res, dict) and not res.get("error"):
+        _cache_ga[clave] = (ahora + ttl, res)
+    return res
+
+
+def _n(v) -> float:
+    try:
+        return float(v)
+    except Exception:
+        return 0.0
+
+
+def _dias_ok(dias) -> int:
+    try:
+        return max(1, min(int(dias), 365))
+    except Exception:
+        return 30
+
+
+def _rango_n(dias: int, name: str = None) -> dict:
+    """Los últimos `dias` días incluyendo hoy (dias=1 -> solo hoy)."""
+    r = {"startDate": "today" if dias == 1 else f"{dias - 1}daysAgo", "endDate": "today"}
+    if name:
+        r["name"] = name
+    return r
+
+
+def _rango_previo(dias: int, name: str = None) -> dict:
+    """El periodo inmediato anterior de la misma duración."""
+    r = {"startDate": f"{2 * dias - 1}daysAgo", "endDate": f"{dias}daysAgo"}
+    if name:
+        r["name"] = name
+    return r
+
+
+def _filas(resp: dict, dims: list, mets: list) -> list:
+    """Respuesta de GA4 -> lista de dicts {dim: valor, metrica: número}."""
+    out = []
+    for row in (resp or {}).get("rows") or []:
+        d = {}
+        dv = row.get("dimensionValues") or []
+        for i, nombre in enumerate(dims):
+            d[nombre] = dv[i].get("value", "") if i < len(dv) else ""
+        for i, nombre in enumerate(mets):
+            mv = row.get("metricValues") or []
+            d[nombre] = _n(mv[i].get("value")) if i < len(mv) else 0.0
+        out.append(d)
+    return out
+
+
+def _error_ga(extra: dict = None) -> dict:
+    return {"configurado": True, "error": _last_ga4_error or "No se pudo obtener datos de GA4", **(extra or {})}
+
+
+def _delta(actual: float, previo: float):
+    """Cambio porcentual contra el periodo anterior (None si no hay base para comparar)."""
+    if not previo:
+        return None
+    return round((actual - previo) / previo * 100, 1)
+
+
+@router.get("/resumen")
+def resumen(dias: int = 7):
+    """KPIs del periodo contra el periodo anterior de igual duración (con cambio porcentual)."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        mets = ["sessions", "activeUsers", "newUsers", "screenPageViews", "transactions", "purchaseRevenue",
+                "engagementRate", "averageSessionDuration"]
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias, "actual"), _rango_previo(dias, "anterior")],
+            "metrics": [{"name": m} for m in mets],
+        })
+        if not resp:
+            return _error_ga()
+        por = {}
+        for row in resp.get("rows") or []:
+            nombre = (row.get("dimensionValues") or [{}])[0].get("value", "")
+            por[nombre] = {m: _n(v.get("value")) for m, v in zip(mets, row.get("metricValues") or [])}
+        a, b = por.get("actual", {}), por.get("anterior", {})
+
+        def derivados(x):
+            ses, tr, ing = x.get("sessions", 0), x.get("transactions", 0), x.get("purchaseRevenue", 0)
+            return {**x,
+                    "conversion": round(tr / ses * 100, 2) if ses else 0.0,
+                    "ticket": round(ing / tr, 2) if tr else 0.0,
+                    "ingreso_por_sesion": round(ing / ses, 2) if ses else 0.0,
+                    "sesiones_por_usuario": round(ses / x["activeUsers"], 2) if x.get("activeUsers") else 0.0}
+        a, b = derivados(a), derivados(b)
+        claves = ["sessions", "activeUsers", "newUsers", "screenPageViews", "transactions", "purchaseRevenue",
+                  "engagementRate", "averageSessionDuration", "conversion", "ticket", "ingreso_por_sesion"]
+        return {"configurado": True, "dias": dias,
+                "actual": {k: round(a.get(k, 0), 4) for k in claves},
+                "anterior": {k: round(b.get(k, 0), 4) for k in claves},
+                "cambio_pct": {k: _delta(a.get(k, 0), b.get(k, 0)) for k in claves}}
+    return _con_cache(f"resumen:{dias}", _calc)
+
+
+@router.get("/serie")
+def serie(dias: int = 30):
+    """Sesiones, usuarios, compras e ingreso por día."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        mets = ["sessions", "activeUsers", "transactions", "purchaseRevenue"]
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in mets],
+            "dimensions": [{"name": "date"}], "orderBys": [{"dimension": {"dimensionName": "date"}}],
+        })
+        if not resp:
+            return _error_ga({"dias_serie": []})
+        filas = []
+        for f in _filas(resp, ["date"], mets):
+            d = f["date"]
+            filas.append({"fecha": f"{d[0:4]}-{d[4:6]}-{d[6:8]}", "sesiones": int(f["sessions"]), "usuarios": int(f["activeUsers"]),
+                          "compras": int(f["transactions"]), "ingreso": round(f["purchaseRevenue"], 2)})
+        return {"configurado": True, "dias": dias, "serie": filas}
+    return _con_cache(f"serie:{dias}", _calc)
+
+
+@router.get("/productos")
+def productos_ga(dias: int = 30):
+    """Por modelo: vistas, agregados al carrito, compras e ingreso (eventos de ecommerce de la tienda)."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        mets = ["itemsViewed", "itemsAddedToCart", "itemsPurchased", "itemRevenue"]
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in mets],
+            "dimensions": [{"name": "itemName"}],
+            "orderBys": [{"metric": {"metricName": "itemsViewed"}, "desc": True}], "limit": 80,
+        })
+        if not resp:
+            return _error_ga({"productos": []})
+        lista = []
+        for f in _filas(resp, ["itemName"], mets):
+            nombre = f["itemName"]
+            if not nombre or nombre == "(not set)":
+                continue
+            v, c, k = int(f["itemsViewed"]), int(f["itemsAddedToCart"]), int(f["itemsPurchased"])
+            lista.append({"modelo": nombre, "vistas": v, "carrito": c, "compras": k, "ingreso": round(f["itemRevenue"], 2),
+                          "pct_carrito": round(c / v * 100, 1) if v else 0.0,
+                          "pct_compra": round(k / c * 100, 1) if c else 0.0})
+        # señales útiles: se ve mucho y no se agrega / se agrega y no se compra
+        se_ve_no_se_agrega = [x for x in lista if x["vistas"] >= 15 and x["carrito"] == 0][:8]
+        se_agrega_no_se_compra = [x for x in lista if x["carrito"] >= 3 and x["compras"] == 0][:8]
+        mejores = sorted([x for x in lista if x["vistas"] >= 10], key=lambda x: -(x["compras"] * 1000 + x["pct_carrito"]))[:8]
+        return {"configurado": True, "dias": dias, "productos": lista,
+                "alertas": {"se_ve_no_se_agrega": se_ve_no_se_agrega, "se_agrega_no_se_compra": se_agrega_no_se_compra, "mejores": mejores}}
+    return _con_cache(f"productos:{dias}", _calc)
+
+
+_DIM_CANALES = {
+    "canal": ("sessionDefaultChannelGroup", "Canal"), "fuente": ("sessionSourceMedium", "Fuente / medio"),
+    "campana": ("sessionCampaignName", "Campaña"), "dispositivo": ("deviceCategory", "Dispositivo"),
+}
+
+
+@router.get("/canales")
+def canales(dias: int = 30, por: str = "canal"):
+    """Sesiones, compras, ingreso, conversión, ingreso por sesión y ticket por canal / fuente / campaña / dispositivo."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+    if por not in _DIM_CANALES:
+        por = "canal"
+    dim, etiqueta = _DIM_CANALES[por]
+
+    def _calc():
+        mets = ["sessions", "activeUsers", "engagementRate", "transactions", "purchaseRevenue"]
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in mets],
+            "dimensions": [{"name": dim}],
+            "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 30,
+        })
+        if not resp:
+            return _error_ga({"filas": []})
+        filas = []
+        for f in _filas(resp, [dim], mets):
+            ses, tr, ing = int(f["sessions"]), int(f["transactions"]), f["purchaseRevenue"]
+            nombre = f[dim]
+            if por == "campana" and nombre in ("(not set)", "(direct)", "(organic)", "(referral)"):
+                continue
+            filas.append({"nombre": nombre or "(sin dato)", "sesiones": ses, "usuarios": int(f["activeUsers"]),
+                          "interaccion": round(f["engagementRate"] * 100, 1), "compras": tr, "ingreso": round(ing, 2),
+                          "conversion": round(tr / ses * 100, 2) if ses else 0.0,
+                          "ingreso_por_sesion": round(ing / ses, 2) if ses else 0.0,
+                          "ticket": round(ing / tr, 2) if tr else 0.0})
+        return {"configurado": True, "dias": dias, "por": por, "etiqueta": etiqueta, "filas": filas}
+    return _con_cache(f"canales:{por}:{dias}", _calc)
+
+
+@router.get("/clientas")
+def clientas(dias: int = 30):
+    """Nuevas contra recurrentes: cuántas son, cuánto compran y cómo se comportan."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        mets = ["activeUsers", "sessions", "engagementRate", "averageSessionDuration", "transactions", "purchaseRevenue", "screenPageViews"]
+        resp = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in mets],
+                                       "dimensions": [{"name": "newVsReturning"}]})
+        if not resp:
+            return _error_ga({"grupos": []})
+        et = {"new": "Nuevas", "returning": "Recurrentes"}
+        grupos = []
+        for f in _filas(resp, ["newVsReturning"], mets):
+            clave = f["newVsReturning"]
+            if clave not in et:
+                continue
+            ses, tr, ing = int(f["sessions"]), int(f["transactions"]), f["purchaseRevenue"]
+            grupos.append({"grupo": et[clave], "clave": clave, "usuarios": int(f["activeUsers"]), "sesiones": ses,
+                           "interaccion": round(f["engagementRate"] * 100, 1), "duracion_s": round(f["averageSessionDuration"]),
+                           "paginas_por_sesion": round(f["screenPageViews"] / ses, 1) if ses else 0.0,
+                           "compras": tr, "ingreso": round(ing, 2),
+                           "conversion": round(tr / ses * 100, 2) if ses else 0.0})
+        total_u = sum(g["usuarios"] for g in grupos) or 1
+        for g in grupos:
+            g["pct_usuarios"] = round(g["usuarios"] / total_u * 100, 1)
+        return {"configurado": True, "dias": dias, "grupos": grupos}
+    return _con_cache(f"clientas:{dias}", _calc)
+
+
+@router.get("/paginas")
+def paginas(dias: int = 30):
+    """Páginas por las que más gente entra (con rebote y compras) y las más vistas."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        m1 = ["sessions", "bounceRate", "transactions", "purchaseRevenue"]
+        entrada = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in m1],
+                                          "dimensions": [{"name": "landingPage"}],
+                                          "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 15})
+        if not entrada:
+            return _error_ga({"entrada": [], "vistas": []})
+        m2 = ["screenPageViews", "userEngagementDuration", "activeUsers"]
+        vistas = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in m2],
+                                         "dimensions": [{"name": "pagePath"}],
+                                         "orderBys": [{"metric": {"metricName": "screenPageViews"}, "desc": True}], "limit": 15})
+        ent = [{"pagina": f["landingPage"], "sesiones": int(f["sessions"]), "rebote": round(f["bounceRate"] * 100, 1),
+                "compras": int(f["transactions"]), "ingreso": round(f["purchaseRevenue"], 2)}
+               for f in _filas(entrada, ["landingPage"], m1)]
+        vis = []
+        for f in _filas(vistas, ["pagePath"], m2):
+            vp = int(f["screenPageViews"])
+            vis.append({"pagina": f["pagePath"], "vistas": vp, "usuarios": int(f["activeUsers"]),
+                        "tiempo_s": round(f["userEngagementDuration"] / f["activeUsers"]) if f["activeUsers"] else 0})
+        return {"configurado": True, "dias": dias, "entrada": ent, "vistas": vis}
+    return _con_cache(f"paginas:{dias}", _calc)
+
+
+@router.get("/tecnologia")
+def tecnologia(dias: int = 30):
+    """Navegador, sistema operativo e idioma de quienes visitan."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        res = {}
+        for clave, dim in (("navegadores", "browser"), ("sistemas", "operatingSystem"), ("idiomas", "language")):
+            r = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": "sessions"}, {"name": "transactions"}],
+                                        "dimensions": [{"name": dim}],
+                                        "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 8})
+            if not r:
+                return _error_ga({k: [] for k in ("navegadores", "sistemas", "idiomas")})
+            res[clave] = [{"nombre": f[dim] or "(sin dato)", "sesiones": int(f["sessions"]), "compras": int(f["transactions"])}
+                          for f in _filas(r, [dim], ["sessions", "transactions"]) if f[dim] != "(not set)"]
+        return {"configurado": True, "dias": dias, **res}
+    return _con_cache(f"tecnologia:{dias}", _calc)
+
+
+@router.get("/demografia")
+def demografia(dias: int = 30):
+    """Edad, género e intereses. Google solo los entrega si están activadas las «señales de Google» en la propiedad y hay
+    suficientes usuarios (por privacidad oculta los grupos chicos)."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        res = {}
+        hubo_error = False
+        for clave, dim in (("edad", "userAgeBracket"), ("genero", "userGender"), ("intereses", "brandingInterest")):
+            r = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": "activeUsers"}, {"name": "transactions"}],
+                                        "dimensions": [{"name": dim}],
+                                        "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}], "limit": 10})
+            if not r:
+                hubo_error = True
+                res[clave] = []
+                continue
+            res[clave] = [{"nombre": f[dim], "usuarios": int(f["activeUsers"]), "compras": int(f["transactions"])}
+                          for f in _filas(r, [dim], ["activeUsers", "transactions"]) if f[dim] not in ("(not set)", "unknown", "")]
+        disponible = any(res.values())
+        return {"configurado": True, "dias": dias, "disponible": disponible, **res,
+                "motivo": None if disponible else ("Google no entregó datos demográficos: " + (_last_ga4_error[:160] if hubo_error and _last_ga4_error else
+                           "activa las «señales de Google» en Analytics (Administrar > Configuración de datos > Recopilación de datos) y espera a tener más visitas."))}
+    return _con_cache(f"demografia:{dias}", _calc)
+
+
+@router.get("/busquedas")
+def busquedas(dias: int = 30):
+    """Lo que la gente escribe en el buscador de la tienda y si el catálogo lo tiene. (Se registra desde 2026-10-04.)"""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": "eventCount"}], "dimensions": [{"name": "searchTerm"}],
+            "dimensionFilter": {"filter": {"fieldName": "eventName", "stringFilter": {"matchType": "EXACT", "value": "view_search_results"}}},
+            "orderBys": [{"metric": {"metricName": "eventCount"}, "desc": True}], "limit": 60,
+        })
+        if not resp:
+            return _error_ga({"terminos": []})
+        try:
+            prods = supabase_get_all("productos?activo=eq.true&select=nombre,sku_interno,categoria") or []
+        except Exception:
+            prods = []
+        textos = [((p.get("nombre") or "") + " " + (p.get("sku_interno") or "") + " " + (p.get("categoria") or "")).lower() for p in prods]
+        terminos = []
+        for f in _filas(resp, ["searchTerm"], ["eventCount"]):
+            t = (f["searchTerm"] or "").strip().lower()
+            if not t or t == "(not set)":
+                continue
+            palabras = [w for w in t.split() if w]
+            hay = sum(1 for tx in textos if all(w in tx for w in palabras)) if textos else None
+            terminos.append({"termino": t, "busquedas": int(f["eventCount"]), "modelos": hay,
+                             "sin_resultados": (hay == 0) if hay is not None else None})
+        return {"configurado": True, "dias": dias, "terminos": terminos,
+                "sin_resultados": [x for x in terminos if x["sin_resultados"]][:15]}
+    return _con_cache(f"busquedas:{dias}", _calc)
+
+
+# ─── Ventas reales del ERP por origen (no dependen de que el seguimiento de Google funcione) ─────────────────
+
+_ESTADOS_VENTA = "confirmado,pagado,enviado,entregado"
+
+
+def _origen_pedido(p: dict) -> str:
+    src = (p.get("utm_source") or "").strip().lower()
+    if src in ("fb", "facebook", "ig", "instagram", "meta", "facebook.com", "instagram.com", "l.facebook.com", "m.facebook.com"):
+        return "Meta (Facebook / Instagram)"
+    if p.get("gclid") or src in ("google_ads", "googleads", "adwords"):
+        return "Google (anuncios)"
+    if src in ("google", "google.com"):
+        return "Google"
+    if src in ("tiktok", "tt"):
+        return "TikTok"
+    if src in ("chatgpt.com", "chatgpt", "perplexity", "perplexity.ai", "gemini", "copilot", "claude.ai"):
+        return "Asistentes de IA"
+    if src in ("whatsapp", "wa"):
+        return "WhatsApp"
+    if src in ("email", "correo", "newsletter"):
+        return "Correo"
+    if src:
+        return src[:40]
+    if p.get("fbclid") or p.get("fbc"):
+        return "Meta (Facebook / Instagram)"
+    ref = (p.get("referrer_origen") or "").strip().lower()
+    if ref:
+        return f"Referido: {ref[:40]}"
+    return "Directo / sin dato"
+
+
+def _pedidos_web(dias: int) -> list:
+    import datetime as _dt
+    desde = (_dt.datetime.utcnow() - _dt.timedelta(days=dias)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return supabase_get_all(
+        f"pedidos?canal=eq.web&status=in.({_ESTADOS_VENTA})&created_at=gte.{desde}"
+        f"&select=id,total,created_at,utm_source,utm_medium,utm_campaign,gclid,fbclid,fbc,referrer_origen,pedido_items(nombre,cantidad)"
+    ) or []
+
+
+@router.get("/origen-erp")
+def origen_erp(dias: int = 90):
+    """Ventas web reales del ERP agrupadas por origen: pedidos, ventas, ticket y modelos más comprados de cada origen."""
+    dias = _dias_ok(dias)
+
+    def _calc():
+        try:
+            pedidos = _pedidos_web(dias)
+        except Exception as e:
+            return {"error": f"No se pudieron leer los pedidos: {e}"}
+        grupos, camp = {}, {}
+        total_ventas = 0.0
+        for p in pedidos:
+            o = _origen_pedido(p)
+            t = float(p.get("total") or 0)
+            total_ventas += t
+            g = grupos.setdefault(o, {"origen": o, "pedidos": 0, "ventas": 0.0, "modelos": {}})
+            g["pedidos"] += 1
+            g["ventas"] += t
+            for it in p.get("pedido_items") or []:
+                nom = (it.get("nombre") or "").strip()
+                if nom:
+                    g["modelos"][nom] = g["modelos"].get(nom, 0) + int(it.get("cantidad") or 1)
+            c = (p.get("utm_campaign") or "").strip()
+            if c:
+                cc = camp.setdefault(c, {"campana": c, "pedidos": 0, "ventas": 0.0})
+                cc["pedidos"] += 1
+                cc["ventas"] += t
+        por_origen = []
+        for g in sorted(grupos.values(), key=lambda x: -x["ventas"]):
+            top = sorted(g["modelos"].items(), key=lambda kv: -kv[1])[:3]
+            por_origen.append({"origen": g["origen"], "pedidos": g["pedidos"], "ventas": round(g["ventas"]),
+                               "ticket": round(g["ventas"] / g["pedidos"]) if g["pedidos"] else 0,
+                               "pct_ventas": round(g["ventas"] / total_ventas * 100, 1) if total_ventas else 0.0,
+                               "top_modelos": [{"modelo": n, "pares": q} for n, q in top]})
+        return {"dias": dias, "pedidos": len(pedidos), "ventas": round(total_ventas),
+                "ticket": round(total_ventas / len(pedidos)) if pedidos else 0, "por_origen": por_origen,
+                "por_campana": sorted([{**c, "ventas": round(c["ventas"])} for c in camp.values()], key=lambda x: -x["ventas"])[:15]}
+    return _con_cache(f"origen_erp:{dias}", _calc)
+
+
+@router.get("/google-vs-erp")
+def google_vs_erp(dias: int = 30):
+    """Compras que reporta Google Analytics contra los pedidos web reales del ERP, para saber si el seguimiento pierde ventas."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        resp = _ga4_post("runReport", {"dateRanges": [_rango_n(dias)], "metrics": [{"name": "transactions"}, {"name": "purchaseRevenue"}],
+                                       "dimensions": [{"name": "date"}], "orderBys": [{"dimension": {"dimensionName": "date"}}]})
+        if not resp:
+            return _error_ga()
+        try:
+            pedidos = _pedidos_web(dias)
+        except Exception as e:
+            return {"configurado": True, "error": f"No se pudieron leer los pedidos del ERP: {e}"}
+        import datetime as _dt
+        from zoneinfo import ZoneInfo
+        mx = ZoneInfo("America/Mexico_City")
+        erp_dia = {}
+        for p in pedidos:
+            try:
+                d = _dt.datetime.fromisoformat(str(p["created_at"]).replace("Z", "+00:00")).astimezone(mx).date().isoformat()
+            except Exception:
+                continue
+            x = erp_dia.setdefault(d, [0, 0.0])
+            x[0] += 1
+            x[1] += float(p.get("total") or 0)
+        ga_dia = {}
+        for f in _filas(resp, ["date"], ["transactions", "purchaseRevenue"]):
+            d = f["date"]
+            ga_dia[f"{d[0:4]}-{d[4:6]}-{d[6:8]}"] = [int(f["transactions"]), f["purchaseRevenue"]]
+        dias_union = sorted(set(ga_dia) | set(erp_dia))
+        tabla = [{"fecha": d, "ga_compras": ga_dia.get(d, [0, 0])[0], "erp_pedidos": erp_dia.get(d, [0, 0])[0],
+                  "ga_ingreso": round(ga_dia.get(d, [0, 0.0])[1]), "erp_ventas": round(erp_dia.get(d, [0, 0.0])[1])} for d in dias_union]
+        ga_c = sum(v[0] for v in ga_dia.values()); ga_i = sum(v[1] for v in ga_dia.values())
+        erp_c = sum(v[0] for v in erp_dia.values()); erp_i = sum(v[1] for v in erp_dia.values())
+        return {"configurado": True, "dias": dias,
+                "ga_compras": ga_c, "erp_pedidos": erp_c, "ga_ingreso": round(ga_i), "erp_ventas": round(erp_i),
+                "compras_sin_registrar_en_ga_pct": round((erp_c - ga_c) / erp_c * 100, 1) if erp_c else None,
+                "tabla": [t for t in tabla if t["ga_compras"] or t["erp_pedidos"]][-31:]}
+    return _con_cache(f"gve:{dias}", _calc)
+
+
+@router.get("/roas")
+def roas(dias: int = 30):
+    """Cuánto se gasta en anuncios y cuánto se vende de verdad (ventas del ERP por origen). Meta: gasto real de la cuenta;
+    Google Ads: todavía no está conectado (se muestran las ventas que llegan con clic de anuncio, sin costo)."""
+    dias = _dias_ok(dias)
+    preset = "last_7d" if dias <= 7 else "last_14d" if dias <= 14 else "last_30d" if dias <= 30 else "last_90d"
+
+    def _calc():
+        meta = meta_ads(preset)
+        erp = origen_erp(dias)
+        if erp.get("error"):
+            return {"error": erp["error"]}
+        def buscar(prefijo):
+            return next((o for o in erp["por_origen"] if o["origen"].startswith(prefijo)), {"pedidos": 0, "ventas": 0, "ticket": 0})
+        m, g = buscar("Meta"), buscar("Google (anuncios)")
+        gasto = float(meta.get("total_gasto") or 0) if meta.get("configurado") and not meta.get("error") else None
+        return {
+            "dias": dias, "periodo_meta": preset,
+            "meta": {"conectado": bool(meta.get("configurado")) and not meta.get("error"), "error": meta.get("error") or meta.get("mensaje"),
+                     "gasto": round(gasto, 2) if gasto is not None else None, "ventas_erp": m["ventas"], "pedidos_erp": m["pedidos"],
+                     "roas_erp": round(m["ventas"] / gasto, 2) if gasto else None,
+                     "costo_por_pedido": round(gasto / m["pedidos"], 2) if gasto and m["pedidos"] else None,
+                     "roas_reportado_por_meta": meta.get("roas_promedio"), "compras_reportadas_por_meta": meta.get("total_compras")},
+            "google_ads": {"conectado": False, "ventas_erp": g["ventas"], "pedidos_erp": g["pedidos"], "ticket": g["ticket"],
+                           "nota": "Google Ads no está conectado: se ven las ventas que llegaron con clic de anuncio, pero no su costo."},
+        }
+    return _con_cache(f"roas:{dias}", _calc)

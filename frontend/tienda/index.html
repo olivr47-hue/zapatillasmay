@@ -5816,10 +5816,17 @@ if (window.ttq) {
       .map(id => document.getElementById(id)).filter(Boolean)
     if (!texto || texto.length < 2) { containers.forEach(c => c.classList.remove('show')); return }
     const terminos = texto.toLowerCase().split(' ').filter(t => t)
-    const filtrados = productos.filter(p => {
+    const coinciden = productos.filter(p => {
       const txt = (p.nombre+' '+(p.sku_interno||'')+' '+(p.categoria||'')).toLowerCase()
       return terminos.every(t => txt.includes(t))
-    }).slice(0, 6)
+    })
+    const filtrados = coinciden.slice(0, 6)
+    // Búsquedas para Google Analytics (también las que NO encuentran nada: son lo que la gente quiere y no hay).
+    // Se registra al dejar de escribir; Meta y TikTok siguen recibiendo solo las búsquedas con resultados.
+    clearTimeout(window._stGa)
+    window._stGa = setTimeout(function() {
+      try { if (window.gtag) gtag('event', 'view_search_results', { search_term: texto.trim().toLowerCase().slice(0, 80), results_count: coinciden.length }) } catch (e) {}
+    }, 1200)
     if (!filtrados.length) { containers.forEach(c => c.classList.remove('show')); return }
     const html = filtrados.map(p => `
       <a class="search-result-item" href="/producto/${p.slug||p.sku_interno||p.id}" onclick="document.querySelectorAll('.search-results').forEach(function(c){c.classList.remove('show')})">
