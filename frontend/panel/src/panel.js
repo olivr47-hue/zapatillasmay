@@ -2480,7 +2480,7 @@ window.verCorreosNoEnviados = () => {
   m.id = 'modal-correos-fallidos'
   m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
   m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:520px;width:100%;max-height:90vh;overflow:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">✉️ Correos no enviados (7 días)</h3><button onclick="document.getElementById('modal-correos-fallidos').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">✉️ Recordatorios no enviados (7 días)</h3><button onclick="document.getElementById('modal-correos-fallidos').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
     <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Un correo deja de aparecer aquí en cuanto se le manda otro del mismo tipo a esa dirección y sale bien.</p>
     ${lista.map(f => `
       <div style="padding:8px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
@@ -10214,15 +10214,13 @@ function _renderFilaPedido(p) {
     ? `<br><span onclick="abrirAbonoCredito('${p.id}','pedidos')" title="Registrar un abono" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:${_cx.vencido ? '#fee2e2' : '#fef3c7'};color:${_cx.vencido ? '#b91c1c' : '#b45309'}">Debe $${Math.round(_cx.saldo).toLocaleString('es-MX')}${_cx.vencido ? ' · vencido' : ''}</span>`
     : (window._cxcMap && p.forma_pago === 'credito' && ['confirmado', 'pagado', 'enviado', 'entregado'].includes(p.status)
       ? '<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:#dcfce7;color:#166534">✓ Liquidado</span>' : '')
-  const correoNoEnviado = p.email_cliente && window._correosFallidos && window._correosFallidos.has(String(p.email_cliente).trim().toLowerCase())
-    ? ' <span style="color:#b91c1c;font-weight:700">· ✉️ correo no enviado</span>' : ''
 
   return `
     <tr style="${porEnviar && diasEsperando >= 3 ? 'background:#fff7f7' : (porEnviar ? 'background:#f0f7ff' : '')}">
       <td data-label="Pedido" style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0, 8).toUpperCase()}</td>
       <td data-label="Cliente">
         <strong>${_e(cli)}</strong>
-        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}${correoNoEnviado}</span>` : ''}
+        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}</span>` : ''}
         ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(tel)}</span>` : ''}
       </td>
       <td data-label="Canal">${{
@@ -10348,13 +10346,8 @@ async function cargarPedidos() {
     window._pedPagina = 100
 
     // Saldos de crédito y correos que no se pudieron enviar (si alguno falla, la pantalla sigue igual sin ese dato)
-    const [cxcLista, correosFallidos] = await Promise.all([
-      fetch(API + '/finanzas/cuentas-por-cobrar').then(r => r.json()).then(d => Array.isArray(d) ? d : null).catch(() => null),
-      fetch(API + '/emails/fallidos?dias=7').then(r => r.json()).then(d => (d && Array.isArray(d.fallidos)) ? d.fallidos : []).catch(() => []),
-    ])
+    const cxcLista = await fetch(API + '/finanzas/cuentas-por-cobrar').then(r => r.json()).then(d => Array.isArray(d) ? d : null).catch(() => null)
     window._cxcMap = cxcLista ? Object.fromEntries(cxcLista.map(c => [c.id, c])) : null
-    window._correosFallidosLista = correosFallidos
-    window._correosFallidos = new Set(correosFallidos.map(f => f.destinatario))
     const saldoCxC = (cxcLista || []).reduce((t, c) => t + (parseFloat(c.saldo) || 0), 0)
     const vencidosCxC = (cxcLista || []).filter(c => c.vencido).length
 
@@ -10432,11 +10425,6 @@ async function cargarPedidos() {
             : kpiCard(enCredito, 'En crédito', 'Pedidos activos', '#0f766e', '#f0fdfa', '#99f6e4', "cargarPedidosFiltro('credito')")}
         </div>
 
-        ${correosFallidos.length ? `
-        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:0.85rem;color:#991b1b;font-weight:700">✉️ ${correosFallidos.length} correo(s) a clientes no se enviaron en los últimos 7 días</span>
-          <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.74rem" onclick="verCorreosNoEnviados()">Ver cuáles</button>
-        </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
           <input class="form-input" id="ped-buscar" placeholder="Buscar # pedido, cliente, teléfono, guía o modelo..." style="flex:1;min-width:220px;max-width:340px;${input}" oninput="_pedFiltroCambio()">
           <select class="form-input" id="ped-estado" style="max-width:150px;${input}" onchange="_pedFiltroCambio()">
@@ -11102,7 +11090,7 @@ window.verPedido = async (id) => {
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
             <p style="font-weight:600">${_e(cliente.nombre || p.nombre_cliente || 'Mostrador')}</p>
             <p style="font-size:0.8rem;color:#888">${_e(cliente.telefono || p.telefono_cliente || '')}</p>
-            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${_e(p.email_cliente)}${window._correosFallidos && window._correosFallidos.has(String(p.email_cliente).trim().toLowerCase()) ? ' <span style="color:#b91c1c;font-weight:700">· ✉️ correo no enviado</span>' : ''}</p>` : ''}
+            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${_e(p.email_cliente)}</p>` : ''}
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
@@ -20064,10 +20052,15 @@ async function cargarCarritosAbandonados() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
   try {
-    const [resCA, resPP] = await Promise.all([
+    const [resCA, resPP, resFallidos] = await Promise.all([
       fetch(API + '/carrito-abandonado/listar').then(r => r.json()).catch(() => ({ carritos: [], stats: {} })),
       fetch(API + '/pedidos/pendientes').then(r => r.json()).catch(() => ({ pedidos: [] })),
+      fetch(API + '/emails/fallidos?dias=7&tipos=carrito_abandonado,pedido_pendiente_spei').then(r => r.json()).catch(() => ({ fallidos: [] })),
     ])
+    // Correos de recordatorio que NO se pudieron enviar (se quitan solos cuando a esa dirección se le manda otro y sale bien)
+    const correosFallidos = (resFallidos && Array.isArray(resFallidos.fallidos)) ? resFallidos.fallidos : []
+    window._correosFallidosLista = correosFallidos
+    window._correosFallidos = new Set(correosFallidos.map(f => f.destinatario))
     const st = resCA.stats || {}
     const carritos = resCA.carritos || []
     const pedidosPendientes = Array.isArray(resPP) ? resPP : (Array.isArray(resPP.pedidos) ? resPP.pedidos : [])
@@ -20091,6 +20084,11 @@ async function cargarCarritosAbandonados() {
         <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
           Clientes que no completaron su pago — ya sea por carrito abandonado o pedido OXXO/SPEI sin acreditar.
         </p>
+        ${correosFallidos.length ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:0.85rem;color:#991b1b;font-weight:700">✉️ ${correosFallidos.length} correo(s) de recordatorio no se enviaron en los últimos 7 días</span>
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.74rem" onclick="verCorreosNoEnviados()">Ver cuáles</button>
+        </div>` : ''}
 
         <!-- Tabs -->
         <div style="display:flex;gap:8px;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
@@ -30182,7 +30180,9 @@ window.renderCarritosCA = () => {
       ? '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">✓ Compró</span>'
       : c.recordatorio_enviado
         ? `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">📧 Avisado ${hace(c.recordatorio_enviado_at)}</span>`
-        : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">⏳ Sin avisar</span>'
+        : (window._correosFallidos && window._correosFallidos.has(String(c.email || '').trim().toLowerCase()))
+          ? '<span title="El correo de recordatorio no se pudo enviar" style="background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">✉️ No enviado</span>'
+          : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">⏳ Sin avisar</span>'
     const btn = (txt, fn, col) => `<button onclick="${fn}('${esc(c.id)}', this)" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${col};background:none;color:${col};font-size:0.75rem;font-weight:600;cursor:pointer">${txt}</button>`
     return `<div class="ca-card">
       <div class="ca-top">

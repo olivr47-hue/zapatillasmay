@@ -89,15 +89,15 @@ _TIPOS_CLIENTE = {
 
 
 @router.get("/fallidos")
-def fallidos(dias: int = 7):
+def fallidos(dias: int = 7, tipos: str = ""):
     """Correos a clientes que NO se pudieron enviar en los últimos `dias` días. Si a la misma dirección se le mandó
     después un correo del mismo tipo con éxito, el fallo ya no cuenta (se resolvió). Para el aviso "no enviado" del panel."""
     try:
         import datetime as _d
         desde = (_d.datetime.now(_d.timezone.utc) - _d.timedelta(days=max(1, min(dias, 60)))).isoformat().replace("+00:00", "Z")
-        tipos = ",".join(_TIPOS_CLIENTE)
+        pedidos_tipos = [t for t in (x.strip() for x in tipos.split(",")) if t in _TIPOS_CLIENTE] or list(_TIPOS_CLIENTE)
         filas = supabase_get_all(
-            f"emails_enviados?tipo=in.({tipos})&created_at=gte.{desde}&order=created_at.desc"
+            f"emails_enviados?tipo=in.({','.join(pedidos_tipos)})&created_at=gte.{desde}&order=created_at.desc"
             f"&select=destinatario,tipo,asunto,exito,error,created_at"
         ) or []
         resueltos = set()
