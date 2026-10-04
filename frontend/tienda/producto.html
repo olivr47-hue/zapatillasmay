@@ -1392,7 +1392,7 @@ async function cargarSimilares() {
   try {
     const res = await fetch(`${API}/productos/categoria/${encodeURIComponent(producto.categoria)}`)
     const todos = await res.json()
-    const similares = todos.filter(p => p.id !== producto.id).slice(0, 8)
+    const similares = todos.filter(p => p.id !== producto.id && (p.imagen_principal || '').trim()).slice(0, 8)   // sin foto no se recomienda
     if (!similares.length) return
     const sec = document.getElementById('similares-section')
     const scroll = document.getElementById('similares-scroll')
@@ -2487,7 +2487,7 @@ async function buscarProductos(q) {
       // backend ignoraba en silencio -> siempre regresaba el catálogo completo
       // sin filtrar, en el orden de acomodo (por eso "buscar" no buscaba nada).
       const res = await fetch(`${API}/productos/?q=${encodeURIComponent(term)}&activo=eq.true&limit=8`)
-      const data = await res.json()
+      const data = (await res.json()).filter(x => (x.imagen_principal || '').trim())
       _searchCache[term] = data
       containers.forEach(id => renderSearchResults(data, id))
     } catch(e) {}
