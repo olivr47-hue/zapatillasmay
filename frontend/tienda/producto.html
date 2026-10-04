@@ -1118,7 +1118,7 @@ function renderTallas(color, varsProd) {
     const agotada = stock <= 0
     const pocas = !agotada && stock <= 1
     const stockLabel = pocas ? `<span style="display:block;font-size:0.55rem;color:#f97316;font-weight:700;line-height:1.1;margin-top:1px">¡Últimas!</span>` : ''
-    return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}${stockLabel}</button>`
+    return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? `avisarAgotada('${t}')` : `seleccionarTalla('${t}')`}" ${agotada ? 'aria-disabled="true" title="Agotada"' : ''}>${t}${stockLabel}</button>`
   }).join('')
 }
 
@@ -1194,7 +1194,24 @@ function toggleSucursalInfo() {
   info.style.display = info.style.display === 'flex' ? 'none' : 'flex'
 }
 
+// Talla agotada: antes el botón estaba deshabilitado y al tocarlo no pasaba nada. Ahora explica y ofrece preguntar por WhatsApp.
+function avisarAgotada(t) {
+  const nombre = (producto && producto.nombre) || 'este modelo'
+  const msg = `Hola, me interesa ${nombre}${colorSeleccionado ? ' en color ' + colorSeleccionado : ''}, talla ${t}. ¿Cuándo vuelve a haber?`
+  let el = document.getElementById('talla-agotada-msg')
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'talla-agotada-msg'
+    el.style.cssText = 'margin:10px 0;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;font-size:0.82rem;color:#9a3412;line-height:1.5'
+    const grid = document.getElementById('talla-grid')
+    if (!grid) return
+    grid.insertAdjacentElement('afterend', el)
+  }
+  el.innerHTML = `La talla <strong>${t}</strong> está agotada por ahora. <a href="https://wa.me/5214792244560?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="color:#C0357F;font-weight:700">Pregúntanos por WhatsApp cuándo vuelve →</a>`
+}
+
 function seleccionarTalla(talla) {
+  const _am = document.getElementById('talla-agotada-msg'); if (_am) _am.remove()
   tallaSeleccionada = talla
   document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('active'))
   const btn = document.getElementById('tbtn-' + talla.replace('.','_'))
