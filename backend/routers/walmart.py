@@ -388,6 +388,50 @@ def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
 _SYNC_VENTAS_LOCK = threading.Lock()
 
 
+def _estatus_linea_wm(linea: dict) -> str:
+    return ((((linea.get("orderLineStatuses") or {}).get("orderLineStatus")) or [{}])[0]).get("status") or ""
+
+
+def _actualizar_estado_walmart(pedido: dict, orden: dict, order_id: str, resultado: dict):
+    """Pone al día un pedido de Walmart del ERP según el estado de sus líneas en Walmart:
+    todo cancelado -> 'cancelado' (y regresa el inventario); todo enviado -> 'enviado' (con paquetería y guía si
+    Walmart las trae; cubre lo enviado desde Seller Center); todo entregado -> 'entregado'."""
+    lineas = (orden.get("orderLines") or {}).get("orderLine", [])
+    estatus = [_estatus_linea_wm(l) for l in lineas]
+    if not estatus:
+        return
+    vivos = [(l, e) for l, e in zip(lineas, estatus) if e != "Cancelled"]
+    estado = pedido.get("status")
+    from routers.mercadolibre import _cancelar_pedido_ml, _hist_ml
+    if not vivos:
+        if estado in ("pagado", "confirmado"):
+            _cancelar_pedido_ml(pedido, order_id, origen="Walmart")
+            resultado["cancelados"] += 1
+        return
+    todas = {e for _, e in vivos}
+    if todas == {"Delivered"} and estado in ("pagado", "confirmado", "enviado"):
+        supabase_patch(f"pedidos?id=eq.{pedido['id']}", {"status": "entregado"})
+        _hist_ml(pedido["id"], "entregado", "Walmart confirmó la entrega al comprador")
+        resultado["entregados"] += 1
+    elif todas <= {"Shipped", "Delivered"} and estado in ("pagado", "confirmado"):
+        info = {}
+        try:
+            info = (((vivos[0][0].get("orderLineStatuses") or {}).get("orderLineStatus") or [{}])[0].get("trackingInfo")) or {}
+        except Exception:
+            pass
+        datos = {"status": "enviado", "enviado_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()}
+        carrier = ((info.get("carrierName") or {}).get("carrier") or info.get("carrierName") or "")
+        if isinstance(carrier, str) and carrier:
+            datos["paqueteria"] = carrier
+        if info.get("trackingNumber"):
+            datos["numero_guia"] = str(info["trackingNumber"])
+        if info.get("trackingURL"):
+            datos["tracking_url"] = str(info["trackingURL"])
+        supabase_patch(f"pedidos?id=eq.{pedido['id']}", datos)
+        _hist_ml(pedido["id"], "enviado", "Walmart reporta la orden como enviada")
+        resultado["enviados"] += 1
+
+
 def _hacer_sync_ventas_walmart() -> dict:
     if not _SYNC_VENTAS_LOCK.acquire(blocking=False):
         return {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "omitida": "ya hay una sincronización en curso"}
@@ -398,9 +442,13 @@ def _hacer_sync_ventas_walmart() -> dict:
 
 
 def _hacer_sync_ventas_walmart_inner() -> dict:
-    resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
+    resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "enviados": 0, "entregados": 0, "cancelados": 0}
+    import datetime as _dtw
+    # Ventana de 14 días (por defecto Walmart solo regresa los últimos 7): si el servidor se cae unos días
+    # no se pierde ninguna orden.
+    _desde = (_dtw.datetime.utcnow() - _dtw.timedelta(days=14)).strftime("%Y-%m-%dT00:00:00Z")
     try:
-        resp = walmart_get("/orders", params={"limit": 100})
+        resp = walmart_get("/orders", params={"limit": 100, "createdStartDate": _desde})
         # La API puede envolver la lista como {"order": [...]} (observado en
         # /ordenes/test) o como {"list": {"elements": {"order": [...]}}} según
         # la versión -- se soportan ambas formas por si acaso.
@@ -409,10 +457,27 @@ def _hacer_sync_ventas_walmart_inner() -> dict:
         resultado["errores"].append({"error_general": str(e.detail)})
         return resultado
 
+    # Pedidos de Walmart que el ERP ya tiene y siguen vivos: sirven para dedup y para ponerlos al día
+    # (enviado / entregado / cancelado) con lo que diga Walmart.
+    _vivos = {}
+    try:
+        for _p in supabase_get("pedidos?canal=eq.walmart&status=in.(pagado,confirmado,enviado)&select=id,walmart_order_id,status") or []:
+            if _p.get("walmart_order_id"):
+                _vivos[str(_p["walmart_order_id"])] = _p
+    except Exception as e:
+        resultado["errores"].append({"error_general": f"no se pudieron leer los pedidos de Walmart del ERP: {e}"})
+
     for orden in ordenes:
         resultado["revisadas"] += 1
         order_id = str(orden.get("purchaseOrderId") or orden.get("customerOrderId") or "")
         if not order_id:
+            continue
+
+        if order_id in _vivos:
+            try:
+                _actualizar_estado_walmart(_vivos[order_id], orden, order_id, resultado)
+            except Exception as e:
+                resultado["errores"].append({"orden": order_id, "error": f"no se pudo actualizar el estado: {e}"})
             continue
 
         ya_existe = supabase_get(f"pedidos?walmart_order_id=eq.{order_id}&select=id")
@@ -423,6 +488,8 @@ def _hacer_sync_ventas_walmart_inner() -> dict:
         items_pedido = []
         faltante = False
         for linea in lineas:
+            if _estatus_linea_wm(linea) == "Cancelled":
+                continue   # línea cancelada en Walmart: no se vendió, no se descuenta
             item_info = linea.get("item") or {}
             sku = (item_info.get("sku") or "").strip()
             cantidad = int(float((linea.get("orderLineQuantity") or {}).get("amount") or 0))

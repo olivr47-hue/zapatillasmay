@@ -262,9 +262,9 @@ def _loop_novedades_wa():
         _time.sleep(5 * 60)
 
 def _loop_ml_ventas():
-    """Descuenta inventario del ERP por ventas nuevas en MercadoLibre, y marca
-    como enviados los pedidos que el vendedor ya despachó en una agencia de
-    ML (no cuando le llega al cliente), cada 10 minutos."""
+    """Cada 10 minutos: descuenta del ERP las ventas nuevas de MercadoLibre, manda el stock del ERP a las
+    publicaciones, marca como enviados los pedidos despachados en agencia y como entregados los que ML
+    confirma entregados (y cancela los que se cancelan allá)."""
     _time.sleep(150)  # espera inicial
     while True:
         try:
@@ -275,6 +275,13 @@ def _loop_ml_ventas():
         except Exception as e:
             print(f"[ml-ventas] Error en loop: {e}")
         try:
+            # Stock ERP -> MercadoLibre. Va DESPUÉS de registrar las ventas (arriba) para que el ERP ya tenga
+            # descontado lo que se vendió allá; si no, se le devolvería a ML una cantidad más alta de la real.
+            from routers.mercadolibre import _hacer_sync
+            _hacer_sync()
+        except Exception as e:
+            print(f"[ml-stock] Error en loop: {e}")
+        try:
             from routers.mercadolibre import _hacer_sync_entregas
             res2 = _hacer_sync_entregas()
             if res2.get("actualizados") or res2.get("entregados") or res2.get("cancelados"):
@@ -282,6 +289,36 @@ def _loop_ml_ventas():
         except Exception as e:
             print(f"[ml-entregas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
+
+def _loop_walmart_ventas():
+    """Cada 10 minutos: registra las ventas nuevas de Walmart (pedido + descuento de inventario) y pone al día
+    los pedidos que Walmart marca como enviados, entregados o cancelados. Antes solo corría al oprimir
+    "Sincronizar" en el panel, así que una venta de Walmart no aparecía en "Por enviar" hasta entonces."""
+    _time.sleep(260)
+    while True:
+        try:
+            from routers.walmart import _hacer_sync_ventas_walmart, WALMART_CLIENT_ID
+            if WALMART_CLIENT_ID:
+                res = _hacer_sync_ventas_walmart()
+                if res.get("procesadas") or res.get("enviados") or res.get("entregados") or res.get("cancelados"):
+                    print(f"[walmart-ventas] nuevas: {res['procesadas']}, enviadas: {res['enviados']}, entregadas: {res['entregados']}, canceladas: {res['cancelados']}")
+                if res.get("errores"):
+                    print(f"[walmart-ventas] errores: {res['errores'][:3]}")
+        except Exception as e:
+            print(f"[walmart-ventas] Error en loop: {e}")
+        _time.sleep(10 * 60)
+
+def _loop_shein_stock():
+    """Cada 30 minutos manda a SHEIN el stock del ERP de lo ya publicado (igual que Walmart y MercadoLibre):
+    antes solo se actualizaba al oprimir "Sincronizar" y un par vendido en otro canal seguía ofreciéndose."""
+    _time.sleep(1500)
+    while True:
+        try:
+            from routers.shein import _hacer_sync
+            _hacer_sync()
+        except Exception as e:
+            print(f"[shein-stock] Error en loop: {e}")
+        _time.sleep(30 * 60)
 
 def _loop_shein_ventas():
     """Descuenta inventario del ERP por ventas nuevas en SHEIN cada 10 minutos
@@ -294,6 +331,8 @@ def _loop_shein_ventas():
             res = _hacer_sync_ventas_shein()
             if res.get("procesadas"):
                 print(f"[shein-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
+            if res.get("sin_match") or res.get("errores"):
+                print(f"[shein-ventas] sin_match: {res.get('sin_match')[:3]}, errores: {res.get('errores')[:3]}")
         except Exception as e:
             print(f"[shein-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
@@ -515,6 +554,14 @@ def _iniciar_hilos():
     t3w = threading.Thread(target=_loop_walmart_inventario, daemon=True)
     t3w.start()
     print("[walmart-inventario] Hilo de existencias iniciado (cada 30 min)")
+    # Walmart: ventas nuevas y estado de envío (cada 10 min)
+    t3wv = threading.Thread(target=_loop_walmart_ventas, daemon=True)
+    t3wv.start()
+    print("[walmart-ventas] Hilo de ventas iniciado (cada 10 min)")
+    # SHEIN: mantener existencias al día
+    t3bs = threading.Thread(target=_loop_shein_stock, daemon=True)
+    t3bs.start()
+    print("[shein-stock] Hilo de existencias iniciado (cada 30 min)")
     # Amazon: descontar inventario por ventas nuevas (solo si está configurado)
     t3c = threading.Thread(target=_loop_amazon_ventas, daemon=True)
     t3c.start()

@@ -24159,6 +24159,17 @@ window._sheinSwitchTab = async (tab) => {
   else if (tab === 'ventas')     await _sheinRenderVentasTab()
 }
 
+// Estado de un pedido de marketplace con color y nombre claro (antes se veía el texto crudo de la base)
+window._estadoVentaBadge = (st) => {
+  const m = {
+    pagado: ['Por enviar', '#b45309', '#fef3c7'], confirmado: ['Por enviar', '#b45309', '#fef3c7'],
+    enviado: ['Enviado', '#1d4ed8', '#dbeafe'], entregado: ['Entregado', '#166534', '#dcfce7'],
+    cancelado: ['Cancelado', '#991b1b', '#fee2e2'],
+  }
+  const [t, c, bg] = m[st] || [st || '—', '#555', '#eee']
+  return `<span style="font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:100px;background:${bg};color:${c}">${t}</span>`
+}
+
 async function _sheinRenderVentasTab() {
   const body = document.getElementById('shein-tab-body')
   body.innerHTML = '<p style="color:#aaa;font-size:0.85rem;margin:0">Cargando ventas...</p>'
@@ -24166,10 +24177,10 @@ async function _sheinRenderVentasTab() {
     const res = await fetch(`${API}/shein/ventas`)
     const ventas = await res.json()
     const lista = Array.isArray(ventas) ? ventas : []
-    const total = lista.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const total = lista.filter(p => p.status !== 'cancelado').reduce((s, p) => s + parseFloat(p.total || 0), 0)
     body.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-        <p style="margin:0;font-size:0.82rem;color:#888">Se descuenta el inventario automáticamente al detectarse una venta nueva (últimas 47h por corrida).</p>
+        <p style="margin:0;font-size:0.82rem;color:#888">Cada 10 min se registran las ventas nuevas y se descuenta el inventario (se revisan las últimas 47 h). El stock se envía a SHEIN cada 30 min.</p>
         ${_sheinBtn('refresh', 'Sincronizar ahora', 'window._sheinSincronizarVentas(this)', 'primary', 'shein-btn-sync-ventas')}
       </div>
       <div id="shein-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
@@ -24197,7 +24208,7 @@ async function _sheinRenderVentasTab() {
               <tr style="border-bottom:1px solid #f5f5f5">
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};font-family:monospace">${p.shein_order_id || '—'}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
-                <td style="padding:0.4rem 0.5rem;font-size:0.8rem">${p.status}</td>
+                <td style="padding:0.4rem 0.5rem">${window._estadoVentaBadge(p.status)}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
               </tr>`).join('')}
           </tbody>
@@ -29270,10 +29281,10 @@ window._wmRenderVentasTab = async () => {
     const res = await fetch(`${API}/walmart/ventas`)
     const ventas = await res.json()
     const lista = Array.isArray(ventas) ? ventas : []
-    const total = lista.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const total = lista.filter(p => p.status !== 'cancelado').reduce((s, p) => s + parseFloat(p.total || 0), 0)
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-        <p style="margin:0;font-size:0.82rem;color:#888">Se descuenta el inventario automáticamente al detectarse una venta nueva.</p>
+        <p style="margin:0;font-size:0.82rem;color:#888">Cada 10 min se registran las ventas nuevas, se descuenta el inventario y se actualiza el envío (enviado, entregado o cancelado). El stock se envía a Walmart cada 30 min.</p>
         ${_wmBtn('🔄 Sincronizar ahora', 'window._wmSincronizarVentas(this)', 'primary', 'wm-btn-sync-ventas')}
       </div>
       <div id="wm-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
@@ -29301,7 +29312,7 @@ window._wmRenderVentasTab = async () => {
               <tr style="border-bottom:1px solid #f5f5f5">
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_WM_ACCENT};font-family:monospace">${p.walmart_order_id || '—'}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
-                <td style="padding:0.4rem 0.5rem;font-size:0.8rem">${p.status}</td>
+                <td style="padding:0.4rem 0.5rem">${window._estadoVentaBadge(p.status)}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
               </tr>`).join('')}
           </tbody>

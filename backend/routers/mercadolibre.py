@@ -684,8 +684,21 @@ def sincronizar_inventario(background_tasks: BackgroundTasks):
     return {"message": "Sincronizacion iniciada. Consulta /ml/sync/log en ~30s"}
 
 
+# Una sola sincronización de stock a la vez (el ciclo automático y el botón manual podían cruzarse)
+_SYNC_STOCK_LOCK = threading.Lock()
+
+
 def _hacer_sync():
     """Sincroniza available_quantity de cada item activo usando SELLER_SKU → ERP stock."""
+    if not _SYNC_STOCK_LOCK.acquire(blocking=False):
+        return
+    try:
+        _hacer_sync_inner()
+    finally:
+        _SYNC_STOCK_LOCK.release()
+
+
+def _hacer_sync_inner():
     try:
         all_ids   = _get_all_item_ids()
         items     = _get_items_with_sku(all_ids)
@@ -1836,7 +1849,7 @@ def _hist_ml(pedido_id, accion, detalle=None):
         print(f"[ml] no se pudo guardar el historial: {e}")
 
 
-def _cancelar_pedido_ml(pedido: dict, order_id: str) -> int:
+def _cancelar_pedido_ml(pedido: dict, order_id: str, origen: str = "MercadoLibre") -> int:
     """La orden se canceló en ML antes de despacharla: el pedido pasa a 'cancelado' y las piezas vuelven al
     inventario (al crearse el pedido ya se habían descontado). Devuelve cuántas piezas se regresaron."""
     # Primero se cambia el estado (así, aunque algo falle después, no se regresa el inventario dos veces)
@@ -1853,10 +1866,10 @@ def _cancelar_pedido_ml(pedido: dict, order_id: str) -> int:
         inventario_ajustar(vid, filas[0]["sucursal_id"], cant)
         supabase_post("movimientos_inventario", {
             "variante_id": vid, "sucursal_id": filas[0]["sucursal_id"], "tipo": "entrada",
-            "cantidad": cant, "motivo": f"Cancelación MercadoLibre (orden {order_id})",
+            "cantidad": cant, "motivo": f"Cancelación {origen} (orden {order_id})",
         })
         devueltas += cant
-    _hist_ml(pedido["id"], "cancelado", f"La orden {order_id} se canceló en MercadoLibre; {devueltas} pieza(s) regresaron al inventario")
+    _hist_ml(pedido["id"], "cancelado", f"La orden {order_id} se canceló en {origen}; {devueltas} pieza(s) regresaron al inventario")
     return devueltas
 
 

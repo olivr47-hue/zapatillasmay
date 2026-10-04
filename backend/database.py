@@ -47,6 +47,12 @@ def supabase_get_all(tabla_base, page_size=1000):
     """Trae todos los registros paginando con Range headers (método oficial PostgREST/Supabase)."""
     todos = []
     offset = 0
+    # Sin un ORDER BY fijo, Postgres no garantiza el mismo orden entre una página y la siguiente: con más de
+    # 1000 filas (variantes, inventario) se saltaban o repetían registros y los cruces por SKU / stock salían mal.
+    if "order=" not in tabla_base:
+        _tabla = tabla_base.split("?")[0]
+        _orden = "variante_id.asc,sucursal_id.asc" if _tabla == "inventario" else "id.asc"
+        tabla_base += ("&" if "?" in tabla_base else "?") + "order=" + _orden
     url = f"{SUPABASE_URL}/rest/v1/{tabla_base}"
     while True:
         headers = {

@@ -64,17 +64,27 @@ def _shein_opener() -> urllib.request.OpenerDirector:
 
 # ─── Almacén del openKeyId/secretKey (tabla configuracion, igual que TikTok) ──
 
+_creds_cache = {"v": None, "t": 0.0}
+
+
 def _load_creds() -> dict | None:
+    # Se firma CADA llamada a SHEIN y antes cada firma hacía 2 consultas a la base (openKeyId y secretKey por
+    # separado); en un escaneo de cientos de llamadas eran cientos de consultas. Caché corta de 60 s.
+    if _creds_cache["v"] is not None and time.time() - _creds_cache["t"] < 60:
+        return _creds_cache["v"]
     try:
         rows = supabase_get("configuracion?clave=eq.shein_token&select=valor")
         if rows and rows[0].get("valor"):
-            return json.loads(rows[0]["valor"])
-    except Exception:
-        pass
+            _creds_cache["v"] = json.loads(rows[0]["valor"])
+            _creds_cache["t"] = time.time()
+            return _creds_cache["v"]
+    except Exception as e:
+        print(f"[SHEIN] no se pudieron leer las credenciales: {e}")
     return None
 
 
 def _save_creds(data: dict):
+    _creds_cache["v"] = None
     valor = json.dumps(data)
     try:
         existing = supabase_get("configuracion?clave=eq.shein_token")
@@ -310,9 +320,11 @@ def _descontar_inventario_variante_shein(variante_id: str, cantidad: int):
     return True
 
 
-def _buscar_variante_por_seller_sku_shein(seller_sku: str):
+def _buscar_variante_por_seller_sku_shein(seller_sku: str, variantes=None):
+    """`variantes` permite reusar una lista ya cargada (antes se bajaban TODAS las variantes por cada artículo)."""
     sku_norm = _norm_sku(seller_sku)
-    variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id")
+    if variantes is None:
+        variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id")
     for v in variantes:
         if v.get("sku") and _norm_sku(v["sku"]) == sku_norm:
             return v
@@ -425,6 +437,7 @@ def _hacer_sync_ventas_shein() -> dict:
 def _hacer_sync_ventas_shein_inner() -> dict:
     import datetime as _dt
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
+    variantes_cache = None
 
     ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)  # SHEIN usa hora de Beijing (UTC+8)
     inicio = ahora - _dt.timedelta(hours=47)  # margen bajo el límite de 48h
@@ -485,7 +498,9 @@ def _hacer_sync_ventas_shein_inner() -> dict:
                     resultado["sin_match"].append({"orden": order_id, "sku": f"(sin sellerSku ni match por skuCode={g.get('skuCode')})"})
                     faltante = True
                     continue
-                variante = _buscar_variante_por_seller_sku_shein(seller_sku)
+                if variantes_cache is None:
+                    variantes_cache = supabase_get_all("variantes?select=id,sku,color,talla,producto_id")
+                variante = _buscar_variante_por_seller_sku_shein(seller_sku, variantes_cache)
                 if not variante:
                     resultado["sin_match"].append({"orden": order_id, "sku": seller_sku})
                     faltante = True
@@ -921,7 +936,7 @@ def _skus_shein_cached() -> list:
     if cached is not None:
         return cached
     resultado = _skus_shein()
-    cache_set("shein_skus_publicados", resultado, ttl=1200)
+    cache_set("shein_skus_publicados", resultado, ttl=3600)
     return resultado
 
 
@@ -932,7 +947,7 @@ def _hacer_escaneo_skus_shein():
     el mismo escaneo dos veces si el panel pregunta de nuevo antes de que termine."""
     try:
         resultado = _skus_shein()
-        cache_set("shein_skus_publicados", resultado, ttl=1200)
+        cache_set("shein_skus_publicados", resultado, ttl=3600)
     finally:
         cache_set("shein_skus_escaneando", None, ttl=1)
 
