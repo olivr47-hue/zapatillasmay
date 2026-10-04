@@ -9,7 +9,6 @@ from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
-from routers import campanas
 from routers import tiktok
 from routers import catalogos
 from routers import mercadolibre
@@ -207,7 +206,8 @@ app.include_router(seo.router)
 app.include_router(crm.router)
 app.include_router(finanzas.router)
 app.include_router(chatbot.router)
-app.include_router(campanas.router)
+# campanas.py (envío por WhatsApp NO oficial, vía QR/Evolution) está APAGADO desde 2026-10-04: casi bloquean el número del negocio.
+# El archivo se conserva en backend/routers/campanas.py por si algún día se quiere recuperar; para eso basta volver a importarlo e incluirlo aquí.
 app.include_router(tiktok.router)
 app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)

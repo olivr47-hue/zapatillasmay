@@ -4364,7 +4364,6 @@ async function cargarCRM() {
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary" onclick="mostrarPipeline()">📊 Pipeline</button>
-          <button class="btn btn-secondary" onclick="mostrarCampanas()">📣 Campañas</button>
         </div>
       </div>
 
