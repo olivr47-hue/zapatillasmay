@@ -536,8 +536,18 @@ def _producto_ssr_inner(sku: str, request: Request):
     if not imagenes_seo and '</head>' in template:
         template = template.replace('</head>', '<meta name="robots" content="noindex,follow"></head>', 1)
 
+    if (p.get("categoria") or "").lower() == "tacones" and "<!-- RESEÑAS -->" in template:
+        template = template.replace("<!-- RESEÑAS -->", _GUIA_BANNER_TACONES + "\n<!-- RESEÑAS -->", 1)
+
     cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
+
+
+_GUIA_BANNER_TACONES = (
+    '<div style="margin:16px;padding:16px 18px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:14px;font-family:DM Sans,sans-serif">'
+    '<p style="margin:0 0 4px;font-size:0.72rem;letter-spacing:.08em;text-transform:uppercase;color:#9a8478;font-weight:700">Guía</p>'
+    '<a href="/guia-tacones-8-vs-10-cm" style="color:#2a1f1a;font-weight:700;text-decoration:none;font-size:0.98rem;line-height:1.35;display:block">¿Tacón de 8 o de 10 cm? Cómo elegir el tuyo →</a></div>'
+)
 
 
 # ── #3 — Títulos/descripciones únicos por categoría y páginas fijas (SSR) ──────
@@ -757,6 +767,7 @@ _PAGINAS_CONTENT = {
       <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">Corrida completa</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$180 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Portal de Mayoristas</td></tr>
     </tbody>
   </table>
+  <p style="margin-top:18px">¿Primera vez comprando al mayoreo? Lee la <a href="/guia-comprar-calzado-mayoreo-leon" style="color:#E91E8C">guía para comprar calzado al mayoreo en León</a>.</p>
   <h2 style="font-size:1.2rem;margin-top:28px">¿Qué es una corrida?</h2>
   <p>Una corrida es un mismo modelo en todos los colores y tallas disponibles — ideal para revendedoras y tiendas. Al completar una corrida obtienes el mejor precio por par.</p>
   <div style="margin-top:28px;padding:22px 24px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:14px;text-align:center">
@@ -1055,6 +1066,10 @@ def pagina_ssr(slug: str):
                     for _pp in _cat_productos[:15] if _pp.get("sku_interno")
                 )
             _ssr_inner = _h1_tag
+            if slug == "tacones":
+                _ssr_inner += ('<div style="max-width:1100px;margin:10px auto 0;padding:0 20px;font-family:DM Sans,sans-serif">'
+                               '<a href="/guia-tacones-8-vs-10-cm" style="display:block;padding:12px 16px;background:#fdf6f1;border:1px solid #eadcd2;border-radius:12px;color:#2a1f1a;text-decoration:none;font-size:0.9rem;font-weight:600">'
+                               '👠 Guía: ¿tacón de 8 o de 10 cm? Cómo elegir el tuyo →</a></div>')
             if _prod_links:
                 _ssr_inner += (
                     f'<section aria-hidden="true" style="display:none">'
@@ -1153,8 +1168,23 @@ def _guia_extras(slug, template, titulo, desc, canonical):
         template = template.replace("<!--GUIA_TACONES_8-->", _guia_tarjetas(grupos["8"]))
         template = template.replace("<!--GUIA_TACONES_10-->", _guia_tarjetas(grupos["10"]))
     ld = []
+    og_img = ""
+    if slug == "guia-tacones-8-vs-10-cm":
+        _g = cache_get("guia_tacones_prods") or {}
+        _img = next((x.get("imagen_principal") for x in (_g.get("8") or []) + (_g.get("10") or []) if x.get("imagen_principal")), "")
+        if "res.cloudinary.com" in _img and "/upload/" in _img:
+            og_img = _img.replace("/upload/", "/upload/w_1200,h_630,c_fill,g_auto,f_auto,q_auto/", 1)
+    if og_img:
+        template = re.sub(r'(<meta property="og:image" content=")[^"]*(")', lambda m: m.group(1) + og_img + m.group(2), template, count=1)
+        template = re.sub(r'(<meta name="twitter:image" content=")[^"]*(")', lambda m: m.group(1) + og_img + m.group(2), template, count=1)
+    if slug == "guia-tacones-8-vs-10-cm":
+        ld.append({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": "¿Cuál es la altura de tacón más cómoda?", "acceptedAnswer": {"@type": "Answer", "text": "Depende de cada persona, pero para uso de varias horas la mayoría prefiere alturas de 5 a 8 cm, sobre todo en bloque o con plataforma."}},
+            {"@type": "Question", "name": "¿Cada modelo indica su altura?", "acceptedAnswer": {"@type": "Answer", "text": "Sí, la ficha de cada producto muestra la altura del tacón en centímetros."}},
+            {"@type": "Question", "name": "¿Hacen envíos a todo México?", "acceptedAnswer": {"@type": "Answer", "text": "Sí, enviamos a toda la República en 1 a 3 días hábiles."}}]})
     if slug != "guias":
         ld.append({"@context": "https://schema.org", "@type": "Article", "headline": titulo.split(" |")[0], "description": desc,
+                   "datePublished": "2026-10-04", "dateModified": "2026-10-04",
                    "mainEntityOfPage": canonical, "inLanguage": "es-MX",
                    "author": {"@type": "Organization", "name": "Zapatillas May"},
                    "publisher": {"@type": "Organization", "name": "Zapatillas May", "logo": {"@type": "ImageObject", "url": "https://zapatillasmay.mx/logo.png"}}})
