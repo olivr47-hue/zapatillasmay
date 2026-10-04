@@ -332,95 +332,63 @@ def usuarios_tiempo_real():
 
 @router.get("/hoy")
 def metricas_hoy():
-    """Métricas del día de hoy."""
+    """Métricas del día de hoy (o de ayer si GA4 todavía no procesa hoy)."""
     if not _esta_configurado():
         return _no_credenciales()
 
-    # Intentar hoy primero; si no hay datos (GA4 tiene delay), usar ayer
-    resp = _ga4_post("runReport", {
-        "dateRanges": [{"startDate": "today", "endDate": "today"}],
-        "metrics": [
-            {"name": "sessions"},
-            {"name": "activeUsers"},
-            {"name": "newUsers"},
-            {"name": "screenPageViews"},
-            {"name": "averageSessionDuration"},
-            {"name": "bounceRate"},
-        ],
-        "dimensions": [{"name": "pagePath"}],
-        "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
-        "limit":      10,
-    })
-    _periodo = "hoy"
-    # Si hoy no tiene filas todavía (GA4 procesa con delay), usar ayer
-    if resp and not resp.get("rows"):
-        resp = _ga4_post("runReport", {
-            "dateRanges": [{"startDate": "yesterday", "endDate": "yesterday"}],
-            "metrics": [
-                {"name": "sessions"},
-                {"name": "activeUsers"},
-                {"name": "newUsers"},
-                {"name": "screenPageViews"},
-                {"name": "averageSessionDuration"},
-                {"name": "bounceRate"},
-            ],
-            "dimensions": [{"name": "pagePath"}],
-            "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
-            "limit":      10,
-        })
-        _periodo = "ayer"
+    # OJO: los totales se piden SIN dimensión de página. Antes se sumaban las filas por pagePath, y eso cuenta de más:
+    # una persona que ve 3 páginas aparece en las 3 filas (usuarios y sesiones salían inflados), y con limit=10 las
+    # páginas fuera del top 10 ni siquiera entraban. Sin dimensión GA4 regresa una sola fila con el total real
+    # (también para el promedio de duración y la tasa de rebote, que además no se pueden sumar).
+    metricas = [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "newUsers"}, {"name": "screenPageViews"},
+                {"name": "averageSessionDuration"}, {"name": "bounceRate"}]
 
-    if not resp:
+    def _consulta(dia: str):
+        total = _ga4_post("runReport", {"dateRanges": [{"startDate": dia, "endDate": dia}], "metrics": metricas})
+        if not total:
+            return None, None
+        paginas = _ga4_post("runReport", {
+            "dateRanges": [{"startDate": dia, "endDate": dia}],
+            "metrics": [{"name": "screenPageViews"}], "dimensions": [{"name": "pagePath"}],
+            "orderBys": [{"metric": {"metricName": "screenPageViews"}, "desc": True}], "limit": 10,
+        })
+        return total, paginas
+
+    _periodo = "hoy"
+    total, paginas = _consulta("today")
+    # Si hoy todavía no tiene filas (GA4 procesa con retraso), se usa ayer
+    if total is not None and not total.get("rows"):
+        total, paginas = _consulta("yesterday")
+        _periodo = "ayer"
+    if total is None:
         return {"configurado": True, "error": "No se pudo obtener datos de GA4"}
 
-    # OJO: sessions/activeUsers/newUsers/screenPageViews SÍ se pueden sumar
-    # entre las filas por pagePath (son conteos). bounceRate y
-    # averageSessionDuration NO -- son tasas/promedios YA calculados por fila;
-    # sumarlas entre 8-10 páginas daba cosas como "tasa de rebote: 800%".
-    # Se piden aparte SIN dimensión de página, para que GA4 regrese una sola
-    # fila con el promedio real de todo el período.
-    totals = {h["name"]: 0 for h in resp.get("metricHeaders", [])}
-    for row in resp.get("rows", []):
-        for i, mv in enumerate(row.get("metricValues", [])):
-            key = resp["metricHeaders"][i]["name"]
+    vals = {}
+    if total.get("rows"):
+        for h, mv in zip(total.get("metricHeaders", []), total["rows"][0].get("metricValues", [])):
             try:
-                totals[key] = totals.get(key, 0) + float(mv.get("value", 0))
+                vals[h["name"]] = float(mv.get("value", 0))
             except Exception:
-                pass
-
-    resp_prom = _ga4_post("runReport", {
-        "dateRanges": [{"startDate": "today" if _periodo == "hoy" else "yesterday",
-                         "endDate":   "today" if _periodo == "hoy" else "yesterday"}],
-        "metrics": [{"name": "averageSessionDuration"}, {"name": "bounceRate"}],
-    })
-    duracion_prom = 0.0
-    tasa_rebote = 0.0
-    if resp_prom and resp_prom.get("rows"):
-        mv = resp_prom["rows"][0].get("metricValues", [])
-        if len(mv) > 0:
-            try: duracion_prom = float(mv[0].get("value", 0))
-            except Exception: pass
-        if len(mv) > 1:
-            try: tasa_rebote = float(mv[1].get("value", 0))
-            except Exception: pass
+                vals[h["name"]] = 0.0
 
     top_paginas = []
-    for row in (resp.get("rows") or [])[:10]:
-        dims   = row.get("dimensionValues", [])
-        metr   = row.get("metricValues",   [])
-        pagina = dims[0].get("value", "/") if dims else "/"
-        vistas = int(float(metr[3].get("value", 0))) if len(metr) > 3 else 0
-        top_paginas.append({"pagina": pagina, "vistas": vistas})
+    for row in ((paginas or {}).get("rows") or [])[:10]:
+        dims = row.get("dimensionValues", [])
+        metr = row.get("metricValues", [])
+        top_paginas.append({
+            "pagina": dims[0].get("value", "/") if dims else "/",
+            "vistas": int(float(metr[0].get("value", 0))) if metr else 0,
+        })
 
     return {
         "configurado":         True,
         "periodo":             _periodo,
-        "sesiones":            int(totals.get("sessions", 0)),
-        "usuarios_activos":    int(totals.get("activeUsers", 0)),
-        "usuarios_nuevos":     int(totals.get("newUsers", 0)),
-        "paginas_vistas":      int(totals.get("screenPageViews", 0)),
-        "duracion_promedio_s": round(duracion_prom),
-        "tasa_rebote":         round(tasa_rebote * 100, 1),
+        "sesiones":            int(vals.get("sessions", 0)),
+        "usuarios_activos":    int(vals.get("activeUsers", 0)),
+        "usuarios_nuevos":     int(vals.get("newUsers", 0)),
+        "paginas_vistas":      int(vals.get("screenPageViews", 0)),
+        "duracion_promedio_s": round(vals.get("averageSessionDuration", 0)),
+        "tasa_rebote":         round(vals.get("bounceRate", 0) * 100, 1),
         "top_paginas":         top_paginas,
     }
 
