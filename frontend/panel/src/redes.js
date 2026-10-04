@@ -69,13 +69,20 @@ const rr = (ctx, x, y, w, h, r) => {
   ctx.lineTo(x + t[3], y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - t[3])
   ctx.lineTo(x, y + t[0]); ctx.quadraticCurveTo(x, y, x + t[0], y); ctx.closePath()
 }
-const foto = (ctx, img, x, y, w, h, r, modo, fondo) => {
+// Encuadre por foto (la que elige la persona): x,y = 0..1 (0.5 centrada), z = zoom (1 = ajuste normal; <1 la aleja, >1 la acerca).
+// Se guarda por URL de foto: si la misma foto sale en varios recuadros usa el mismo encuadre.
+const ENC = {}
+const MARCOS = { producto: null, collage: null }   // tamaño real del recuadro de la foto en cada tipo de lámina (para la vista del editor)
+const encDe = (url) => ({ x: 0.5, y: 0.5, z: 1, ...(ENC[url] || {}) })
+const foto = (ctx, img, x, y, w, h, r, modo, fondo, enc) => {
   ctx.save(); rr(ctx, x, y, w, h, r); ctx.clip()
   if (fondo) { ctx.fillStyle = fondo; ctx.fillRect(x, y, w, h) }
   if (img) {
-    const s = modo === 'completa' ? Math.min(w / img.width, h / img.height) : Math.max(w / img.width, h / img.height)
+    const e = { x: 0.5, y: 0.5, z: 1, ...(enc || {}) }
+    const base = modo === 'completa' ? Math.min(w / img.width, h / img.height) : Math.max(w / img.width, h / img.height)
+    const s = base * e.z
     const dw = img.width * s, dh = img.height * s
-    ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh)
+    ctx.drawImage(img, x + (w - dw) * e.x, y + (h - dh) * e.y, dw, dh)
   } else { ctx.fillStyle = '#e9dfd8'; ctx.fillRect(x, y, w, h) }
   ctx.restore()
 }
@@ -161,7 +168,8 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
   rr(ctx, fx - 13, fy - 13, fw + 26, fh + 26, arco ? [fw / 2 + 13, fw / 2 + 13, 40, 40] : [82, 82, 40, 40]); ctx.stroke(); ctx.restore()
   ctx.save(); ctx.shadowColor = E.oscuro ? 'rgba(0,0,0,0.5)' : 'rgba(120,60,70,0.28)'; ctx.shadowBlur = 38; ctx.shadowOffsetY = 14
   rr(ctx, fx, fy, fw, fh, radio); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
-  foto(ctx, img, fx, fy, fw, fh, radio, opts.ajuste, E.tarjeta)
+  MARCOS.producto = { w: fw, h: fh }
+  foto(ctx, img, fx, fy, fw, fh, radio, opts.ajuste, E.tarjeta, ENC[urlFoto])
   if (opts.nuevo && indiceColor === 0) sello(ctx, fx + fw - Math.round(W * 0.075), fy + Math.round(W * 0.075), Math.round(W * 0.062), 'NUEVO', E)
   if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), fx + fw - 26, fy + fh - 26, W, E)
   // ── pie: se ancla desde abajo (WhatsApp, tallas, puntos) y el título usa el espacio de arriba ──
@@ -220,7 +228,8 @@ async function laminaCollage(F, E, prods, opts) {
     const x = pad + (i % cols) * (cw + gap), yy = top + Math.floor(i / cols) * (ch + gap)
     ctx.save(); ctx.shadowColor = E.oscuro ? 'rgba(0,0,0,0.45)' : 'rgba(120,60,70,0.25)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 9
     rr(ctx, x, yy, cw, ch, [46, 46, 22, 22]); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
-    foto(ctx, img, x, yy, cw, ch, [46, 46, 22, 22], opts.ajuste, E.tarjeta)
+    MARCOS.collage = { w: cw, h: ch }
+    foto(ctx, img, x, yy, cw, ch, [46, 46, 22, 22], opts.ajuste, E.tarjeta, ENC[p.foto])
     ctx.strokeStyle = E.oro; ctx.lineWidth = 1.6; rr(ctx, x + 8, yy + 8, cw - 16, ch - 16, [40, 40, 16, 16]); ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1
     if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), x + cw - 16, yy + ch - 16, W * 0.78, E)
   }
@@ -385,6 +394,13 @@ window.cargarRedes = async function () {
       <div id="rs-t-prods"></div>
     </div>
 
+    <div class="rs-card" id="rs-encuadre-card" style="display:none">
+      <p class="rs-h">Encuadre de las fotos <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· arrastra la foto para acomodarla; con la barra la acercas o la alejas</span></p>
+      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px">Cada recuadro tiene la forma real del espacio de la foto en el formato que elegiste, así ves qué se recorta. Si el zapato se corta, aleja la foto o muévela.</p>
+      <div id="rs-encuadre" style="display:flex;gap:14px;flex-wrap:wrap"></div>
+      <div style="margin-top:10px"><button class="btn btn-secondary" style="padding:5px 12px;font-size:0.76rem" onclick="rsEncuadreReiniciar()">↺ Centrar todas</button></div>
+    </div>
+
     <div class="rs-card">
       <p class="rs-h">3 · Vista previa</p>
       <p id="rs-vacio" style="font-size:0.82rem;color:#94a3b8;margin:0">Elige al menos un modelo para ver cómo quedan las imágenes.</p>
@@ -456,6 +472,85 @@ window.rsPintarTextos = () => {
     </div>`
   }).join('')
 }
+// ── editor de encuadre: cada foto en un recuadro con la forma real del espacio donde va ──
+let _firmaEnc = ''
+let _encTimer = null
+const encAncho = 150
+function _geomEnc(url) {
+  const m = (OPT.tipo === 'collage' ? MARCOS.collage : MARCOS.producto) || MARCOS.producto || MARCOS.collage || { w: 1, h: 1 }
+  const bw = encAncho, bh = Math.min(240, Math.round(encAncho * m.h / m.w))
+  return { bw, bh, img: _imgsEnc[url] }
+}
+const _imgsEnc = {}
+function _posicionarEnc(caja) {
+  const url = caja.dataset.u, im = _imgsEnc[url]
+  const el = caja.querySelector('img'); if (!im || !el) return
+  const e = encDe(url), bw = caja.clientWidth, bh = caja.clientHeight
+  const completa = document.getElementById('rs-o-completa')?.checked
+  const base = completa ? Math.min(bw / im.naturalWidth, bh / im.naturalHeight) : Math.max(bw / im.naturalWidth, bh / im.naturalHeight)
+  const dw = im.naturalWidth * base * e.z, dh = im.naturalHeight * base * e.z
+  el.style.width = dw + 'px'; el.style.height = dh + 'px'
+  el.style.left = (bw - dw) * e.x + 'px'; el.style.top = (bh - dh) * e.y + 'px'
+}
+function _programarRegenerar() { clearTimeout(_encTimer); _encTimer = setTimeout(() => window.rsGenerar(), 300) }
+window.rsEncuadreZoom = (i, v) => {
+  const caja = document.querySelectorAll('#rs-encuadre .rs-enc')[i]; if (!caja) return
+  const u = caja.dataset.u; ENC[u] = { ...encDe(u), z: parseFloat(v) }
+  _posicionarEnc(caja); _programarRegenerar()
+}
+window.rsEncuadreCentrar = (i) => {
+  const caja = document.querySelectorAll('#rs-encuadre .rs-enc')[i]; if (!caja) return
+  delete ENC[caja.dataset.u]
+  const sl = document.getElementById('rs-enc-z-' + i); if (sl) sl.value = 1
+  _posicionarEnc(caja); _programarRegenerar()
+}
+window.rsEncuadreReiniciar = () => {
+  Object.keys(ENC).forEach(k => delete ENC[k])
+  _firmaEnc = ''; rsPintarEncuadre(Object.keys(_imgsEnc).filter(u => document.querySelector(`#rs-encuadre .rs-enc[data-u="${CSS.escape(u)}"]`)))
+  _programarRegenerar()
+}
+function rsPintarEncuadre(urls) {
+  const card = document.getElementById('rs-encuadre-card'), cont = document.getElementById('rs-encuadre')
+  if (!card || !cont) return
+  card.style.display = urls.length ? 'block' : 'none'
+  // Solo se vuelve a dibujar si cambiaron las fotos o la forma del recuadro (no durante un arrastre)
+  const m = (OPT.tipo === 'collage' ? MARCOS.collage : MARCOS.producto) || { w: 1, h: 1 }
+  const firma = urls.join('|') + '#' + OPT.tipo + OPT.formato + Math.round(m.h / m.w * 100) + (document.getElementById('rs-o-completa')?.checked ? 'c' : 'l')
+  if (firma === _firmaEnc) return
+  _firmaEnc = firma
+  cont.innerHTML = urls.map((u, i) => {
+    const g = _geomEnc(u)
+    return `<div style="width:${encAncho}px">
+      <div class="rs-enc" data-u="${esc(u)}" style="position:relative;width:${g.bw}px;height:${g.bh}px;overflow:hidden;border-radius:12px;background:#f3e9e6;border:2px solid #e7c9d3;cursor:grab;touch-action:none;user-select:none">
+        <img src="${esc(u)}" crossorigin="anonymous" draggable="false" style="position:absolute;max-width:none;pointer-events:none">
+      </div>
+      <input type="range" id="rs-enc-z-${i}" min="0.5" max="2.5" step="0.05" value="${encDe(u).z}" oninput="rsEncuadreZoom(${i}, this.value)" style="width:100%;margin:6px 0 0">
+      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#94a3b8"><span>alejar</span><button onclick="rsEncuadreCentrar(${i})" style="background:none;border:none;color:#be185d;cursor:pointer;font-size:0.68rem;padding:0">centrar</button><span>acercar</span></div>
+    </div>`
+  }).join('')
+  cont.querySelectorAll('.rs-enc').forEach((caja) => {
+    const u = caja.dataset.u, el = caja.querySelector('img')
+    const listo = () => { _imgsEnc[u] = el; _posicionarEnc(caja) }
+    if (el.complete && el.naturalWidth) listo(); else el.onload = listo
+    let arr = null
+    caja.addEventListener('pointerdown', (ev) => { arr = { x: ev.clientX, y: ev.clientY, e: encDe(u) }; caja.setPointerCapture(ev.pointerId); caja.style.cursor = 'grabbing' })
+    caja.addEventListener('pointermove', (ev) => {
+      if (!arr) return
+      const bw = caja.clientWidth, bh = caja.clientHeight
+      const completa = document.getElementById('rs-o-completa')?.checked
+      const base = completa ? Math.min(bw / el.naturalWidth, bh / el.naturalHeight) : Math.max(bw / el.naturalWidth, bh / el.naturalHeight)
+      const dw = el.naturalWidth * base * arr.e.z, dh = el.naturalHeight * base * arr.e.z
+      const sx = bw - dw, sy = bh - dh     // holgura: negativa si la foto es más grande que el recuadro
+      const nx = Math.abs(sx) < 1 ? arr.e.x : Math.max(0, Math.min(1, arr.e.x + (ev.clientX - arr.x) / sx))
+      const ny = Math.abs(sy) < 1 ? arr.e.y : Math.max(0, Math.min(1, arr.e.y + (ev.clientY - arr.y) / sy))
+      ENC[u] = { ...arr.e, x: nx, y: ny }
+      _posicionarEnc(caja); _programarRegenerar()
+    })
+    const fin = () => { arr = null; caja.style.cursor = 'grab' }
+    caja.addEventListener('pointerup', fin); caja.addEventListener('pointercancel', fin)
+  })
+}
+
 let _gen = 0
 window.rsGenerar = async () => {
   const mi = ++_gen
@@ -478,15 +573,19 @@ window.rsGenerar = async () => {
   }).filter(Boolean)
   const laminas = []
   const porColor = o('rs-o-porcolor')
+  const fotosUsadas = []   // para el editor de encuadre
+  const usada = (u) => { if (u && !fotosUsadas.includes(u)) fotosUsadas.push(u) }
   const delProducto = async (p) => {
     const urls = [p.foto]
     if (porColor) p.colores.forEach(c => { if (c.foto && !urls.includes(c.foto)) urls.push(c.foto) })
     for (const [i, u] of urls.slice(0, 4).entries()) {
+      usada(u)
       const colorLam = i > 0 ? (p.colores.find(c => c.foto === u) || {}).n : ''
       laminas.push(await laminaProducto(F, E, { ...p, colorLamina: colorLam }, u, { ...opts, colorNombre: i > 0 }, i))
     }
   }
   if (OPT.tipo === 'collage') {
+    prods.forEach(p => usada(p.foto))
     for (let i = 0; i < prods.length; i += 4) laminas.push(await laminaCollage(F, E, prods.slice(i, i + 4), opts))
   } else if (OPT.tipo === 'carrusel') {
     if (prods.length > 1) laminas.push(await laminaPortada(F, E, prods.slice(0, 4), opts))
@@ -496,6 +595,7 @@ window.rsGenerar = async () => {
     for (const p of prods) await delProducto(p)
   }
   if (mi !== _gen) return   // se cambió una opción mientras se armaba: gana la última
+  rsPintarEncuadre(fotosUsadas)
   S.imgs = laminas.slice(0, 10)
   grid.innerHTML = ''
   S.imgs.forEach((c, i) => { const w = document.createElement('div'); w.appendChild(c); const t = document.createElement('div'); t.style.cssText = 'font-size:0.68rem;color:#94a3b8;text-align:center;margin-top:3px'; t.textContent = OPT.tipo === 'carrusel' ? `Lámina ${i + 1} de ${S.imgs.length}` : `Imagen ${i + 1}`; w.appendChild(t); grid.appendChild(w) })
