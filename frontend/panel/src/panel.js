@@ -18668,10 +18668,9 @@ window._buildCaption = (id) => {
   const web = Math.round(p.es_oferta ? base : base + 80)
   let t = '👠 *' + p.nombre + '*\n\n💰 *Precio:* $' + web + ' MXN'
   if (!p.es_oferta) {
-    t += '\n• Mayoreo 3+ pares: $' + (web - 60) + ' c/par'
-    if (p.corrida_activa) t += '\n• Corrida completa: $' + Math.round(parseFloat(p.precio_corrida) || (base - 100)) + ' c/par'
+    t += '\n• Comprando 3 o más pares: $' + (web - 60) + ' c/par'
   }
-  return t + '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx'
+  return t + '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx\n\nPrecios de la tienda en línea (menudeo). ¿Buscas precios de mayoreo? Regístrate en https://portal.zapatillasmay.mx'
 }
 
 

@@ -173,8 +173,8 @@ def _seccion_precios(mayorista: bool) -> str:
     return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
 - Usa SIEMPRE los precios del sitio web que aparecen en el catálogo.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
-- Desde 3 pares (puede mezclar estilos y colores): precio "3+ pares" del catálogo (es el mismo descuento automático del sitio web).
-- MAYOREO FORMAL (6 o más pares, corridas, zapaterías, revendedoras) o si preguntan "precio de mayoreo": NO des precios de mayoreo ni de corrida por aquí. Explícale que los precios de mayoreo los ve registrándose en nuestro Portal Mayorista y mándale el link: {_PORTAL_URL} — ahí arma su carrito, aparta sus pares y ve sus precios.
+- Desde 3 pares (puede mezclar estilos y colores): precio "3+ pares" del catálogo. Preséntalo SIEMPRE como "descuento por comprar varios pares", NUNCA como "precio de mayoreo".
+- Los precios del sitio web son precios de MENUDEO (incluso con el descuento por varios pares). Si preguntan por "precio de mayoreo", mayoreo formal, corridas, zapaterías o revendedoras: aclárale que los precios del sitio son de menudeo, NO des precios de mayoreo ni de corrida por aquí, y mándale al Portal Mayorista: {_PORTAL_URL} — ahí se registra, arma su carrito, aparta sus pares y ve sus precios de mayoreo.
 - Si dice que ya está registrada en el portal pero no la reconoces, dile que una asesora le confirma sus precios en un momento."""
 
 
