@@ -73,12 +73,62 @@ const rr = (ctx, x, y, w, h, r) => {
 // Se guarda por URL de foto: si la misma foto sale en varios recuadros usa el mismo encuadre.
 const ENC = {}
 const MARCOS = { producto: null, collage: null }   // tamaño real del recuadro de la foto en cada tipo de lámina (para la vista del editor)
-const encDe = (url) => ({ x: 0.5, y: 0.5, z: 1, ...(ENC[url] || {}) })
+// Encuadre automático: cuando la foto no cabe completa en el recuadro (se recorta), se elige la zona con más detalle.
+// En las fotos de calzado el zapato suele estar abajo y es lo que tiene más bordes/contraste, así que el recorte se
+// desplaza hacia ahí en lugar de quedarse siempre en el centro (donde salían solo las piernas). Es solo el punto de partida:
+// la persona puede moverla y acercarla en el editor de encuadre.
+const _autoCache = new Map()
+function autoEnc(img, w, h) {
+  const clave = (img.src || '') + '|' + Math.round(w / h * 50)
+  if (_autoCache.has(clave)) return _autoCache.get(clave)
+  const res = { x: 0.5, y: 0.5 }
+  try {
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height
+    const af = w / h, ai = iw / ih
+    if (Math.abs(ai - af) / af > 0.02) {
+      const sw = 72, sh = Math.max(8, Math.round(sw * ih / iw))
+      const c = document.createElement('canvas'); c.width = sw; c.height = sh
+      const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, sw, sh)
+      const d = cx.getImageData(0, 0, sw, sh).data
+      const g = new Float32Array(sw * sh)
+      for (let i = 0; i < sw * sh; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]
+      const E = new Float32Array(sw * sh)
+      for (let y = 1; y < sh - 1; y++) for (let x = 1; x < sw - 1; x++) E[y * sw + x] = Math.abs(g[y * sw + x + 1] - g[y * sw + x - 1]) + Math.abs(g[(y + 1) * sw + x] - g[(y - 1) * sw + x])
+      const mejorVentana = (energia, largo, ventana) => {
+        let suma = 0; for (let i = 0; i < ventana; i++) suma += energia[i]
+        let mejor = -1, inicio = 0
+        const libres = largo - ventana
+        for (let s0 = 0; s0 <= libres; s0++) {
+          if (s0 > 0) suma += energia[s0 + ventana - 1] - energia[s0 - 1]
+          const frac = libres ? s0 / libres : 0.5
+          const puntaje = suma * (1 - 0.12 * Math.abs(frac * 2 - 1))   // a igualdad, prefiere el centro
+          if (puntaje > mejor) { mejor = puntaje; inicio = s0 }
+        }
+        return libres ? inicio / libres : 0.5
+      }
+      if (ai > af) {   // la foto es más ancha que el recuadro: se recorta a los lados
+        const ventana = Math.max(1, Math.round(sw * af / ai))
+        const col = new Float32Array(sw)
+        for (let x = 0; x < sw; x++) for (let y = Math.floor(sh * 0.35); y < sh; y++) col[x] += E[y * sw + x]   // parte baja: donde suele estar el zapato
+        res.x = mejorVentana(col, sw, ventana)
+        res.y = 0.5
+      } else {         // la foto es más alta que el recuadro: se recorta arriba y abajo
+        const ventana = Math.max(1, Math.round(sh * ai / af))
+        const fila = new Float32Array(sh)
+        for (let y = 0; y < sh; y++) { let t = 0; for (let x = 0; x < sw; x++) t += E[y * sw + x]; fila[y] = t * (1 + 0.8 * y / sh) }   // pesa más lo de abajo
+        res.y = mejorVentana(fila, sh, ventana)
+        res.x = 0.5
+      }
+    }
+  } catch (e) { /* imagen de otro dominio sin permiso de lectura: se queda centrada */ }
+  _autoCache.set(clave, res)
+  return res
+}
 const foto = (ctx, img, x, y, w, h, r, modo, fondo, enc) => {
   ctx.save(); rr(ctx, x, y, w, h, r); ctx.clip()
   if (fondo) { ctx.fillStyle = fondo; ctx.fillRect(x, y, w, h) }
   if (img) {
-    const e = { x: 0.5, y: 0.5, z: 1, ...(enc || {}) }
+    const e = enc ? { x: 0.5, y: 0.5, z: 1, ...enc } : (modo === 'completa' ? { x: 0.5, y: 0.5, z: 1 } : { ...autoEnc(img, w, h), z: 1 })
     const base = modo === 'completa' ? Math.min(w / img.width, h / img.height) : Math.max(w / img.width, h / img.height)
     const s = base * e.z
     const dw = img.width * s, dh = img.height * s
@@ -202,6 +252,25 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
   return c
 }
 
+// Reparte el espacio del collage entre los modelos con recuadros lo más parecidos posible a una foto normal (≈ 1.4:1).
+// Antes con 2 o 3 modelos eran columnas angostas y muy altas (relación 0.4-0.7): una foto horizontal se recortaba de los lados
+// y el zapato quedaba fuera. Se prueban varias distribuciones y se elige la que deja los recuadros más cercanos a una foto.
+function distribuirCollage(n, A, gap) {
+  const col = (k) => Array.from({ length: k }, (_, i) => { const w = (A.w - gap * (k - 1)) / k; return { x: A.x + i * (w + gap), y: A.y, w, h: A.h } })
+  const fil = (k) => Array.from({ length: k }, (_, i) => { const h = (A.h - gap * (k - 1)) / k; return { x: A.x, y: A.y + i * (h + gap), w: A.w, h } })
+  const mitadW = (A.w - gap) / 2, mitadH = (A.h - gap) / 2
+  let cand = []
+  if (n <= 1) cand = [[{ ...A }]]
+  else if (n === 2) cand = [col(2), fil(2)]
+  else if (n === 3) cand = [
+    [{ x: A.x, y: A.y, w: mitadW, h: mitadH }, { x: A.x + mitadW + gap, y: A.y, w: mitadW, h: mitadH }, { x: A.x, y: A.y + mitadH + gap, w: A.w, h: mitadH }],
+    [{ x: A.x, y: A.y, w: A.w, h: mitadH }, { x: A.x, y: A.y + mitadH + gap, w: mitadW, h: mitadH }, { x: A.x + mitadW + gap, y: A.y + mitadH + gap, w: mitadW, h: mitadH }],
+    col(3), fil(3)]
+  else cand = [[0, 1, 2, 3].map(i => ({ x: A.x + (i % 2) * (mitadW + gap), y: A.y + Math.floor(i / 2) * (mitadH + gap), w: mitadW, h: mitadH }))]
+  const costo = (celdas) => celdas.reduce((t, c) => t + Math.abs(Math.log((c.w / c.h) / 1.4)), 0)   // las fotos de calzado son horizontales (≈1.3-1.5:1): se prefiere recuadros anchos a columnas altas
+  return cand.sort((a, b) => costo(a) - costo(b))[0]
+}
+
 // ── collage de varios modelos en una sola imagen ──
 async function laminaCollage(F, E, prods, opts) {
   const { w: W, h: H } = F
@@ -219,13 +288,12 @@ async function laminaCollage(F, E, prods, opts) {
   const top = y + Math.round(W * 0.05)
   const piePx = Math.round(H * 0.085)
   const n = Math.min(prods.length, 4)
-  const cols = n <= 3 ? n : 2, filas = Math.ceil(n / cols)   // 2-3 modelos: en columnas altas (como la foto); 4: cuadrícula 2x2
   const gap = Math.round(W * 0.03)
   const aw = H - top - piePx - Math.round(H * 0.045)
-  const cw = (W - pad * 2 - gap * (cols - 1)) / cols, ch = (aw - gap * (filas - 1)) / filas
+  const celdas = distribuirCollage(n, { x: pad, y: top, w: W - pad * 2, h: aw }, gap)
   for (let i = 0; i < n; i++) {
     const p = prods[i], img = await cargarImagen(p.foto)
-    const x = pad + (i % cols) * (cw + gap), yy = top + Math.floor(i / cols) * (ch + gap)
+    const { x, y: yy, w: cw, h: ch } = celdas[i]
     ctx.save(); ctx.shadowColor = E.oscuro ? 'rgba(0,0,0,0.45)' : 'rgba(120,60,70,0.25)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 9
     rr(ctx, x, yy, cw, ch, [46, 46, 22, 22]); ctx.fillStyle = E.tarjeta; ctx.fill(); ctx.restore()
     MARCOS.collage = { w: cw, h: ch }
@@ -482,10 +550,17 @@ function _geomEnc(url) {
   return { bw, bh, img: _imgsEnc[url] }
 }
 const _imgsEnc = {}
+// Encuadre efectivo de una foto del editor: el que eligió la persona o, si no, el automático (igual que al dibujar la imagen)
+function encEf(caja) {
+  const url = caja.dataset.u, im = _imgsEnc[url]
+  if (ENC[url]) return { x: 0.5, y: 0.5, z: 1, ...ENC[url] }
+  const completa = document.getElementById('rs-o-completa')?.checked
+  return completa || !im ? { x: 0.5, y: 0.5, z: 1 } : { ...autoEnc(im, caja.clientWidth, caja.clientHeight), z: 1 }
+}
 function _posicionarEnc(caja) {
   const url = caja.dataset.u, im = _imgsEnc[url]
   const el = caja.querySelector('img'); if (!im || !el) return
-  const e = encDe(url), bw = caja.clientWidth, bh = caja.clientHeight
+  const e = encEf(caja), bw = caja.clientWidth, bh = caja.clientHeight
   const completa = document.getElementById('rs-o-completa')?.checked
   const base = completa ? Math.min(bw / im.naturalWidth, bh / im.naturalHeight) : Math.max(bw / im.naturalWidth, bh / im.naturalHeight)
   const dw = im.naturalWidth * base * e.z, dh = im.naturalHeight * base * e.z
@@ -495,7 +570,7 @@ function _posicionarEnc(caja) {
 function _programarRegenerar() { clearTimeout(_encTimer); _encTimer = setTimeout(() => window.rsGenerar(), 300) }
 window.rsEncuadreZoom = (i, v) => {
   const caja = document.querySelectorAll('#rs-encuadre .rs-enc')[i]; if (!caja) return
-  const u = caja.dataset.u; ENC[u] = { ...encDe(u), z: parseFloat(v) }
+  const u = caja.dataset.u; ENC[u] = { ...encEf(caja), z: parseFloat(v) }
   _posicionarEnc(caja); _programarRegenerar()
 }
 window.rsEncuadreCentrar = (i) => {
@@ -524,7 +599,7 @@ function rsPintarEncuadre(urls) {
       <div class="rs-enc" data-u="${esc(u)}" style="position:relative;width:${g.bw}px;height:${g.bh}px;overflow:hidden;border-radius:12px;background:#f3e9e6;border:2px solid #e7c9d3;cursor:grab;touch-action:none;user-select:none">
         <img src="${esc(u)}" crossorigin="anonymous" draggable="false" style="position:absolute;max-width:none;pointer-events:none">
       </div>
-      <input type="range" id="rs-enc-z-${i}" min="0.5" max="2.5" step="0.05" value="${encDe(u).z}" oninput="rsEncuadreZoom(${i}, this.value)" style="width:100%;margin:6px 0 0">
+      <input type="range" id="rs-enc-z-${i}" min="0.5" max="2.5" step="0.05" value="${(ENC[u] && ENC[u].z) || 1}" oninput="rsEncuadreZoom(${i}, this.value)" style="width:100%;margin:6px 0 0">
       <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:#94a3b8"><span>alejar</span><button onclick="rsEncuadreCentrar(${i})" style="background:none;border:none;color:#be185d;cursor:pointer;font-size:0.68rem;padding:0">centrar</button><span>acercar</span></div>
     </div>`
   }).join('')
@@ -533,7 +608,7 @@ function rsPintarEncuadre(urls) {
     const listo = () => { _imgsEnc[u] = el; _posicionarEnc(caja) }
     if (el.complete && el.naturalWidth) listo(); else el.onload = listo
     let arr = null
-    caja.addEventListener('pointerdown', (ev) => { arr = { x: ev.clientX, y: ev.clientY, e: encDe(u) }; caja.setPointerCapture(ev.pointerId); caja.style.cursor = 'grabbing' })
+    caja.addEventListener('pointerdown', (ev) => { arr = { x: ev.clientX, y: ev.clientY, e: encEf(caja) }; caja.setPointerCapture(ev.pointerId); caja.style.cursor = 'grabbing' })
     caja.addEventListener('pointermove', (ev) => {
       if (!arr) return
       const bw = caja.clientWidth, bh = caja.clientHeight
@@ -665,3 +740,4 @@ window.rsHistorial = async () => {
     el.innerHTML = Array.isArray(l) && l.length ? l.slice(0, 10).map(x => `<div style="padding:6px 0;border-top:1px solid #f1f5f9"><strong>${x.destino === 'facebook' ? 'Facebook' : 'Instagram'}</strong> · ${esc(x.tipo)} · ${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}<br><span style="color:#94a3b8">${esc(String(x.caption || '').split('\n')[2] || String(x.caption || '').slice(0, 70))}</span></div>`).join('') : 'Todavía no has publicado desde aquí.'
   } catch (e) { el.textContent = 'No se pudo cargar el historial.' }
 }
+
