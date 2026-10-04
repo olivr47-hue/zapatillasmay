@@ -1,5 +1,9 @@
 """Novedades por WhatsApp Business, de pocas en pocas.
 
+MODO MANUAL (el que usa el panel): NO manda nada por la API de pago. Solo lleva la cuenta de a quién ya se le avisó y propone
+las siguientes 5 clientas; la persona comparte las fotos desde su propia app de WhatsApp Business (gratis) y marca el lote como
+enviado. (El modo "api" de abajo, con envío automático por la API oficial, queda sin usar en el panel.)
+
 Se eligen modelos (como en "Anunciar modelos" de Productos) y un grupo de clientes; el sistema NO manda a todas de golpe:
 envía por LOTES chicos (5 por default, máximo 10), ya sea cuando la persona toca "Enviar siguientes 5" o solo, cada cierto
 tiempo y dentro de un horario (9:00 a 21:00, hora de México).
@@ -168,7 +172,7 @@ def procesar_automaticas() -> int:
     """La llamada el hilo de main.py cada pocos minutos: manda el siguiente lote de las campañas automáticas que ya toca."""
     ahora = _dt.datetime.now(_dt.timezone.utc).isoformat()
     camps = supabase_get(
-        f"wa_novedades?estado=eq.activa&intervalo_min=gt.0&or=(proxima_at.is.null,proxima_at.lte.{urllib.parse.quote(ahora, safe='')})&select=id&limit=5"
+        f"wa_novedades?estado=eq.activa&modo=eq.api&intervalo_min=gt.0&or=(proxima_at.is.null,proxima_at.lte.{urllib.parse.quote(ahora, safe='')})&select=id&limit=5"
     ) or []
     n = 0
     for c in camps:
@@ -222,8 +226,36 @@ def detalle(id: str, _staff=Depends(require_staff)):
     return nov
 
 
+@router.post("/manual")
+def crear_manual(datos: dict, _staff=Depends(require_staff)):
+    """Campaña de seguimiento manual: guarda modelos + clientas en lotes, sin enviar nada."""
+    return _crear({**datos, "enviar_ahora": False, "intervalo_min": 0}, _staff, "manual")
+
+
+@router.post("/{id}/marcar")
+def marcar(id: str, datos: dict, _staff=Depends(require_staff)):
+    """Marca clientas de la campaña como enviadas/omitidas/pendientes (lo hace la persona tras compartir desde su WhatsApp)."""
+    if not _UUID.match(id):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Id inválido"})
+    estado = str(datos.get("estado") or "")
+    if estado not in ("enviado", "omitido", "pendiente"):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Estado no válido"})
+    ids = [str(i) for i in (datos.get("ids") or []) if _UUID.match(str(i))][:50]
+    if not ids:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "No hay clientas que marcar"})
+    cambios = {"estado": estado, "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat() if estado == "enviado" else None, "via": "manual"}
+    supabase_patch(f"wa_novedades_envios?novedad_id=eq.{id}&id=in.({','.join(ids)})", cambios)
+    quedan = supabase_get(f"wa_novedades_envios?novedad_id=eq.{id}&estado=eq.pendiente&select=id&limit=1") or []
+    supabase_patch(f"wa_novedades?id=eq.{id}", {"estado": "activa" if quedan else "terminada"})
+    return {"ok": True, "quedan": bool(quedan)}
+
+
 @router.post("/")
 def crear(datos: dict, _staff=Depends(require_staff)):
+    return _crear(datos, _staff, "api")
+
+
+def _crear(datos: dict, _staff, modo: str):
     items = [i for i in (datos.get("items") or []) if isinstance(i, dict)]
     ids_cli = [str(i) for i in (datos.get("clientes_ids") or []) if _UUID.match(str(i))]
     mensaje = str(datos.get("mensaje") or "").strip()[:900]
@@ -259,7 +291,7 @@ def crear(datos: dict, _staff=Depends(require_staff)):
     quien = (_staff or {}).get("nombre") or (_staff or {}).get("email") or "personal"
     nov = supabase_post("wa_novedades", {
         "nombre": str(datos.get("nombre") or "Novedades " + _dt.datetime.now(_TZ_MX).strftime("%d/%m"))[:80],
-        "modelos": modelos, "mensaje": mensaje, "lote": lote, "intervalo_min": intervalo,
+        "modelos": modelos, "mensaje": mensaje, "lote": lote, "intervalo_min": intervalo, "modo": modo,
         "estado": "activa", "creado_por": str(quien)[:60],
         "proxima_at": (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(minutes=intervalo)).isoformat() if intervalo else None,
     })
@@ -276,6 +308,9 @@ def crear(datos: dict, _staff=Depends(require_staff)):
 def enviar_lote(id: str, _staff=Depends(require_staff)):
     if not _UUID.match(id):
         return JSONResponse(status_code=400, content={"ok": False, "error": "Id inválido"})
+    cab = (supabase_get(f"wa_novedades?id=eq.{id}&select=modo") or [{}])[0]
+    if cab.get("modo") == "manual":
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Esta campaña es manual: se comparte desde tu WhatsApp Business."})
     r = procesar_lote(id)
     return r if r.get("ok") else JSONResponse(status_code=409, content=r)
 

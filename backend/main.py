@@ -532,9 +532,6 @@ def _iniciar_hilos():
     # Aviso diario de clientas sin responder
     t9 = threading.Thread(target=_loop_chats_sin_responder, daemon=True)
     t9.start()
-    # Novedades por WhatsApp en modo automático (de pocas en pocas)
-    t10 = threading.Thread(target=_loop_novedades_wa, daemon=True)
-    t10.start()
     # Aviso diario de apartados vencidos
     t8 = threading.Thread(target=_loop_apartados_vencidos, daemon=True)
     t8.start()

@@ -4690,7 +4690,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="window.compartirNovedadesWhatsApp()" id="btn-anuncio-share" class="btn btn-primary" style="padding:10px 14px;font-size:0.8rem;background:#E91E8C;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📣 Compartir</button>
-          <button onclick="window.abrirNovedadesWA()" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer;color:#15803d;border-color:#86efac;font-weight:700" title="Mandarlo por WhatsApp Business a pocas clientas a la vez">💬 De 5 en 5</button>
+          <button onclick="window.abrirNovedadesWA()" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer;color:#15803d;border-color:#86efac;font-weight:700" title="Te dice a qué 5 clientas escogerle en tu WhatsApp Business y lleva la cuenta de a quién ya le mandaste">💬 De 5 en 5</button>
           <button onclick="window.listarNovedadesWA()" class="btn btn-secondary" style="padding:10px 12px;font-size:0.8rem;cursor:pointer" title="Ver los envíos de novedades">📋</button>
           <button onclick="window.toggleModoAnuncio(false)" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
         </div>
@@ -30468,9 +30468,10 @@ window.enviarCorreoClientesUI = async () => {
 }
 
 
-// ═══ Novedades por WhatsApp Business, de pocas en pocas (de 5 en 5) ═══════════════════════════════════
-// Se eligen modelos con "Anunciar modelos", luego a quién; el sistema manda lotes chicos (no masivo): a mano con
-// "Enviar siguientes 5" o solo cada cierto tiempo, de 9:00 a 21:00.
+// ═══ Novedades de 5 en 5 (manual, desde TU WhatsApp Business: sin costo) ═══════════════════════════════
+// Igual que "Anunciar modelos": se comparten las fotos desde tu app de WhatsApp Business. La diferencia es que aquí el sistema
+// guarda la lista de clientas y te va diciendo a CUÁLES 5 escogerles (WhatsApp deja reenviar a 5 chats a la vez), y lleva la
+// cuenta de a quién ya le mandaste para no repetir ni olvidar a nadie.
 window._novModal = (html, ancho) => {
   document.getElementById('modal-nov')?.remove()
   const m = document.createElement('div')
@@ -30487,15 +30488,15 @@ window.abrirNovedadesWA = async () => {
   if (!sel.length) { alert('Primero marca los modelos que quieres anunciar (casillas de la tabla).'); return }
   const esc = window._escWA
   window._novModal('<p style="padding:1.5rem;text-align:center;color:#888">Cargando...</p>', 420)
-  let productos = [], variantes = [], clientes = [], plantilla = 'error'
+  let productos = [], variantes = [], clientes = []
   try {
     ;[productos, variantes, clientes] = await Promise.all([
       fetch(API + '/productos/').then(r => r.json()), fetch(API + '/variantes/?ligero=true').then(r => r.json()), fetch(API + '/clientes/').then(r => r.json())])
-    plantilla = (await fetch(API + '/novedades/plantilla/estado').then(r => r.json()).catch(() => ({}))).estado || 'error'
   } catch (e) { window._novCerrar(); alert('No se pudieron cargar los datos: ' + e.message); return }
   const valido = (c) => String(c.telefono || '').replace(/\D/g, '').length >= 10
   window._novClientes = (Array.isArray(clientes) ? clientes : []).filter(valido)
   window._novSel = sel
+  window._novManual = new Set()
   const modelosHTML = sel.map(x => {
     const p = productos.find(q => q.id === x.producto_id) || {}
     const v = variantes.find(q => q.producto_id === x.producto_id && x.color !== 'default' && q.color === x.color)
@@ -30503,19 +30504,13 @@ window.abrirNovedadesWA = async () => {
     return `<div style="text-align:center;width:74px">${foto ? `<img src="${esc(foto)}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #eee">` : '<div style="width:64px;height:64px;border-radius:10px;background:#f5f0eb;margin:0 auto"></div>'}
       <div style="font-size:0.66rem;color:#475569;line-height:1.25;margin-top:3px">${esc(String(p.nombre || '').split(' ')[0])}${x.color !== 'default' ? '<br>' + esc(x.color) : ''}</div></div>`
   }).join('')
-  const aviso = plantilla === 'APPROVED' ? '' : `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.76rem;color:#92400e;line-height:1.55">
-      <strong>Plantilla de WhatsApp: ${plantilla === 'PENDING' ? 'en revisión de Meta' : (plantilla === 'no_creada' ? 'aún no creada' : 'no disponible (' + esc(plantilla) + ')')}.</strong>
-      Las clientas que escribieron en las últimas 24 h reciben fotos normales. A las demás hace falta la plantilla <code>novedades_modelos</code> aprobada por Meta; mientras tanto esas quedarán como "fallido" y puedes reintentarlas después.
-      ${plantilla === 'no_creada' || plantilla === 'error' ? '<br><button class="btn btn-secondary" style="margin-top:6px;font-size:0.74rem;padding:4px 10px" onclick="crearPlantillaNovedades(this)">Crear la plantilla en Meta</button>' : ''}</div>`
   window._novModal(`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💬 Novedades por WhatsApp · de pocas en pocas</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
-    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Se manda desde tu WhatsApp Business a pocas clientas a la vez (nada de envíos masivos), con la foto, el precio y el link de cada modelo.</p>
-    ${aviso}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💬 Novedades de 5 en 5</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Se manda desde <strong>tu WhatsApp Business</strong> (sin costo). Aquí eliges a qué clientas, y el sistema te va diciendo a cuáles 5 escogerles cada vez y lleva la cuenta de a quién ya le mandaste.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${modelosHTML}</div>
-    <label style="font-size:0.78rem;color:#64748b">Mensaje <span style="color:#94a3b8">({nombre} = primer nombre de cada clienta)</span></label>
-    <textarea id="nov-msg" class="form-input" rows="3" maxlength="900" style="width:100%;margin:4px 0 12px">Hola {nombre} 👋 Llegaron modelos nuevos a Zapatillas May 👠 Mira los que te pueden gustar:</textarea>
-
-    <label style="font-size:0.78rem;color:#64748b">¿A quién?</label>
+    <label style="font-size:0.78rem;color:#64748b">Mensaje que acompaña las fotos</label>
+    <textarea id="nov-msg" class="form-input" rows="3" maxlength="600" style="width:100%;margin:4px 0 12px">Hola 👋 Llegaron modelos nuevos a Zapatillas May 👠 Mira los que te pueden gustar:</textarea>
+    <label style="font-size:0.78rem;color:#64748b">¿A quién se las vas a mandar?</label>
     <select id="nov-aud" class="form-input" style="margin:4px 0 8px" onchange="_novAudiencia()">
       <option value="mayoreo">Mayoristas y zapaterías</option>
       <option value="menudeo">Clientas de menudeo</option>
@@ -30526,24 +30521,14 @@ window.abrirNovedadesWA = async () => {
       <input id="nov-buscar" class="form-input" placeholder="🔍 Buscar clienta..." style="width:100%;margin-bottom:6px" oninput="_novPintarLista()">
       <div id="nov-lista" style="max-height:170px;overflow:auto;border:1px solid #eef0f4;border-radius:10px"></div>
     </div>
-    <p id="nov-cuenta" style="font-size:0.78rem;color:#475569;margin:0 0 12px"></p>
-
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-      <div style="flex:1;min-width:130px"><label style="font-size:0.78rem;color:#64748b">Cuántas por tanda</label>
-        <select id="nov-lote" class="form-input" style="margin-top:4px" onchange="_novActualizarCuenta()"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></div>
-      <div style="flex:2;min-width:190px"><label style="font-size:0.78rem;color:#64748b">¿Cómo mandar las siguientes?</label>
-        <select id="nov-modo" class="form-input" style="margin-top:4px">
-          <option value="0">Yo toco "Enviar siguientes" (manual)</option>
-          <option value="30">Solo, una tanda cada 30 min</option>
-          <option value="60">Solo, una tanda cada hora</option>
-          <option value="120">Solo, una tanda cada 2 horas</option>
-        </select></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <label style="font-size:0.78rem;color:#64748b">Cuántas por vez</label>
+      <select id="nov-lote" class="form-input" style="max-width:90px" onchange="_novActualizarCuenta()"><option>3</option><option selected>5</option></select>
+      <span id="nov-cuenta" style="font-size:0.78rem;color:#475569"></span>
     </div>
-    <p style="font-size:0.72rem;color:#94a3b8;margin:0 0 12px">En modo automático solo manda de 9:00 a 21:00 (hora de México). Puedes pausar o cancelar cuando quieras.</p>
-    <div style="display:flex;gap:8px"><button class="btn btn-primary" id="nov-crear" style="flex:1" onclick="crearNovedadWA(true)">Crear y enviar la primera tanda</button>
-    <button class="btn btn-secondary" onclick="crearNovedadWA(false)">Solo crear</button></div>
+    <p style="font-size:0.72rem;color:#94a3b8;margin:0 0 12px">5 es el máximo de chats a los que WhatsApp deja reenviar a la vez.</p>
+    <button class="btn btn-primary" id="nov-crear" style="width:100%" onclick="crearNovedadWA()">Crear la lista y empezar</button>
     <p id="nov-res" style="font-size:0.8rem;margin:10px 0 0;display:none"></p>`, 660)
-  window._novManual = new Set()
   window._novAudiencia()
 }
 window._novAudiencia = () => {
@@ -30563,7 +30548,7 @@ window._novIds = () => {
 window._novActualizarCuenta = () => {
   const n = window._novIds().length, lote = parseInt(document.getElementById('nov-lote')?.value) || 5
   const el = document.getElementById('nov-cuenta')
-  if (el) el.innerHTML = `<strong>${n}</strong> clienta${n === 1 ? '' : 's'} · se mandan en ${Math.ceil(n / lote) || 0} tanda${Math.ceil(n / lote) === 1 ? '' : 's'} de ${lote}.`
+  if (el) el.innerHTML = `· <strong>${n}</strong> clienta${n === 1 ? '' : 's'} = ${Math.ceil(n / lote) || 0} vez/veces`
 }
 window._novPintarLista = () => {
   const q = (document.getElementById('nov-buscar')?.value || '').toLowerCase().trim()
@@ -30574,35 +30559,43 @@ window._novPintarLista = () => {
 }
 window._novToggle = (id, on) => { on ? window._novManual.add(id) : window._novManual.delete(id); window._novActualizarCuenta() }
 
-window.crearPlantillaNovedades = async (btn) => {
-  btn.disabled = true; btn.textContent = 'Enviando a Meta...'
-  try {
-    const r = await fetch(API + '/chatbot/crear-plantillas-base', { method: 'POST' })
-    const d = await r.json().catch(() => ({}))
-    const mia = (d.resultados || []).find(x => x.nombre === 'novedades_modelos' || x.name === 'novedades_modelos')
-    btn.textContent = mia ? ('Listo: ' + (mia.estado || 'enviada a revisión')) : (r.ok ? 'Enviada a revisión de Meta' : 'No se pudo: ' + (d.error || r.status))
-  } catch (e) { btn.textContent = 'Error: ' + e.message }
-}
-
-window.crearNovedadWA = async (enviarAhora) => {
+window.crearNovedadWA = async () => {
   const res = document.getElementById('nov-res'), btn = document.getElementById('nov-crear')
   const err = (t) => { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = t }
   const ids = window._novIds()
   const mensaje = document.getElementById('nov-msg').value.trim()
   if (!mensaje) { err('Escribe el mensaje.'); return }
   if (!ids.length) { err('No hay clientas con teléfono en esa selección.'); return }
-  const lote = parseInt(document.getElementById('nov-lote').value) || 5
-  const intervalo = parseInt(document.getElementById('nov-modo').value) || 0
-  if (!confirm(`¿Crear el envío para ${ids.length} clienta(s), en tandas de ${lote}${enviarAhora ? ' y mandar la primera tanda AHORA' : ''}? Son mensajes reales por WhatsApp.`)) return
-  btn.disabled = true; btn.textContent = 'Enviando...'
+  btn.disabled = true; btn.textContent = 'Creando...'
   try {
-    const r = await fetch(API + '/novedades/', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: window._novSel, mensaje, clientes_ids: ids, lote, intervalo_min: intervalo, enviar_ahora: !!enviarAhora }) })
+    const r = await fetch(API + '/novedades/manual', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: window._novSel, mensaje, clientes_ids: ids, lote: parseInt(document.getElementById('nov-lote').value) || 5 }) })
     const d = await r.json().catch(() => ({}))
     if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo crear')
     window.toggleModoAnuncio && window.toggleModoAnuncio(false)
+    window._novArchivos = null
     await window.verNovedadWA(d.id)
-  } catch (e) { err('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Crear y enviar la primera tanda' }
+  } catch (e) { err('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Crear la lista y empezar' }
+}
+
+// Descarga las fotos UNA vez al abrir la campaña, para que al tocar "Compartir" se abra WhatsApp al instante
+window._novPrepararFotos = async (d) => {
+  if (window._novArchivos && window._novArchivos.id === d.id) return window._novArchivos
+  const archivos = []
+  for (const [i, m] of (d.modelos || []).entries()) {
+    if (!m.imagen) continue
+    try {
+      const blob = await (await fetch(m.imagen)).blob()
+      const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+      archivos.push(new File([blob], `Novedad_${i + 1}_${String(m.nombre).split(' ')[0]}.${ext}`, { type: blob.type || 'image/jpeg' }))
+    } catch (e) { console.warn('foto no descargada', m.imagen) }
+  }
+  window._novArchivos = { id: d.id, files: archivos }
+  return window._novArchivos
+}
+window._novTexto = (d) => {
+  const lineas = (d.modelos || []).map(m => `• *${m.nombre}*${m.color ? ' ' + m.color : ''}${m.precio ? ' — $' + Number(m.precio).toLocaleString('es-MX') : ''}`)
+  return `${String(d.mensaje || '').replace(/\{nombre\}/gi, '').replace(/ {2,}/g, ' ').trim()}\n\n${lineas.join('\n')}\n\nMás modelos: https://zapatillasmay.mx`
 }
 
 window.verNovedadWA = async (id) => {
@@ -30610,52 +30603,87 @@ window.verNovedadWA = async (id) => {
   let d
   try { d = await fetch(API + '/novedades/' + id).then(r => r.json()) } catch (e) { alert('No se pudo cargar'); return }
   if (!d || d.error) { alert((d && d.error) || 'No se pudo cargar'); return }
+  window._novActual = d
   const c = d.conteo || {}, total = (c.pendiente || 0) + (c.enviado || 0) + (c.fallido || 0)
-  const pct = total ? Math.round(100 * (c.enviado || 0) / total) : 0
-  const color = { pendiente: '#92400e', enviado: '#15803d', fallido: '#b91c1c', omitido: '#64748b' }
-  const etq = { pendiente: '⏳ pendiente', enviado: '✓ enviado', fallido: '✗ falló', omitido: 'omitida' }
-  const activa = d.estado === 'activa', pausada = d.estado === 'pausada'
+  const hechas = (c.enviado || 0)
+  const pct = total ? Math.round(100 * hechas / total) : 0
+  const pend = (d.envios || []).filter(e => e.estado === 'pendiente')
+  const lote = pend.slice(0, d.lote || 5)
+  window._novLoteIds = lote.map(e => e.id)
+  const loteNum = Math.floor(hechas / (d.lote || 5)) + 1, totalLotes = Math.ceil(total / (d.lote || 5))
   window._novModal(`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0">💬 ${esc(d.nombre || 'Novedades')}</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
-    <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px">${(d.modelos || []).length} modelo(s) · tandas de ${d.lote} · ${d.intervalo_min ? 'automático cada ' + d.intervalo_min + ' min' : 'manual'} · <strong>${esc(d.estado)}</strong></p>
-    <div style="background:#e2e8f0;border-radius:100px;height:10px;overflow:hidden;margin-bottom:6px"><div style="width:${pct}%;height:100%;background:#22c55e"></div></div>
-    <p style="font-size:0.8rem;margin:0 0 12px"><strong>${c.enviado || 0}</strong> enviadas · <strong>${c.pendiente || 0}</strong> pendientes · <strong style="color:${c.fallido ? '#b91c1c' : 'inherit'}">${c.fallido || 0}</strong> con error</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      ${(activa && c.pendiente) ? `<button class="btn btn-primary" id="nov-sig" onclick="enviarLoteNovedadWA('${esc(d.id)}')">Enviar siguientes ${Math.min(d.lote, c.pendiente)}</button>` : ''}
-      ${activa && d.intervalo_min ? `<button class="btn btn-secondary" onclick="estadoNovedadWA('${esc(d.id)}','pausada')">⏸ Pausar</button>` : ''}
-      ${pausada ? `<button class="btn btn-secondary" onclick="estadoNovedadWA('${esc(d.id)}','activa')">▶ Reanudar</button>` : ''}
-      ${(activa || pausada) && c.pendiente ? `<button class="btn btn-secondary" style="color:#b91c1c;border-color:#fca5a5" onclick="estadoNovedadWA('${esc(d.id)}','cancelada')">Cancelar pendientes</button>` : ''}
-      <button class="btn btn-secondary" onclick="verNovedadWA('${esc(d.id)}')">↻ Actualizar</button>
-    </div>
-    <p id="nov-msg-lote" style="font-size:0.8rem;margin:0 0 8px;display:none"></p>
-    <div style="max-height:260px;overflow:auto;border:1px solid #eef0f4;border-radius:10px">
-      ${(d.envios || []).map(e => `<div style="display:flex;gap:8px;justify-content:space-between;padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:0.78rem">
-        <span>${esc(e.nombre || e.telefono)}${e.via ? ` <span style="color:#94a3b8">(${e.via === 'fotos' ? 'con fotos' : 'con plantilla'})</span>` : ''}${e.error ? `<br><span style="color:#b91c1c;font-size:0.7rem">${esc(e.error)}</span>` : ''}</span>
-        <span style="color:${color[e.estado] || '#475569'};white-space:nowrap;font-weight:600">${etq[e.estado] || esc(e.estado)}</span></div>`).join('')}
-    </div>`, 640)
+    <div style="background:#e2e8f0;border-radius:100px;height:10px;overflow:hidden;margin:8px 0 6px"><div style="width:${pct}%;height:100%;background:#22c55e"></div></div>
+    <p style="font-size:0.8rem;margin:0 0 12px"><strong>${hechas}</strong> de ${total} ya recibieron · <strong>${c.pendiente || 0}</strong> faltan</p>
+    ${lote.length ? `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+        <p style="font-weight:700;font-size:0.9rem;margin:0 0 4px">Vez ${loteNum} de ${totalLotes}: escoge a estas ${lote.length}</p>
+        <p style="font-size:0.74rem;color:#166534;margin:0 0 8px">1) Toca "Compartir fotos" → se abre tu WhatsApp Business · 2) Busca y marca a estas clientas · 3) Envía · 4) Regresa aquí y toca "Ya las envié".</p>
+        ${lote.map((e, i) => `<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-top:${i ? '1px solid #dcfce7' : 'none'}">
+          <span style="font-size:0.85rem"><strong>${i + 1}. ${esc(e.nombre || 'Sin nombre')}</strong><br><span style="color:#64748b;font-size:0.72rem">${esc(e.telefono)}</span></span>
+          <span style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:4px 9px;color:#15803d;border-color:#86efac" onclick="novAbrirChat('${esc(e.telefono)}')">💬 Abrir chat</button>
+            <button class="btn btn-secondary" style="font-size:0.72rem;padding:4px 9px" title="No mandarle esta vez" onclick="novMarcar(['${esc(e.id)}'],'omitido')">Omitir</button></span></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="nov-compartir" style="flex:2;min-width:190px" onclick="novCompartir()" disabled>⏳ Preparando fotos...</button>
+        <button class="btn btn-secondary" style="flex:1;min-width:140px;color:#15803d;border-color:#86efac;font-weight:700" onclick="novMarcar(window._novLoteIds,'enviado')">✓ Ya las envié</button>
+      </div>
+      <p style="font-size:0.72rem;color:#94a3b8;margin:8px 0 0">En computadora no se pueden adjuntar las fotos solas: se descargan y se abre WhatsApp con el texto para que las adjuntes. Desde el celular se comparten directo.</p>`
+      : '<p style="text-align:center;color:#15803d;font-weight:700;padding:14px 0">🎉 ¡Listo! Ya se las mandaste a todas.</p>'}
+    <details style="margin-top:14px"><summary style="font-size:0.78rem;color:#64748b;cursor:pointer">Ver toda la lista (${total})</summary>
+      <div style="max-height:200px;overflow:auto;margin-top:6px;border:1px solid #eef0f4;border-radius:10px">
+        ${(d.envios || []).map(e => `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem"><span>${esc(e.nombre || e.telefono)}</span>
+          <span style="color:${e.estado === 'enviado' ? '#15803d' : e.estado === 'omitido' ? '#64748b' : '#92400e'};font-weight:600">${e.estado === 'enviado' ? '✓ enviada' : e.estado === 'omitido' ? 'omitida' : 'pendiente'}</span></div>`).join('')}
+      </div></details>`, 640)
+  if (lote.length) {
+    const btn = document.getElementById('nov-compartir')
+    await window._novPrepararFotos(d)
+    const b2 = document.getElementById('nov-compartir')
+    if (b2) { b2.disabled = false; b2.textContent = '📲 Compartir fotos y escoger a estas ' + lote.length }
+  }
 }
-window.enviarLoteNovedadWA = async (id) => {
-  const b = document.getElementById('nov-sig'); if (b) { b.disabled = true; b.textContent = 'Enviando...' }
+window.novCompartir = async () => {
+  const d = window._novActual, a = window._novArchivos
+  if (!d || !a) return
+  const texto = window._novTexto(d)
   try {
-    const r = await fetch(API + '/novedades/' + id + '/enviar-lote', { method: 'POST' })
-    const d = await r.json().catch(() => ({}))
-    if (!r.ok) { alert(d.error || 'No se pudo enviar'); }
-  } catch (e) { alert('Error: ' + e.message) }
-  await window.verNovedadWA(id)
+    if (navigator.share && navigator.canShare && a.files.length && navigator.canShare({ files: a.files })) {
+      await navigator.share({ files: a.files, text: texto, title: 'Nuevos modelos' })
+      return
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return }
+  // Computadora / navegador sin compartir archivos: se descargan las fotos y se abre WhatsApp con el texto
+  for (const f of a.files) {
+    const l = document.createElement('a'); l.href = URL.createObjectURL(f); l.download = f.name
+    document.body.appendChild(l); l.click(); l.remove()
+    await new Promise(r => setTimeout(r, 350))
+  }
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank')
 }
-window.estadoNovedadWA = async (id, estado) => {
-  if (estado === 'cancelada' && !confirm('¿Cancelar los envíos pendientes? Los ya enviados no se tocan.')) return
-  await fetch(API + '/novedades/' + id + '/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) })
-  await window.verNovedadWA(id)
+window.novAbrirChat = (tel) => {
+  const d = window._novActual
+  const n = String(tel || '').replace(/\D/g, '').replace(/^(52|521)(?=\d{10}$)/, '')
+  window.open('https://wa.me/52' + n.slice(-10) + '?text=' + encodeURIComponent(d ? window._novTexto(d) : ''), '_blank')
+}
+window.novMarcar = async (ids, estado) => {
+  if (!ids || !ids.length) return
+  if (estado === 'enviado' && !confirm('¿Ya les enviaste las fotos a estas clientas? Se marcan como enviadas y se te muestran las siguientes.')) return
+  try {
+    const r = await fetch(API + '/novedades/' + window._novActual.id + '/marcar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, estado }) })
+    if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo guardar'); return }
+  } catch (e) { alert('Error: ' + e.message); return }
+  await window.verNovedadWA(window._novActual.id)
 }
 window.listarNovedadesWA = async () => {
   const esc = window._escWA
   let l = []
   try { l = await fetch(API + '/novedades/').then(r => r.json()) } catch (e) {}
+  l = (Array.isArray(l) ? l : []).filter(n => n.modo === 'manual')
   window._novModal(`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">📋 Envíos de novedades</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
-    ${(Array.isArray(l) && l.length) ? l.map(n => { const c = n.conteo || {}; const t = (c.pendiente || 0) + (c.enviado || 0) + (c.fallido || 0)
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">📋 Tus listas de novedades</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    ${l.length ? l.map(n => { const c = n.conteo || {}; const t = (c.pendiente || 0) + (c.enviado || 0) + (c.fallido || 0)
       return `<div onclick="verNovedadWA('${esc(n.id)}')" style="padding:10px 12px;border:1px solid #eef0f4;border-radius:10px;margin-bottom:8px;cursor:pointer">
-        <div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:0.88rem">${esc(n.nombre)}</strong><span style="font-size:0.72rem;color:#64748b">${esc(n.estado)}</span></div>
-        <div style="font-size:0.75rem;color:#64748b">${new Date(n.created_at).toLocaleDateString('es-MX')} · ${c.enviado || 0} de ${t} enviadas${c.pendiente ? ' · ' + c.pendiente + ' pendientes' : ''}${c.fallido ? ' · ' + c.fallido + ' con error' : ''}</div></div>` }).join('') : '<p style="color:#94a3b8;font-size:0.85rem">Todavía no has creado envíos de novedades.</p>'}`, 560)
+        <div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:0.88rem">${esc(n.nombre)}</strong><span style="font-size:0.72rem;color:${n.estado === 'terminada' ? '#15803d' : '#92400e'}">${n.estado === 'terminada' ? 'terminada' : 'en curso'}</span></div>
+        <div style="font-size:0.75rem;color:#64748b">${new Date(n.created_at).toLocaleDateString('es-MX')} · ${c.enviado || 0} de ${t} ya recibieron${c.pendiente ? ' · faltan ' + c.pendiente : ''}</div></div>` }).join('') : '<p style="color:#94a3b8;font-size:0.85rem">Todavía no has creado listas de novedades.</p>'}`, 560)
 }
