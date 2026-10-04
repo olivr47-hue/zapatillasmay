@@ -1024,12 +1024,14 @@ def debug_media():
 def _control_manual_expirado(telefono) -> bool:
     """True si un chat en control manual lleva demasiado tiempo sin que NADIE del equipo escriba. Un chat tomado por
     una asesora se quedaba así para siempre: Maya no volvía a contestar (hoy 58 de 72 chats en manual llevan más de 14
-    días inactivos, y a 15 clientas ni Maya ni el equipo les contestó en más de 24 h). Pasadas CONTROL_MANUAL_EXPIRA_HORAS
-    (48 por defecto; 0 lo desactiva) sin mensaje manual del equipo, el control regresa a Maya."""
+    días inactivos, y a 15 clientas ni Maya ni el equipo les contestó en más de 24 h). Por decisión del dueño (2026-10-04) el
+    regreso automático está APAGADO: un chat en control manual se queda así hasta que el equipo lo regrese a Maya.
+    Para volver a activarlo basta poner CONTROL_MANUAL_EXPIRA_HORAS en Railway con las horas (ej. 48) sin mensaje
+    manual del equipo tras las cuales el control regresa a Maya."""
     try:
-        horas = float(os.environ.get("CONTROL_MANUAL_EXPIRA_HORAS", "48"))
+        horas = float(os.environ.get("CONTROL_MANUAL_EXPIRA_HORAS", "0"))
     except ValueError:
-        horas = 48.0
+        horas = 0.0
     if horas <= 0:
         return False
     try:
