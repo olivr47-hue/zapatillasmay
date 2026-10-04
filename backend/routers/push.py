@@ -118,6 +118,23 @@ def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str) -> bool
         return False
 
 
+def _ids_del_mismo_cliente(cliente_id: str) -> list:
+    """El cliente y sus fichas duplicadas (mismo teléfono). Un mismo cliente puede tener dos fichas (ej. una creada a mano
+    y otra al registrarse en el portal): las suscripciones push se guardan con la ficha desde la que entró al portal, pero
+    los pedidos pueden estar en la otra, y el aviso se mandaba solo a la ficha del pedido (caso real: Sonia B. no recibía nada)."""
+    ids = [str(cliente_id)]
+    try:
+        c = supabase_get(f"clientes?id=eq.{cliente_id}&select=telefono") or []
+        tel = re.sub(r"\D", "", (c[0].get("telefono") or "")) [-10:] if c else ""
+        if len(tel) == 10:
+            for h in supabase_get(f"clientes?telefono=ilike.*{tel}&activo=eq.true&select=id") or []:
+                if h.get("id") and str(h["id"]) not in ids:
+                    ids.append(str(h["id"]))
+    except Exception as e:
+        print(f"[push] no se pudieron buscar fichas duplicadas de {cliente_id}: {e}")
+    return [i for i in ids if re.match(r"^[0-9a-fA-F-]{8,36}$", i)]
+
+
 def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cliente_id: str = None, ids: list = None) -> dict:
     """
     Funcion interna reusable — la llaman otros routers (pedidos, carrito
@@ -145,7 +162,7 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
         if sitio:
             filtro += f"&sitio=eq.{sitio}"
         if cliente_id:
-            filtro += f"&cliente_id=eq.{cliente_id}"
+            filtro += f"&cliente_id=in.({','.join(_ids_del_mismo_cliente(cliente_id))})"
         subs = supabase_get_all(f"push_subscriptions?{filtro}&select=*")
 
     enviadas, fallidas = 0, 0
