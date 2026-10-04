@@ -16,8 +16,24 @@ const ESTILOS = {
   perla: { nombre: 'Blanco perla', bg: ['#ffffff', '#f7f1f2'], texto: '#3d2a33', suave: '#98808a', acento: '#c2788a', oro: '#d3b08e', tarjeta: '#ffffff', logo: '/logo-marca.png', oscuro: false },
   orquidea: { nombre: 'Orquídea oscuro', bg: ['#3b2230', '#2a1622'], texto: '#fbeef0', suave: '#d3b3bd', acento: '#e3a6b4', oro: '#dcc09a', tarjeta: '#43293a', logo: '/logo-marca-blanco.png', oscuro: true },
 }
-const SERIF = '"Montserrat", "Montserrat", Arial, sans-serif'   // títulos y precios
-const SCRIPT = SERIF
+const LETRAS = {
+  moderno: { nombre: 'Moderno', ej: 'Montserrat', titulo: 'Montserrat', texto: 'Montserrat', peso: 600, cursiva: false, escala: 1 },
+  editorial: { nombre: 'Editorial de revista', ej: 'Playfair Display', titulo: 'Playfair Display', texto: 'Montserrat', peso: 600, cursiva: false, escala: 1.02 },
+  lujo: { nombre: 'Lujo clásico', ej: 'Cormorant Garamond', titulo: 'Cormorant Garamond', texto: 'Josefin Sans', peso: 600, cursiva: true, escala: 1.22 },
+  costura: { nombre: 'Alta costura', ej: 'Bodoni Moda', titulo: 'Bodoni Moda', texto: 'Jost', peso: 600, cursiva: false, escala: 0.98 },
+  romantico: { nombre: 'Romántico', ej: 'Great Vibes', titulo: 'Cormorant Garamond', texto: 'Montserrat', peso: 600, cursiva: true, escala: 1.22, script: 'Great Vibes' },
+  minimal: { nombre: 'Minimal chic', ej: 'Tenor Sans', titulo: 'Tenor Sans', texto: 'Jost', peso: 400, cursiva: false, escala: 1.02 },
+  fino: { nombre: 'Fino y delicado', ej: 'Italiana', titulo: 'Italiana', texto: 'Raleway', peso: 400, cursiva: false, escala: 1.18 },
+}
+let LA = LETRAS.moderno
+const fTit = (px, peso) => `${LA.cursiva ? 'italic ' : ''}${peso || LA.peso} ${Math.round(px * LA.escala)}px "${LA.titulo}", Georgia, serif`
+const fTxt = (px, peso = 500) => `${peso} ${Math.round(px)}px "${LA.texto}", Arial, sans-serif`
+// etiqueta pequeña sobre el título: en versales con letra espaciada, o en letra script (romántico)
+const etiqueta = (ctx, texto, x, y, W, tam, sp, color) => {
+  ctx.fillStyle = color
+  if (LA.script) { ctx.font = `${Math.round(W * 0.075)}px "${LA.script}", cursive`; ctx.fillText(texto, x, y + Math.round(W * 0.012)); return }
+  ctx.font = fTxt(tam, 600); espaciado(ctx, sp); ctx.fillText(String(texto).toUpperCase(), x, y); espaciado(ctx, 0)
+}
 const WA_TXT = '479 224 4560'
 const _cache = { imgs: {} }
 
@@ -35,11 +51,12 @@ const cargarImagen = (url) => {
 const cargarFuentes = async () => {
   if (!document.getElementById('rs-fonts')) {
     const l = document.createElement('link'); l.id = 'rs-fonts'; l.rel = 'stylesheet'
-    l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap'
+    l.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Bodoni+Moda:wght@400;600;700&family=Josefin+Sans:wght@400;600;700&family=Jost:wght@400;500;600;700&family=Tenor+Sans&family=Italiana&family=Raleway:wght@400;500;600;700&family=Great+Vibes&display=swap'
     document.head.appendChild(l)
   }
   try {
-    await Promise.all(['400 30px "Montserrat"', '500 30px "Montserrat"', '600 30px "Montserrat"', '700 30px "Montserrat"'].map(f => document.fonts.load(f)))
+    const fam = new Set(); Object.values(LETRAS).forEach(l => { fam.add(l.titulo); fam.add(l.texto); if (l.script) fam.add(l.script) })
+    await Promise.all([...fam].flatMap(f => ['400 30px "' + f + '"', '600 30px "' + f + '"', '700 30px "' + f + '"', 'italic 600 30px "' + f + '"'].map(x => document.fonts.load(x).catch(() => null))))
   } catch (e) {}
 }
 
@@ -100,12 +117,12 @@ const sello = (ctx, cx, cy, r, texto, E) => {
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = E.acento; ctx.fill(); ctx.restore()
   ctx.beginPath(); ctx.arc(cx, cy, r - 7, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.6; ctx.stroke()
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.font = `700 ${Math.round(r * 0.3)}px "Montserrat", sans-serif`; ctx.letterSpacing = '2px'
+  ctx.font = fTxt(r * 0.3, 700); ctx.letterSpacing = '2px'
   ctx.fillText(texto, cx, cy + 2); ctx.letterSpacing = '0px'
-  ctx.font = `${Math.round(r * 0.3)}px "Montserrat", sans-serif`; ctx.fillText('✦', cx, cy - r * 0.42)
+  ctx.font = fTxt(r * 0.3, 400); ctx.fillText('✦', cx, cy - r * 0.42)
 }
 const etiquetaPrecio = (ctx, txt, x, yBase, W, E) => {
-  ctx.font = `700 ${Math.round(W * 0.042)}px ${SERIF}`
+  ctx.font = fTit(W * 0.042, 700)
   const tw = ctx.measureText(txt).width + 58, th = Math.round(W * 0.088)
   ctx.save(); ctx.shadowColor = 'rgba(60,20,30,0.2)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4
   rr(ctx, x - tw, yBase - th, tw, th, th / 2); ctx.fillStyle = E.oscuro ? '#fff7f2' : '#fffaf8'; ctx.fill(); ctx.restore()
@@ -155,11 +172,10 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
   const yPuntos = hayPuntos ? yTallas - Math.round(W * 0.056) : yTallas
   const y0 = fy + fh + Math.round(W * 0.078)
   // texto en letra script, como invitación
-  const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina : 'Nueva colección'
-  ctx.fillStyle = E.acento; ctx.font = `600 ${Math.round(W * 0.024)}px ${SERIF}`; espaciado(ctx, 6)
-  ctx.fillText(sub.toUpperCase(), W / 2, y0); espaciado(ctx, 0)
-  const tam = Math.round(W * (esHistoria ? 0.056 : (H <= 1100 ? 0.044 : 0.048))), inter = Math.round(tam * 1.28)
-  ctx.fillStyle = E.texto; ctx.font = `600 ${tam}px ${SERIF}`
+  const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina : (opts.etiqueta || 'Nueva colección')
+  etiqueta(ctx, sub, W / 2, y0, W, W * 0.024, 6, E.acento)
+  const tam = Math.round(W * (esHistoria ? 0.056 : (H <= 1100 ? 0.044 : 0.048))), inter = Math.round(tam * 1.28 * LA.escala)
+  ctx.fillStyle = E.texto; ctx.font = fTit(tam)
   envolver(ctx, p.titulo, W / 2, y0 + Math.round(W * 0.07), W - pad * 2.2, inter, H <= 1100 ? 1 : 2)
   if (hayPuntos) {
     const r = Math.round(W * 0.0145), sep = r * 3, n = Math.min(p.colores.length, 7)
@@ -169,12 +185,12 @@ async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
       ctx.lineWidth = 2; ctx.strokeStyle = E.oscuro ? 'rgba(255,255,255,.55)' : E.oro; ctx.stroke()
     })
   }
-  ctx.fillStyle = E.suave; ctx.font = `500 ${Math.round(W * 0.024)}px "Montserrat", sans-serif`; espaciado(ctx, 1.5)
+  ctx.fillStyle = E.suave; ctx.font = fTxt(W * 0.024, 500); espaciado(ctx, 1.5)
   ctx.fillText(p.tallas ? `TALLAS ${p.tallas}   ·   ENVÍOS A TODO MÉXICO` : 'ENVÍOS A TODO MÉXICO', W / 2, yTallas)
   espaciado(ctx, 0)
   divisor(ctx, W / 2, yWA - Math.round(W * 0.036), Math.round(W * 0.42), E)
-  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.025)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
-  ctx.fillText(`WHATSAPP  ${WA_TXT}`, W / 2, yWA); espaciado(ctx, 0)
+  ctx.fillStyle = E.texto; ctx.font = fTxt(W * 0.025, 700); espaciado(ctx, 2)
+  ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), W / 2, yWA); espaciado(ctx, 0)
   return c
 }
 
@@ -187,10 +203,9 @@ async function laminaCollage(F, E, prods, opts) {
   const lh = await logo(ctx, E, W / 2, Math.round(H * 0.05), Math.round(W * 0.27))
   let y = Math.round(H * 0.05) + lh + Math.round(H * 0.085)
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-  ctx.fillStyle = E.acento; ctx.font = `600 ${Math.round(W * 0.026)}px ${SERIF}`; espaciado(ctx, 8)
-  ctx.fillText('NUEVA COLECCIÓN', W / 2, y - Math.round(W * 0.075)); espaciado(ctx, 0)
-  ctx.fillStyle = E.texto; ctx.font = `600 ${Math.round(W * 0.07)}px ${SERIF}`; espaciado(ctx, 3)
-  ctx.fillText('NUEVOS MODELOS', W / 2, y); espaciado(ctx, 0)
+  etiqueta(ctx, opts.etiqueta || 'Nueva colección', W / 2, y - Math.round(W * 0.075), W, W * 0.026, 8, E.acento)
+  ctx.fillStyle = E.texto; ctx.font = fTit(W * 0.07); espaciado(ctx, 3)
+  ctx.fillText(String(opts.tituloCollage || 'Nuevos modelos').toUpperCase(), W / 2, y); espaciado(ctx, 0)
   y += Math.round(W * 0.045)
   divisor(ctx, W / 2, y, Math.round(W * 0.5), E)
   const top = y + Math.round(W * 0.05)
@@ -209,15 +224,15 @@ async function laminaCollage(F, E, prods, opts) {
     ctx.strokeStyle = E.oro; ctx.lineWidth = 1.6; rr(ctx, x + 8, yy + 8, cw - 16, ch - 16, [40, 40, 16, 16]); ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1
     if (opts.precio && p.precio) etiquetaPrecio(ctx, moneda(p.precio), x + cw - 16, yy + ch - 16, W * 0.78, E)
   }
-  ctx.fillStyle = E.texto; ctx.font = `700 ${Math.round(W * 0.024)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
+  ctx.fillStyle = E.texto; ctx.font = fTxt(W * 0.024, 700); espaciado(ctx, 2)
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-  ctx.fillText(`WHATSAPP  ${WA_TXT}   ·   ZAPATILLASMAY.MX`, W / 2, H - Math.round(H * 0.055)); espaciado(ctx, 0)
+  ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}   ·   ZAPATILLASMAY.MX`).toUpperCase(), W / 2, H - Math.round(H * 0.055)); espaciado(ctx, 0)
   return c
 }
 
 // ── portada y cierre del carrusel ──
 async function laminaPortada(F, E, prods, opts) { return laminaCollage(F, E, prods, opts) }
-async function laminaCierre(F, E) {
+async function laminaCierre(F, E, opts = {}) {
   const { w: W, h: H } = F
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
@@ -228,14 +243,14 @@ async function laminaCierre(F, E) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
   const img = await cargarImagen('/logo-marca-blanco.png')
   if (img) { const w = W * 0.5, h = w * img.height / img.width; ctx.drawImage(img, W / 2 - w / 2, H * 0.16, w, h) }
-  ctx.fillStyle = '#fff'; ctx.font = `600 ${Math.round(W * 0.075)}px ${SERIF}`
-  envolver(ctx, '¿Cuál es tu favorito?', W / 2, H * 0.46, W * 0.82, W * 0.1, 2)
+  ctx.fillStyle = '#fff'; ctx.font = fTit(W * 0.075)
+  envolver(ctx, opts.cierre || '¿Cuál es tu favorito?', W / 2, H * 0.46, W * 0.82, W * 0.1, 2)
   divisor(ctx, W / 2, H * 0.64, W * 0.4, { oro: '#ffffff' })
-  ctx.font = `500 ${Math.round(W * 0.03)}px "Montserrat", sans-serif`; espaciado(ctx, 3)
+  ctx.font = fTxt(W * 0.03, 500); espaciado(ctx, 3)
   ctx.fillText('PÍDELO POR WHATSAPP', W / 2, H * 0.71); espaciado(ctx, 0)
-  ctx.font = `700 ${Math.round(W * 0.07)}px ${SERIF}`
+  ctx.font = fTit(W * 0.07, 700)
   ctx.fillText(WA_TXT, W / 2, H * 0.78)
-  ctx.font = `500 ${Math.round(W * 0.027)}px "Montserrat", sans-serif`; espaciado(ctx, 2)
+  ctx.font = fTxt(W * 0.027, 500); espaciado(ctx, 2)
   ctx.fillText('ZAPATILLASMAY.MX  ·  ENVÍOS A TODO MÉXICO', W / 2, H * 0.865); espaciado(ctx, 0)
   return c
 }
@@ -259,7 +274,7 @@ function escribirTexto(prods, opts) {
 }
 
 // ── estado y pantalla ──
-const S = { prods: [], variantes: [], sel: [], publicados: new Set(), imgs: [], estado: null }
+const S = { prods: [], variantes: [], sel: [], publicados: new Set(), imgs: [], estado: null, textos: { etiqueta: '', tituloCollage: '', cierre: '', pie: '', porProd: {} } }
 
 function datosProducto(p) {
   const vars = S.variantes.filter(v => v.producto_id === p.id)
@@ -342,6 +357,11 @@ window.cargarRedes = async function () {
       <div class="rs-opc" id="rs-formato" style="margin-bottom:8px">
         ${Object.entries(FORMATOS).map(([k, f], i) => `<button class="${i === 1 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('formato','${k}')">${f.label}<small>${f.nota}</small></button>`).join('')}
       </div>
+      <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Tipo de letra</p>
+      <div class="rs-opc" id="rs-letra" style="margin-bottom:10px">
+        ${Object.entries(LETRAS).map(([k, l], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('letra','${k}')"><span style="font-family:'${l.ej}',serif;font-size:1.05rem;${l.cursiva ? 'font-style:italic;' : ''}color:#2a1a0e">${l.nombre === 'Romántico' ? 'Nueva colección' : 'Nueva colección'}</span><small>${l.nombre}</small></button>`).join('')}
+      </div>
+      <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Colores</p>
       <div class="rs-opc" id="rs-estilo" style="margin-bottom:10px">
         ${Object.entries(ESTILOS).map(([k, s], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('estilo','${k}')"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${s.acento};vertical-align:-2px;margin-right:5px"></span>${s.nombre}</button>`).join('')}
       </div>
@@ -352,6 +372,17 @@ window.cargarRedes = async function () {
         <label><input type="checkbox" id="rs-o-porcolor" onchange="rsGenerar()"> Una lámina por cada color (carrusel / fotos)</label>
         <label><input type="checkbox" id="rs-o-completa" onchange="rsGenerar()"> Mostrar la foto completa (sin recortar)</label>
       </div>
+    </div>
+
+    <div class="rs-card" id="rs-textos" style="display:none">
+      <p class="rs-h">Textos de las imágenes <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· cámbialos como quieras, la vista previa se actualiza sola</span></p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+        <label style="font-size:0.74rem;color:#64748b">Etiqueta superior<input class="form-input" id="rs-t-etiqueta" placeholder="Nueva colección" maxlength="40" oninput="rsTexto('etiqueta',this.value)" style="width:100%;margin-top:3px"></label>
+        <label style="font-size:0.74rem;color:#64748b">Línea de abajo<input class="form-input" id="rs-t-pie" placeholder="WhatsApp 479 224 4560" maxlength="60" oninput="rsTexto('pie',this.value)" style="width:100%;margin-top:3px"></label>
+        <label style="font-size:0.74rem;color:#64748b">Título del collage / portada<input class="form-input" id="rs-t-collage" placeholder="Nuevos modelos" maxlength="30" oninput="rsTexto('tituloCollage',this.value)" style="width:100%;margin-top:3px"></label>
+        <label style="font-size:0.74rem;color:#64748b">Frase de cierre (carrusel)<input class="form-input" id="rs-t-cierre" placeholder="¿Cuál es tu favorito?" maxlength="40" oninput="rsTexto('cierre',this.value)" style="width:100%;margin-top:3px"></label>
+      </div>
+      <div id="rs-t-prods"></div>
     </div>
 
     <div class="rs-card">
@@ -379,9 +410,10 @@ window.cargarRedes = async function () {
   window.rsHistorial()
 }
 
-const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush' }
-window.rsOpt = (k, v) => {
+const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush', letra: 'moderno' }
+window.rsOpt = async (k, v) => {
   OPT[k] = v
+  if (k === 'letra') { LA = LETRAS[v] || LETRAS.moderno; await cargarFuentes() }
   document.querySelectorAll(`#rs-${k} button`).forEach(b => b.classList.toggle('on', b.dataset.v === v))
   window.rsGenerar()
 }
@@ -391,6 +423,7 @@ window.rsToggle = (id) => {
   else { if (S.sel.length >= 8) { alert('Máximo 8 modelos por publicación.'); return }; S.sel.push(id) }
   document.querySelectorAll('#rs-nuevos .rs-chip').forEach(c => c.classList.toggle('on', S.sel.includes(c.dataset.id)))
   const cont = document.getElementById('rs-elegidos')
+  window.rsPintarTextos()
   cont.innerHTML = S.sel.length ? S.sel.map(id => { const p = S.prods.find(x => x.id === id); return p ? `<span class="rs-chip on" onclick="rsToggle('${esc(id)}')"><img src="${esc(p.imagen_principal)}"><span>${esc(String(p.nombre).split(' ').slice(0, 3).join(' '))} ✕</span></span>` : '' }).join('') : ''
   window.rsGenerar()
 }
@@ -402,6 +435,27 @@ window.rsBuscar = (q) => {
   r.style.display = 'block'
 }
 
+let _tTimer = null
+window.rsTexto = (campo, valor) => { S.textos[campo] = valor; clearTimeout(_tTimer); _tTimer = setTimeout(() => window.rsGenerar(), 450) }
+window.rsTextoProd = (id, campo, valor) => {
+  S.textos.porProd[id] = { ...(S.textos.porProd[id] || {}), [campo]: valor }
+  clearTimeout(_tTimer); _tTimer = setTimeout(() => window.rsGenerar(), 450)
+}
+window.rsPintarTextos = () => {
+  const card = document.getElementById('rs-textos'), cont = document.getElementById('rs-t-prods')
+  if (!card || !cont) return
+  card.style.display = S.sel.length ? 'block' : 'none'
+  cont.innerHTML = S.sel.map(id => {
+    const base = S.prods.find(p => p.id === id); if (!base) return ''
+    const d = datosProducto(base), x = S.textos.porProd[id] || {}
+    return `<div style="display:grid;grid-template-columns:44px 2fr 90px 120px;gap:8px;align-items:end;padding:8px 0;border-top:1px solid #f1f5f9">
+      <img src="${esc(base.imagen_principal)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">
+      <label style="font-size:0.7rem;color:#94a3b8">Nombre en la imagen<input class="form-input" value="${esc(x.titulo !== undefined ? x.titulo : d.titulo)}" maxlength="70" oninput="rsTextoProd('${esc(id)}','titulo',this.value)" style="width:100%;margin-top:2px;font-size:0.82rem"></label>
+      <label style="font-size:0.7rem;color:#94a3b8">Precio $<input class="form-input" type="number" min="0" value="${esc(x.precio !== undefined ? x.precio : d.precio)}" oninput="rsTextoProd('${esc(id)}','precio',this.value)" style="width:100%;margin-top:2px;font-size:0.82rem"></label>
+      <label style="font-size:0.7rem;color:#94a3b8">Tallas<input class="form-input" value="${esc(x.tallas !== undefined ? x.tallas : d.tallas)}" maxlength="20" placeholder="23–27" oninput="rsTextoProd('${esc(id)}','tallas',this.value)" style="width:100%;margin-top:2px;font-size:0.82rem"></label>
+    </div>`
+  }).join('')
+}
 let _gen = 0
 window.rsGenerar = async () => {
   const mi = ++_gen
@@ -411,8 +465,17 @@ window.rsGenerar = async () => {
   vacio.style.display = 'none'; grid.innerHTML = '<p style="font-size:0.8rem;color:#64748b;grid-column:1/-1">Armando las imágenes...</p>'
   const F = FORMATOS[OPT.formato], E = ESTILOS[OPT.estilo]
   const o = (id) => document.getElementById(id)?.checked
-  const opts = { precio: o('rs-o-precio'), nuevo: o('rs-o-nuevo'), colores: o('rs-o-colores'), ajuste: o('rs-o-completa') ? 'completa' : 'llenar', colorNombre: false }
-  const prods = S.sel.map(id => datosProducto(S.prods.find(p => p.id === id))).filter(Boolean)
+  const T = S.textos
+  const opts = { precio: o('rs-o-precio'), nuevo: o('rs-o-nuevo'), colores: o('rs-o-colores'), ajuste: o('rs-o-completa') ? 'completa' : 'llenar', colorNombre: false,
+    etiqueta: (T.etiqueta || '').trim(), tituloCollage: (T.tituloCollage || '').trim(), cierre: (T.cierre || '').trim(), pie: (T.pie || '').trim() }
+  const prods = S.sel.map(id => {
+    const d = datosProducto(S.prods.find(p => p.id === id)); if (!d) return null
+    const x = T.porProd[id] || {}
+    if ((x.titulo || '').trim()) d.titulo = x.titulo.trim()
+    if (x.precio !== undefined && x.precio !== '' && !isNaN(parseFloat(x.precio))) d.precio = Math.round(parseFloat(x.precio))
+    if (x.tallas !== undefined && String(x.tallas).trim() !== '') d.tallas = String(x.tallas).trim()
+    return d
+  }).filter(Boolean)
   const laminas = []
   const porColor = o('rs-o-porcolor')
   const delProducto = async (p) => {
@@ -428,7 +491,7 @@ window.rsGenerar = async () => {
   } else if (OPT.tipo === 'carrusel') {
     if (prods.length > 1) laminas.push(await laminaPortada(F, E, prods.slice(0, 4), opts))
     for (const p of prods) await delProducto(p)
-    laminas.push(await laminaCierre(F, E))
+    laminas.push(await laminaCierre(F, E, opts))
   } else {
     for (const p of prods) await delProducto(p)
   }
