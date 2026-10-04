@@ -30631,6 +30631,14 @@ window.verNovedadWA = async (id) => {
       </div>
       <p style="font-size:0.72rem;color:#94a3b8;margin:8px 0 0">En computadora no se pueden adjuntar las fotos solas: se descargan y se abre WhatsApp con el texto para que las adjuntes. Desde el celular se comparten directo.</p>`
       : '<p style="text-align:center;color:#15803d;font-weight:700;padding:14px 0">🎉 ¡Listo! Ya se las mandaste a todas.</p>'}
+    ${(d.correo && d.correo.con_correo) ? `
+      <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:12px;padding:12px 14px;margin-top:12px">
+        <p style="font-weight:700;font-size:0.88rem;margin:0 0 3px">📧 También por correo</p>
+        <p style="font-size:0.76rem;color:#9d174d;margin:0 0 8px">${d.correo.con_correo} de ${total} clientas de esta lista tienen correo propio${d.correo.enviados ? ` · ya se les mandó a ${d.correo.enviados}` : ''}. Sale con el diseño de la tienda, las fotos y los precios de los modelos.</p>
+        ${d.correo.enviados < d.correo.con_correo ? `<button class="btn btn-secondary" id="nov-correo" style="color:#E91E8C;border-color:#f9a8d4;font-weight:700" onclick="novEnviarCorreo()">📧 Enviar correo a las ${d.correo.con_correo - d.correo.enviados} que faltan</button>` : '<p style="font-size:0.78rem;color:#15803d;font-weight:700;margin:0">✓ Ya se mandó a todas las que tienen correo</p>'}
+        <p id="nov-correo-res" style="font-size:0.78rem;margin:8px 0 0;display:none"></p>
+      </div>` : ''}
+    <p style="margin:12px 0 0;font-size:0.74rem;color:#64748b">¿Prefieres una lista de difusión de WhatsApp (se manda a todas de un toque)? <a href="#" onclick="event.preventDefault();novDescargarVcf()" style="color:#15803d;font-weight:700">Descargar sus contactos (.vcf)</a> para importarlos a tu celular y armarla.</p>
     <details style="margin-top:14px"><summary style="font-size:0.78rem;color:#64748b;cursor:pointer">Ver toda la lista (${total})</summary>
       <div style="max-height:200px;overflow:auto;margin-top:6px;border:1px solid #eef0f4;border-radius:10px">
         ${(d.envios || []).map(e => `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:0.76rem"><span>${esc(e.nombre || e.telefono)}</span>
@@ -30660,6 +30668,29 @@ window.novCompartir = async () => {
     await new Promise(r => setTimeout(r, 350))
   }
   window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank')
+}
+window.novEnviarCorreo = async () => {
+  const d = window._novActual, b = document.getElementById('nov-correo'), res = document.getElementById('nov-correo-res')
+  if (!d || !b) return
+  if (!confirm('¿Mandar el correo con los modelos a las clientas de la lista que tienen correo? Salen correos reales.')) return
+  b.disabled = true; b.textContent = 'Enviando...'
+  try {
+    const r = await fetch(API + '/novedades/' + d.id + '/correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || !j.ok) throw new Error(j.error || 'No se pudo enviar')
+    res.style.display = 'block'; res.style.color = '#15803d'
+    res.innerHTML = `✅ Se están enviando <strong>${j.enviando}</strong> correo(s).` + (j.quedan ? ` Faltan ${j.quedan} para la siguiente vez (límite diario del plan gratis).` : '') + ' El resultado queda en Correo corporativo → Historial.'
+    b.textContent = 'Enviado'
+  } catch (e) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Error: ' + e.message; b.disabled = false; b.textContent = 'Reintentar' }
+}
+window.novDescargarVcf = () => {
+  const d = window._novActual
+  if (!d) return
+  const v = (t) => String(t || '').replace(/[\r\n;,]/g, ' ').trim()
+  const tarjetas = (d.envios || []).map(e => ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + (v(e.nombre) || e.telefono), 'TEL;TYPE=CELL:+' + String(e.telefono).replace(/\D/g, ''), 'END:VCARD'].join('\r\n')).join('\r\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([tarjetas], { type: 'text/vcard;charset=utf-8' })); a.download = 'clientas_novedades.vcf'
+  document.body.appendChild(a); a.click(); a.remove()
 }
 window.novAbrirChat = (tel) => {
   const d = window._novActual

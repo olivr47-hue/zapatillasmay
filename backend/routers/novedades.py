@@ -193,6 +193,52 @@ def _con_conteos(rows: list) -> list:
     return rows
 
 
+def _correos_de_campana(id: str) -> dict:
+    """{cliente_id: correo} de las clientas de la campaña con correo válido y propio (no compartido), y cuáles ya recibieron correo."""
+    envios = supabase_get_all(f"wa_novedades_envios?novedad_id=eq.{id}&select=id,cliente_id,correo_at,estado") or []
+    ids = list({e["cliente_id"] for e in envios if e.get("cliente_id")})
+    por_correo, nombres = {}, {}
+    for i in range(0, len(ids), 40):
+        for c in supabase_get(f"clientes?id=in.({','.join(ids[i:i + 40])})&select=id,nombre,email") or []:
+            e = (c.get("email") or "").strip().lower()
+            if e and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e):
+                por_correo.setdefault(e, []).append(c["id"])
+    propios = {}
+    for e, cids in por_correo.items():
+        if len(cids) == 1:
+            propios[cids[0]] = e
+    ya = {e["cliente_id"] for e in envios if e.get("correo_at")}
+    return {"propios": propios, "ya": ya, "envios": envios}
+
+
+@router.post("/{id}/correo")
+def enviar_correo_campana(id: str, datos: dict = None, _staff=Depends(require_staff)):
+    """Manda por correo (plantilla de la tienda, con los modelos de la campaña) a las clientas de la lista que tienen correo
+    propio y válido y a las que aún no se les mandó. Máximo 80 por vez (plan gratis de Resend: 100 al día)."""
+    datos = datos or {}
+    if not _UUID.match(id):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Id inválido"})
+    nov = (supabase_get(f"wa_novedades?id=eq.{id}") or [None])[0]
+    if not nov:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Campaña no encontrada"})
+    info = _correos_de_campana(id)
+    pendientes = [cid for cid in info["propios"] if cid not in info["ya"]][:80]
+    if not pendientes:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Ninguna clienta de la lista tiene un correo propio al que falte mandarle"})
+    asunto = str(datos.get("asunto") or "Nuevos modelos — Zapatillas May 👠")[:150]
+    mensaje = str(nov.get("mensaje") or "").strip() or "Llegaron modelos nuevos a Zapatillas May."
+    prods = [m.get("producto_id") for m in (nov.get("modelos") or []) if m.get("producto_id")]
+    from routers import clientes as _cli
+    r = _cli.enviar_correo_clientes({"ids": pendientes, "asunto": asunto, "mensaje": mensaje, "productos": prods}, _staff)
+    if isinstance(r, JSONResponse):
+        return r
+    ahora = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    for e in info["envios"]:
+        if e.get("cliente_id") in pendientes:
+            supabase_patch(f"wa_novedades_envios?id=eq.{e['id']}", {"correo_at": ahora})
+    return {"ok": True, "enviando": r.get("enviando", 0), "omitidos": r.get("omitidos", {}), "quedan": max(0, len([c for c in info["propios"] if c not in info["ya"]]) - len(pendientes))}
+
+
 @router.get("/plantilla/estado")
 def estado_plantilla(_staff=Depends(require_staff)):
     """¿Meta ya aprobó la plantilla 'novedades_modelos'? (la necesitan las clientas que no escribieron en 24 h)."""
@@ -223,6 +269,11 @@ def detalle(id: str, _staff=Depends(require_staff)):
         return JSONResponse(status_code=404, content={"error": "No encontrada"})
     nov = _con_conteos([nov])[0]
     nov["envios"] = supabase_get(f"wa_novedades_envios?novedad_id=eq.{id}&order=created_at.asc&select=id,nombre,telefono,estado,via,error,enviado_at&limit=600") or []
+    try:
+        info = _correos_de_campana(id)
+        nov["correo"] = {"con_correo": len(info["propios"]), "enviados": len([c for c in info["propios"] if c in info["ya"]])}
+    except Exception:
+        nov["correo"] = {"con_correo": 0, "enviados": 0}
     return nov
 
 
