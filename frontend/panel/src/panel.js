@@ -6437,6 +6437,8 @@ async function cargarClientes() {
           <button class="pill-filter" data-flag="sintel" onclick="_cliFlag('sintel')">📵 Sin teléfono</button>
           <button class="pill-filter" data-flag="conpedidos" onclick="_cliFlag('conpedidos')">🛍️ Ya compraron</button>
           <button class="pill-filter" data-flag="sincompras" onclick="_cliFlag('sincompras')">⚪ Nunca han comprado</button>
+          <button class="pill-filter" data-flag="frecuentes" onclick="_cliFlag('frecuentes')">⭐ Frecuentes</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="sugerirFrecuentes()" title="Marca de una vez a las que más te han comprado">✨ Sugerir frecuentes</button>
           <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliSelVisibles()">☑ Seleccionar los que se ven</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="_cliLimpiar()">Limpiar filtros</button>
@@ -6445,11 +6447,13 @@ async function cargarClientes() {
           <strong id="cli-sel-n" style="font-size:0.85rem;color:#be185d"></strong>
           <button class="btn btn-primary" style="font-size:0.8rem;padding:6px 12px" onclick="abrirEnvioMensajeClientes()">💬 Enviar mensaje por WhatsApp</button>
           <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px;color:#E91E8C;border-color:#f9a8d4" onclick="abrirCorreoSeleccion()">📧 Enviar correo</button>
+          <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px;color:#b45309;border-color:#fcd34d" onclick="marcarFrecuentesSel(true)">⭐ Marcar frecuentes</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="marcarFrecuentesSel(false)">Quitar ⭐</button>
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="_cliSelNinguno()">Quitar selección</button>
         </div>
         <div id="cli-lista">
           ${clientesEnriquecidos.map(c => `
-            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}"
+            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}" data-frec="${c.frecuente_wa ? 1 : 0}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
                  onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
                  onclick="verCliente('${c.id}')">
@@ -6465,6 +6469,7 @@ async function cargarClientes() {
                   ${c.origen === 'tienda' ? '<span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#fdf4ff;color:#7c3aed">🛍️ Tienda</span>' : ''}
                 </div>
                 <p style="font-size:0.78rem;color:#888">${c.telefono || 'Sin teléfono'}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
+                ${c.frecuente_wa ? '<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin-top:2px">⭐ Clienta frecuente · recibe novedades</p>' : ''}
                 ${c.numCredito > 0 ? `<p style="font-size:0.72rem;color:#0f766e;font-weight:600;margin-top:2px">💳 ${c.numCredito} pedido${c.numCredito > 1 ? 's' : ''} a crédito · $${c.montoCredito.toLocaleString('es-MX', { maximumFractionDigits: 0 })}</p>` : ''}
                 ${c.comentarios_internos ? `<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${c.comentarios_internos.substring(0,50)}${c.comentarios_internos.length > 50 ? '...' : ''}</p>` : ''}
               </div>
@@ -6564,6 +6569,7 @@ function _cliRender() {
     if (F.flag === 'sintel' && el.dataset.tel) return false
     if (F.flag === 'conpedidos' && seg === 'nuevo') return false
     if (F.flag === 'sincompras' && seg !== 'nuevo') return false
+    if (F.flag === 'frecuentes' && el.dataset.frec !== '1') return false
     return true
   }
   let visibles = 0, total = 0
@@ -30512,6 +30518,7 @@ window.abrirNovedadesWA = async () => {
     <textarea id="nov-msg" class="form-input" rows="3" maxlength="600" style="width:100%;margin:4px 0 12px">Hola 👋 Llegaron modelos nuevos a Zapatillas May 👠 Mira los que te pueden gustar:</textarea>
     <label style="font-size:0.78rem;color:#64748b">¿A quién se las vas a mandar?</label>
     <select id="nov-aud" class="form-input" style="margin:4px 0 8px" onchange="_novAudiencia()">
+      <option value="frecuentes">⭐ Mis clientas frecuentes</option>
       <option value="mayoreo">Mayoristas y zapaterías</option>
       <option value="menudeo">Clientas de menudeo</option>
       <option value="todas">Todas las que tienen teléfono</option>
@@ -30521,6 +30528,7 @@ window.abrirNovedadesWA = async () => {
       <input id="nov-buscar" class="form-input" placeholder="🔍 Buscar clienta..." style="width:100%;margin-bottom:6px" oninput="_novPintarLista()">
       <div id="nov-lista" style="max-height:170px;overflow:auto;border:1px solid #eef0f4;border-radius:10px"></div>
     </div>
+    <p id="nov-aviso-frec" style="display:none;font-size:0.74rem;color:#92400e;background:#fffbeb;border-radius:8px;padding:7px 10px;margin:0 0 8px">Todavía no marcaste clientas frecuentes. En <strong>Clientes</strong> selecciónalas y toca "⭐ Marcar frecuentes" (o "✨ Sugerir frecuentes" para marcar de una vez a las que más compran).</p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
       <label style="font-size:0.78rem;color:#64748b">Cuántas por vez</label>
       <select id="nov-lote" class="form-input" style="max-width:90px" onchange="_novActualizarCuenta()"><option>3</option><option selected>5</option></select>
@@ -30540,6 +30548,7 @@ window._novAudiencia = () => {
 window._novIds = () => {
   const a = document.getElementById('nov-aud')?.value
   const L = window._novClientes || []
+  if (a === 'frecuentes') return L.filter(c => c.frecuente_wa).map(c => c.id)
   if (a === 'mayoreo') return L.filter(c => c.tipo === 'mayoreo' || c.tipo === 'zapateria').map(c => c.id)
   if (a === 'menudeo') return L.filter(c => !c.tipo || c.tipo === 'menudeo').map(c => c.id)
   if (a === 'todas') return L.map(c => c.id)
@@ -30547,6 +30556,8 @@ window._novIds = () => {
 }
 window._novActualizarCuenta = () => {
   const n = window._novIds().length, lote = parseInt(document.getElementById('nov-lote')?.value) || 5
+  const av = document.getElementById('nov-aviso-frec')
+  if (av) av.style.display = (document.getElementById('nov-aud')?.value === 'frecuentes' && !n) ? 'block' : 'none'
   const el = document.getElementById('nov-cuenta')
   if (el) el.innerHTML = `· <strong>${n}</strong> clienta${n === 1 ? '' : 's'} = ${Math.ceil(n / lote) || 0} vez/veces`
 }
@@ -30717,4 +30728,37 @@ window.listarNovedadesWA = async () => {
       return `<div onclick="verNovedadWA('${esc(n.id)}')" style="padding:10px 12px;border:1px solid #eef0f4;border-radius:10px;margin-bottom:8px;cursor:pointer">
         <div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:0.88rem">${esc(n.nombre)}</strong><span style="font-size:0.72rem;color:${n.estado === 'terminada' ? '#15803d' : '#92400e'}">${n.estado === 'terminada' ? 'terminada' : 'en curso'}</span></div>
         <div style="font-size:0.75rem;color:#64748b">${new Date(n.created_at).toLocaleDateString('es-MX')} · ${c.enviado || 0} de ${t} ya recibieron${c.pendiente ? ' · faltan ' + c.pendiente : ''}</div></div>` }).join('') : '<p style="color:#94a3b8;font-size:0.85rem">Todavía no has creado listas de novedades.</p>'}`, 560)
+}
+
+
+// ═══ Clientas frecuentes (la lista a la que se le mandan las novedades) ═══════════════════════════════
+window._guardarFrecuentes = async (ids, valor) => {
+  const r = await fetch(API + '/clientes/marcar-frecuentes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, valor }) })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo guardar')
+  return d
+}
+window.marcarFrecuentesSel = async (valor) => {
+  const ids = [...document.querySelectorAll('.cli-sel:checked')].map(c => c.dataset.id)
+  if (!ids.length) return
+  try {
+    await window._guardarFrecuentes(ids, valor)
+    await cargarClientes()
+    window.mostrarToastPanel && window.mostrarToastPanel(valor ? `⭐ ${ids.length} clienta(s) marcadas como frecuentes` : `Se quitó la ⭐ a ${ids.length}`)
+  } catch (e) { alert('Error: ' + e.message) }
+}
+// Propone marcar a las que más te han comprado; tú decides el mínimo de compras
+window.sugerirFrecuentes = async () => {
+  const L = window._clientesData || []
+  const min = parseInt(prompt('¿Cuántas compras mínimo para considerarla frecuente?\n(Ej. 3 = las que te han comprado 3 veces o más)', '3'))
+  if (!min || min < 1) return
+  const cand = L.filter(c => (c.totalPedidos || 0) >= min && !c.frecuente_wa && String(c.telefono || '').replace(/\D/g, '').length >= 10)
+  if (!cand.length) { alert(`No hay clientas nuevas con ${min} compras o más (que tengan teléfono) por marcar.`); return }
+  const muestra = cand.slice(0, 8).map(c => c.nombre).join(', ') + (cand.length > 8 ? '…' : '')
+  if (!confirm(`Hay ${cand.length} clienta(s) con ${min} compras o más sin marcar:\n${muestra}\n\n¿Marcarlas como frecuentes ⭐? (Puedes quitarle la estrella a cualquiera después.)`)) return
+  try {
+    await window._guardarFrecuentes(cand.map(c => c.id), true)
+    await cargarClientes()
+    window.mostrarToastPanel && window.mostrarToastPanel(`⭐ ${cand.length} clientas marcadas como frecuentes`)
+  } catch (e) { alert('Error: ' + e.message) }
 }

@@ -53,6 +53,19 @@ def resumen_clientes(_staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/marcar-frecuentes")
+def marcar_frecuentes(datos: dict, _staff=Depends(require_staff)):
+    """Marca o quita la estrella de 'clienta frecuente' (la lista a la que se le mandan las novedades)."""
+    import re as _re
+    ids = [str(i) for i in (datos.get("ids") or []) if _re.fullmatch(r"[0-9a-fA-F-]{36}", str(i))][:500]
+    if not ids:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "No hay clientas elegidas"})
+    valor = bool(datos.get("valor", True))
+    for i in range(0, len(ids), 50):
+        supabase_patch(f"clientes?id=in.({','.join(ids[i:i + 50])})", {"frecuente_wa": valor})
+    return {"ok": True, "actualizadas": len(ids), "valor": valor}
+
+
 @router.post("/enviar-correo")
 def enviar_correo_clientes(datos: dict, _staff=Depends(require_staff)):
     """Envía un correo (plantilla de la tienda) a varios clientes elegidos en el panel.
