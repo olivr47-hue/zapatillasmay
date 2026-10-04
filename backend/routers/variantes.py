@@ -54,7 +54,7 @@ def listar_variantes(producto_ids: str = None, ligero: bool = False):
         cached = cache_get(_CK + "_ligero")
         if cached is not None:
             return cached
-        data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,talla,sku,activa")
+        data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,activa,foto_url")
         cache_set(_CK + "_ligero", data)
         return data
 
