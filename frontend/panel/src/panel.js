@@ -30376,6 +30376,7 @@ window.abrirCorreoClientes = (clientes) => {
   const conCorreo = clientes.filter(c => valido(c.email))
   const sin = clientes.length - conCorreo.length
   window._correoSel = conCorreo.map(c => c.id)
+  window._corProds = []
   const msgs = (typeof window._msgPredicados === 'function') ? window._msgPredicados() : []
   document.getElementById('modal-correo-cli')?.remove()
   const m = document.createElement('div')
@@ -30393,12 +30394,47 @@ window.abrirCorreoClientes = (clientes) => {
     <label style="font-size:0.78rem;color:#64748b">Asunto</label>
     <input id="cor-asunto" class="form-input" maxlength="150" placeholder="Ej. Novedades de Zapatillas May 👠" style="width:100%;margin:4px 0 8px">
     <label style="font-size:0.78rem;color:#64748b">Mensaje <span style="color:#94a3b8">({nombre} se cambia por el primer nombre de cada cliente)</span></label>
-    <textarea id="cor-msg" class="form-input" rows="6" maxlength="3000" placeholder="Hola {nombre}, ..." style="width:100%;margin:4px 0 10px"></textarea>
+    <textarea id="cor-msg" class="form-input" rows="5" maxlength="3000" placeholder="Hola {nombre}, ..." style="width:100%;margin:4px 0 10px"></textarea>
+    <label style="font-size:0.78rem;color:#64748b">Modelos para mostrar en el correo <span style="color:#94a3b8">(opcional, hasta 6 · con foto y precio)</span></label>
+    <div style="position:relative;margin:4px 0 6px">
+      <input id="cor-prod-buscar" class="form-input" placeholder="🔍 Busca un modelo por nombre o SKU..." autocomplete="off" style="width:100%" oninput="_corBuscarProd(this.value)">
+      <div id="cor-prod-res" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow:auto"></div>
+    </div>
+    <div id="cor-prod-sel" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div style="display:flex;gap:8px"><button class="btn btn-primary" id="cor-enviar" style="flex:1" onclick="enviarCorreoClientesUI()" ${conCorreo.length ? '' : 'disabled'}>Enviar a ${conCorreo.length} cliente${conCorreo.length === 1 ? '' : 's'}</button>
     <button class="btn btn-secondary" onclick="document.getElementById('modal-correo-cli').remove()">Cancelar</button></div>
     <p id="cor-res" style="font-size:0.8rem;margin:10px 0 0;display:none"></p>
   </div>`
   document.body.appendChild(m)
+}
+window._corProds = []
+window._corBuscarProd = async (q) => {
+  const res = document.getElementById('cor-prod-res')
+  q = (q || '').toLowerCase().trim()
+  if (q.length < 2) { res.style.display = 'none'; return }
+  if (!window._corCatalogo) {
+    try { window._corCatalogo = (window._posData && window._posData.productos) || await fetch(API + '/productos/').then(r => r.json()) } catch (e) { window._corCatalogo = [] }
+  }
+  const lista = (window._corCatalogo || []).filter(p => p.activo && `${p.nombre} ${p.sku_interno || ''}`.toLowerCase().includes(q)).slice(0, 8)
+  const esc = window._escWA
+  res.innerHTML = lista.length ? lista.map(p => `<div onclick="_corAgregarProd('${esc(p.id)}')" style="display:flex;gap:8px;align-items:center;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.8rem">
+      ${p.imagen_principal ? `<img src="${esc(p.imagen_principal)}" style="width:34px;height:34px;object-fit:cover;border-radius:6px">` : '<span style="width:34px;height:34px;background:#f5f0eb;border-radius:6px;display:inline-block"></span>'}
+      <span>${esc(p.nombre)}<br><span style="color:#94a3b8;font-size:0.7rem">${esc(p.sku_interno || '')}</span></span></div>`).join('') : '<div style="padding:10px;color:#94a3b8;font-size:0.8rem">Sin resultados</div>'
+  res.style.display = 'block'
+}
+window._corAgregarProd = (id) => {
+  const p = (window._corCatalogo || []).find(x => x.id === id)
+  if (!p || window._corProds.some(x => x.id === id)) return
+  if (window._corProds.length >= 6) { alert('Máximo 6 modelos por correo.'); return }
+  window._corProds.push(p)
+  document.getElementById('cor-prod-res').style.display = 'none'
+  document.getElementById('cor-prod-buscar').value = ''
+  window._corPintarProds()
+}
+window._corQuitarProd = (id) => { window._corProds = window._corProds.filter(x => x.id !== id); window._corPintarProds() }
+window._corPintarProds = () => {
+  const esc = window._escWA
+  document.getElementById('cor-prod-sel').innerHTML = window._corProds.map(p => `<span style="display:inline-flex;align-items:center;gap:6px;background:#fdf2f8;border:1px solid #f9a8d4;border-radius:100px;padding:3px 6px 3px 10px;font-size:0.74rem">${esc(String(p.nombre).slice(0, 28))}<button onclick="_corQuitarProd('${esc(p.id)}')" style="border:none;background:none;cursor:pointer;color:#be185d;font-size:0.85rem">✕</button></span>`).join('')
 }
 window._corCargarPred = () => {
   const i = document.getElementById('cor-pred').value
@@ -30418,7 +30454,7 @@ window.enviarCorreoClientesUI = async () => {
   if (!confirm(`¿Enviar este correo a ${ids.length} cliente${ids.length === 1 ? '' : 's'}? Salen correos reales.`)) return
   btn.disabled = true; btn.textContent = 'Enviando...'
   try {
-    const r = await fetch(API + '/clientes/enviar-correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, asunto, mensaje }) })
+    const r = await fetch(API + '/clientes/enviar-correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, asunto, mensaje, productos: (window._corProds || []).map(p => p.id) }) })
     const d = await r.json().catch(() => ({}))
     if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo enviar')
     const o = d.omitidos || {}

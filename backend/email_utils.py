@@ -407,7 +407,14 @@ def email_resumen_carrito(pedido: dict, items: list, anticipo: float = 0.0, modo
         except Exception:
             pass
 
-    if modo == "vencimiento":
+    if modo == "pago":
+        forma = _h.escape(str(pedido.get("forma_pago") or "").upper() or "tu método de pago")
+        titulo = f"{nombre}, tu pedido está esperando tu pago ⏳"
+        intro = (f"Tu pedido #{pedido_id} sigue pendiente de pago ({forma}). En cuanto se acredite lo preparamos para envío. "
+                 "Si ya pagaste, ignora este mensaje; si necesitas los datos para pagar o ayuda, escríbenos por WhatsApp.")
+        asunto = f"⏳ Tu pedido #{pedido_id} está esperando tu pago — Zapatillas May"
+        pre = f"Total a pagar ${total:,.0f} MXN. Si ya pagaste, ignora este correo."
+    elif modo == "vencimiento":
         titulo = f"{nombre}, tu apartado {'ya venció' if vencido else 'está por vencer'} ⏰"
         intro = ("Tus pares siguen guardados a tu nombre, pero el plazo de tu apartado "
                  + (vence_txt or "está por terminar") + ". Si aún los quieres, escríbenos para completar tu compra y no perderlos.")
@@ -454,7 +461,38 @@ def email_resumen_carrito(pedido: dict, items: list, anticipo: float = 0.0, modo
     return asunto, _base_html(contenido, pre)
 
 
-def email_mensaje_cliente(nombre: str, mensaje: str):
+def _tarjetas_productos(productos: list) -> str:
+    """Cuadrícula de 2 columnas con foto, nombre, precio y botón 'Ver' de cada modelo (para correos de novedades)."""
+    tarjetas = []
+    for pr in (productos or [])[:6]:
+        slug = str(pr.get("slug") or pr.get("sku_interno") or "").strip()
+        url = f"https://zapatillasmay.mx/producto/{_h.escape(slug, quote=True)}" if slug else "https://zapatillasmay.mx"
+        try:
+            precio = float(pr.get("precio_menudeo") or 0) + (0 if pr.get("es_oferta") else 80)   # mismo precio que ve la clienta en la tienda
+        except (TypeError, ValueError):
+            precio = 0
+        foto = str(pr.get("imagen_principal") or "")
+        img = (f'<img src="{_h.escape(foto, quote=True)}" width="240" alt="" style="display:block;width:100%;max-width:240px;height:auto;border-radius:12px;background:#f5f0eb">'
+               if foto.startswith("http") else '<div style="height:200px;border-radius:12px;background:#f5f0eb"></div>')
+        precio_html = ('<div style="font-size:14px;font-weight:700;color:#b5687a;margin-top:2px">Desde $' + format(precio, ',.0f') + '</div>') if precio else ''
+        tarjetas.append(
+            f'<td width="50%" valign="top" style="padding:6px">'
+            f'<a href="{url}" style="text-decoration:none;color:#2A1A0E">{img}'
+            f'<div style="font-size:13px;font-weight:700;line-height:1.35;margin-top:8px;color:#2A1A0E">{_h.escape(str(pr.get("nombre") or "")[:60])}</div>'
+            + precio_html +
+            f'</a></td>')
+    if not tarjetas:
+        return ""
+    filas = ""
+    for i in range(0, len(tarjetas), 2):
+        par = tarjetas[i:i + 2]
+        if len(par) == 1:
+            par.append('<td width="50%"></td>')
+        filas += "<tr>" + "".join(par) + "</tr>"
+    return f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 20px">{filas}</table>'
+
+
+def email_mensaje_cliente(nombre: str, mensaje: str, productos: list = None):
     """Correo de personal a una clienta (promociones, avisos, seguimiento). `mensaje` ya trae el {nombre} resuelto;
     se escapa, se respetan los saltos de línea y los links se vuelven tocables."""
     import re as _re
@@ -467,6 +505,7 @@ def email_mensaje_cliente(nombre: str, mensaje: str):
     contenido = f"""
       <h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:#2A1A0E">{("Hola " + primer + " 👋") if primer else "Hola 👋"}</h1>
       <p style="margin:0 0 22px;font-size:15px;line-height:1.75;color:#5b4d44">{cuerpo}</p>
+      {_tarjetas_productos(productos)}
       {_boton("Ver los modelos →", "https://zapatillasmay.mx")}
       <p style="margin:22px 0 0;font-size:11px;color:#a89a90;text-align:center;line-height:1.6">
         Recibes este correo porque eres clienta de Zapatillas May. Si ya no quieres recibir mensajes, responde con la palabra BAJA.</p>"""

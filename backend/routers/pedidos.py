@@ -550,18 +550,11 @@ def recordatorio_email(id: str, datos: dict = {}, _staff=Depends(require_staff))
         if not email_cliente:
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene email"})
 
-        msg_personalizado = (datos.get("mensaje") or "").strip()
-        if msg_personalizado:
-            nombre = (p.get("nombre_cliente") or "Clienta").split()[0].capitalize()
-            pedido_id = str(p.get("id") or "")[:8].upper()
-            # Convertir saltos de línea a HTML
-            parrafos = "".join(f'<p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:12px">{l}</p>'
-                               for l in msg_personalizado.split("\n") if l.strip())
-            contenido = f'<h2 style="color:#2A1A0E;font-size:1.3rem;margin-bottom:16px">Hola {nombre} 😊</h2>{parrafos}'
-            subj = f"Tu pedido #{pedido_id} · Zapatillas May"
-            html = _base_html(contenido)
-        else:
-            subj, html = email_pedido_pendiente_spei(p)
+        msg_personalizado = (datos.get("mensaje") or "").strip()[:600]
+        # Misma plantilla que los demás correos (fotos, total, WhatsApp). El mensaje personal va escapado dentro de la plantilla.
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(color,talla,foto_url,productos(nombre,imagen_principal))") or []
+        from email_utils import email_resumen_carrito
+        subj, html = email_resumen_carrito(p, items, 0.0, "pago", msg_personalizado)
 
         ok = enviar_email(email_cliente, subj, html, tipo="recordatorio_pago")
         if not ok:

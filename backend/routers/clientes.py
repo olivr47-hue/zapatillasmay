@@ -63,6 +63,10 @@ def enviar_correo_clientes(datos: dict, _staff=Depends(require_staff)):
     ids = [str(i) for i in (datos.get("ids") or []) if _re.fullmatch(r"[0-9a-fA-F-]{36}", str(i))]
     asunto = str(datos.get("asunto") or "").strip()[:150]
     mensaje = str(datos.get("mensaje") or "").strip()[:3000]
+    ids_prod = [str(i) for i in (datos.get("productos") or []) if _re.fullmatch(r"[0-9a-fA-F-]{36}", str(i))][:6]
+    productos = []
+    if ids_prod:
+        productos = supabase_get(f"productos?id=in.({','.join(ids_prod)})&select=id,nombre,slug,sku_interno,imagen_principal,precio_menudeo,es_oferta") or []
     if not ids:
         return JSONResponse(status_code=400, content={"ok": False, "error": "No hay clientes seleccionados"})
     if not asunto or not mensaje:
@@ -91,18 +95,18 @@ def enviar_correo_clientes(datos: dict, _staff=Depends(require_staff)):
     if not destinos:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Ninguno de los seleccionados tiene un correo válido y propio", "omitidos": omitidos})
 
-    def _enviar_todos(lista, asunto_, mensaje_):
+    def _enviar_todos(lista, asunto_, mensaje_, productos_=None):
         from email_utils import enviar_email, email_mensaje_cliente
         for correo, nombre in lista:
             try:
                 primer = (nombre.split() or [""])[0].capitalize() or "Cliente"
-                html = email_mensaje_cliente(nombre, mensaje_.replace("{nombre}", primer))
+                html = email_mensaje_cliente(nombre, mensaje_.replace("{nombre}", primer), productos_)
                 enviar_email(correo, asunto_.replace("{nombre}", primer), html, tipo="mensaje_cliente", reply_to="contacto@zapatillasmay.mx")
             except Exception as e:
                 print(f"[clientes] correo a {correo} falló: {e}")
             time.sleep(0.7)   # Resend permite ~2 envíos por segundo
 
-    threading.Thread(target=_enviar_todos, args=(destinos, asunto, mensaje), daemon=True).start()
+    threading.Thread(target=_enviar_todos, args=(destinos, asunto, mensaje, productos), daemon=True).start()
     return {"ok": True, "enviando": len(destinos), "omitidos": omitidos}
 
 
