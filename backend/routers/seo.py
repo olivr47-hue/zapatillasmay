@@ -753,8 +753,8 @@ _PAGINAS_CONTENT = {
   </div>
   <h2 style="font-size:1.2rem;margin-top:28px">¿Solo quieres unos cuantos pares?</h2>
   <p>Si tu compra es para ti o para pocos pares, puedes comprar directo en <a href="/" style="color:#E91E8C">zapatillasmay.mx</a>: desde 3 pares el descuento de $60 por par se aplica automáticamente en el carrito, sin registro. Para 6 pares en adelante y corridas completas, el registro en el Portal de Mayoristas es gratuito.</p>
-  <h2 style="font-size:1.2rem;margin-top:28px">Mayoreo por tipo de calzado</h2>
-  <p>Fabricamos y surtimos <a href="/sandalias" style="color:#E91E8C">sandalias</a>, <a href="/tacones" style="color:#E91E8C">tacones</a>, <a href="/botas" style="color:#E91E8C">botas</a>, <a href="/botines" style="color:#E91E8C">botines</a>, <a href="/flats" style="color:#E91E8C">flats</a>, <a href="/plataformas" style="color:#E91E8C">plataformas</a> y <a href="/tenis" style="color:#E91E8C">tenis</a> de dama. Entra al portal para ver el catálogo completo con fotos y tus precios.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Precios de mayoreo solo en el portal</h2>
+  <p>Fabricamos y surtimos sandalias, tacones, botas, botines, flats, plataformas y tenis de dama. <strong>Los precios de mayoreo se manejan únicamente en el Portal de Mayoristas</strong>: los precios de la tienda en línea son de menudeo. Regístrate gratis en el portal para ver el catálogo completo con fotos y tus precios.</p>
   <p style="margin-top:18px"><a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20mayoreo" target="_blank" rel="noopener" style="display:inline-block;border:2px solid #25D366;color:#128C4A;font-weight:700;text-decoration:none;padding:10px 24px;border-radius:100px">Escríbenos por WhatsApp para mayoreo</a></p>
 </section>""",
     "privacidad": """
