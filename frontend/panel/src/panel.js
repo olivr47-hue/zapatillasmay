@@ -4690,6 +4690,8 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="window.compartirNovedadesWhatsApp()" id="btn-anuncio-share" class="btn btn-primary" style="padding:10px 14px;font-size:0.8rem;background:#E91E8C;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📣 Compartir</button>
+          <button onclick="window.abrirNovedadesWA()" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer;color:#15803d;border-color:#86efac;font-weight:700" title="Mandarlo por WhatsApp Business a pocas clientas a la vez">💬 De 5 en 5</button>
+          <button onclick="window.listarNovedadesWA()" class="btn btn-secondary" style="padding:10px 12px;font-size:0.8rem;cursor:pointer" title="Ver los envíos de novedades">📋</button>
           <button onclick="window.toggleModoAnuncio(false)" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
         </div>
       </div>
@@ -30463,4 +30465,197 @@ window.enviarCorreoClientesUI = async () => {
     res.innerHTML = `✅ Se están enviando <strong>${d.enviando}</strong> correo${d.enviando === 1 ? '' : 's'} (tarda unos segundos por cada diez).` + (om ? `<br><span style="color:#b45309">Omitidos: ${om}${o.compartido ? ` (${o.compartido} con correo compartido)` : ''}.</span>` : '') + '<br>Revisa el resultado en Correo corporativo → Historial.'
     btn.textContent = 'Enviado'
   } catch (e) { err('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Enviar' }
+}
+
+
+// ═══ Novedades por WhatsApp Business, de pocas en pocas (de 5 en 5) ═══════════════════════════════════
+// Se eligen modelos con "Anunciar modelos", luego a quién; el sistema manda lotes chicos (no masivo): a mano con
+// "Enviar siguientes 5" o solo cada cierto tiempo, de 9:00 a 21:00.
+window._novModal = (html, ancho) => {
+  document.getElementById('modal-nov')?.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-nov'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:12px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:${ancho || 640}px;width:100%;max-height:92vh;overflow:auto">${html}</div>`
+  document.body.appendChild(m)
+  return m
+}
+window._novCerrar = () => document.getElementById('modal-nov')?.remove()
+
+window.abrirNovedadesWA = async () => {
+  const sel = (window._anuncioSeleccion || []).map(x => { const [pid, color] = x.split('::'); return { producto_id: pid, color: color || 'default' } })
+  if (!sel.length) { alert('Primero marca los modelos que quieres anunciar (casillas de la tabla).'); return }
+  const esc = window._escWA
+  window._novModal('<p style="padding:1.5rem;text-align:center;color:#888">Cargando...</p>', 420)
+  let productos = [], variantes = [], clientes = [], plantilla = 'error'
+  try {
+    ;[productos, variantes, clientes] = await Promise.all([
+      fetch(API + '/productos/').then(r => r.json()), fetch(API + '/variantes/?ligero=true').then(r => r.json()), fetch(API + '/clientes/').then(r => r.json())])
+    plantilla = (await fetch(API + '/novedades/plantilla/estado').then(r => r.json()).catch(() => ({}))).estado || 'error'
+  } catch (e) { window._novCerrar(); alert('No se pudieron cargar los datos: ' + e.message); return }
+  const valido = (c) => String(c.telefono || '').replace(/\D/g, '').length >= 10
+  window._novClientes = (Array.isArray(clientes) ? clientes : []).filter(valido)
+  window._novSel = sel
+  const modelosHTML = sel.map(x => {
+    const p = productos.find(q => q.id === x.producto_id) || {}
+    const v = variantes.find(q => q.producto_id === x.producto_id && x.color !== 'default' && q.color === x.color)
+    const foto = (v && v.foto_url) || p.imagen_principal
+    return `<div style="text-align:center;width:74px">${foto ? `<img src="${esc(foto)}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #eee">` : '<div style="width:64px;height:64px;border-radius:10px;background:#f5f0eb;margin:0 auto"></div>'}
+      <div style="font-size:0.66rem;color:#475569;line-height:1.25;margin-top:3px">${esc(String(p.nombre || '').split(' ')[0])}${x.color !== 'default' ? '<br>' + esc(x.color) : ''}</div></div>`
+  }).join('')
+  const aviso = plantilla === 'APPROVED' ? '' : `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.76rem;color:#92400e;line-height:1.55">
+      <strong>Plantilla de WhatsApp: ${plantilla === 'PENDING' ? 'en revisión de Meta' : (plantilla === 'no_creada' ? 'aún no creada' : 'no disponible (' + esc(plantilla) + ')')}.</strong>
+      Las clientas que escribieron en las últimas 24 h reciben fotos normales. A las demás hace falta la plantilla <code>novedades_modelos</code> aprobada por Meta; mientras tanto esas quedarán como "fallido" y puedes reintentarlas después.
+      ${plantilla === 'no_creada' || plantilla === 'error' ? '<br><button class="btn btn-secondary" style="margin-top:6px;font-size:0.74rem;padding:4px 10px" onclick="crearPlantillaNovedades(this)">Crear la plantilla en Meta</button>' : ''}</div>`
+  window._novModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💬 Novedades por WhatsApp · de pocas en pocas</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Se manda desde tu WhatsApp Business a pocas clientas a la vez (nada de envíos masivos), con la foto, el precio y el link de cada modelo.</p>
+    ${aviso}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${modelosHTML}</div>
+    <label style="font-size:0.78rem;color:#64748b">Mensaje <span style="color:#94a3b8">({nombre} = primer nombre de cada clienta)</span></label>
+    <textarea id="nov-msg" class="form-input" rows="3" maxlength="900" style="width:100%;margin:4px 0 12px">Hola {nombre} 👋 Llegaron modelos nuevos a Zapatillas May 👠 Mira los que te pueden gustar:</textarea>
+
+    <label style="font-size:0.78rem;color:#64748b">¿A quién?</label>
+    <select id="nov-aud" class="form-input" style="margin:4px 0 8px" onchange="_novAudiencia()">
+      <option value="mayoreo">Mayoristas y zapaterías</option>
+      <option value="menudeo">Clientas de menudeo</option>
+      <option value="todas">Todas las que tienen teléfono</option>
+      <option value="elegir">Elegir una por una…</option>
+    </select>
+    <div id="nov-elegir" style="display:none;margin-bottom:8px">
+      <input id="nov-buscar" class="form-input" placeholder="🔍 Buscar clienta..." style="width:100%;margin-bottom:6px" oninput="_novPintarLista()">
+      <div id="nov-lista" style="max-height:170px;overflow:auto;border:1px solid #eef0f4;border-radius:10px"></div>
+    </div>
+    <p id="nov-cuenta" style="font-size:0.78rem;color:#475569;margin:0 0 12px"></p>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="flex:1;min-width:130px"><label style="font-size:0.78rem;color:#64748b">Cuántas por tanda</label>
+        <select id="nov-lote" class="form-input" style="margin-top:4px" onchange="_novActualizarCuenta()"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></div>
+      <div style="flex:2;min-width:190px"><label style="font-size:0.78rem;color:#64748b">¿Cómo mandar las siguientes?</label>
+        <select id="nov-modo" class="form-input" style="margin-top:4px">
+          <option value="0">Yo toco "Enviar siguientes" (manual)</option>
+          <option value="30">Solo, una tanda cada 30 min</option>
+          <option value="60">Solo, una tanda cada hora</option>
+          <option value="120">Solo, una tanda cada 2 horas</option>
+        </select></div>
+    </div>
+    <p style="font-size:0.72rem;color:#94a3b8;margin:0 0 12px">En modo automático solo manda de 9:00 a 21:00 (hora de México). Puedes pausar o cancelar cuando quieras.</p>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" id="nov-crear" style="flex:1" onclick="crearNovedadWA(true)">Crear y enviar la primera tanda</button>
+    <button class="btn btn-secondary" onclick="crearNovedadWA(false)">Solo crear</button></div>
+    <p id="nov-res" style="font-size:0.8rem;margin:10px 0 0;display:none"></p>`, 660)
+  window._novManual = new Set()
+  window._novAudiencia()
+}
+window._novAudiencia = () => {
+  const a = document.getElementById('nov-aud').value
+  document.getElementById('nov-elegir').style.display = a === 'elegir' ? 'block' : 'none'
+  if (a === 'elegir') window._novPintarLista()
+  window._novActualizarCuenta()
+}
+window._novIds = () => {
+  const a = document.getElementById('nov-aud')?.value
+  const L = window._novClientes || []
+  if (a === 'mayoreo') return L.filter(c => c.tipo === 'mayoreo' || c.tipo === 'zapateria').map(c => c.id)
+  if (a === 'menudeo') return L.filter(c => !c.tipo || c.tipo === 'menudeo').map(c => c.id)
+  if (a === 'todas') return L.map(c => c.id)
+  return [...(window._novManual || [])]
+}
+window._novActualizarCuenta = () => {
+  const n = window._novIds().length, lote = parseInt(document.getElementById('nov-lote')?.value) || 5
+  const el = document.getElementById('nov-cuenta')
+  if (el) el.innerHTML = `<strong>${n}</strong> clienta${n === 1 ? '' : 's'} · se mandan en ${Math.ceil(n / lote) || 0} tanda${Math.ceil(n / lote) === 1 ? '' : 's'} de ${lote}.`
+}
+window._novPintarLista = () => {
+  const q = (document.getElementById('nov-buscar')?.value || '').toLowerCase().trim()
+  const esc = window._escWA
+  const L = (window._novClientes || []).filter(c => !q || `${c.nombre} ${c.telefono}`.toLowerCase().includes(q)).slice(0, 80)
+  document.getElementById('nov-lista').innerHTML = L.map(c => `<label style="display:flex;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:0.8rem;cursor:pointer">
+    <input type="checkbox" ${window._novManual.has(c.id) ? 'checked' : ''} onchange="_novToggle('${esc(c.id)}', this.checked)"> <span style="flex:1">${esc(c.nombre)}<br><span style="color:#94a3b8;font-size:0.7rem">${esc(c.telefono)}${c.tipo === 'mayoreo' || c.tipo === 'zapateria' ? ' · mayoreo' : ''}</span></span></label>`).join('') || '<p style="padding:10px;color:#94a3b8;font-size:0.8rem;margin:0">Sin resultados</p>'
+}
+window._novToggle = (id, on) => { on ? window._novManual.add(id) : window._novManual.delete(id); window._novActualizarCuenta() }
+
+window.crearPlantillaNovedades = async (btn) => {
+  btn.disabled = true; btn.textContent = 'Enviando a Meta...'
+  try {
+    const r = await fetch(API + '/chatbot/crear-plantillas-base', { method: 'POST' })
+    const d = await r.json().catch(() => ({}))
+    const mia = (d.resultados || []).find(x => x.nombre === 'novedades_modelos' || x.name === 'novedades_modelos')
+    btn.textContent = mia ? ('Listo: ' + (mia.estado || 'enviada a revisión')) : (r.ok ? 'Enviada a revisión de Meta' : 'No se pudo: ' + (d.error || r.status))
+  } catch (e) { btn.textContent = 'Error: ' + e.message }
+}
+
+window.crearNovedadWA = async (enviarAhora) => {
+  const res = document.getElementById('nov-res'), btn = document.getElementById('nov-crear')
+  const err = (t) => { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = t }
+  const ids = window._novIds()
+  const mensaje = document.getElementById('nov-msg').value.trim()
+  if (!mensaje) { err('Escribe el mensaje.'); return }
+  if (!ids.length) { err('No hay clientas con teléfono en esa selección.'); return }
+  const lote = parseInt(document.getElementById('nov-lote').value) || 5
+  const intervalo = parseInt(document.getElementById('nov-modo').value) || 0
+  if (!confirm(`¿Crear el envío para ${ids.length} clienta(s), en tandas de ${lote}${enviarAhora ? ' y mandar la primera tanda AHORA' : ''}? Son mensajes reales por WhatsApp.`)) return
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  try {
+    const r = await fetch(API + '/novedades/', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: window._novSel, mensaje, clientes_ids: ids, lote, intervalo_min: intervalo, enviar_ahora: !!enviarAhora }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo crear')
+    window.toggleModoAnuncio && window.toggleModoAnuncio(false)
+    await window.verNovedadWA(d.id)
+  } catch (e) { err('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Crear y enviar la primera tanda' }
+}
+
+window.verNovedadWA = async (id) => {
+  const esc = window._escWA
+  let d
+  try { d = await fetch(API + '/novedades/' + id).then(r => r.json()) } catch (e) { alert('No se pudo cargar'); return }
+  if (!d || d.error) { alert((d && d.error) || 'No se pudo cargar'); return }
+  const c = d.conteo || {}, total = (c.pendiente || 0) + (c.enviado || 0) + (c.fallido || 0)
+  const pct = total ? Math.round(100 * (c.enviado || 0) / total) : 0
+  const color = { pendiente: '#92400e', enviado: '#15803d', fallido: '#b91c1c', omitido: '#64748b' }
+  const etq = { pendiente: '⏳ pendiente', enviado: '✓ enviado', fallido: '✗ falló', omitido: 'omitida' }
+  const activa = d.estado === 'activa', pausada = d.estado === 'pausada'
+  window._novModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0">💬 ${esc(d.nombre || 'Novedades')}</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px">${(d.modelos || []).length} modelo(s) · tandas de ${d.lote} · ${d.intervalo_min ? 'automático cada ' + d.intervalo_min + ' min' : 'manual'} · <strong>${esc(d.estado)}</strong></p>
+    <div style="background:#e2e8f0;border-radius:100px;height:10px;overflow:hidden;margin-bottom:6px"><div style="width:${pct}%;height:100%;background:#22c55e"></div></div>
+    <p style="font-size:0.8rem;margin:0 0 12px"><strong>${c.enviado || 0}</strong> enviadas · <strong>${c.pendiente || 0}</strong> pendientes · <strong style="color:${c.fallido ? '#b91c1c' : 'inherit'}">${c.fallido || 0}</strong> con error</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      ${(activa && c.pendiente) ? `<button class="btn btn-primary" id="nov-sig" onclick="enviarLoteNovedadWA('${esc(d.id)}')">Enviar siguientes ${Math.min(d.lote, c.pendiente)}</button>` : ''}
+      ${activa && d.intervalo_min ? `<button class="btn btn-secondary" onclick="estadoNovedadWA('${esc(d.id)}','pausada')">⏸ Pausar</button>` : ''}
+      ${pausada ? `<button class="btn btn-secondary" onclick="estadoNovedadWA('${esc(d.id)}','activa')">▶ Reanudar</button>` : ''}
+      ${(activa || pausada) && c.pendiente ? `<button class="btn btn-secondary" style="color:#b91c1c;border-color:#fca5a5" onclick="estadoNovedadWA('${esc(d.id)}','cancelada')">Cancelar pendientes</button>` : ''}
+      <button class="btn btn-secondary" onclick="verNovedadWA('${esc(d.id)}')">↻ Actualizar</button>
+    </div>
+    <p id="nov-msg-lote" style="font-size:0.8rem;margin:0 0 8px;display:none"></p>
+    <div style="max-height:260px;overflow:auto;border:1px solid #eef0f4;border-radius:10px">
+      ${(d.envios || []).map(e => `<div style="display:flex;gap:8px;justify-content:space-between;padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:0.78rem">
+        <span>${esc(e.nombre || e.telefono)}${e.via ? ` <span style="color:#94a3b8">(${e.via === 'fotos' ? 'con fotos' : 'con plantilla'})</span>` : ''}${e.error ? `<br><span style="color:#b91c1c;font-size:0.7rem">${esc(e.error)}</span>` : ''}</span>
+        <span style="color:${color[e.estado] || '#475569'};white-space:nowrap;font-weight:600">${etq[e.estado] || esc(e.estado)}</span></div>`).join('')}
+    </div>`, 640)
+}
+window.enviarLoteNovedadWA = async (id) => {
+  const b = document.getElementById('nov-sig'); if (b) { b.disabled = true; b.textContent = 'Enviando...' }
+  try {
+    const r = await fetch(API + '/novedades/' + id + '/enviar-lote', { method: 'POST' })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) { alert(d.error || 'No se pudo enviar'); }
+  } catch (e) { alert('Error: ' + e.message) }
+  await window.verNovedadWA(id)
+}
+window.estadoNovedadWA = async (id, estado) => {
+  if (estado === 'cancelada' && !confirm('¿Cancelar los envíos pendientes? Los ya enviados no se tocan.')) return
+  await fetch(API + '/novedades/' + id + '/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) })
+  await window.verNovedadWA(id)
+}
+window.listarNovedadesWA = async () => {
+  const esc = window._escWA
+  let l = []
+  try { l = await fetch(API + '/novedades/').then(r => r.json()) } catch (e) {}
+  window._novModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">📋 Envíos de novedades</h3><button onclick="_novCerrar()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    ${(Array.isArray(l) && l.length) ? l.map(n => { const c = n.conteo || {}; const t = (c.pendiente || 0) + (c.enviado || 0) + (c.fallido || 0)
+      return `<div onclick="verNovedadWA('${esc(n.id)}')" style="padding:10px 12px;border:1px solid #eef0f4;border-radius:10px;margin-bottom:8px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;gap:8px"><strong style="font-size:0.88rem">${esc(n.nombre)}</strong><span style="font-size:0.72rem;color:#64748b">${esc(n.estado)}</span></div>
+        <div style="font-size:0.75rem;color:#64748b">${new Date(n.created_at).toLocaleDateString('es-MX')} · ${c.enviado || 0} de ${t} enviadas${c.pendiente ? ' · ' + c.pendiente + ' pendientes' : ''}${c.fallido ? ' · ' + c.fallido + ' con error' : ''}</div></div>` }).join('') : '<p style="color:#94a3b8;font-size:0.85rem">Todavía no has creado envíos de novedades.</p>'}`, 560)
 }

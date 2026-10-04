@@ -3282,6 +3282,15 @@ def _plantillas_base() -> list:
                 _PIE_PLANTILLA,
             ],
         },
+        {   # novedades por WhatsApp (de pocas en pocas) para clientas que no han escrito en las últimas 24 h
+            "name": "novedades_modelos", "language": "es_MX", "category": "MARKETING",
+            "components": [
+                {"type": "BODY",
+                 "text": "Hola {{1}} 👋 Llegaron modelos nuevos a Zapatillas May: {{2}}. Mira las fotos y los precios en nuestro sitio 👇",
+                 "example": {"body_text": [["María", "Botín MA6902 Negro, Sandalia SAN-01"]]}},
+                _PIE_PLANTILLA, _BOTON_WEB,
+            ],
+        },
         {
             "name": "reactivacion_cliente", "language": "es_MX", "category": "MARKETING",
             "components": [

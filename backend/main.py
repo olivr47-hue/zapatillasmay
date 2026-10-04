@@ -57,7 +57,7 @@ _PREFIJOS_PROTEGIDOS = (
     "/campanas", "/crm", "/emails", "/catalogos", "/merchant", "/businessprofile",
     "/searchconsole", "/push", "/imagenes", "/sucursales", "/carrito-abandonado",
     "/resenas", "/sugerencias", "/referidos", "/pinterest", "/catalogo",
-    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal",
+    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal", "/novedades",
 )
 # (método o "*", regex del path completo)
 _PUBLICAS = [(m, _re.compile(r)) for m, r in (
@@ -227,6 +227,8 @@ app.include_router(portal.router)
 app.include_router(sugerencias.router)
 app.include_router(push.router)
 app.include_router(emails.router)
+from routers import novedades
+app.include_router(novedades.router)
 
 # ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
 import threading, time as _time
@@ -243,6 +245,19 @@ def _loop_carritos_abandonados():
         except Exception as e:
             print(f"[carrito-abandonado] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
+
+def _loop_novedades_wa():
+    """Manda el siguiente lote (pocas clientas) de las campañas de novedades por WhatsApp que están en modo automático.
+    Se revisa cada 5 min; el envío en sí respeta el horario de 9:00 a 21:00 y el intervalo de cada campaña."""
+    _time.sleep(200)
+    while True:
+        try:
+            n = novedades.procesar_automaticas()
+            if n:
+                print(f"[novedades-wa] Enviados en este ciclo: {n}")
+        except Exception as e:
+            print(f"[novedades-wa] Error en loop: {e}")
+        _time.sleep(5 * 60)
 
 def _loop_ml_ventas():
     """Descuenta inventario del ERP por ventas nuevas en MercadoLibre, y marca
@@ -517,6 +532,9 @@ def _iniciar_hilos():
     # Aviso diario de clientas sin responder
     t9 = threading.Thread(target=_loop_chats_sin_responder, daemon=True)
     t9.start()
+    # Novedades por WhatsApp en modo automático (de pocas en pocas)
+    t10 = threading.Thread(target=_loop_novedades_wa, daemon=True)
+    t10.start()
     # Aviso diario de apartados vencidos
     t8 = threading.Thread(target=_loop_apartados_vencidos, daemon=True)
     t8.start()
