@@ -1,4 +1,4 @@
-const CACHE = 'zm-v2'   // v2: vacía la caché vieja (scripts/estilos se quedaban fijos para siempre)
+const CACHE = 'zm-v3'   // v3: vacía cachés viejas tras mover CSS/JS a /assets
 const PRECACHE = ['/index.html', '/carrito.html', '/manifest.json']
 const API_HOST = 'zapatillasmay-production.up.railway.app'
 
