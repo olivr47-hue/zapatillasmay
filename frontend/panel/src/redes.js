@@ -205,6 +205,9 @@ const DISENOS = {
   bloque: { nombre: 'Bloque de color', nota: 'Foto arriba y franja de color con el nombre' },
   polaroid: { nombre: 'Polaroid', nota: 'Foto con borde blanco, como instantánea' },
   minimo: { nombre: 'Mínimo', nota: 'Foto con un renglón discreto abajo' },
+  galeria: { nombre: 'Galería', nota: 'Foto con amplio margen blanco y texto pequeño, estilo cuadro de museo' },
+  etiquetaesq: { nombre: 'Etiqueta en esquina', nota: 'Foto completa con una pequeña etiqueta blanca abajo a la izquierda' },
+  linea: { nombre: 'Línea fina', nota: 'Foto con un marco de línea delgada y el nombre centrado debajo' },
 }
 const monedaTxt = (p) => (p && p.precio ? moneda(p.precio) : '')
 
@@ -289,6 +292,67 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
     ctx.fillText(linea || 'ZAPATILLASMAY.MX', W / 2, yb + Math.round(pie * 0.75)); espaciado(ctx, 0)
     ctx.restore()
     if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
+    return c
+  }
+  if (diseno === 'galeria') {
+    ctx.fillStyle = E.tarjeta; ctx.fillRect(0, 0, W, H)
+    const mx = Math.round(W * 0.11), top = Math.round(H * 0.07), pie = Math.round(H * 0.15)
+    const fw = W - mx * 2, fh = H - top - pie
+    MARCOS.producto = { w: fw, h: fh }
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.14)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 8
+    ctx.fillStyle = '#fff'; ctx.fillRect(mx, top, fw, fh); ctx.restore()
+    foto(ctx, img, mx, top, fw, fh, 0, opts.ajuste, '#fff', ENC[urlFoto])
+    ctx.textAlign = 'left'; ctx.fillStyle = E.texto
+    const tam = Math.round(W * 0.03), yb = top + fh + Math.round(pie * 0.4)
+    ctx.font = fTit(tam)
+    const precio = verPrecio ? monedaTxt(p) : ''
+    let t = p.titulo
+    ctx.font = fTit(W * 0.03, 700); const pw = precio ? ctx.measureText(precio).width : 0
+    ctx.font = fTit(tam)
+    while (ctx.measureText(t).width > fw - pw - Math.round(W * 0.04) && t.length > 4) t = t.slice(0, -2)
+    if (t !== p.titulo) t = t.replace(/\s+\S*$/, '') + '…'
+    ctx.fillText(t, mx, yb)
+    if (precio) { ctx.textAlign = 'right'; ctx.fillStyle = E.acento; ctx.font = fTit(W * 0.03, 700); ctx.fillText(precio, mx + fw, yb) }
+    ctx.textAlign = 'left'; ctx.fillStyle = E.suave; ctx.font = fTxt(W * 0.02, 500); espaciado(ctx, 3)
+    ctx.fillText('ZAPATILLAS MAY', mx, yb + Math.round(W * 0.045)); espaciado(ctx, 0)
+    ctx.textAlign = 'center'
+    return c
+  }
+  if (diseno === 'etiquetaesq') {
+    MARCOS.producto = { w: W, h: H }
+    foto(ctx, img, 0, 0, W, H, 0, 'llenar', '#ddd', ENC[urlFoto])
+    const m = Math.round(W * 0.05), tam = Math.round(W * 0.03), pad = Math.round(W * 0.028)
+    ctx.font = fTit(tam)
+    const precio = verPrecio ? monedaTxt(p) : ''
+    let t = p.titulo
+    const maxW = W * 0.62
+    while (ctx.measureText(t).width > maxW && t.length > 4) t = t.slice(0, -2)
+    if (t !== p.titulo) t = t.replace(/\s+\S*$/, '') + '…'
+    const w1 = ctx.measureText(t).width
+    ctx.font = fTit(tam, 700); const w2 = precio ? ctx.measureText(precio).width : 0
+    const bw = Math.max(w1, w2) + pad * 2, bh = Math.round(tam * (precio ? 2.9 : 1.9)) + pad
+    const bx = m, by = H - m - bh
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.18)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4
+    ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.fillRect(bx, by, bw, bh); ctx.restore()
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#2b2b2b'; ctx.font = fTit(tam)
+    ctx.fillText(t, bx + pad, by + (precio ? bh * 0.34 : bh / 2))
+    if (precio) { ctx.fillStyle = E.acento; ctx.font = fTit(tam, 700); ctx.fillText(precio, bx + pad, by + bh * 0.72) }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+    return c
+  }
+  if (diseno === 'linea') {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H)
+    const m = Math.round(W * 0.07), pie = Math.round(H * 0.13)
+    const fx = m, fy = m, fw = W - m * 2, fh = H - m - pie
+    MARCOS.producto = { w: fw, h: fh }
+    foto(ctx, img, fx, fy, fw, fh, 0, opts.ajuste, '#faf7f5', ENC[urlFoto])
+    ctx.strokeStyle = E.texto; ctx.lineWidth = 1.5; ctx.strokeRect(fx - 12, fy - 12, fw + 24, fh + 24)
+    ctx.fillStyle = E.texto
+    const tam = Math.round(W * 0.034), yb = fy + fh + Math.round(pie * 0.58)
+    ctx.font = fTit(tam); espaciado(ctx, 2)
+    envolver(ctx, String(p.titulo).toUpperCase(), W / 2, yb, W - m * 2, tam * 1.2, 1); espaciado(ctx, 0)
+    if (verPrecio) { ctx.fillStyle = E.suave; ctx.font = fTxt(W * 0.026, 500); espaciado(ctx, 3); ctx.fillText(monedaTxt(p), W / 2, yb + Math.round(W * 0.05)); espaciado(ctx, 0) }
     return c
   }
   // minimo: foto casi completa con una barra fina abajo
