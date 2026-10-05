@@ -224,7 +224,11 @@ def pedidos_cliente(cliente_id: str, credentials: HTTPAuthorizationCredentials =
     if not cliente_autorizado(cliente_id, credentials):
         raise HTTPException(status_code=403, detail="No autorizado")
     try:
-        return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&order=created_at.desc&select=*,pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
+        _sel = "select=*,pedido_items(*,variantes(*,productos(nombre,imagen_principal)))"
+        try:
+            return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&oculto=eq.false&order=created_at.desc&{_sel}")
+        except Exception:
+            return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&order=created_at.desc&{_sel}")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 

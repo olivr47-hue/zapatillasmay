@@ -369,7 +369,12 @@ def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, c
             corte = (_dtm.datetime.now(_dtm.timezone.utc) - _dtm.timedelta(days=int(dias))).strftime("%Y-%m-%dT%H:%M:%SZ")
             filtro += f"&or=(created_at.gte.{corte},confirmado_at.gte.{corte},status.in.{_ESTADOS_ABIERTOS},forma_pago.eq.credito)"
         sel = _SELECT_PEDIDOS_LIGERO if ligero else _SELECT_PEDIDOS_COMPLETO
-        filas = supabase_get_all(f"pedidos?order=created_at.desc{filtro}&select={sel}")
+        # `oculto`: pedidos repetidos por error que se quitan de la vista sin borrarlos ni cancelarlos.
+        # Si la columna aún no está en la caché de PostgREST, se reintenta sin el filtro (nunca deja el panel sin pedidos).
+        try:
+            filas = supabase_get_all(f"pedidos?order=created_at.desc&oculto=eq.false{filtro}&select={sel}")
+        except Exception:
+            filas = supabase_get_all(f"pedidos?order=created_at.desc{filtro}&select={sel}")
         # Una venta cuenta el día que se CERRÓ, no el día que se abrió el carrito/apartado: así la venta de hoy sale hasta arriba
         # aunque el apartado tenga semanas. Los días de apartado se siguen contando desde created_at.
         filas.sort(key=lambda r: r.get("confirmado_at") or r.get("created_at") or "", reverse=True)
