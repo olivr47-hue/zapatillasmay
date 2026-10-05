@@ -511,11 +511,12 @@ def pedidos_pendientes(_staff=Depends(require_staff)):
     """Pedidos con pago pendiente (OXXO/SPEI) — para el panel de seguimiento."""
     import datetime as _dt
     try:
-        rows = supabase_get(
-            "pedidos?status=eq.pendiente_pago"
-            "&select=id,created_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente,recordatorio_pago_enviado_at"
-            "&order=created_at.desc&limit=200"
-        ) or []
+        _q = ("&select=id,created_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente,recordatorio_pago_enviado_at"
+              "&order=created_at.desc&limit=200")
+        try:   # `oculto`: pedidos repetidos por error que se quitan de la vista (si la columna no está en caché, se reintenta sin filtro)
+            rows = supabase_get("pedidos?status=eq.pendiente_pago&oculto=eq.false" + _q) or []
+        except Exception:
+            rows = supabase_get("pedidos?status=eq.pendiente_pago" + _q) or []
         ahora = _dt.datetime.now(_dt.timezone.utc)
         for p in rows:
             try:
