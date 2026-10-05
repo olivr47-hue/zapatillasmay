@@ -209,6 +209,13 @@ const DISENOS = {
   etiquetaesq: { nombre: 'Etiqueta en esquina', nota: 'Foto completa con una pequeña etiqueta blanca abajo a la izquierda' },
   linea: { nombre: 'Línea fina', nota: 'Foto con un marco de línea delgada y el nombre centrado debajo' },
 }
+// Posición del texto elegida en el panel: 'auto' (la del diseño) o 9 puntos «sup|med|inf» + «izq|cen|der»
+const posTxt = (xl, xr, xc) => {
+  const q = OPT.pos || 'auto'
+  if (q === 'auto') return { v: null, h: null, al: 'center', x: xc }
+  const v = { sup: 'top', med: 'mid', inf: 'bot' }[q.slice(0, 3)], h = { izq: 'left', cen: 'center', der: 'right' }[q.slice(4)]
+  return { v, h, al: h, x: h === 'left' ? xl : h === 'right' ? xr : xc }
+}
 const monedaTxt = (p) => (p && p.precio ? moneda(p.precio) : '')
 
 // Láminas de UN modelo con los diseños distintos al clásico. Cada una deja MARCOS.producto con el recuadro real de la foto
@@ -230,26 +237,37 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
   if (diseno === 'completo') {
     MARCOS.producto = { w: W, h: H }
     foto(ctx, img, 0, 0, W, H, 0, 'llenar', '#222', ENC[urlFoto])
-    const gh = Math.round(H * (esHistoria ? 0.38 : 0.42))
-    const g = ctx.createLinearGradient(0, H - gh, 0, H); g.addColorStop(0, 'rgba(20,8,14,0)'); g.addColorStop(1, 'rgba(20,8,14,0.88)')
-    ctx.fillStyle = g; ctx.fillRect(0, H - gh, W, gh)
-    const lg = await cargarImagen('/logo-marca-blanco.png')
-    if (lg) { const lw = W * 0.26, lh = lw * lg.height / lg.width; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.drawImage(lg, W / 2 - lw / 2, H * 0.035, lw, lh); ctx.restore() }
     const pad = Math.round(W * 0.08)
-    const yWA = H - Math.round(H * 0.045)
-    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = fTxt(W * 0.024, 700); espaciado(ctx, 2)
-    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), W / 2, yWA); espaciado(ctx, 0)
-    if (verPrecio) {
-      ctx.fillStyle = '#fff'; ctx.font = fTit(W * 0.062, 700)
-      ctx.fillText(monedaTxt(p), W / 2, yWA - Math.round(W * 0.07))
+    const A = posTxt(pad, W - pad, W / 2), v = A.v || 'bot'
+    // degradado del lado donde va el texto (al centro, un velo suave sobre toda la foto)
+    if (v === 'mid') { ctx.fillStyle = 'rgba(20,8,14,0.42)'; ctx.fillRect(0, 0, W, H) }
+    else {
+      const gh = Math.round(H * (esHistoria ? 0.38 : 0.42)), y0g = v === 'top' ? 0 : H - gh
+      const g = ctx.createLinearGradient(0, v === 'top' ? gh : y0g, 0, v === 'top' ? 0 : H)
+      g.addColorStop(0, 'rgba(20,8,14,0)'); g.addColorStop(1, 'rgba(20,8,14,0.88)')
+      ctx.fillStyle = g; ctx.fillRect(0, y0g, W, gh)
     }
-    const tam = Math.round(W * (esHistoria ? 0.056 : 0.05)), yT = yWA - Math.round(W * (verPrecio ? 0.17 : 0.09))
-    ctx.fillStyle = '#fff'; ctx.font = fTit(tam)
+    // el logo va del lado contrario al texto
+    const lg = await cargarImagen('/logo-marca-blanco.png')
+    if (lg) { const lw = W * 0.26, lh = lw * lg.height / lg.width; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.drawImage(lg, W / 2 - lw / 2, v === 'top' ? H - lh - H * 0.035 : H * 0.035, lw, lh); ctx.restore() }
+    const tam = Math.round(W * (esHistoria ? 0.056 : 0.05)), inter = Math.round(tam * 1.25)
+    ctx.font = fTit(tam)
+    const maxW = W - pad * 2
+    const m0 = document.createElement('canvas').getContext('2d'); m0.font = ctx.font
+    const nl = Math.min(2, Math.max(1, Math.ceil(m0.measureText(p.titulo).width / maxW)))
+    const hPrecio = verPrecio ? Math.round(W * 0.075) : 0, hWA = Math.round(W * 0.05)
+    const bh = nl * inter + hPrecio + hWA
+    const yTop = v === 'top' ? Math.round(H * 0.06) : v === 'mid' ? Math.round((H - bh) / 2) : H - Math.round(H * 0.045) - bh
+    ctx.textAlign = A.al
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10
-    const n = (() => { const m = document.createElement('canvas').getContext('2d'); m.font = ctx.font; return Math.ceil(m.measureText(p.titulo).width / (W - pad * 2)) })()
-    envolver(ctx, p.titulo, W / 2, yT - (Math.min(n, 2) - 1) * Math.round(tam * 1.25), W - pad * 2, Math.round(tam * 1.25), 2)
+    ctx.fillStyle = '#fff'
+    envolver(ctx, p.titulo, A.x, yTop + tam, maxW, inter, 2)
+    if (verPrecio) { ctx.font = fTit(W * 0.062, 700); ctx.fillText(monedaTxt(p), A.x, yTop + nl * inter + Math.round(W * 0.06)) }
     ctx.restore()
-    if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = fTxt(W * 0.024, 700); espaciado(ctx, 2)
+    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), A.x, yTop + nl * inter + hPrecio + Math.round(W * 0.03)); espaciado(ctx, 0)
+    ctx.textAlign = 'center'
+    if (opts.nuevo && indiceColor === 0) sello(ctx, (A.h === 'right' && v === 'top') ? Math.round(W * 0.1) : W - Math.round(W * 0.1), v === 'bot' ? Math.round(H * 0.1) : Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
     return c
   }
   if (diseno === 'bloque') {
@@ -259,16 +277,18 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
     foto(ctx, img, 0, 0, W, H - hb, 0, opts.ajuste, E.tarjeta, ENC[urlFoto])
     if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(W * 0.1), Math.round(W * 0.062), 'NUEVO', { ...E, acento: E.texto })
     const pad = Math.round(W * 0.07)
+    const AP = posTxt(pad, W - pad, W / 2), AX = AP.x
+    ctx.textAlign = AP.al
     ctx.fillStyle = '#fff'
     const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina : (opts.etiqueta || 'Nueva colección')
     ctx.globalAlpha = 0.85; ctx.font = fTxt(W * 0.022, 600); espaciado(ctx, 5)
-    ctx.fillText(String(sub).toUpperCase(), W / 2, H - hb + Math.round(hb * 0.22)); espaciado(ctx, 0); ctx.globalAlpha = 1
+    ctx.fillText(String(sub).toUpperCase(), AX, H - hb + Math.round(hb * 0.22)); espaciado(ctx, 0); ctx.globalAlpha = 1
     const tam = Math.round(W * (esHistoria ? 0.05 : 0.043))
     ctx.font = fTit(tam)
-    envolver(ctx, p.titulo, W / 2, H - hb + Math.round(hb * 0.42), W - pad * 2, Math.round(tam * 1.25), 2)
-    if (verPrecio) { ctx.font = fTit(W * 0.05, 700); ctx.fillText(monedaTxt(p), W / 2, H - hb + Math.round(hb * 0.74)) }
+    envolver(ctx, p.titulo, AX, H - hb + Math.round(hb * 0.42), W - pad * 2, Math.round(tam * 1.25), 2)
+    if (verPrecio) { ctx.font = fTit(W * 0.05, 700); ctx.fillText(monedaTxt(p), AX, H - hb + Math.round(hb * 0.74)) }
     ctx.font = fTxt(W * 0.021, 600); espaciado(ctx, 2); ctx.globalAlpha = 0.9
-    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), W / 2, H - Math.round(hb * 0.1)); espaciado(ctx, 0); ctx.globalAlpha = 1
+    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), AX, H - Math.round(hb * 0.1)); espaciado(ctx, 0); ctx.globalAlpha = 1
     return c
   }
   if (diseno === 'polaroid') {
@@ -282,14 +302,16 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
     const bx = mx + Math.round(cw * 0.05), by = top + Math.round(cw * 0.05), bw = cw - Math.round(cw * 0.1), bh = ch - pie - Math.round(cw * 0.05)
     MARCOS.producto = { w: bw, h: bh }
     foto(ctx, img, bx, by, bw, bh, 0, opts.ajuste, '#f1ebe6', ENC[urlFoto])
+    const AP = posTxt(bx + Math.round(bw * 0.03), bx + bw - Math.round(bw * 0.03), W / 2), AX = AP.x
+    ctx.textAlign = AP.al
     ctx.fillStyle = '#3d2a33'
     const yb = by + bh
     const tam = Math.round(W * 0.042)
     if (LA.script) ctx.font = `${Math.round(W * 0.07)}px "${LA.script}", cursive`; else ctx.font = fTit(tam)
-    envolver(ctx, p.titulo, W / 2, yb + Math.round(pie * 0.42), cw - Math.round(cw * 0.1), Math.round(tam * 1.2), 1)
+    envolver(ctx, p.titulo, AX, yb + Math.round(pie * 0.42), cw - Math.round(cw * 0.1), Math.round(tam * 1.2), 1)
     ctx.fillStyle = E.acento; ctx.font = fTxt(W * 0.026, 700); espaciado(ctx, 2)
     const linea = [verPrecio ? monedaTxt(p) : '', p.tallas ? `TALLAS ${p.tallas}` : ''].filter(Boolean).join('   ·   ')
-    ctx.fillText(linea || 'ZAPATILLASMAY.MX', W / 2, yb + Math.round(pie * 0.75)); espaciado(ctx, 0)
+    ctx.fillText(linea || 'ZAPATILLASMAY.MX', AX, yb + Math.round(pie * 0.75)); espaciado(ctx, 0)
     ctx.restore()
     if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
     return c
@@ -331,7 +353,9 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
     const w1 = ctx.measureText(t).width
     ctx.font = fTit(tam, 700); const w2 = precio ? ctx.measureText(precio).width : 0
     const bw = Math.max(w1, w2) + pad * 2, bh = Math.round(tam * (precio ? 2.9 : 1.9)) + pad
-    const bx = m, by = H - m - bh
+    const A = posTxt(0, 0, 0), vv = A.v || 'bot', hh = A.h || 'left'
+    const bx = hh === 'left' ? m : hh === 'right' ? W - m - bw : Math.round((W - bw) / 2)
+    const by = vv === 'top' ? m : vv === 'mid' ? Math.round((H - bh) / 2) : H - m - bh
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.18)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4
     ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.fillRect(bx, by, bw, bh); ctx.restore()
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
@@ -348,11 +372,13 @@ async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno
     MARCOS.producto = { w: fw, h: fh }
     foto(ctx, img, fx, fy, fw, fh, 0, opts.ajuste, '#faf7f5', ENC[urlFoto])
     ctx.strokeStyle = E.texto; ctx.lineWidth = 1.5; ctx.strokeRect(fx - 12, fy - 12, fw + 24, fh + 24)
+    const AP = posTxt(m, W - m, W / 2), AX = AP.x
+    ctx.textAlign = AP.al
     ctx.fillStyle = E.texto
     const tam = Math.round(W * 0.034), yb = fy + fh + Math.round(pie * 0.58)
     ctx.font = fTit(tam); espaciado(ctx, 2)
-    envolver(ctx, String(p.titulo).toUpperCase(), W / 2, yb, W - m * 2, tam * 1.2, 1); espaciado(ctx, 0)
-    if (verPrecio) { ctx.fillStyle = E.suave; ctx.font = fTxt(W * 0.026, 500); espaciado(ctx, 3); ctx.fillText(monedaTxt(p), W / 2, yb + Math.round(W * 0.05)); espaciado(ctx, 0) }
+    envolver(ctx, String(p.titulo).toUpperCase(), AX, yb, W - m * 2, tam * 1.2, 1); espaciado(ctx, 0)
+    if (verPrecio) { ctx.fillStyle = E.suave; ctx.font = fTxt(W * 0.026, 500); espaciado(ctx, 3); ctx.fillText(monedaTxt(p), AX, yb + Math.round(W * 0.05)); espaciado(ctx, 0) }
     return c
   }
   // minimo: foto casi completa con una barra fina abajo
@@ -646,6 +672,10 @@ window.cargarRedes = async function () {
       <div class="rs-opc" id="rs-diseno" style="margin-bottom:10px">
         ${Object.entries(DISENOS).map(([k, d], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" title="${d.nota}" onclick="rsOpt('diseno','${k}')">${d.nombre}</button>`).join('')}
       </div>
+      <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Posición del texto <span style="color:#b6bfcc">(Foto completa y Etiqueta en esquina: cualquier punto · Bloque, Polaroid y Línea fina: izquierda / centro / derecha · los demás diseños la ignoran)</span></p>
+      <div class="rs-opc" id="rs-pos" style="margin-bottom:10px">
+        ${[['auto', 'Automática'], ['sup-izq', '↖ Arriba izq.'], ['sup-cen', '↑ Arriba centro'], ['sup-der', '↗ Arriba der.'], ['med-izq', '← Medio izq.'], ['med-cen', '• Centro'], ['med-der', '→ Medio der.'], ['inf-izq', '↙ Abajo izq.'], ['inf-cen', '↓ Abajo centro'], ['inf-der', '↘ Abajo der.']].map(([k, n], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('pos','${k}')">${n}</button>`).join('')}
+      </div>
       <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Colores</p>
       <div class="rs-opc" id="rs-estilo" style="margin-bottom:10px">
         ${Object.entries(ESTILOS).map(([k, s], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('estilo','${k}')"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${s.acento};vertical-align:-2px;margin-right:5px"></span>${s.nombre}</button>`).join('')}
@@ -708,7 +738,7 @@ window.cargarRedes = async function () {
   window.rsHistorial()
 }
 
-const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush', letra: 'moderno', diseno: 'clasico' }
+const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush', letra: 'moderno', diseno: 'clasico', pos: 'auto' }
 window.rsOpt = async (k, v) => {
   OPT[k] = v
   if (k === 'letra') { LA = LETRAS[v] || LETRAS.moderno; await cargarFuentes() }
