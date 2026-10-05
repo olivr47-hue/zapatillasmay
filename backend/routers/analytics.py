@@ -324,28 +324,32 @@ def usuarios_tiempo_real():
         por_dispositivo[dispo] = por_dispositivo.get(dispo, 0) + valor
 
     # Dónde están: portal de mayoristas (rutas /portal-mayoreo...) vs tienda pública. La propiedad de GA4 es la misma
-    # para los dos, así que se separa por página. Si GA4 no devuelve páginas en tiempo real, solo se omite el desglose.
+    # para los dos, así que se separa por página. GA4 en tiempo real expone la página en "unifiedPageScreen" (ruta) y
+    # "unifiedScreenName" (título); si ninguna responde, se devuelve el motivo para poder corregirlo (no se inventa nada).
     en_portal = None
     paginas = []
+    desglose_error = ""
     ventana = [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}]
     try:
-        r2 = _ga4_post("runRealtimeReport", {
-            "metrics": [{"name": "activeUsers"}], "minuteRanges": ventana,
-            "dimensionFilter": {"filter": {"fieldName": "unifiedPageScreen",
-                                           "stringFilter": {"matchType": "BEGINS_WITH", "value": "/portal-mayoreo"}}},
-        })
-        if r2 is not None:
-            filas = r2.get("rows", [])
-            en_portal = int(filas[0]["metricValues"][0]["value"]) if filas else 0
-        r3 = _ga4_post("runRealtimeReport", {
-            "metrics": [{"name": "activeUsers"}], "dimensions": [{"name": "unifiedPageScreen"}], "minuteRanges": ventana,
-            "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}], "limit": 8,
-        })
-        if r3 is not None:
+        for dim in ("unifiedPageScreen", "unifiedScreenName"):
+            r3 = _ga4_post("runRealtimeReport", {
+                "metrics": [{"name": "activeUsers"}], "dimensions": [{"name": dim}], "minuteRanges": ventana,
+                "orderBys": [{"metric": {"metricName": "activeUsers"}, "desc": True}], "limit": 25,
+            })
+            if r3 is None:
+                desglose_error = _last_ga4_error or "GA4 no respondió"
+                continue
+            desglose_error = ""
+            en_portal = 0
             for row in r3.get("rows", []):
                 pag = (row.get("dimensionValues") or [{}])[0].get("value", "")
-                paginas.append({"pagina": pag, "activos": int(row.get("metricValues", [{}])[0].get("value", 0))})
+                act = int(row.get("metricValues", [{}])[0].get("value", 0))
+                paginas.append({"pagina": pag, "activos": act, "tipo": dim})
+                if "portal-mayoreo" in pag.lower() or "portal mayor" in pag.lower():
+                    en_portal += act
+            break
     except Exception as e:
+        desglose_error = str(e)[:200]
         print(f"[analytics] tiempo-real por pagina: {e}")
 
     return {
@@ -353,7 +357,8 @@ def usuarios_tiempo_real():
         "activos_ahora":   total,
         "en_portal":       en_portal,
         "en_sitio":        (max(total - en_portal, 0) if en_portal is not None else None),
-        "paginas":         paginas,
+        "paginas":         paginas[:8],
+        "desglose_error":  desglose_error,
         "por_dispositivo": por_dispositivo,
         "por_pais":        [{"pais": k, "activos": v} for k, v in sorted(por_pais.items(), key=lambda x: -x[1])],
     }

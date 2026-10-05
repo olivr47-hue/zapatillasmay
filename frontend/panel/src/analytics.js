@@ -151,7 +151,7 @@ async function vivo() {
   if (!a) return
   if (d.__error || d.__noconf) { a.textContent = '—'; return }
   a.textContent = nf(d.activos_ahora)
-  const disp = Object.entries(d.por_dispositivo || {}).map(([k, v]) => `${k === 'mobile' ? '📱' : k === 'desktop' ? '💻' : '📟'} ${v}`).join('  ')
+  const disp = Object.entries(d.por_dispositivo || {}).map(([k, v]) => `${k === 'mobile' ? '📱 Celular' : k === 'desktop' ? '💻 Computadora' : k === 'tablet' ? '📲 Tablet' : '❔ ' + k} ${v}`).join('  ')
   const pais = (d.por_pais || [])[0]
   const det = document.getElementById('an-live-det')
   const donde = (d.en_portal != null) ? `🛍️ Tienda: ${d.en_sitio}   ·   🤝 Portal mayoristas: ${d.en_portal}` : ''
@@ -159,7 +159,7 @@ async function vivo() {
   const pag = document.getElementById('an-live-pag')
   if (pag) {
     const nombre = (r) => { const t = String(r || '/').split('?')[0]; return t === '/' ? 'Inicio de la tienda' : t.startsWith('/portal-mayoreo') ? 'Portal · ' + (t.split('/')[2] || 'inicio') : t.replace(/^\/(producto\/)?/, '').replace(/-/g, ' ') }
-    pag.textContent = (d.paginas || []).length ? 'Viendo ahora: ' + d.paginas.slice(0, 5).map(x => `${nombre(x.pagina)} (${x.activos})`).join('  ·  ') : ''
+    pag.textContent = (d.paginas || []).length ? 'Viendo ahora: ' + d.paginas.slice(0, 5).map(x => `${nombre(x.pagina)} (${x.activos})`).join('  ·  ') : (d.desglose_error ? 'No se pudieron ver las páginas: ' + String(d.desglose_error).slice(0, 140) : (d.activos_ahora ? 'Google no reporta las páginas en este momento' : ''))
   }
 }
 
