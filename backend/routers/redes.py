@@ -30,7 +30,9 @@ class _GraphError(Exception):
 
 
 def _token() -> str:
-    return os.environ.get("FB_PAGE_ACCESS_TOKEN", "")
+    # Clave propia para publicar (FB_PUBLISH_TOKEN): así se puede darle permisos de publicar sin tocar la clave de Maya (mensajes).
+    # Si no existe, se usa la clave de siempre.
+    return os.environ.get("FB_PUBLISH_TOKEN", "") or os.environ.get("FB_PAGE_ACCESS_TOKEN", "")
 
 
 def _graph(ruta: str, metodo: str = "GET", datos: dict = None, token: str = None):
