@@ -337,14 +337,17 @@ function escribirTexto(prods, opts) {
   const l = []
   l.push(prods.length > 1 ? '✨ NUEVOS MODELOS en Zapatillas May ✨' : '✨ NUEVO en Zapatillas May ✨')
   l.push('')
+  // Cada modelo lleva su enlace directo a la ficha del producto (en Facebook el enlace se puede tocar; en Instagram, copiar)
+  const urlProd = (p) => `https://zapatillasmay.mx/producto/${encodeURIComponent(p.slug)}`
   prods.forEach(p => {
     const col = p.colores.length ? ` · ${p.colores.slice(0, 4).map(c => c.n).join(', ')}` : ''
     l.push(`👠 ${p.titulo}${p.precio ? ' — ' + moneda(p.precio) + ' MXN' : ''}${col}`)
+    l.push(`🔗 ${urlProd(p)}`)
   })
   l.push('')
   l.push('🚚 Envíos a todo México · 📍 León, Guanajuato')
   l.push(`💬 Pídelos por WhatsApp: ${WA_TXT}`)
-  l.push('🛍️ zapatillasmay.mx')
+  if (prods.length !== 1) l.push('🛍️ Más modelos: https://zapatillasmay.mx')
   l.push('')
   l.push('#zapatillas #calzadodama #zapatosdemujer #leonguanajuato #modamexicana #nuevacoleccion #zapatillasmay #tacones #botines #sandalias')
   return l.join('\n')
@@ -363,7 +366,7 @@ function datosProducto(p) {
   const titulo = corto.length > 46 ? corto.slice(0, 46).replace(/\s+\S*$/, '') : corto
   const precio = (parseFloat(p.precio_menudeo) || 0) + (p.es_oferta ? 0 : 80)   // el mismo precio que ve la clienta en la tienda
   const elegida = S.fotos[p.id] && S.fotos[p.id].principal
-  return { id: p.id, titulo, precio: Math.round(precio), colores, foto: elegida || p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
+  return { id: p.id, slug: p.slug || p.sku_interno || p.id, titulo, precio: Math.round(precio), colores, foto: elegida || p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
 }
 
 window.cargarRedes = async function () {
