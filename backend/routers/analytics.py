@@ -618,7 +618,7 @@ def portal_visitas():
 
 
 @router.get("/ia-referrals")
-def ia_referrals():
+def ia_referrals(dias: int = 30):
     """Tráfico proveniente de asistentes de IA (ChatGPT, Perplexity, Gemini, Copilot...)
     de los últimos 30 días -- GA4 ya los etiqueta con medium="ai-assistant" al
     detectar el referrer. Desglosado por fuente + página de aterrizaje para saber
@@ -626,8 +626,9 @@ def ia_referrals():
     if not _esta_configurado():
         return _no_credenciales()
 
+    dias = _dias_ok(dias)
     resp = _ga4_post("runReport", {
-        "dateRanges":      [{"startDate": "30daysAgo", "endDate": "today"}],
+        "dateRanges":      [_rango_n(dias)],
         "metrics":         [{"name": "sessions"}, {"name": "activeUsers"}],
         "dimensions":      [{"name": "sessionSource"}, {"name": "landingPage"}],
         "dimensionFilter": {"filter": {"fieldName": "sessionMedium",
@@ -652,7 +653,64 @@ def ia_referrals():
                              "sesiones": sesiones, "usuarios": usuarios})
         total += sesiones
 
-    return {"configurado": True, "total_sesiones": total, "referencias": referencias}
+    # Visitas de asistentes de IA por día del periodo (hasta 31 días), para ver si suben o bajan
+    por_dia = []
+    if dias <= 31:
+        r2 = _ga4_post("runReport", {
+            "dateRanges":      [_rango_n(dias)],
+            "metrics":         [{"name": "sessions"}],
+            "dimensions":      [{"name": "date"}],
+            "dimensionFilter": {"filter": {"fieldName": "sessionMedium",
+                                 "stringFilter": {"matchType": "EXACT", "value": "ai-assistant"}}},
+            "orderBys":        [{"dimension": {"dimensionName": "date"}}],
+            "limit":           40,
+        })
+        if r2:
+            por_dia = [{"fecha": (row.get("dimensionValues") or [{}])[0].get("value", ""),
+                        "sesiones": int((row.get("metricValues") or [{}])[0].get("value", 0))}
+                       for row in r2.get("rows", [])]
+
+    return {"configurado": True, "dias": dias, "total_sesiones": total, "referencias": referencias, "por_dia": por_dia}
+
+
+@router.get("/visitas-detalle")
+def visitas_detalle(dias: int = 1):
+    """Quién llegó: una fila por visitante aproximado (mismo día, ciudad, fuente y dispositivo) con la hora de su visita
+    y las páginas que vio. GA4 no expone el id de sesión, así que se agrupa por esos datos; sirve para ubicar de dónde vino
+    una persona concreta (ej. una clienta que escribió por WhatsApp). Máximo 7 días."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = min(_dias_ok(dias), 7)
+
+    def _calc():
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)],
+            "metrics":    [{"name": "sessions"}],
+            "dimensions": [{"name": "dateHourMinute"}, {"name": "city"}, {"name": "region"}, {"name": "sessionSource"},
+                           {"name": "sessionMedium"}, {"name": "deviceCategory"}, {"name": "landingPage"}],
+            "orderBys":   [{"dimension": {"dimensionName": "dateHourMinute"}, "desc": True}],
+            "limit":      1000,
+        })
+        if not resp:
+            return {"configurado": True, "error": "No se pudo obtener datos", "visitas": []}
+        grupos = {}
+        for row in resp.get("rows", []):
+            d = [x.get("value", "") for x in row.get("dimensionValues", [])]
+            if len(d) < 7:
+                continue
+            ts, ciudad, region, fuente, medio, disp, pagina = d
+            clave = (ts[:8], ciudad, region, fuente, medio, disp)
+            g = grupos.setdefault(clave, {"fecha": ts[:8], "ciudad": ciudad, "region": region, "fuente": fuente,
+                                          "medio": medio, "dispositivo": disp, "desde": ts, "hasta": ts, "paginas": []})
+            g["desde"] = min(g["desde"], ts)
+            g["hasta"] = max(g["hasta"], ts)
+            if pagina and pagina not in g["paginas"]:
+                g["paginas"].append(pagina)
+        visitas = sorted(grupos.values(), key=lambda g: g["hasta"], reverse=True)[:80]
+        for g in visitas:
+            g["paginas"] = g["paginas"][:6]
+        return {"configurado": True, "dias": dias, "visitas": visitas}
+    return _con_cache(f"visitas_detalle:{dias}", _calc, ttl=120)
 
 
 def _rango_dias(dias: int) -> dict:

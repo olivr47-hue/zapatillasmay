@@ -18,7 +18,7 @@ const TABS = [
   { id: 'perfil', icono: '🧑‍🤝‍🧑', nombre: 'Perfil' },
   { id: 'ventas', icono: '💰', nombre: 'Ventas y anuncios' },
 ]
-const PERIODOS = [{ d: 1, t: 'Hoy' }, { d: 7, t: '7 días' }, { d: 30, t: '30 días' }, { d: 90, t: '90 días' }]
+const PERIODOS = [{ d: 1, t: 'Hoy' }, { d: 7, t: '7 días' }, { d: 15, t: '15 días' }, { d: 30, t: '30 días' }, { d: 90, t: '90 días' }]
 
 const S = { dias: 7, tab: 'resumen', canal: 'canal', metrica: 'sesiones', charts: {}, timer: null, gen: 0 }
 
@@ -194,7 +194,7 @@ window._anTab = async (tab, forzar) => {
 async function tabResumen() {
   const dias = S.dias
   const [r, serie, hor, ciu, ia, por] = await Promise.all([
-    pedir(`resumen?dias=${dias}`), pedir(`serie?dias=${Math.max(dias, 7)}`), pedir('horario'), pedir('ciudades'), pedir('ia-referrals'), pedir('portal-visitas'),
+    pedir(`resumen?dias=${dias}`), pedir(`serie?dias=${Math.max(dias, 7)}`), pedir('horario'), pedir('ciudades'), pedir(`ia-referrals?dias=${dias}`), pedir('portal-visitas'),
   ])
   if (r.__error || r.__noconf) return { html: falla(r) }
   const a = r.actual, c = r.cambio_pct
@@ -226,7 +226,7 @@ async function tabResumen() {
       ${tarjeta('De dónde son (7 días)', ciu.__error ? falla(ciu) : listaCiudades(ciu))}
     </div>
     <div class="an-g2">
-      ${tarjeta('🤖 Llegan desde asistentes de IA (30 días)', ia.__error ? falla(ia) : listaIA(ia))}
+      ${tarjeta(`🤖 Llegan desde asistentes de IA (${dias === 1 ? 'hoy' : dias + ' días'})`, ia.__error ? falla(ia) : listaIA(ia))}
       ${tarjeta('🛍️ Portal de mayoristas (30 días)', por.__error ? falla(por) : `<div class="an-kpi-v">${nf(por.total_sesiones)} <span class="an-kpi-s">visitas</span></div>${(por.dias || []).length ? '<div class="an-graf-s"><canvas id="an-g-portal"></canvas></div>' : vacio('Sin visitas al portal en 30 días')}`)}
     </div>`
   const despues = () => {
@@ -279,10 +279,17 @@ function listaIA(d) {
     const nombre = ruta === '/' ? 'Inicio' : (() => { const t = ruta.replace(/^\/(producto\/)?/, '').split('?')[0]; try { return decodeURIComponent(t) } catch (e) { return t } })().replace(/-/g, ' ')
     return `<div class="an-lista-i"><a href="${esc(url)}" target="_blank" rel="noopener" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;text-decoration:none" title="${esc(ruta)}">${esc(nombre)}</a><span class="an-chip">${esc(x.source)}</span>${barra(x.sesiones, max, COLOR.verde)}<b>${nf(x.sesiones)}</b></div>`
   }).join('')
+  const dias = d.por_dia || []
+  const maxD = Math.max(...dias.map(x => x.sesiones), 1)
+  const fechaCorta = (f) => { const t = String(f); return t.length === 8 ? `${t.slice(6, 8)}/${t.slice(4, 6)}` : t }
+  const porDia = dias.length > 1
+    ? `<p class="an-sub" style="margin:12px 0 6px;font-weight:700">Por día</p>` + dias.map(x => `<div class="an-lista-i"><span style="width:48px;flex:none">${fechaCorta(x.fecha)}</span>${barra(x.sesiones, maxD, COLOR.morado)}<b>${nf(x.sesiones)}</b></div>`).join('')
+    : ''
   return `<div class="an-kpi-v">${nf(d.total_sesiones)} <span class="an-kpi-s">visitas</span></div>`
     + Object.entries(por).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<div class="an-lista-i"><span>${esc(s)}</span><b>${nf(n)}</b></div>`).join('')
     + `<p class="an-sub" style="margin:12px 0 6px;font-weight:700">Páginas que está recomendando (${r.length > 15 ? 'las 15 con más visitas' : r.length + ' en total'})</p>`
     + paginas
+    + porDia
 }
 
 // ── Productos ──
@@ -328,9 +335,28 @@ async function tabCanales() {
       ${tarjeta(esc(d.etiqueta), `<div class="an-scroll"><table class="an-tabla"><thead><tr><th>${esc(d.etiqueta)}</th><th class="num">Visitas</th><th>Conversión</th><th class="num">Compras</th><th class="num">Ingresos</th><th class="num">Por visita</th><th class="num">Ticket</th></tr></thead><tbody>
         ${f.map(x => `<tr><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(x.nombre)}</td><td class="num">${nf(x.sesiones)} <small style="color:#aaa">${pct(x.sesiones / tot * 100, 0)}</small></td><td style="min-width:110px">${barra(x.conversion, maxC, COLOR.verde)}<small style="color:#888">${pct(x.conversion, 2)}</small></td><td class="num">${nf(x.compras)}</td><td class="num">${x.ingreso ? dinero(x.ingreso) : '—'}</td><td class="num">${x.ingreso_por_sesion ? dinero(x.ingreso_por_sesion) : '—'}</td><td class="num">${x.ticket ? dinero(x.ticket) : '—'}</td></tr>`).join('')}</tbody></table></div>`)}
     </div>`
-  return { html, despues: () => grafica('an-g-canal', { type: 'doughnut', data: { labels: f.slice(0, 8).map(x => x.nombre), datasets: [{ data: f.slice(0, 8).map(x => x.sesiones), backgroundColor: PALETA, borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } } }) }
+    + tarjeta('🧾 Quién llegó (hora, ciudad, de dónde vino y qué vio)', '<div id="an-quien">Cargando…</div>')
+  return { html, despues: () => { cargarQuien(); return grafica('an-g-canal', { type: 'doughnut', data: { labels: f.slice(0, 8).map(x => x.nombre), datasets: [{ data: f.slice(0, 8).map(x => x.sesiones), backgroundColor: PALETA, borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } } }) } }
 }
 window._anCanal = (k) => { S.canal = k; window._anTab('canales') }
+
+// ── "Quién llegó": detalle de visitas (hora, ciudad, de dónde vino y qué páginas vio) ──
+async function cargarQuien() {
+  const caja = document.getElementById('an-quien')
+  if (!caja) return
+  const d = await pedir(`visitas-detalle?dias=${Math.min(S.dias, 7)}`)
+  if (!document.getElementById('an-quien')) return
+  if (d.__error || d.__noconf) { caja.innerHTML = falla(d); return }
+  const v = d.visitas || []
+  if (!v.length) { caja.innerHTML = vacio('Sin visitas en este periodo'); return }
+  const hora = (t) => `${String(t).slice(8, 10)}:${String(t).slice(10, 12)}`
+  const dia = (t) => `${String(t).slice(6, 8)}/${String(t).slice(4, 6)}`
+  const origen = (x) => x.fuente === '(direct)' ? 'Directo (escribió la dirección o abrió un enlace de WhatsApp)' : x.fuente === '(not set)' ? 'Sin dato' : `${x.fuente} · ${x.medio}`
+  const pag = (p) => p === '/' || !p ? 'Inicio' : String(p).replace(/^\//, '').replace(/-/g, ' ').slice(0, 38)
+  caja.innerHTML = `<div class="an-scroll"><table class="an-tabla"><thead><tr><th>Cuándo</th><th>Ciudad</th><th>De dónde vino</th><th>Páginas</th></tr></thead><tbody>${
+    v.map(x => `<tr><td style="white-space:nowrap">${dia(x.fecha)} ${hora(x.desde)}${x.hasta !== x.desde ? '–' + hora(x.hasta) : ''}</td><td>${esc(x.ciudad === '(not set)' ? x.region : x.ciudad)} <small style="color:#aaa">${esc(x.dispositivo === 'mobile' ? '📱' : x.dispositivo === 'desktop' ? '💻' : x.dispositivo)}</small></td><td>${esc(origen(x))}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis">${esc(x.paginas.map(pag).join(' → '))}</td></tr>`).join('')
+  }</tbody></table></div><p class="an-sub" style="margin-top:8px">Cada fila es una persona aproximada (mismo día, ciudad, dispositivo y origen). La hora es la de México. Útil para ubicar de dónde llegó alguien que te escribió por WhatsApp.</p>`
+}
 
 // ── Clientas ──
 async function tabClientas() {
