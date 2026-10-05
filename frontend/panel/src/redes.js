@@ -583,7 +583,7 @@ function datosProducto(p) {
   const titulo = corto.length > 46 ? corto.slice(0, 46).replace(/\s+\S*$/, '') : corto
   const precio = (parseFloat(p.precio_menudeo) || 0) + (p.es_oferta ? 0 : 80)   // el mismo precio que ve la clienta en la tienda
   const elegida = S.fotos[p.id] && S.fotos[p.id].principal
-  return { id: p.id, slug: p.slug || p.sku_interno || p.id, titulo, precio: Math.round(precio), colores, foto: elegida || p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
+  return { id: p.id, slug: p.slug || p.sku_interno || p.id, titulo, precio: Math.round(precio), colores, foto: elegida || (OPT.diseno === 'solofoto' && p.foto_limpia) || p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
 }
 
 window.cargarRedes = async function () {

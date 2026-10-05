@@ -1183,14 +1183,14 @@ def _guia_grids(template):
         ck = f"guia_grid_{cat}_{tipo}"
         lista = cache_get(ck)
         if lista is None:
-            filas = supabase_get(f"productos?activo=eq.true&categoria=eq.{cat}&select=id,slug,sku_interno,nombre,imagen_principal,tipo_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
+            filas = supabase_get(f"productos?activo=eq.true&categoria=eq.{cat}&select=id,slug,sku_interno,nombre,imagen_principal,foto_limpia,tipo_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
             filas = [x for x in _sin_oferta_interna(filas) if (x.get("imagen_principal") or "").strip()]
             if tipo:
                 filas = [x for x in filas if (x.get("tipo_tacon") or "").strip().lower() == tipo]
             lista = filas[:8]
             cache_set(ck, lista, ttl=900)
         if lista and not primero[0]:
-            primero[0] = lista[0].get("imagen_principal") or ""
+            primero[0] = lista[0].get("foto_limpia") or lista[0].get("imagen_principal") or ""
         return _guia_tarjetas(lista)
 
     return re.sub(r"<!--GRID:([a-z]+):([a-z_]*)-->", _sub, template), primero[0]
@@ -1199,7 +1199,7 @@ def _guia_grids(template):
 def _guia_tarjetas(prods):
     tarjetas = []
     for p in prods[:8]:
-        img = (p.get("imagen_principal") or "").strip()
+        img = (p.get("foto_limpia") or p.get("imagen_principal") or "").strip()   # la foto limpia del zapato, si el panel la marcó
         if "res.cloudinary.com" in img and "/upload/" in img:
             img = img.replace("/upload/", "/upload/w_420,h_420,c_fill,g_south,f_auto,q_auto/", 1)
         slug_p = p.get("slug") or p.get("sku_interno") or ""
@@ -1214,7 +1214,7 @@ def _guia_extras(slug, template, titulo, desc, canonical):
         ck = "guia_tacones_prods"
         grupos = cache_get(ck)
         if grupos is None:
-            filas = supabase_get("productos?activo=eq.true&categoria=eq.tacones&select=id,slug,sku_interno,nombre,imagen_principal,altura_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
+            filas = supabase_get("productos?activo=eq.true&categoria=eq.tacones&select=id,slug,sku_interno,nombre,imagen_principal,foto_limpia,altura_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
             filas = [x for x in _sin_oferta_interna(filas) if (x.get("imagen_principal") or "").strip()]
             def _alt(x):
                 try:
@@ -1235,7 +1235,7 @@ def _guia_extras(slug, template, titulo, desc, canonical):
             {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in _GUIAS_NUEVAS[slug]["faq"]]})
     if slug == "guia-tacones-8-vs-10-cm":
         _g = cache_get("guia_tacones_prods") or {}
-        _img = next((x.get("imagen_principal") for x in (_g.get("8") or []) + (_g.get("10") or []) if x.get("imagen_principal")), "")
+        _img = next((x.get("foto_limpia") or x.get("imagen_principal") for x in (_g.get("8") or []) + (_g.get("10") or []) if x.get("foto_limpia") or x.get("imagen_principal")), "")
         if "res.cloudinary.com" in _img and "/upload/" in _img:
             og_img = _img.replace("/upload/", "/upload/w_1200,h_630,c_fill,g_auto,f_auto,q_auto/", 1)
     if og_img:
