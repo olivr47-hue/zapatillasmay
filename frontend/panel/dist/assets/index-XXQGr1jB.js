@@ -5453,7 +5453,7 @@ Revísala en Pedidos (puedes reimprimir el ticket desde ahí).`),[e,t].forEach(u
         <p>RFC: SAPL620614JD7</p>
         <p>Cuautla 211 Col. Killian</p>
         <p>Leon, Gto. CP 37260</p>
-        <p>Tel: 477 530 8983</p>
+        <p>Tel: 477 247 2285</p>
         <p class="center" style="margin-top:4px">zapatillasmay.mx</p>
       </div>
       <script>window.onload=()=>{window.print()}<\/script>
@@ -5511,7 +5511,7 @@ Revísala en Pedidos (puedes reimprimir el ticket desde ahí).`),[e,t].forEach(u
           <div class="empresa-datos">
             RFC: SAPL620614JD7<br>
             Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
-            Tel: 477 530 8983 | zapatillasmay.mx
+            Tel: 477 247 2285 | zapatillasmay.mx
           </div>
         </div>
         <div class="pedido-info">
@@ -5672,7 +5672,7 @@ Revísala en Pedidos (puedes reimprimir el ticket desde ahí).`),[e,t].forEach(u
           <div class="empresa-datos">
             RFC: SAPL620614JD7<br>
             Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
-            Tel: 477 530 8983 | zapatillasmay.mx
+            Tel: 477 247 2285 | zapatillasmay.mx
           </div>
         </div>
         <div class="cot-info">
@@ -5768,7 +5768,7 @@ Revísala en Pedidos (puedes reimprimir el ticket desde ahí).`),[e,t].forEach(u
       `:""}
 
       <div class="nota-validez">
-        ⚠️ Esta cotización es válida por <strong>7 días</strong> a partir de la fecha de emisión. Los precios están sujetos a disponibilidad de inventario. Para confirmar el pedido comuníquese a Tel: 477 530 8983.
+        ⚠️ Esta cotización es válida por <strong>7 días</strong> a partir de la fecha de emisión. Los precios están sujetos a disponibilidad de inventario. Para confirmar el pedido comuníquese a Tel: 477 247 2285.
       </div>
 
       <div class="firma-box">
