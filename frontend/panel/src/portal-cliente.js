@@ -3280,6 +3280,7 @@ function pcIniciarPollCarrito() {
 
 async function pcRefrescarCarritoSiCambio() {
   if (pc.tab !== 'carrito' || !pc.sesion?.cliente_id) { pcDetenerPollCarrito(); return }
+  if (Date.now() < _pcCerrandoHasta) return   // se está cerrando un pedido: no leer un borrador a medio vaciar
   // No interrumpir si el cliente está escribiendo/editando algo en la pantalla
   const activo = document.activeElement
   if (activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA')) return
@@ -4071,7 +4072,9 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
 // de una vez todo lo que lleva. Crea el pedido igual que antes, pero en vez
 // de solo avisar "te contactaremos" ahora le abre las opciones de pago
 // (transferencia/tarjeta) al instante, igual que en Apartados.
+let _pcCerrandoHasta = 0   // evita crear el mismo pedido dos veces por doble clic o reintento
 window.pcCerrarPedidoDirecto = async function() {
+  if (Date.now() < _pcCerrandoHasta) return
   const notas = document.getElementById('pc-notas')?.value?.trim() || ''
   const errEl = document.getElementById('pc-pedido-err')
   if (pc.carrito.length === 0) return
@@ -4098,6 +4101,7 @@ window.pcCerrarPedidoDirecto = async function() {
 
   const btn = document.querySelector('[onclick="pcCerrarPedidoDirecto()"]')
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true }
+  _pcCerrandoHasta = Date.now() + 90000   // 90 s de "ya se está enviando"; se libera solo si falla
 
   try {
     // OJO: "/pedidos" SIN diagonal final -- ver el comentario en
@@ -4147,11 +4151,13 @@ window.pcCerrarPedidoDirecto = async function() {
       else pcMostrarExito('¡Pedido enviado! Te contactaremos para coordinar el pago y envío.')
       if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
     } else {
+      _pcCerrandoHasta = 0
       const d = await res.json()
       if (errEl) { errEl.textContent = d.error || 'Error al enviar el pedido'; errEl.style.display = 'block' }
       if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
     }
   } catch(e) {
+    _pcCerrandoHasta = 0
     if (errEl) { errEl.textContent = 'Error conectando con el servidor'; errEl.style.display = 'block' }
     if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
   }

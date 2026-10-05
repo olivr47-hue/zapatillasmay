@@ -701,6 +701,27 @@ def crear_pedido(pedido: dict, request: Request):
                 if _envio_cobrado > 0 and not float(pedido.get("costo_envio") or 0):
                     pedido["costo_envio"] = _envio_cobrado
 
+        # Idempotencia del cierre de pedido del portal mayorista: un doble clic, un reintento o el carrito que reaparece
+        # NO deben crear el mismo pedido otra vez (el 2026-10-04 una clienta llegó a tener 5 pedidos idénticos en 90 s).
+        # Si ya hay un pedido pendiente de pago del mismo cliente, mismos pares y mismo total, de los últimos 10 minutos,
+        # se devuelve ese. Va ANTES de tocar el saldo a favor para no descontarlo dos veces.
+        if (pedido.get("canal") == "portal_mayoreo" and pedido.get("status") == "pendiente_pago"
+                and pedido.get("cliente_id") and pedido.get("items") and not _es_staff):
+            try:
+                import datetime as _dt
+                _desde = _up.quote((_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=10)).isoformat())
+                _cands = supabase_get(
+                    f"pedidos?cliente_id=eq.{pedido['cliente_id']}&canal=eq.portal_mayoreo&status=eq.pendiente_pago"
+                    f"&created_at=gte.{_desde}&select=id,total,status,pedido_items(variante_id,cantidad)&order=created_at.desc&limit=5"
+                ) or []
+                _huella = sorted((str(i.get("variante_id")), int(i.get("cantidad") or 0)) for i in pedido["items"])
+                for _c in _cands:
+                    _huella_c = sorted((str(i.get("variante_id")), int(i.get("cantidad") or 0)) for i in (_c.get("pedido_items") or []))
+                    if _huella_c == _huella:
+                        return {"id": _c["id"], "total": _c.get("total"), "status": _c.get("status"), "duplicado_evitado": True}
+            except Exception as _e:
+                print(f"[pedidos] chequeo de duplicado omitido: {_e}")
+
         # Aplicar saldo a favor (nota de credito / referidos) si el cliente lo
         # pidio: el monto SIEMPRE se revalida aqui contra credito_disponible
         # real en la BD -- nunca se confia en el numero que mande el frontend,
