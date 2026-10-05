@@ -1,6 +1,7 @@
 import QRCode from 'qrcode'
 import './redes.js'
 import './analytics.js'
+import './seo-paginas.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -21131,6 +21132,8 @@ async function cargarSEO() {
     if (config.hero_360_frames) {
       try { _visor360RenderPreview(JSON.parse(config.hero_360_frames)) } catch(e) {}
     }
+    // subpestañas: «Ajustes del sitio» (lo de siempre) y «SEO por página»
+    if (window.seoMontarSubpestanas) window.seoMontarSubpestanas(content)
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'

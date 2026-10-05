@@ -9,6 +9,7 @@ from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
+from routers import seo_auditoria
 from routers import tiktok
 from routers import tiktok_excel
 from routers import catalogos
@@ -205,6 +206,7 @@ app.include_router(pagos.router)
 app.include_router(auth.router)
 app.include_router(empleados.router)
 app.include_router(seo.router)
+app.include_router(seo_auditoria.router)
 app.include_router(crm.router)
 app.include_router(finanzas.router)
 app.include_router(chatbot.router)
