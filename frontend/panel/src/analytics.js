@@ -265,8 +265,18 @@ function listaIA(d) {
   if (!r.length) return vacio('Aún no llegan visitas desde ChatGPT, Perplexity o Gemini')
   const por = {}
   r.forEach(x => { por[x.source] = (por[x.source] || 0) + x.sesiones })
-  return `<div class="an-kpi-v">${nf(d.total_sesiones)} <span class="an-kpi-s">visitas</span></div>` + Object.entries(por).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<div class="an-lista-i"><span>${esc(s)}</span><b>${nf(n)}</b></div>`).join('')
-    + `<p class="an-sub" style="margin-top:8px">Página más recomendada: ${esc(r[0].landing_page)}</p>`
+  const max = Math.max(...r.map(x => x.sesiones), 1)
+  // Cada fila = una página que recomienda la IA (a dónde llegan las visitas), con la fuente y cuántas visitas trae
+  const paginas = r.slice(0, 15).map(x => {
+    const ruta = String(x.landing_page || '/')
+    const url = 'https://zapatillasmay.mx' + (ruta.startsWith('/') ? ruta : '/' + ruta)
+    const nombre = ruta === '/' ? 'Inicio' : (() => { const t = ruta.replace(/^\/(producto\/)?/, '').split('?')[0]; try { return decodeURIComponent(t) } catch (e) { return t } })().replace(/-/g, ' ')
+    return `<div class="an-lista-i"><a href="${esc(url)}" target="_blank" rel="noopener" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;text-decoration:none" title="${esc(ruta)}">${esc(nombre)}</a><span class="an-chip">${esc(x.source)}</span>${barra(x.sesiones, max, COLOR.verde)}<b>${nf(x.sesiones)}</b></div>`
+  }).join('')
+  return `<div class="an-kpi-v">${nf(d.total_sesiones)} <span class="an-kpi-s">visitas</span></div>`
+    + Object.entries(por).sort((a, b) => b[1] - a[1]).map(([s, n]) => `<div class="an-lista-i"><span>${esc(s)}</span><b>${nf(n)}</b></div>`).join('')
+    + `<p class="an-sub" style="margin:12px 0 6px;font-weight:700">Páginas que está recomendando (${r.length > 15 ? 'las 15 con más visitas' : r.length + ' en total'})</p>`
+    + paginas
 }
 
 // ── Productos ──
