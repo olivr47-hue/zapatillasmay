@@ -17456,12 +17456,21 @@ window._recargarChats = async () => {
       const existente = window._chatsData[c.telefono]
       // Historial completo ya cargado: se conserva y se le suman los mensajes más recientes que trae el listado
       if (existente && existente._historial_completo && existente.mensajes.length > c.mensajes.length) {
-        const clave = (m) => m.id || m.wa_message_id || ((m.created_at || '') + '|' + (m.mensaje || '') + '|' + (m.respuesta || ''))
-        const conocidos = new Set(existente.mensajes.map(clave))
+        // OJO: la clave NO puede usar `id`: el historial completo (/chats/{tel}/mensajes) trae `id` y el listado (/chats) no, así que
+        // el mismo mensaje tenía dos claves distintas y cada actualización lo volvía a sumar (mensajes duplicados al cambiar de chat).
+        // Se usa wa_message_id (viene en los dos) o, si no hay, fecha + texto.
+        const clave = (m) => m.wa_message_id || ((m.created_at || '') + '|' + (m.tipo || '') + '|' + (m.mensaje || '') + '|' + (m.respuesta || ''))
         // los mensajes vienen del más nuevo al más viejo; se descartan los "temporales" (optimistas) ya confirmados
-        const base = existente.mensajes.filter(m => !m._temporal)
-        const baseKeys = new Set(base.map(clave))
-        const nuevos = c.mensajes.filter(m => !baseKeys.has(clave(m)) && !conocidos.has(clave(m)))
+        // y se quitan repetidos que ya hubieran quedado en memoria
+        const vistosBase = new Set()
+        const base = existente.mensajes.filter(m => {
+          if (m._temporal) return false
+          const k = clave(m)
+          if (vistosBase.has(k)) return false
+          vistosBase.add(k)
+          return true
+        })
+        const nuevos = c.mensajes.filter(m => !vistosBase.has(clave(m)))
         nuevo[c.telefono] = { ...c, mensajes: [...nuevos, ...base], _historial_completo: true }
       } else {
         nuevo[c.telefono] = c
