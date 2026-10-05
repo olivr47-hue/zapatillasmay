@@ -197,8 +197,124 @@ const logo = async (ctx, E, cx, y, ancho) => {
 const moneda = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
 const espaciado = (ctx, px) => { ctx.letterSpacing = px + 'px' }
 
+// ── diseños: la distribución de la lámina (los "Colores" y el tipo de letra se combinan con cualquiera) ──
+const DISENOS = {
+  clasico: { nombre: 'Clásico con marco', nota: 'Foto en tarjeta con marco dorado' },
+  solofoto: { nombre: 'Solo la foto', nota: 'Sin marco, textos ni logo: únicamente la imagen' },
+  completo: { nombre: 'Foto completa', nota: 'La foto llena todo; nombre y precio sobre un degradado' },
+  bloque: { nombre: 'Bloque de color', nota: 'Foto arriba y franja de color con el nombre' },
+  polaroid: { nombre: 'Polaroid', nota: 'Foto con borde blanco, como instantánea' },
+  minimo: { nombre: 'Mínimo', nota: 'Foto con un renglón discreto abajo' },
+}
+const monedaTxt = (p) => (p && p.precio ? moneda(p.precio) : '')
+
+// Láminas de UN modelo con los diseños distintos al clásico. Cada una deja MARCOS.producto con el recuadro real de la foto
+// para que el editor de encuadre muestre la misma proporción.
+async function laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, diseno) {
+  const { w: W, h: H } = F
+  const c = document.createElement('canvas'); c.width = W; c.height = H
+  const ctx = c.getContext('2d')
+  const img = await cargarImagen(urlFoto)
+  const esHistoria = H > 1500
+  const verPrecio = opts.precio && p.precio
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+  if (diseno === 'solofoto') {
+    ctx.fillStyle = E.tarjeta; ctx.fillRect(0, 0, W, H)
+    MARCOS.producto = { w: W, h: H }
+    foto(ctx, img, 0, 0, W, H, 0, opts.ajuste, E.tarjeta, ENC[urlFoto])
+    return c
+  }
+  if (diseno === 'completo') {
+    MARCOS.producto = { w: W, h: H }
+    foto(ctx, img, 0, 0, W, H, 0, 'llenar', '#222', ENC[urlFoto])
+    const gh = Math.round(H * (esHistoria ? 0.38 : 0.42))
+    const g = ctx.createLinearGradient(0, H - gh, 0, H); g.addColorStop(0, 'rgba(20,8,14,0)'); g.addColorStop(1, 'rgba(20,8,14,0.88)')
+    ctx.fillStyle = g; ctx.fillRect(0, H - gh, W, gh)
+    const lg = await cargarImagen('/logo-marca-blanco.png')
+    if (lg) { const lw = W * 0.26, lh = lw * lg.height / lg.width; ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.drawImage(lg, W / 2 - lw / 2, H * 0.035, lw, lh); ctx.restore() }
+    const pad = Math.round(W * 0.08)
+    const yWA = H - Math.round(H * 0.045)
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = fTxt(W * 0.024, 700); espaciado(ctx, 2)
+    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), W / 2, yWA); espaciado(ctx, 0)
+    if (verPrecio) {
+      ctx.fillStyle = '#fff'; ctx.font = fTit(W * 0.062, 700)
+      ctx.fillText(monedaTxt(p), W / 2, yWA - Math.round(W * 0.07))
+    }
+    const tam = Math.round(W * (esHistoria ? 0.056 : 0.05)), yT = yWA - Math.round(W * (verPrecio ? 0.17 : 0.09))
+    ctx.fillStyle = '#fff'; ctx.font = fTit(tam)
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10
+    const n = (() => { const m = document.createElement('canvas').getContext('2d'); m.font = ctx.font; return Math.ceil(m.measureText(p.titulo).width / (W - pad * 2)) })()
+    envolver(ctx, p.titulo, W / 2, yT - (Math.min(n, 2) - 1) * Math.round(tam * 1.25), W - pad * 2, Math.round(tam * 1.25), 2)
+    ctx.restore()
+    if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
+    return c
+  }
+  if (diseno === 'bloque') {
+    const hb = Math.round(H * (esHistoria ? 0.27 : 0.25))
+    ctx.fillStyle = E.acento; ctx.fillRect(0, 0, W, H)
+    MARCOS.producto = { w: W, h: H - hb }
+    foto(ctx, img, 0, 0, W, H - hb, 0, opts.ajuste, E.tarjeta, ENC[urlFoto])
+    if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(W * 0.1), Math.round(W * 0.062), 'NUEVO', { ...E, acento: E.texto })
+    const pad = Math.round(W * 0.07)
+    ctx.fillStyle = '#fff'
+    const sub = (opts.colorNombre && p.colorLamina) ? p.colorLamina : (opts.etiqueta || 'Nueva colección')
+    ctx.globalAlpha = 0.85; ctx.font = fTxt(W * 0.022, 600); espaciado(ctx, 5)
+    ctx.fillText(String(sub).toUpperCase(), W / 2, H - hb + Math.round(hb * 0.22)); espaciado(ctx, 0); ctx.globalAlpha = 1
+    const tam = Math.round(W * (esHistoria ? 0.05 : 0.043))
+    ctx.font = fTit(tam)
+    envolver(ctx, p.titulo, W / 2, H - hb + Math.round(hb * 0.42), W - pad * 2, Math.round(tam * 1.25), 2)
+    if (verPrecio) { ctx.font = fTit(W * 0.05, 700); ctx.fillText(monedaTxt(p), W / 2, H - hb + Math.round(hb * 0.74)) }
+    ctx.font = fTxt(W * 0.021, 600); espaciado(ctx, 2); ctx.globalAlpha = 0.9
+    ctx.fillText((opts.pie || `WHATSAPP  ${WA_TXT}`).toUpperCase(), W / 2, H - Math.round(hb * 0.1)); espaciado(ctx, 0); ctx.globalAlpha = 1
+    return c
+  }
+  if (diseno === 'polaroid') {
+    fondo(ctx, W, H, E)
+    const mx = Math.round(W * 0.09), top = Math.round(H * 0.07)
+    const cw = W - mx * 2, ch = H - top * 2
+    const pie = Math.round(ch * (esHistoria ? 0.2 : 0.23))
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(-0.012); ctx.translate(-W / 2, -H / 2)
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 16
+    ctx.fillStyle = '#fffefc'; ctx.fillRect(mx, top, cw, ch); ctx.restore()
+    const bx = mx + Math.round(cw * 0.05), by = top + Math.round(cw * 0.05), bw = cw - Math.round(cw * 0.1), bh = ch - pie - Math.round(cw * 0.05)
+    MARCOS.producto = { w: bw, h: bh }
+    foto(ctx, img, bx, by, bw, bh, 0, opts.ajuste, '#f1ebe6', ENC[urlFoto])
+    ctx.fillStyle = '#3d2a33'
+    const yb = by + bh
+    const tam = Math.round(W * 0.042)
+    if (LA.script) ctx.font = `${Math.round(W * 0.07)}px "${LA.script}", cursive`; else ctx.font = fTit(tam)
+    envolver(ctx, p.titulo, W / 2, yb + Math.round(pie * 0.42), cw - Math.round(cw * 0.1), Math.round(tam * 1.2), 1)
+    ctx.fillStyle = E.acento; ctx.font = fTxt(W * 0.026, 700); espaciado(ctx, 2)
+    const linea = [verPrecio ? monedaTxt(p) : '', p.tallas ? `TALLAS ${p.tallas}` : ''].filter(Boolean).join('   ·   ')
+    ctx.fillText(linea || 'ZAPATILLASMAY.MX', W / 2, yb + Math.round(pie * 0.75)); espaciado(ctx, 0)
+    ctx.restore()
+    if (opts.nuevo && indiceColor === 0) sello(ctx, W - Math.round(W * 0.1), Math.round(H * 0.1), Math.round(W * 0.062), 'NUEVO', E)
+    return c
+  }
+  // minimo: foto casi completa con una barra fina abajo
+  const hb = Math.round(H * 0.075)
+  ctx.fillStyle = E.tarjeta; ctx.fillRect(0, 0, W, H)
+  MARCOS.producto = { w: W, h: H - hb }
+  foto(ctx, img, 0, 0, W, H - hb, 0, opts.ajuste, E.tarjeta, ENC[urlFoto])
+  ctx.fillStyle = E.texto; ctx.textBaseline = 'middle'
+  const yc = H - hb / 2 + 2
+  ctx.font = fTit(W * 0.03); ctx.textAlign = 'left'
+  const precio = verPrecio ? monedaTxt(p) : ''
+  ctx.font = fTit(W * 0.03, 700); const pw = precio ? ctx.measureText(precio).width : 0
+  ctx.font = fTit(W * 0.03)
+  const maxT = W - Math.round(W * 0.1) - pw - (precio ? Math.round(W * 0.04) : 0)
+  let t = p.titulo
+  while (ctx.measureText(t).width > maxT && t.length > 4) t = t.slice(0, -2)
+  if (t !== p.titulo) t = t.replace(/\s+\S*$/, '') + '…'
+  ctx.fillText(t, Math.round(W * 0.05), yc)
+  if (precio) { ctx.textAlign = 'right'; ctx.fillStyle = E.acento; ctx.font = fTit(W * 0.03, 700); ctx.fillText(precio, W - Math.round(W * 0.05), yc) }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+  return c
+}
+
 // ── una lámina de UN modelo ──
 async function laminaProducto(F, E, p, urlFoto, opts, indiceColor) {
+  if (OPT.diseno && OPT.diseno !== 'clasico') return laminaProductoAlterna(F, E, p, urlFoto, opts, indiceColor, OPT.diseno)
   const { w: W, h: H } = F
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
@@ -275,6 +391,17 @@ function distribuirCollage(n, A, gap) {
 async function laminaCollage(F, E, prods, opts) {
   const { w: W, h: H } = F
   const c = document.createElement('canvas'); c.width = W; c.height = H
+  if (OPT.diseno === 'solofoto') {
+    const ctx0 = c.getContext('2d'); ctx0.fillStyle = E.tarjeta; ctx0.fillRect(0, 0, W, H)
+    const gap0 = Math.round(W * 0.012), n0 = Math.min(prods.length, 4)
+    const celdas0 = distribuirCollage(n0, { x: gap0, y: gap0, w: W - gap0 * 2, h: H - gap0 * 2 }, gap0)
+    for (let i = 0; i < n0; i++) {
+      const im = await cargarImagen(prods[i].foto), q = celdas0[i]
+      MARCOS.collage = { w: q.w, h: q.h }
+      foto(ctx0, im, q.x, q.y, q.w, q.h, 0, opts.ajuste, E.tarjeta, ENC[prods[i].foto])
+    }
+    return c
+  }
   const ctx = c.getContext('2d'); fondo(ctx, W, H, E); marco(ctx, W, H, E)
   const pad = Math.round(W * 0.085)
   const lh = await logo(ctx, E, W / 2, Math.round(H * 0.05), Math.round(W * 0.27))
@@ -451,6 +578,10 @@ window.cargarRedes = async function () {
       <div class="rs-opc" id="rs-letra" style="margin-bottom:10px">
         ${Object.entries(LETRAS).map(([k, l], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('letra','${k}')"><span style="font-family:'${l.ej}',serif;font-size:1.05rem;${l.cursiva ? 'font-style:italic;' : ''}color:#2a1a0e">${l.nombre === 'Romántico' ? 'Nueva colección' : 'Nueva colección'}</span><small>${l.nombre}</small></button>`).join('')}
       </div>
+      <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Diseño</p>
+      <div class="rs-opc" id="rs-diseno" style="margin-bottom:10px">
+        ${Object.entries(DISENOS).map(([k, d], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" title="${d.nota}" onclick="rsOpt('diseno','${k}')">${d.nombre}</button>`).join('')}
+      </div>
       <p style="font-size:0.72rem;color:#94a3b8;margin:4px 0 4px">Colores</p>
       <div class="rs-opc" id="rs-estilo" style="margin-bottom:10px">
         ${Object.entries(ESTILOS).map(([k, s], i) => `<button class="${i === 0 ? 'on' : ''}" data-v="${k}" onclick="rsOpt('estilo','${k}')"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${s.acento};vertical-align:-2px;margin-right:5px"></span>${s.nombre}</button>`).join('')}
@@ -513,7 +644,7 @@ window.cargarRedes = async function () {
   window.rsHistorial()
 }
 
-const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush', letra: 'moderno' }
+const OPT = { tipo: 'fotos', formato: 'vertical', estilo: 'blush', letra: 'moderno', diseno: 'clasico' }
 window.rsOpt = async (k, v) => {
   OPT[k] = v
   if (k === 'letra') { LA = LETRAS[v] || LETRAS.moderno; await cargarFuentes() }
@@ -751,9 +882,10 @@ window.rsGenerar = async () => {
     items.forEach(it => usada(it.foto))
     for (let i = 0; i < items.length; i += 4) laminas.push(await laminaCollage(F, E, items.slice(i, i + 4), opts))
   } else if (OPT.tipo === 'carrusel') {
-    if (prods.length > 1) laminas.push(await laminaPortada(F, E, prods.slice(0, 4), opts))
+    const soloFoto = OPT.diseno === 'solofoto'   // «solo la foto»: sin portada ni cierre con textos
+    if (prods.length > 1 && !soloFoto) laminas.push(await laminaPortada(F, E, prods.slice(0, 4), opts))
     for (const p of prods) await delProducto(p)
-    laminas.push(await laminaCierre(F, E, opts))
+    if (!soloFoto) laminas.push(await laminaCierre(F, E, opts))
   } else {
     for (const p of prods) await delProducto(p)
   }
