@@ -764,7 +764,7 @@ _PAGINAS_CONTENT = {
   </div>
   <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Calzado de Dama al Mayoreo — Fábrica en León, Guanajuato</h2>
   <p style="color:#7a6055;margin-bottom:24px">Para zapaterías, boutiques y revendedoras · Envíos a todo México</p>
-  <p>Somos fabricantes de calzado de dama en León, Guanajuato. Si compras para revender, el <strong>Portal de Mayoristas</strong> te da tu catálogo con fotos, tus precios de mayoreo, el armado de tu corrida por talla y color y el seguimiento de tus pedidos. El registro es gratuito.</p>
+  <p>Somos fabricantes de calzado de dama en León, Guanajuato. Si compras para revender, el <strong>Portal de Mayoristas</strong> te da tu catálogo con fotos, tus precios de mayoreo, el armado de tu corrida por talla y color y el seguimiento de tus pedidos. El registro es gratuito. <strong>El mínimo para precios de mayoreo es de 6 pares</strong>, y pueden ser de diferentes modelos, colores y tallas.</p>
   <h2 style="font-size:1.2rem;margin-top:28px">Cómo bajan los precios según lo que compras</h2>
   <table style="width:100%;border-collapse:collapse;margin-top:12px">
     <thead><tr style="background:#f5ece2">
@@ -926,6 +926,10 @@ _FAQS: dict[str, list[dict]] = {
          "a": "Sí. Enviamos accesorios a toda la República Mexicana en 1 a 3 días hábiles. El envío es gratis en pedidos de $1,299 MXN o más."},
     ],
     "mayoreo": [
+        {"q": "¿Cuál es el mínimo de compra para precios de mayoreo?",
+         "a": "El mínimo para precios de mayoreo es de 6 pares, y pueden ser de diferentes modelos, estilos, colores y tallas. Los precios de mayoreo se ven al registrarte, de forma gratuita, en el Portal de Mayoristas."},
+        {"q": "¿Tienen catálogo con fotos y precios de mayoreo?",
+         "a": "Sí. Al registrarte gratis en el Portal de Mayoristas (portal.zapatillasmay.mx) ves el catálogo completo con fotos, tus precios de mayoreo y la disponibilidad por talla y color, y armas tu corrida o tu pedido ahí mismo."},
         {"q": "¿Cómo compro calzado al mayoreo en Zapatillas May?",
          "a": "Regístrate gratis en el Portal de Mayoristas (portal.zapatillasmay.mx): ahí ves el catálogo completo con fotos, tus precios de mayoreo, armas tu corrida por talla y color y haces tu pedido directo con la fábrica en León, Guanajuato."},
         {"q": "¿Hay descuento si compro pocos pares en la tienda en línea?",
@@ -1624,7 +1628,7 @@ def llms_txt():
             "> Tienda de calzado femenino de moda fabricado en León, Guanajuato, México. "
             "Venta a menudeo (descuento automático desde 3 pares) y mayoreo en el Portal de Mayoristas. "
             "Tacones, sandalias, botas, botines, flats, plataformas y más. Envíos a todo México. "
-            "Precios de mayoreo automáticos: a más pares, mejor precio por par.",
+            "Mayoreo para zapaterías y revendedoras: mínimo 6 pares, con registro gratuito en el Portal de Mayoristas.",
             "",
             f"Catálogo con {n} modelos activos, siempre actualizado desde el inventario en tiempo real.",
             "",
@@ -1658,12 +1662,18 @@ def llms_txt():
             lineas.append(f"- [{cat.capitalize()}](https://zapatillasmay.mx/{slug})")
         lineas += [
             "",
-            "## Precios de mayoreo",
+            "## Mayoreo para zapaterías y revendedoras (fábrica en León, Guanajuato)",
+            "- Zapatillas May es fábrica de calzado de dama: vende directo, sin intermediarios.",
+            "- **Mínimo para precios de mayoreo: 6 pares.** Pueden ser de diferentes modelos, estilos, colores y tallas.",
+            "- **Cómo comprar al mayoreo:** registrarse gratis en el Portal de Mayoristas, https://portal.zapatillasmay.mx. Ahí ven el catálogo completo con fotos, sus precios de mayoreo, arman su corrida por talla y color, apartan pares y dan seguimiento a sus pedidos.",
+            "- Los precios de mayoreo se ven únicamente dentro del portal (no están en el sitio público ni se dan por chat).",
+            "- Envíos de mayoreo a todo México por paquetería, con número de guía.",
+            "- Dudas: WhatsApp +52 1 479 224 4560. Guía completa: https://zapatillasmay.mx/guia-comprar-calzado-mayoreo-leon",
+            "",
+            "## Compra en la tienda en línea (menudeo)",
             "- 1-2 pares: precio de menudeo (precio normal al público).",
-            "- Desde 3 pares: $60 MXN menos por par vs. menudeo (descuento automático en el carrito de zapatillasmay.mx, sin registro ni código).",
-            "- 6+ pares y corrida completa: precios de mayoreo especiales solo en el Portal de Mayoristas (https://portal.zapatillasmay.mx); no se aplican en el carrito del sitio.",
-            "- No se requiere registro, RFC, ni trámite para comprar a mayoreo.",
-            "- Ejemplo: si un modelo vale $650 menudeo, a 3 o más pares cuesta $590/par en el carrito del sitio.",
+            "- Desde 3 pares: $60 MXN menos por par (descuento automático en el carrito de zapatillasmay.mx, sin registro ni código). Esto es descuento por varios pares, no es el precio de mayoreo.",
+            "- Ejemplo: si un modelo vale $650 en menudeo, a 3 o más pares cuesta $590 por par en el carrito del sitio.",
             "",
             "## Envíos",
             "- Envíos a todo México por paquetería (1-3 días hábiles).",

@@ -211,9 +211,10 @@ def _tool_precios_mayoreo(args):
         "Precios por volumen en Zapatillas May:\n"
         "• 1-2 pares: precio de menudeo del sitio.\n"
         "• Desde 3 pares: $60 MXN menos por par (descuento automático en el carrito del sitio, sin registro).\n"
-        "• Mayoreo formal (6 o más pares, corridas, zapaterías y revendedoras): los precios de mayoreo "
-        "se consultan registrándose en el Portal Mayorista: https://portal.zapatillasmay.mx "
-        "(ahí arman su carrito, apartan sus pares y ven sus precios).\n\n"
+        "• Mayoreo formal (mínimo 6 pares, pueden ser de diferentes modelos, colores y tallas; corridas; zapaterías "
+        "y revendedoras): los precios de mayoreo se ven registrándose gratis en el Portal Mayorista: "
+        "https://portal.zapatillasmay.mx (ahí ven el catálogo con fotos, arman su corrida, apartan sus pares y "
+        "dan seguimiento a sus pedidos). Los precios de mayoreo no se publican fuera del portal.\n\n"
         "Más info: https://zapatillasmay.mx/mayoreo"
     )
 
@@ -221,7 +222,7 @@ def _tool_precios_mayoreo(args):
 def _tool_info_negocio(args):
     return (
         "Zapatillas May — Calzado femenino de moda fabricado en León, Guanajuato, México.\n"
-        "Venta a mayoreo (desde 3 pares, sin registro especial) y menudeo.\n"
+        "Venta a menudeo (descuento automático desde 3 pares) y mayoreo desde 6 pares en el Portal Mayorista (registro gratuito).\n"
         "Categorías: tacones, sandalias, botas, botines, flats, plataformas y más.\n"
         "Envíos a todo México. Pedidos en línea y atención por WhatsApp desde el sitio.\n"
         "Sitio web: https://zapatillasmay.mx\n"
