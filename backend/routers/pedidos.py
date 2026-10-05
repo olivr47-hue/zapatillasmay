@@ -893,6 +893,21 @@ def crear_pedido(pedido: dict, request: Request):
             for item in items:
                 item["pedido_id"] = pedido_id
                 supabase_post("pedido_items", item)
+            # El carrito ya se volvió pedido: se retira el borrador que lo respaldaba. Si no, el carrito reaparece
+            # en el portal y la clienta vuelve a cerrar el mismo pedido (así se llegaron a crear 5 iguales).
+            # No se toca si algún par ya está reservado/apartado.
+            if canal == "portal_mayoreo" and status_nuevo == "pendiente_pago" and pedido.get("cliente_id") and _cliente_verificado:
+                try:
+                    _bors = supabase_get(
+                        f"pedidos?cliente_id=eq.{pedido['cliente_id']}&status=eq.borrador&canal=eq.portal_mayoreo"
+                        f"&notas=eq.{_up.quote('[carrito-respaldo]', safe='')}&select=id,pedido_items(reservado)"
+                    ) or []
+                    for _b in _bors:
+                        if any(i.get("reservado") for i in (_b.get("pedido_items") or [])):
+                            continue
+                        supabase_patch(f"pedidos?id=eq.{_b['id']}", {"status": "cancelado"})
+                except Exception as _e_car:
+                    print(f"[pedidos] no se pudo retirar el carrito respaldado: {_e_car}")
             if _credito_aplicado > 0:
                 try:
                     _nuevo_saldo = round(_saldo_real - _credito_aplicado, 2)
