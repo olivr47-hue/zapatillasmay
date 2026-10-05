@@ -136,23 +136,74 @@ def _esperar_contenedor(cid: str):
         time.sleep(2.5)
 
 
-def _publicar_instagram(cuentas, urls, caption, historia=False):
+_CACHE_META_ID = {}
+
+
+def _ig_producto_meta(cuentas, producto_id):
+    """product_id del catálogo de Meta para etiquetar un modelo en Instagram. El feed manda un artículo por variante (g:id = id de la
+    variante), así que se busca en el catálogo por el id de alguna variante del modelo. Devuelve (product_id, motivo_si_no)."""
+    ig = cuentas.get("ig_id")
+    if not ig or not producto_id:
+        return None, "sin cuenta de Instagram o sin modelo"
+    if producto_id in _CACHE_META_ID:
+        return _CACHE_META_ID[producto_id], ""
+    try:
+        cats = _graph(f"{ig}/available_catalogs").get("data") or []
+        if not cats:
+            return None, "Instagram no tiene un catálogo/tienda conectado a esta cuenta"
+        catalogo = cats[0].get("catalog_id")
+        variantes = supabase_get(f"variantes?producto_id=eq.{urllib.parse.quote(str(producto_id), safe='')}&activa=eq.true&select=id&limit=6") or []
+        for v in variantes:
+            vid = str(v.get("id"))
+            r = _graph(f"{ig}/catalog_product_search?catalog_id={catalogo}&q={urllib.parse.quote(vid)}&limit=5").get("data") or []
+            for it in r:
+                if str(it.get("retailer_id")) == vid and it.get("product_id"):
+                    _CACHE_META_ID[producto_id] = str(it["product_id"])
+                    return _CACHE_META_ID[producto_id], ""
+        return None, "no se encontró este modelo en tu catálogo de Meta (puede que aún no se haya sincronizado el feed)"
+    except _GraphError as e:
+        return None, _explicar_etiqueta(e)
+
+
+def _explicar_etiqueta(e: _GraphError) -> str:
+    m = (e.mensaje or "").lower()
+    if e.codigo in (10, 200, 283) or "permission" in m or "permiso" in m:
+        return "falta el permiso «instagram_shopping_tag_products» en la clave de publicar (FB_PUBLISH_TOKEN)"
+    return "Meta respondió: " + (e.mensaje or "")[:140]
+
+
+def _publicar_instagram(cuentas, urls, caption, historia=False, meta_id=None):
+    """Devuelve (id_publicacion, aviso). Si se pasa meta_id se intenta etiquetar el producto; si Meta lo rechaza, se publica sin
+    etiqueta y el aviso explica por qué (nunca se bloquea la publicación por esto)."""
     ig = cuentas["ig_id"]
+    aviso = ""
+    tags = [{"product_id": meta_id, "x": 0.5, "y": 0.82}] if (meta_id and not historia) else None
+
+    def crear(datos):
+        nonlocal tags, aviso
+        if tags:
+            try:
+                return _graph(f"{ig}/media", "POST", {**datos, "product_tags": tags})["id"]
+            except _GraphError as e:
+                aviso = "Se publicó SIN etiqueta de producto: " + _explicar_etiqueta(e)
+                tags = None
+        return _graph(f"{ig}/media", "POST", datos)["id"]
+
     if historia:
-        c = _graph(f"{ig}/media", "POST", {"image_url": urls[0], "media_type": "STORIES"})["id"]
+        c = crear({"image_url": urls[0], "media_type": "STORIES"})
         _esperar_contenedor(c)
-        return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id")
+        return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id"), aviso
     if len(urls) == 1:
-        c = _graph(f"{ig}/media", "POST", {"image_url": urls[0], "caption": caption})["id"]
+        c = crear({"image_url": urls[0], "caption": caption})
     else:
         hijos = []
         for u in urls[:10]:
-            h = _graph(f"{ig}/media", "POST", {"image_url": u, "is_carousel_item": True})["id"]
+            h = crear({"image_url": u, "is_carousel_item": True})
             _esperar_contenedor(h)
             hijos.append(h)
         c = _graph(f"{ig}/media", "POST", {"media_type": "CAROUSEL", "children": ",".join(hijos), "caption": caption})["id"]
     _esperar_contenedor(c)
-    return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id")
+    return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id"), aviso
 
 
 @router.post("/publicar")
@@ -171,6 +222,16 @@ def publicar(datos: dict, _staff=Depends(require_staff)):
         return JSONResponse(status_code=502, content={"ok": False, "error": _explicar(e, "facebook")})
     resultados = {}
     quien = (_staff or {}).get("nombre") or (_staff or {}).get("email") or "personal"
+    # Etiqueta de producto en Instagram: solo cuando la publicación es de UN solo modelo (con varios no se sabe qué foto es de cuál)
+    meta_id, aviso_tag = None, ""
+    ids_prod = [x for x in (datos.get("producto_ids") or []) if isinstance(x, str)]
+    if "instagram" in destinos and not historia:
+        if len(ids_prod) == 1:
+            meta_id, motivo = _ig_producto_meta(cuentas, ids_prod[0])
+            if not meta_id:
+                aviso_tag = "Se publicó sin etiqueta de producto: " + motivo
+        elif len(ids_prod) > 1:
+            aviso_tag = "Con varios modelos no se etiquetan productos (se puede hacer a mano en la app de Instagram)."
     for d in destinos:
         try:
             if d == "facebook":
@@ -180,8 +241,10 @@ def publicar(datos: dict, _staff=Depends(require_staff)):
             else:
                 if not cuentas.get("ig_id"):
                     raise _GraphError(None, "Tu página de Facebook no tiene una cuenta de Instagram profesional vinculada")
-                post = _publicar_instagram(cuentas, urls, caption, historia)
+                post, aviso = _publicar_instagram(cuentas, urls, caption, historia, meta_id)
             resultados[d] = {"ok": True, "post_id": post}
+            if d == "instagram" and (aviso or aviso_tag):
+                resultados[d]["aviso"] = aviso or aviso_tag
             try:
                 supabase_post("redes_publicaciones", {
                     "producto_ids": datos.get("producto_ids") or [], "destino": d, "tipo": "historia" if historia else ("carrusel" if len(urls) > 1 else "foto"),

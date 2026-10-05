@@ -815,7 +815,7 @@ window.rsPublicar = async () => {
       body: JSON.stringify({ urls, caption: document.getElementById('rs-caption').value, destinos, historia: esHistoria, producto_ids: S.sel }) })
     const d = await r.json().catch(() => ({}))
     if (!d.resultados) throw new Error(d.error || 'No se pudo publicar')
-    const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${k === 'facebook' ? 'Facebook' : 'Instagram'}:</strong> ${v.ok ? 'publicado' : esc(v.error)}`)
+    const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${k === 'facebook' ? 'Facebook' : 'Instagram'}:</strong> ${v.ok ? 'publicado' : esc(v.error)}${v.aviso ? '<br><small style="color:#b45309">⚠️ ' + esc(v.aviso) + '</small>' : ''}`)
     msg(lineas.join('<br>'), d.ok)
     if (d.ok) { S.sel.forEach(id => S.publicados.add(id)); window.rsHistorial() }
   } catch (e) { msg('Error: ' + esc(e.message), false) }
