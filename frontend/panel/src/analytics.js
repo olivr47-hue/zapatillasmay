@@ -135,7 +135,7 @@ window.cargarAnalitica = async function () {
           <button class="an-btn-mini" style="color:#666" onclick="window._anTab(window._an.tab, true)">↻<span class="an-hide-m"> Actualizar</span></button>
         </div>
       </div>
-      <div class="an-live" id="an-live"><span class="an-dot"></span><span><b id="an-activos">—</b> <small>activos ahora en el sitio</small></span><small id="an-live-det"></small></div>
+      <div class="an-live" id="an-live"><span class="an-dot"></span><span><b id="an-activos">—</b> <small>activos ahora (últimos 30 min)</small></span><small id="an-live-det"></small><div id="an-live-pag" style="flex-basis:100%;font-size:0.74rem;color:rgba(255,255,255,0.75);margin-top:4px"></div></div>
       <div class="an-tabs" id="an-tabs">${TABS.map(t => `<button class="an-tab ${t.id === S.tab ? 'on' : ''}" data-t="${t.id}" onclick="window._anTab('${t.id}')">${t.icono} ${t.nombre}</button>`).join('')}</div>
       <div id="an-body"></div>
     </div>`
@@ -154,7 +154,13 @@ async function vivo() {
   const disp = Object.entries(d.por_dispositivo || {}).map(([k, v]) => `${k === 'mobile' ? '📱' : k === 'desktop' ? '💻' : '📟'} ${v}`).join('  ')
   const pais = (d.por_pais || [])[0]
   const det = document.getElementById('an-live-det')
-  if (det) det.textContent = [disp, pais ? `🌎 ${pais.pais}: ${pais.activos}` : ''].filter(Boolean).join('   ·   ')
+  const donde = (d.en_portal != null) ? `🛍️ Tienda: ${d.en_sitio}   ·   🤝 Portal mayoristas: ${d.en_portal}` : ''
+  if (det) det.textContent = [donde, disp, pais ? `🌎 ${pais.pais}: ${pais.activos}` : ''].filter(Boolean).join('   ·   ')
+  const pag = document.getElementById('an-live-pag')
+  if (pag) {
+    const nombre = (r) => { const t = String(r || '/').split('?')[0]; return t === '/' ? 'Inicio de la tienda' : t.startsWith('/portal-mayoreo') ? 'Portal · ' + (t.split('/')[2] || 'inicio') : t.replace(/^\/(producto\/)?/, '').replace(/-/g, ' ') }
+    pag.textContent = (d.paginas || []).length ? 'Viendo ahora: ' + d.paginas.slice(0, 5).map(x => `${nombre(x.pagina)} (${x.activos})`).join('  ·  ') : ''
+  }
 }
 
 window._anPeriodo = (d) => {
