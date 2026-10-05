@@ -17891,6 +17891,7 @@ area.style.minHeight = '0'
       <span class="wa-bot-badge ${chat.en_control ? 'manual' : 'auto'}">
         ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
+      ${chat.origen ? `<span title="De dónde llegó esta conversación (página del sitio · fuente de la visita)" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis">📍 ${_e(String(chat.origen).replace(/\s*\|\s*/g, ' · '))}</span>` : ''}
       <select onchange="cambiarEtiqueta('${_ja(telefono)}', this.value)" class="wa-label-select-sm">
         <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>Sin etiqueta</option>
         <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>Pregunta</option>

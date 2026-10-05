@@ -1419,6 +1419,8 @@ async def _procesar_webhook_whatsapp(datos: dict):
         contacts     = value.get("contacts", [])
         nombre_contacto = contacts[0].get("profile", {}).get("name", "") if contacts else ""
 
+        _registrar_origen_chat(from_number, mensaje_data)   # de dónde llegó (best-effort, nunca rompe el webhook)
+
         # ── Mark as read automático al recibir ──────────────────────
         if wa_msg_id:
             mark_as_read_wa(wa_msg_id)
@@ -2138,8 +2140,13 @@ def listar_chats():
             chats = _chats_desde_mensajes_legado()
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
-            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista")
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista,origen")
         except Exception:
+            try:
+                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista")
+            except Exception:
+                control = None
+        if control is None:
             try:
                 control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado")
             except Exception:
@@ -2157,6 +2164,7 @@ def listar_chats():
                 chats[c['telefono']]['pendiente_revision'] = c.get('pendiente_revision', False)
                 chats[c['telefono']]['estado'] = c.get('estado', 'abierto')
                 chats[c['telefono']]['mayorista'] = c.get('mayorista', False)
+                chats[c['telefono']]['origen'] = c.get('origen')
         result = list(chats.values())
         cache_set("chats_lista", result, ttl=20)
         return result
@@ -4322,3 +4330,32 @@ def cambiar_estado_chat(telefono: str, datos: dict):
         return {"ok": True, "estado": estado}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _registrar_origen_chat(telefono, mensaje_data):
+    """Guarda de dónde llegó una conversación (solo la primera vez). Dos fuentes:
+    1) anuncio "Click to WhatsApp" de Meta: el mensaje trae `referral` (titular/anuncio);
+    2) botón de WhatsApp del sitio: el mensaje prellenado termina con "(ref: <página> | <fuente>)".
+    Nunca lanza excepción: si algo falla, el webhook sigue normal."""
+    try:
+        origen = ""
+        ref = mensaje_data.get("referral") or {}
+        if ref:
+            detalle = (ref.get("headline") or ref.get("source_url") or ref.get("source_id") or "").strip()
+            origen = ("Anuncio de Meta: " + detalle)[:200] if detalle else "Anuncio de Meta"
+        if not origen and mensaje_data.get("type") == "text":
+            cuerpo = ((mensaje_data.get("text") or {}).get("body") or "")
+            m = re.search(r"\(ref:\s*([^)]{1,120})\)", cuerpo)
+            if m:
+                origen = m.group(1).strip()
+        if not origen or not telefono:
+            return
+        tel_q = urllib.parse.quote(str(telefono), safe="")
+        existente = supabase_get(f"chats_control?telefono=eq.{tel_q}&select=telefono,origen")
+        if existente:
+            if not (existente[0].get("origen") or "").strip():
+                supabase_patch(f"chats_control?telefono=eq.{tel_q}", {"origen": origen})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "en_control": False, "origen": origen})
+    except Exception as e:
+        print(f"[chatbot] origen de la conversación no guardado: {e}")
