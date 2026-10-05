@@ -3140,7 +3140,20 @@ async function _pcSincronizarCarritoServidorReal() {
         if (res.ok) _pcMarcarSincronizado()
       } catch (e) { /* si falla, PC_CARRITO_SYNCED_KEY se queda vieja y el próximo restore reintenta */ }
     } else {
-      _pcMarcarSincronizado()
+      // En este dispositivo no se conoce el id del borrador del servidor: antes solo se marcaba "sincronizado" y el
+      // borrador seguía con sus pares, así que el carrito "revivía" desde el servidor (con un pedido recién cerrado,
+      // la clienta lo volvía a ver y lo cerraba otra vez). Ahora se busca y se cancela.
+      try {
+        const rp = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
+        const ped = rp.ok ? await rp.json() : []
+        const viejo = (Array.isArray(ped) ? ped : []).find(x => x.notas === PC_BORRADOR_MARCA && x.status === 'borrador')
+        if (viejo && !(viejo.pedido_items || []).some(i => i.reservado)) {
+          const res = await fetch(`${PC_API}/pedidos/${viejo.id}/cancelar`, { method: 'POST' })
+          if (res.ok) _pcMarcarSincronizado()
+        } else {
+          _pcMarcarSincronizado()
+        }
+      } catch (e) { /* se reintenta en la próxima sincronización */ }
     }
     return
   }
