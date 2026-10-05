@@ -168,7 +168,7 @@ def _completar_seo(p, base=None):
             tipo = str(b.get("tipo_tacon") or "").strip().replace("_", " ")
             tipo = "" if tipo.lower() in ("sin tacon", "sin tacón", "") else tipo
             extras.append(f"Tacón {tipo + ' ' if tipo else ''}de {altura:g} cm.")
-        extras.append("Hecho en León, Guanajuato.")
+        extras.append("Hecho en México.")
         md = f"Compra {_recorta_palabras(base_nombre, 55)} en Zapatillas May."
         for e in extras:
             if len(md) + 1 + len(e) <= 158:

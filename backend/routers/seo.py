@@ -249,7 +249,7 @@ def _producto_ssr_inner(sku: str, request: Request):
         _det.append(f"tacón {str(p.get('tipo_tacon')).strip().lower()}")
     if p.get("material"):
         _det.append(f"corte {str(p.get('material')).strip().lower()}")
-    _partes = [f"{nombre}.", f"{_cat_txt} para dama de Zapatillas May, fabricados en León, Guanajuato."]
+    _partes = [f"{nombre}.", f"{_cat_txt} para dama de Zapatillas May, hechos en México con envíos a todo el país."]
     if _det:
         _partes.append("Con " + ", ".join(_det) + ".")
     if colores:
@@ -564,7 +564,7 @@ _GUIA_BANNER_TACONES = (
 # todas las páginas de categoría se quedan con el título genérico de la home).
 # Pasó exactamente eso entre 2026-07 y 2026-09-30: se corrigió comparando
 # contra el HTML real.
-_HOME_TITLE = "Calzado de Moda para Dama | Zapatillas May — León, Gto."
+_HOME_TITLE = "Calzado de Dama | Envíos a todo México | Zapatillas May León"
 _HOME_DESC = ("Calzado de dama con estilo, hecho en León, Gto. Pensado para sentirte bien, "
               "no solo lucir bien. Tacones, sandalias, botas y botines. Envíos a todo México, "
               "cambios de talla fáciles.")
@@ -572,40 +572,40 @@ _HOME_DESC = ("Calzado de dama con estilo, hecho en León, Gto. Pensado para sen
 # H1 SEO visibles para crawlers por categoría (el hero genérico no tiene keywords de categoría)
 _PAGINAS_H1 = {
     "tacones":     "Zapatillas y Tacones de Dama — Aguja, Bloque y Plataforma | Zapatillas May",
-    "sandalias":   "Sandalias de Dama Mayoreo León Guanajuato — Casuales y de Fiesta | Zapatillas May",
-    "botas":       "Botas de Mujer y Dama Mayoreo León Guanajuato — Moda y Calidad | Zapatillas May",
-    "botines":     "Botines de Dama Mayoreo León Guanajuato — Botines de Moda | Zapatillas May",
-    "flats":       "Flats y Zapatos Bajos de Dama Mayoreo León Guanajuato | Zapatillas May",
-    "plataformas": "Plataformas de Dama Mayoreo León Guanajuato — Altura y Comodidad | Zapatillas May",
-    "tenis":       "Tenis de Dama Mayoreo León Guanajuato — Moda Deportiva | Zapatillas May",
-    "nina":        "Calzado para Niña Mayoreo León Guanajuato — Cómodo y Resistente | Zapatillas May",
-    "accesorios":  "Accesorios de Moda Mayoreo León Guanajuato | Zapatillas May",
+    "sandalias":   "Sandalias de Dama — Casuales y de Fiesta | Zapatillas May",
+    "botas":       "Botas de Mujer y Dama — Moda y Calidad | Zapatillas May",
+    "botines":     "Botines de Dama — Botines de Moda | Zapatillas May",
+    "flats":       "Flats y Zapatos Bajos de Dama | Zapatillas May",
+    "plataformas": "Plataformas de Dama — Altura y Comodidad | Zapatillas May",
+    "tenis":       "Tenis de Dama — Moda Deportiva | Zapatillas May",
+    "nina":        "Calzado para Niña — Cómodo y Resistente | Zapatillas May",
+    "accesorios":  "Accesorios de Moda para Dama | Zapatillas May",
     "mayoreo":     "Calzado de Dama al Mayoreo en León, Guanajuato — Portal para Mayoristas | Zapatillas May",
-    "ofertas":     "Ofertas de Calzado de Dama León Guanajuato — Precios Especiales | Zapatillas May",
+    "ofertas":     "Ofertas de Calzado de Dama — Precios Especiales | Zapatillas May",
 }
 
 _PAGINAS_SEO = {
-    "tacones": ("Zapatillas y Tacones de Dama | Zapatillas May — León",
+    "tacones": ("Tacones y Zapatillas de Dama | Envíos a todo México | Zapatillas May",
                 "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares: aguja, bloque y plataforma. Envíos a todo México."),
-    "sandalias": ("Sandalias de Dama — Mayoreo y Menudeo | Zapatillas May",
+    "sandalias": ("Sandalias de Dama | Envíos a todo México | Zapatillas May León",
                   "Sandalias de moda para dama hechas en León, Guanajuato. Descuento automático desde 3 pares, casuales y de fiesta. Envíos a todo México."),
-    "botas": ("Botas de Mujer y Dama — Mayoreo y Menudeo | Zapatillas May",
+    "botas": ("Botas de Mujer y Dama | Envíos a todo México | Zapatillas May",
               "Botas de mujer y dama fabricadas en León, Guanajuato. Descuento automático desde 3 pares, en cuero y sintético. Envíos a todo México."),
-    "botines": ("Botines de Dama — Mayoreo y Menudeo | Zapatillas May",
+    "botines": ("Botines de Dama | Envíos a todo México | Zapatillas May León",
                 "Botines de moda para dama hechos en León, Guanajuato. Descuento automático desde 3 pares, los últimos estilos. Envíos a todo México."),
-    "flats": ("Flats y Zapatos Bajos de Dama — Mayoreo | Zapatillas May",
+    "flats": ("Flats de Dama | Envíos a todo México | Zapatillas May León",
               "Flats y zapatos bajos de dama, cómodos y de moda, fabricados en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México."),
-    "plataformas": ("Plataformas de Dama — Mayoreo y Menudeo | Zapatillas May",
+    "plataformas": ("Plataformas de Dama | Envíos a todo México | Zapatillas May León",
                     "Plataformas de moda para dama hechas en León, Guanajuato. Altura con comodidad, descuento desde 3 pares. Envíos a todo México."),
-    "tenis": ("Tenis de Dama — Mayoreo y Menudeo | Zapatillas May",
+    "tenis": ("Tenis de Dama | Envíos a todo México | Zapatillas May León",
               "Tenis de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares, estilo urbano y deportivo. Envíos a todo México."),
-    "nina": ("Calzado para Niña — Mayoreo y Menudeo | Zapatillas May",
+    "nina": ("Calzado para Niña | Envíos a todo México | Zapatillas May León",
              "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, descuento desde 3 pares. Envíos a todo México."),
-    "accesorios": ("Accesorios — Zapatillas May León, Guanajuato",
+    "accesorios": ("Accesorios de Moda | Envíos a todo México | Zapatillas May León",
                    "Accesorios para complementar tu look en Zapatillas May. Fabricado en León, Guanajuato. Mayoreo y menudeo con envíos a todo México."),
     "mayoreo": ("Calzado de Dama al Mayoreo en León — Fábrica | Zapatillas May",
                 "Fábrica de calzado de dama en León, Guanajuato: mayoreo por corrida, catálogo con fotos y precios para zapaterías y revendedoras. Registro gratis en el Portal de Mayoristas."),
-    "guias": ("Guías de calzado para dama | Zapatillas May — León",
+    "guias": ("Guías de calzado para dama | Zapatillas May",
               "Guías prácticas de Zapatillas May: cómo elegir la altura de tu tacón y cómo comprar calzado al mayoreo directo de fábrica en León, Guanajuato."),
     "guia-tacones-8-vs-10-cm": ("Tacones de 8 cm o de 10 cm: cuál elegir | Zapatillas May",
                                 "Guía para elegir entre tacón de 8 y de 10 cm: comodidad, ocasiones de uso y consejos de talla, con modelos reales fabricados en León, Guanajuato."),
