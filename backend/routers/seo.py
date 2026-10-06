@@ -1891,7 +1891,7 @@ def get_config():
         gcid = os.environ.get("GOOGLE_CLIENT_ID", "")
         if gcid:
             data = list(data) + [{"clave": "google_client_id", "valor": gcid}]
-        cache_set("seo_config", data, ttl=TTL_ESTATICO)
+        cache_set("seo_config", data, ttl=1800)
         return data
     except Exception as e:
         return []
