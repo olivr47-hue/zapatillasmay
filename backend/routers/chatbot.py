@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from telefonos import a_e164_mx
 from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
 from security import limpiar_texto
@@ -2296,7 +2296,7 @@ def listar_chats():
         chats = _nombres_desde_clientes(chats)
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
-            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista,origen")
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista,origen,archivado,archivado_at")
         except Exception:
             try:
                 control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista")
@@ -2319,6 +2319,9 @@ def listar_chats():
         for c in control:
             _k = _alias.get(c['telefono'])
             if _k and _k != c['telefono']:
+                if c.get('archivado') and not chats[_k].get('archivado'):
+                    chats[_k]['archivado'] = True
+                    chats[_k]['archivado_at'] = c.get('archivado_at')
                 for _campo in ('cliente_leyo_at', 'cliente_entrego_at'):
                     if c.get(_campo) and str(c.get(_campo)) > str(chats[_k].get(_campo) or ''):
                         chats[_k][_campo] = c.get(_campo)
@@ -2333,6 +2336,23 @@ def listar_chats():
                 chats[c['telefono']]['estado'] = c.get('estado', 'abierto')
                 chats[c['telefono']]['mayorista'] = c.get('mayorista', False)
                 chats[c['telefono']]['origen'] = c.get('origen')
+                chats[c['telefono']]['archivado'] = bool(c.get('archivado'))
+                chats[c['telefono']]['archivado_at'] = c.get('archivado_at')
+        # un chat archivado vuelve a la lista si la clienta escribió después de archivarlo
+        for _ch in chats.values():
+            if _ch.get('archivado') and _ch.get('archivado_at') and _ch.get('ult_entrante'):
+                try:
+                    import datetime as _dt
+                    _a = _dt.datetime.fromisoformat(str(_ch['archivado_at']).replace('Z', '+00:00'))
+                    _e = _dt.datetime.fromisoformat(str(_ch['ult_entrante']).replace('Z', '+00:00'))
+                    if _a.tzinfo is None:
+                        _a = _a.replace(tzinfo=_dt.timezone.utc)
+                    if _e.tzinfo is None:
+                        _e = _e.replace(tzinfo=_dt.timezone.utc)
+                    if _e > _a:
+                        _ch['archivado'] = False
+                except Exception:
+                    pass
         result = list(chats.values())
         cache_set("chats_lista", result, ttl=20)
         return result
@@ -4482,6 +4502,47 @@ def listar_broadcasts():
 # ═══════════════════════════════════════════════════════════════════
 #  ESTADO DE BANDEJA (abierto / espera / cerrado)
 # ═══════════════════════════════════════════════════════════════════
+
+@router.post("/chats/{telefono}/archivar")
+def archivar_chat(telefono: str, datos: dict):
+    """Oculta (archivar=true) o devuelve (archivar=false) una conversación en la lista. Los mensajes NO se borran; si la clienta
+    vuelve a escribir, el chat reaparece solo."""
+    try:
+        archivar = bool(datos.get("archivar", True))
+        import datetime as _dt
+        ahora = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        cambio = {"archivado": archivar, "archivado_at": ahora if archivar else None}
+        for t in (_variantes_tel(telefono) or [telefono]):
+            existente = supabase_get(f"chats_control?telefono=eq.{t}&select=telefono")
+            if existente:
+                supabase_patch(f"chats_control?telefono=eq.{t}", cambio)
+            elif t == telefono:
+                supabase_post("chats_control", {"telefono": t, "en_control": False, **cambio})
+        cache_invalidate("chats_lista")
+        return {"ok": True, "archivado": archivar}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.delete("/chats/{telefono}")
+def eliminar_chat(telefono: str):
+    """Elimina PARA SIEMPRE todos los mensajes de una conversación (y su control). Solo se permite si el chat ya está archivado
+    (se archiva primero, y recién desde «Archivadas» se elimina). No se puede deshacer."""
+    try:
+        variantes = _variantes_tel(telefono) or [telefono]
+        lista = ",".join(variantes)
+        ctrl = supabase_get(f"chats_control?telefono=in.({lista})&select=telefono,archivado") or []
+        if not any(x.get("archivado") for x in ctrl):
+            return JSONResponse(status_code=409, content={"error": "Primero archiva la conversación; solo se elimina desde «Archivadas»."})
+        borrados = supabase_get(f"conversaciones_whatsapp?telefono=in.({lista})&select=id") or []
+        supabase_delete(f"conversaciones_whatsapp?telefono=in.({lista})")
+        supabase_delete(f"chats_control?telefono=in.({lista})")
+        cache_invalidate("chats_lista")
+        print(f"[chats] conversación {telefono} eliminada ({len(borrados)} mensajes)")
+        return {"ok": True, "mensajes_eliminados": len(borrados)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @router.patch("/chats/{telefono}/estado")
 def cambiar_estado_chat(telefono: str, datos: dict):

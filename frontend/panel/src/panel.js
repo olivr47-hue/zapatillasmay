@@ -16303,6 +16303,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('espera',this)"><span class="wa-estado-dot espera"></span>Espera</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('cerrado',this)"><span class="wa-estado-dot cerrado"></span>Cerrado</button>
+            <button class="wa-estado-tab" onclick="filtrarArchivadasWA(this)" title="Conversaciones ocultas">🗄️ Archivadas</button>
           </div>
           <div class="wa-filters">
             <button onclick="filtrarEtiqueta('')" class="wa-pill activa">Todos</button>
@@ -16532,6 +16533,7 @@ window._aplicarFiltrosWA = () => {
                (!f.etiqueta || (el.dataset.etiqueta || '') === f.etiqueta) &&
                (!f.mayorista || el.dataset.mayorista === '1') &&
                (!f.espera || el.dataset.espera === '1') &&
+               (f.archivadas ? el.dataset.archivado === '1' : el.dataset.archivado !== '1') &&
                (!f.texto || (el.dataset.nombre || '').includes(f.texto) || (el.dataset.tel || '').includes(f.texto))
     el.style.display = ok ? '' : 'none'
   })
@@ -16664,9 +16666,45 @@ window.filtrarEtiqueta = (etiqueta) => {
   window._aplicarFiltrosWA()
 }
 
+window.filtrarArchivadasWA = (btn) => {
+  document.querySelectorAll('#wa-estado-tabs .wa-estado-tab').forEach(b => b.classList.remove('activa'))
+  if (btn) btn.classList.add('activa')
+  window._waFiltros.estado = ''
+  window._waFiltros.archivadas = true
+  window._aplicarFiltrosWA()
+}
+
+// Archivar = ocultar de la lista (los mensajes se conservan; si la clienta escribe de nuevo, reaparece). Eliminar solo desde Archivadas.
+window.archivarChatWA = async (telefono, archivar) => {
+  try {
+    const r = await fetch(API + '/chatbot/chats/' + telefono + '/archivar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivar })
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error) throw new Error(d.error || 'HTTP ' + r.status)
+    await window._recargarChats()
+    window.mostrarToastPanel && window.mostrarToastPanel(archivar ? '🗄️ Conversación archivada (pestaña Archivadas)' : 'Conversación devuelta a la lista')
+    if (archivar) window.volverChats(); else window.abrirChat(telefono)
+  } catch (e) { alert('No se pudo archivar: ' + e.message) }
+}
+window.eliminarChatWA = async (telefono) => {
+  const nombre = (window._chatsData[telefono] && window._chatsData[telefono].nombre) || telefono
+  if (!confirm(`¿Eliminar PARA SIEMPRE la conversación con ${nombre}?\n\nSe borran todos sus mensajes y no se puede deshacer.`)) return
+  try {
+    const r = await fetch(API + '/chatbot/chats/' + telefono, { method: 'DELETE' })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error) throw new Error(d.error || 'HTTP ' + r.status)
+    delete window._chatsData[telefono]
+    await window._recargarChats()
+    window.mostrarToastPanel && window.mostrarToastPanel('Conversación eliminada (' + (d.mensajes_eliminados || 0) + ' mensajes)')
+    window.volverChats()
+  } catch (e) { alert('No se pudo eliminar: ' + e.message) }
+}
+
 window.filtrarEstado = (estado, btn) => {
   document.querySelectorAll('#wa-estado-tabs .wa-estado-tab').forEach(b => b.classList.remove('activa'))
   if (btn) btn.classList.add('activa')
+  window._waFiltros.archivadas = false
   window._waFiltros.estado = estado
   window._aplicarFiltrosWA()
 }
@@ -17602,7 +17640,7 @@ window._htmlChatItems = (chats) => {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); const espera = window._esperaWA(c); return `
-              <div class="wa-chat-item" data-tel="${window._escWA(c.telefono)}" data-nombre="${window._escWA((c.nombre||'').toLowerCase())}" data-etiqueta="${window._escWA(c.etiqueta||'')}" data-estado="${window._escWA(c.estado||'abierto')}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}" data-espera="${espera != null ? '1' : '0'}"
+              <div class="wa-chat-item" data-tel="${window._escWA(c.telefono)}" data-nombre="${window._escWA((c.nombre||'').toLowerCase())}" data-etiqueta="${window._escWA(c.etiqueta||'')}" data-estado="${window._escWA(c.estado||'abierto')}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}" data-espera="${espera != null ? '1' : '0'}" data-archivado="${c.archivado ? '1' : '0'}"
                    onclick="abrirChat('${_ja(c.telefono)}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._escWA(window._letraAvatarWA(c.nombre || c.telefono))}
@@ -17922,6 +17960,10 @@ area.style.minHeight = '0'
       <button id="wa-btn-mayorista" onclick="window.marcarMayoristaWA('${_ja(telefono)}', ${chat.mayorista ? 'false' : 'true'})" class="wa-btn${chat.mayorista ? ' wa-btn-on' : ''}" title="Marcar esta conversación como cliente/lead mayorista, aunque todavía no compre">
         ${chat.mayorista ? '🏢 Mayorista ✓' : '🏢 Marcar mayorista'}
       </button>
+      <button onclick="window.archivarChatWA('${_ja(telefono)}', ${chat.archivado ? 'false' : 'true'})" class="wa-btn" title="${chat.archivado ? 'Devolver esta conversación a la lista' : 'Ocultar esta conversación de la lista (no se borra)'}">
+        ${chat.archivado ? '↩️ Desarchivar' : '🗄️ Archivar'}
+      </button>
+      ${chat.archivado ? `<button onclick="window.eliminarChatWA('${_ja(telefono)}')" class="wa-btn" style="color:#b91c1c;border-color:#fecaca" title="Borra todos los mensajes para siempre">🗑️ Eliminar definitivamente</button>` : ''}
     </div>
 
     <!-- Mensajes -->

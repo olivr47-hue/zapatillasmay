@@ -108,6 +108,7 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
     ("*",   r"/resenas/admin/.*"),
     ("PATCH", r"/sugerencias(/.*)?"),
     ("POST|PATCH|DELETE", r"/catalogos(/.*)?"),
+    ("DELETE", r"/chatbot/chats/[^/]+"),                       # eliminar una conversación para siempre
 )]
 
 
