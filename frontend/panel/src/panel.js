@@ -2583,7 +2583,7 @@ function _renderHistorialOrdenes() {
 // de Análisis (sin header/botón "volver" propios) -- así Análisis puede
 // abrir directo aquí sin esperar el cálculo pesado de Rotación/Tallas/Variantes.
 window._renderHistorialEnAnalisis = async () => {
-  const container = document.getElementById('analisis-tab-content')
+  const container = document.getElementById(window._historialContenedor || 'analisis-tab-content')
   if (!container) return
   container.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
   try {
@@ -2602,7 +2602,7 @@ window._filtrarHistorialAnalisis = (id) => {
 }
 
 function _pintarHistorialEnAnalisis() {
-  const container = document.getElementById('analisis-tab-content')
+  const container = document.getElementById(window._historialContenedor || 'analisis-tab-content')
   if (!container) return
   const todas = window._historialAnalisisData || []
   const filtro = window._historialAnalisisFiltro
@@ -4104,11 +4104,11 @@ async function _cargarDatosAnalisisPesados() {
     // reconstruye toda la página (eso volvería a perder la pestaña
     // Historial que ya estaba mostrándose).
     const kpiEl = (id) => document.getElementById(id)
-    if (kpiEl('kpi-total30')) kpiEl('kpi-total30').textContent = total30
-    if (kpiEl('kpi-total90')) kpiEl('kpi-total90').textContent = total90
-    if (kpiEl('kpi-rotan')) kpiEl('kpi-rotan').textContent = rotan
-    if (kpiEl('kpi-puntuales')) kpiEl('kpi-puntuales').textContent = puntuales
-    if (kpiEl('kpi-muertos')) kpiEl('kpi-muertos').textContent = muertos
+    if (!window._invCache && kpiEl('kpi-total30')) kpiEl('kpi-total30').textContent = total30
+    if (!window._invCache && kpiEl('kpi-total90')) kpiEl('kpi-total90').textContent = total90
+    if (!window._invCache && kpiEl('kpi-rotan')) kpiEl('kpi-rotan').textContent = rotan
+    if (!window._invCache && kpiEl('kpi-puntuales')) kpiEl('kpi-puntuales').textContent = puntuales
+    if (!window._invCache && kpiEl('kpi-muertos')) kpiEl('kpi-muertos').textContent = muertos
 
     const tabContainer = document.getElementById('analisis-tab-content')
     const tabActivo = window._analisisTabActivo
@@ -4176,9 +4176,9 @@ async function cargarAnalisis() {
     </div>
 
     <div style="display:flex;gap:0;margin-bottom:1.25rem;background:#f1f5f9;border-radius:10px;padding:3px;width:fit-content;flex-wrap:wrap">
-      <button id="tab-historial" onclick="switchTabAnalisis('historial')"
+      <button id="tab-resumen" onclick="switchTabAnalisis('resumen')"
         style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:white;color:#E91E8C;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
-        📑 Historial
+        📊 Resumen
       </button>
       <button id="tab-rotacion" onclick="switchTabAnalisis('rotacion')"
         style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
@@ -4194,21 +4194,23 @@ async function cargarAnalisis() {
       </button>
       <button id="tab-ordenes" onclick="switchTabAnalisis('ordenes')"
         style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
-        🛒 Órdenes de compra
+        🛒 Compras
       </button>
     </div>
 
     <div id="analisis-tab-content"><p style="padding:2rem;color:#888">Cargando...</p></div>
   `
 
-  window._analisisTabActivo = 'historial'
+  window._analisisTabActivo = 'resumen'
   window._analisisDatosListos = false
   window._analisisDatosPromise = null
-  await window._renderHistorialEnAnalisis()
+  window._historialContenedor = null
+  window._invCache = null
+  await window._renderResumenAnalisis()
 }
 
 window.switchTabAnalisis = async (tab) => {
-  const tabs = ['historial','rotacion','tallas','variantes','ordenes']
+  const tabs = ['resumen','rotacion','tallas','variantes','ordenes']
   tabs.forEach(t => {
     const btn = document.getElementById('tab-' + t)
     if (!btn) return
@@ -4225,9 +4227,10 @@ window.switchTabAnalisis = async (tab) => {
   const container = document.getElementById('analisis-tab-content')
   if (!container) return
   window._analisisTabActivo = tab
-  if (tab === 'historial') { await window._renderHistorialEnAnalisis(); return }
-  if (tab === 'ordenes') { await cargarOrdenes('analisis-tab-content'); return }
-  if (tab === 'rotacion' || tab === 'tallas' || tab === 'variantes') {
+  if (tab === 'resumen') { await window._renderResumenAnalisis(); return }
+  if (tab === 'rotacion') { await window._renderRotacionRapida(); return }
+  if (tab === 'ordenes') { await window._renderComprasAnalisis(); return }
+  if (tab === 'tallas' || tab === 'variantes') {
     // Rotación/Tallas/Variantes necesitan el cálculo pesado (tablas grandes
     // de movimientos/pedidos) -- solo se dispara aquí, la primera vez que
     // de verdad se pide una de estas pestañas, no al entrar a Análisis.
@@ -4238,16 +4241,166 @@ window.switchTabAnalisis = async (tab) => {
       // el resultado si sigue queriendo ver esta misma pestaña.
       if (window._analisisTabActivo !== tab) return
     }
-    if (tab === 'rotacion') container.innerHTML = window._renderTabRotacion()
-    else if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
+    if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
     else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
   }
+}
+
+// ── Análisis rápido: Resumen en dinero + Rotación + Compras (el cálculo lo hace el servidor) ─────────────────────────────
+window._invCache = null
+const _invJa = (t) => String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+const _inv$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
+const _invEsc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const _INV_SEM = {
+  verde:   { bg:'#dcfce7', color:'#166534', dot:'#16a34a', txt:'Rota bien — pedir' },
+  azul:    { bg:'#dbeafe', color:'#1e40af', dot:'#2563eb', txt:'Rota bien' },
+  amarillo:{ bg:'#fef9c3', color:'#854d0e', dot:'#ca8a04', txt:'Rotación lenta' },
+  morado:  { bg:'#f3e8ff', color:'#6b21a8', dot:'#9333ea', txt:'Venta puntual' },
+  rojo:    { bg:'#fee2e2', color:'#991b1b', dot:'#dc2626', txt:'Sin movimiento' },
+  gris:    { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8', txt:'Sin datos' },
+}
+function _invRecomendacion(m) {
+  const v90 = Number(m.v90 || 0), dias = m.dias == null ? null : Number(m.dias)
+  if (m.semaforo === 'rojo') return 'Sin movimiento en 90 días — revisar'
+  if (m.semaforo === 'morado') return `${v90} pares en 1 sola venta — no es rotación`
+  if (m.semaforo === 'verde') return (dias !== null && dias <= 21) ? `Rota bien y se agota en ${dias}d — pedir ahora` : 'Ya se agotó una talla/color que sí se vende — pedir ahora'
+  if (m.semaforo === 'azul') return dias !== null ? `Rota bien, alcanza para ${dias}d — no urge pedir` : 'Rota bien, aún con stock'
+  if (m.semaforo === 'amarillo') return 'Rotación lenta'
+  return 'Sin ventas recientes'
+}
+window._cargarInventarioRapido = async (forzar) => {
+  const c = window._invCache
+  if (!forzar && c && Date.now() - c.t < 120000) return c.data
+  const r = await fetch(API + '/finanzas/analisis-inventario')
+  const d = await r.json()
+  if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status))
+  window._invCache = { t: Date.now(), data: d }
+  const q = d.resumen || {}
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
+  set('kpi-total30', q.pares_30 ?? 0); set('kpi-total90', q.pares_90 ?? 0); set('kpi-rotan', q.rotan ?? 0)
+  set('kpi-puntuales', q.puntuales ?? 0); set('kpi-muertos', q.modelos_parados ?? 0)
+  return d
+}
+
+window._renderResumenAnalisis = async () => {
+  const cont = document.getElementById('analisis-tab-content'); if (!cont) return
+  cont.innerHTML = '<p style="padding:2rem;color:#888">Calculando inventario…</p>'
+  let d
+  try { d = await window._cargarInventarioRapido() } catch (e) { cont.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo calcular: ${_invEsc(e.message)}</p>`; return }
+  if (window._analisisTabActivo !== 'resumen') return
+  const q = d.resumen || {}, modelos = d.modelos || []
+  const pctParado = q.capital_costo > 0 ? Math.round(q.capital_parado / q.capital_costo * 100) : 0
+  const meses = q.cobertura_dias ? (q.cobertura_dias / 30).toFixed(1) : null
+  const tarjeta = (titulo, valor, sub, bg, bd, col) => `<div style="background:${bg};border:1px solid ${bd};border-radius:14px;padding:1rem 1.1rem">
+      <p style="font-size:0.67rem;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px">${titulo}</p>
+      <p style="font-size:1.45rem;font-weight:800;color:${col};line-height:1.1;margin:0 0 3px">${valor}</p>
+      <p style="font-size:0.72rem;color:#64748b;margin:0">${sub}</p></div>`
+  const pedir = modelos.filter(m => m.semaforo === 'verde').slice(0, 10)
+  const parados = modelos.filter(m => m.semaforo === 'rojo').map(m => ({ ...m, cap: Number(m.stock) * Number(m.costo) })).sort((a, b) => b.cap - a.cap).slice(0, 10)
+  const fila = (m, extra) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f1f5f9">
+      ${m.imagen_principal ? `<img src="${_invEsc(_thumbProd(m.imagen_principal))}" loading="lazy" style="width:38px;height:38px;object-fit:contain;border-radius:6px;background:#f8fafc;flex-shrink:0">` : '<div style="width:38px;height:38px;border-radius:6px;background:#f8fafc;flex-shrink:0"></div>'}
+      <div style="flex:1;min-width:0"><p style="margin:0;font-size:0.8rem;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_invEsc(m.nombre)}</p>
+        <p style="margin:0;font-size:0.7rem;color:#94a3b8">${_invEsc(m.sku_interno || '')} · ${m.stock} pares en stock</p></div>${extra}</div>`
+  cont.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:1.25rem">
+      ${tarjeta('Capital en inventario', _inv$(q.capital_costo), `${q.pares_stock} pares · ${q.modelos_con_stock} modelos (a costo)`, '#f0f9ff', '#bae6fd', '#0369a1')}
+      ${tarjeta('Dinero parado', _inv$(q.capital_parado), `${pctParado}% del capital · ${q.modelos_parados} modelos / ${q.pares_parados} pares sin venta en 90 días`, '#fff1f2', '#fecdd3', '#be123c')}
+      ${tarjeta('Cobertura', q.cobertura_dias ? `${q.cobertura_dias} días` : '—', meses ? `≈ ${meses} meses al ritmo de 90 días` : 'sin ventas recientes', '#faf5ff', '#e9d5ff', '#7e22ce')}
+      ${tarjeta('Pedir ahora', `${q.pedir_ahora} modelos`, 'rotan bien y se agotan pronto o les falta una talla que sí se vende', '#f0fdf4', '#bbf7d0', '#15803d')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px">
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px">
+        <p style="margin:0 0 4px;font-weight:800;font-size:0.9rem;color:#166534">🟢 Pedir ahora (los que más se venden)</p>
+        <p style="margin:0 0 6px;font-size:0.72rem;color:#94a3b8">Solo modelos con al menos 3 pares vendidos en 90 días.</p>
+        ${pedir.map(m => fila(m, `<div style="text-align:right;flex-shrink:0"><p style="margin:0;font-size:0.78rem;font-weight:800;color:#0f172a">${m.v30} <span style="font-weight:500;color:#94a3b8">/30d</span></p>
+          <button onclick="irAPedirOrden('${_invJa(m.nombre)}')" style="margin-top:3px;font-size:0.66rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:2px 8px;cursor:pointer">Ir a pedir</button></div>`)).join('') || '<p style="font-size:0.8rem;color:#94a3b8">Nada urgente por pedir.</p>'}
+      </div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px">
+        <p style="margin:0 0 4px;font-weight:800;font-size:0.9rem;color:#b91c1c">🔴 Dinero parado (mayor capital primero)</p>
+        <p style="margin:0 0 6px;font-size:0.72rem;color:#94a3b8">Sin una sola venta en 90 días. Ideas: oferta, empujarlos en el portal de mayoristas o liquidar.</p>
+        ${parados.map(m => fila(m, `<div style="text-align:right;flex-shrink:0"><p style="margin:0;font-size:0.82rem;font-weight:800;color:#b91c1c">${_inv$(m.cap)}</p><p style="margin:0;font-size:0.66rem;color:#94a3b8">a costo</p></div>`)).join('') || '<p style="font-size:0.8rem;color:#94a3b8">No hay inventario parado.</p>'}
+      </div>
+    </div>
+    <p style="margin:14px 0 0;font-size:0.7rem;color:#94a3b8;line-height:1.5">Cálculo en el servidor con las ventas de los últimos 90 días de todos los canales (tienda, mostrador y marketplaces) y el inventario de todas las sucursales. Se actualiza cada 2 minutos.
+      <button onclick="window._invCache=null;window._renderResumenAnalisis()" style="margin-left:6px;font-size:0.7rem;border:1px solid #e2e8f0;background:white;border-radius:6px;padding:2px 8px;cursor:pointer">↻ Actualizar</button></p>`
+}
+
+window._renderRotacionRapida = async () => {
+  const cont = document.getElementById('analisis-tab-content'); if (!cont) return
+  cont.innerHTML = '<p style="padding:2rem;color:#888">Calculando rotación…</p>'
+  let d
+  try { d = await window._cargarInventarioRapido() } catch (e) { cont.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo calcular: ${_invEsc(e.message)}</p>`; return }
+  if (window._analisisTabActivo !== 'rotacion') return
+  const modelos = d.modelos || []
+  const maxD30 = Math.max(...modelos.map(x => Number(x.v30)), 1)
+  const miniBar = (val, max, color) => { const pct = max > 0 ? Math.round(val / max * 100) : 0
+    return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px"></div></div><span style="font-size:0.7rem;font-weight:700;color:#334155;min-width:22px;text-align:right">${val}</span></div>` }
+  cont.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <input id="rotacion-buscar" class="form-input" placeholder="Buscar modelo o SKU..." style="max-width:260px;font-size:0.82rem" oninput="window.filtrarRotacionTexto(this.value)">
+      <span id="rotacion-contador" style="font-size:0.75rem;color:#94a3b8">${modelos.length} modelos</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="pill-filter pill-active" onclick="filtrarRotacion('todos')">Todos</button>
+      <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Pedir ahora</button>
+      <button class="pill-filter" style="background:#dbeafe;border-color:#93c5fd;color:#1e40af" onclick="filtrarRotacion('azul')">Rotan bien</button>
+      <button class="pill-filter pill-warning" onclick="filtrarRotacion('amarillo')">Lentos</button>
+      <button class="pill-filter" style="background:#f3e8ff;border-color:#d8b4fe;color:#6b21a8" onclick="filtrarRotacion('morado')">Venta puntual</button>
+      <button class="pill-filter pill-danger" onclick="filtrarRotacion('rojo')">Sin movimiento</button>
+    </div>
+    <p style="margin:0 0 12px;font-size:0.72rem;color:#94a3b8">«Pedir ahora» solo aparece en modelos que de verdad se venden: al menos 2 ventas distintas y 3 pares en 90 días.</p>
+    <div id="rotacion-lista" style="display:flex;flex-direction:column;gap:8px">
+      ${modelos.map(m => { const s = _INV_SEM[m.semaforo] || _INV_SEM.gris; const sem = (Number(m.v30) / 4)
+        return `<div class="rotacion-item" data-semaforo="${m.semaforo}" data-nombre="${_invEsc((m.nombre || '').toLowerCase())}" data-sku="${_invEsc((m.sku_interno || '').toLowerCase())}"
+             style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          ${m.imagen_principal ? `<img src="${_invEsc(_thumbProd(m.imagen_principal))}" loading="lazy" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">` : '<div style="width:48px;height:48px;background:#f8fafc;border-radius:8px;flex-shrink:0"></div>'}
+          <div style="flex:1;min-width:130px">
+            <p style="font-weight:700;font-size:0.88rem;color:#0f172a;margin:0 0 2px">${_invEsc(m.nombre)}</p>
+            <p style="font-size:0.72rem;color:#94a3b8;margin:0 0 6px">${_invEsc(m.sku_interno || '')} · ${m.stock} pares en stock · ${_inv$(Number(m.stock) * Number(m.costo))} a costo</p>
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:${s.bg};color:${s.color}"><span style="width:6px;height:6px;border-radius:50%;background:${s.dot}"></span>${s.txt}</span>
+          </div>
+          <div style="min-width:160px;flex:1">
+            <p style="font-size:0.67rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px">Ventas últimos 30 días</p>
+            ${miniBar(Number(m.v30), maxD30, '#E91E8C')}
+            <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
+              <span style="font-size:0.7rem;color:#64748b">60d: <strong>${m.v60}</strong></span><span style="font-size:0.7rem;color:#64748b">90d: <strong>${m.v90}</strong></span><span style="font-size:0.7rem;color:#64748b">${sem.toFixed(1)} /sem</span></div>
+            <p style="font-size:0.68rem;color:#94a3b8;margin:4px 0 0">${m.eventos90 === 0 ? 'Sin ventas en 90d' : `<span onclick="window._verDetalleRapido('${m.id}')" style="cursor:pointer;text-decoration:underline dotted" title="Ver el desglose de ventas de este modelo">${m.eventos90} venta${m.eventos90 === 1 ? '' : 's'} distinta${m.eventos90 === 1 ? '' : 's'} en 90d</span>`}</p>
+          </div>
+          <div style="text-align:right;min-width:100px">
+            ${m.dias ? `<p style="font-size:1rem;font-weight:800;margin:0;color:${m.dias < 14 ? '#dc2626' : m.dias < 30 ? '#ca8a04' : '#16a34a'}">${m.dias}d</p><p style="font-size:0.67rem;color:#94a3b8;margin:0">stock restante</p>` : '<p style="font-size:0.72rem;color:#94a3b8;margin:0">Sin ventas</p>'}
+            <p style="font-size:0.67rem;color:#64748b;margin:3px 0 0">${_invRecomendacion(m)}</p>
+            ${m.semaforo === 'verde' ? `<button onclick="irAPedirOrden('${_invJa(m.nombre)}')" style="margin-top:5px;font-size:0.67rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:3px 9px;cursor:pointer">Ir a pedir →</button>` : ''}
+          </div>
+        </div>` }).join('')}
+    </div>`
+}
+
+// El desglose por pedido de un modelo necesita el cálculo pesado: se hace solo cuando de verdad se pide ver un detalle.
+window._verDetalleRapido = async (id) => {
+  const cont = document.getElementById('analisis-tab-content')
+  if (!window._analisisDatosListos) {
+    if (cont) cont.innerHTML = '<p style="padding:2rem;color:#888">Cargando el detalle de ventas… puede tardar unos segundos</p>'
+    await _asegurarDatosAnalisisPesados()
+  }
+  window.verDetalleProducto(id)
+}
+
+// Compras = lo que hay que pedir (sugerencias) + lo que ya se pidió (historial de órdenes), juntos
+window._renderComprasAnalisis = async () => {
+  const cont = document.getElementById('analisis-tab-content'); if (!cont) return
+  cont.innerHTML = `<div id="compras-sugeridas"></div>
+    <div style="margin-top:2rem"><h3 style="font-size:1rem;font-weight:800;margin:0 0 4px">📑 Historial de órdenes de compra</h3>
+    <p style="margin:0 0 10px;font-size:0.75rem;color:#94a3b8">Lo que ya se pidió a proveedores (borradores, recibidas por pagar, pagadas y canceladas).</p>
+    <div id="compras-historial"></div></div>`
+  await cargarOrdenes('compras-sugeridas')
+  window._historialContenedor = 'compras-historial'
+  await window._renderHistorialEnAnalisis()
 }
 
 window.verDetalleProducto = (productoId) => {
   const container = document.getElementById('analisis-tab-content')
   if (!container || !window._renderDetalleProducto) return
-  ;['historial','rotacion','tallas','variantes','ordenes'].forEach(t => {
+  ;['resumen','rotacion','tallas','variantes','ordenes'].forEach(t => {
     const btn = document.getElementById('tab-' + t)
     if (btn) { btn.style.background = 'transparent'; btn.style.color = '#64748b'; btn.style.boxShadow = 'none' }
   })

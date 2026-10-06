@@ -786,6 +786,26 @@ def valor_inventario():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ─── SUGERENCIAS DE RECOMPRA ──────────────────────
+_CACHE_ANALISIS_INV = {"t": 0, "data": None}
+
+
+@router.get("/analisis-inventario")
+def analisis_inventario():
+    """Resumen de inventario en dinero + rotación por modelo, calculado en la base de datos (función SQL analisis_inventario).
+    Antes Análisis bajaba productos, variantes, movimientos, inventario y pedidos al navegador y calculaba ahí (muy lento).
+    Se guarda 2 minutos en memoria."""
+    import time as _t
+    from database import supabase_rpc
+    try:
+        if _CACHE_ANALISIS_INV["data"] is not None and _t.time() - _CACHE_ANALISIS_INV["t"] < 120:
+            return _CACHE_ANALISIS_INV["data"]
+        data = supabase_rpc("analisis_inventario", {})
+        _CACHE_ANALISIS_INV.update({"t": _t.time(), "data": data})
+        return data
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:300]})
+
+
 # Reglas de «qué pedir» (antes cualquier talla/color en cero marcaba el modelo como URGENTE aunque casi no se hubiera vendido nunca,
 # y la cantidad sugerida era como mínimo 6 pares): ahora solo se sugiere lo que de verdad rota.
 _RECOMPRA_MIN_VENTAS_90 = 3        # pares vendidos en 90 días para considerar que un modelo «rota»
