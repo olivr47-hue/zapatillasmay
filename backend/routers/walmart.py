@@ -1305,7 +1305,8 @@ def datetime_now_str() -> str:
 @router.post("/feed/subir")
 def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
                 titulo: str = None, precio: float = None, excluir_sku_walmart: str = None,
-                precio_walmart: float = None, solo_con_stock: bool = False, min_fotos: int = 0):
+                precio_walmart: float = None, solo_con_stock: bool = False, min_fotos: int = 0,
+                solo_sku: str = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -1334,6 +1335,12 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
             # Copias: items viene de una caché de 30 min; antes se mutaba y el
             # título/precio de una publicación se le quedaban pegados al siguiente.
             items = [{**it, "producto": producto_override} for it in items]
+    if solo_sku:
+        # Una sola variante (talla+color): cuenta 1 SKU contra el límite de Walmart.
+        # Es la primaria de su grupo porque va sola.
+        items = [{**it, "es_primaria": True} for it in items if it["variante"].get("sku") == solo_sku]
+        if not items:
+            raise HTTPException(404, f"No se encontró la variante '{solo_sku}' entre las publicables")
     if excluir_sku_walmart:
         excluir = {s.strip() for s in excluir_sku_walmart.split(",") if s.strip()}
         items = [it for it in items if it["variante"].get("sku_walmart") not in excluir]
