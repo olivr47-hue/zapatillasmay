@@ -442,7 +442,11 @@ if (!window.fbq){
           </div>`
         return
       }
-      grid.innerHTML = catalogos.map(c => `
+      window._listaCatalogos = catalogos
+      if (new URLSearchParams(location.search).has('descargar') && !document.getElementById('aviso-descargar')) {
+        grid.insertAdjacentHTML('beforebegin', '<p id="aviso-descargar" style="text-align:center;margin:0 auto 18px;max-width:560px;font-size:0.9rem;color:#6b5648;background:#F5ECE2;border-radius:10px;padding:10px 14px">Elige el catálogo y toca <b>📥 Descargar PDF</b> para guardarlo en tu teléfono o computadora.</p>')
+      }
+      grid.innerHTML = catalogos.map((c, i) => `
         <div class="catalogo-card" onclick="abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\'")}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\\\'")}')">
           ${c.portada_url
             ? `<img class="catalogo-cover" src="${c.portada_url}" alt="${c.nombre}" width="300" height="400" loading="lazy">`
@@ -451,6 +455,7 @@ if (!window.fbq){
             ${c.temporada ? `<div class="catalogo-temporada">${c.temporada}</div>` : ''}
             <div class="catalogo-nombre">${c.nombre}</div>
             <button class="btn-ver">Ver catálogo →</button>
+            <button class="btn-ver" style="margin-top:8px;background:transparent;color:var(--pink);border:1px solid var(--pink)" onclick="event.stopPropagation();descargarCatalogoPDF(${i}, this)">📥 Descargar PDF</button>
           </div>
         </div>`).join('')
     } catch (e) {
@@ -695,6 +700,23 @@ if (!window.fbq){
   })
 
   // ── DESCARGAR PDF ─────────────────────────────────────────
+
+  // Descarga el PDF de un catálogo desde la lista (sin tener que abrirlo): carga sus páginas, arma el PDF y cierra el visor
+  async function descargarCatalogoPDF(i, btn) {
+    const c = (window._listaCatalogos || [])[i]
+    if (!c) return
+    const texto = btn ? btn.textContent : ''
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando…' }
+    try {
+      await abrirCatalogo(c.id, c.nombre || '')
+      await descargarPDF()
+    } catch (e) {
+      alert('No se pudo preparar el PDF. Intenta de nuevo.')
+    } finally {
+      try { cerrarFlipbook() } catch (e) {}
+      if (btn) { btn.disabled = false; btn.textContent = texto }
+    }
+  }
 
   async function descargarPDF() {
     if (!_paginas.length) return
