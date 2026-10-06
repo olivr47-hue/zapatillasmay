@@ -140,8 +140,9 @@ _CACHE_META_ID = {}
 
 
 def _ig_producto_meta(cuentas, producto_id):
-    """product_id del catálogo de Meta para etiquetar un modelo en Instagram. El feed manda un artículo por variante (g:id = id de la
-    variante), así que se busca en el catálogo por el id de alguna variante del modelo. Devuelve (product_id, motivo_si_no)."""
+    """product_id del catálogo de Meta para etiquetar un modelo en Instagram. El feed manda un artículo por variante cuyo id
+    (retailer_id) es «SKU_INTERNO-COLOR-TALLA» (ej. C-TAC-0328-ROJO_MIRANDA-24.5), NO el id interno de la variante; por eso se
+    busca por el SKU del modelo y se toma cualquier artículo cuyo retailer_id empiece con «SKU-». Devuelve (product_id, motivo_si_no)."""
     ig = cuentas.get("ig_id")
     if not ig or not producto_id:
         return None, "sin cuenta de Instagram o sin modelo"
@@ -152,15 +153,16 @@ def _ig_producto_meta(cuentas, producto_id):
         if not cats:
             return None, "Instagram no tiene un catálogo/tienda conectado a esta cuenta"
         catalogo = cats[0].get("catalog_id")
-        variantes = supabase_get(f"variantes?producto_id=eq.{urllib.parse.quote(str(producto_id), safe='')}&activa=eq.true&select=id&limit=6") or []
-        for v in variantes:
-            vid = str(v.get("id"))
-            r = _graph(f"{ig}/catalog_product_search?catalog_id={catalogo}&q={urllib.parse.quote(vid)}&limit=5").get("data") or []
-            for it in r:
-                if str(it.get("retailer_id")) == vid and it.get("product_id"):
-                    _CACHE_META_ID[producto_id] = str(it["product_id"])
-                    return _CACHE_META_ID[producto_id], ""
-        return None, "no se encontró este modelo en tu catálogo de Meta (puede que aún no se haya sincronizado el feed)"
+        fila = (supabase_get(f"productos?id=eq.{urllib.parse.quote(str(producto_id), safe='')}&select=sku_interno,nombre&limit=1") or [{}])[0]
+        sku = (fila.get("sku_interno") or "").strip()
+        if not sku:
+            return None, "el modelo no tiene SKU interno para buscarlo en el catálogo"
+        r = _graph(f"{ig}/catalog_product_search?catalog_id={catalogo}&q={urllib.parse.quote(sku)}&limit=50").get("data") or []
+        for it in r:
+            if str(it.get("retailer_id") or "").startswith(sku + "-") and it.get("product_id"):
+                _CACHE_META_ID[producto_id] = str(it["product_id"])
+                return _CACHE_META_ID[producto_id], ""
+        return None, f"no se encontró el modelo {sku} en tu catálogo de Meta (puede que aún no se haya sincronizado el feed)"
     except _GraphError as e:
         return None, _explicar_etiqueta(e)
 
