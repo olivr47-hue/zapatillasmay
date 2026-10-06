@@ -284,7 +284,7 @@ def enviar_correo(para: str, asunto: str, html: str, cc: str = "", responder_a_m
     """Manda un correo real desde contacto@zapatillasmay.mx vía Zoho Mail API
     (aparece en la carpeta Sent del buzón real y permite responder hilos)."""
     payload = {
-        "fromAddress": "contacto@zapatillasmay.mx",
+        "fromAddress": "Zapatillas May <contacto@zapatillasmay.mx>",
         "toAddress": para,
         "subject": asunto,
         "content": html,
