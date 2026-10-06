@@ -2115,6 +2115,60 @@ def _chats_desde_mensajes_legado() -> dict:
     return chats
 
 
+def _variantes_tel(telefono) -> list:
+    """Las formas en que puede estar guardado el mismo número de México: 10 dígitos, 52+10 y 521+10 (WhatsApp usa una u otra
+    según el mensaje: las plantillas se guardaban como 52+10 y las respuestas de la clienta llegan como 521+10, y por eso una
+    misma persona aparecía en dos conversaciones)."""
+    d = "".join(ch for ch in str(telefono or "") if ch.isdigit())
+    if len(d) < 10:
+        return [d] if d else []
+    t10 = d[-10:]
+    base = d[:-10]
+    if base in ("", "52", "521"):
+        return [t10, "52" + t10, "521" + t10]
+    return [d]
+
+
+def _unir_chats_duplicados(chats: dict) -> dict:
+    """Junta en un solo chat los que son del mismo número (misma clienta con 52… y 521…). El chat que se conserva es el
+    que tiene mensajes entrantes (el de 521…); el otro se suma como alias para leer su historial."""
+    grupos = {}
+    for tel, ch in chats.items():
+        v = _variantes_tel(tel)
+        clave = v[0] if (len(v) == 3) else tel
+        grupos.setdefault(clave, []).append(tel)
+    salida = {}
+    for clave, tels in grupos.items():
+        if len(tels) == 1:
+            salida[tels[0]] = chats[tels[0]]
+            continue
+        # canónico: el que tiene entrantes; si hay empate, el que empieza con 521
+        tels.sort(key=lambda t: (0 if chats[t].get("ult_entrante") else 1, 0 if str(t).startswith("521") else 1))
+        canon = tels[0]
+        base = dict(chats[canon])
+        msgs, vistos = [], set()
+        for t in tels:
+            for m in (chats[t].get("mensajes") or []):
+                k = m.get("wa_message_id") or m.get("id") or ((m.get("created_at") or "") + (m.get("mensaje") or ""))
+                if k in vistos:
+                    continue
+                vistos.add(k)
+                msgs.append(m)
+        msgs.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+        base["mensajes"] = msgs[:8]
+        base["no_leidos"] = sum((chats[t].get("no_leidos") or 0) for t in tels)
+        for campo in ("ult_entrante", "ult_saliente", "ultimo_mensaje"):
+            vals = [chats[t].get(campo) for t in tels if chats[t].get(campo)]
+            if vals:
+                base[campo] = max(vals, key=lambda x: str(x))
+        nombres = [chats[t].get("nombre") for t in tels if chats[t].get("nombre") and not str(chats[t].get("nombre")).isdigit()]
+        if nombres:
+            base["nombre"] = nombres[0]
+        base["telefonos_alias"] = [t for t in tels if t != canon]
+        salida[canon] = base
+    return salida
+
+
 @router.get("/chats")
 def listar_chats():
     # Caché 20s — el frontend poll cada 30s, así casi siempre lo sirve de memoria
@@ -2147,6 +2201,7 @@ def listar_chats():
         except Exception as e_rpc:
             print(f"[chats] RPC chats_lista no disponible, uso el método anterior: {e_rpc}")
             chats = _chats_desde_mensajes_legado()
+        chats = _unir_chats_duplicados(chats)
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
             control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista,origen")
@@ -2163,7 +2218,19 @@ def listar_chats():
                     control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
                 except Exception:
                     control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
+        # el control de un número se busca en todas sus variantes (los avisos de entregado/leído llegan con 521…)
+        _alias = {}
+        for _canon, _ch in chats.items():
+            for _t in [_canon] + (_ch.get("telefonos_alias") or []):
+                _alias[_t] = _canon
+        control = sorted(control or [], key=lambda x: 1 if x.get('telefono') in chats else 0)   # el del chat canónico se aplica al final
         for c in control:
+            _k = _alias.get(c['telefono'])
+            if _k and _k != c['telefono']:
+                for _campo in ('cliente_leyo_at', 'cliente_entrego_at'):
+                    if c.get(_campo) and str(c.get(_campo)) > str(chats[_k].get(_campo) or ''):
+                        chats[_k][_campo] = c.get(_campo)
+                continue
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
                 chats[c['telefono']]['agente'] = c.get('agente')
@@ -2184,9 +2251,10 @@ def listar_chats():
 def listar_mensajes_chat(telefono: str):
     """Historial individual de un chat (últimos 150 mensajes, con media_url)."""
     try:
+        _vars = _variantes_tel(telefono) or [telefono]
         msgs = supabase_get(
             f"conversaciones_whatsapp"
-            f"?telefono=eq.{telefono}"
+            f"?telefono=in.({','.join(_vars)})"
             f"&order=created_at.desc"
             f"&limit=150"
             f"&select=id,telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url"
