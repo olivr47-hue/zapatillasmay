@@ -18,6 +18,12 @@
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      // Dispositivo interno: abrir una vez portal.zapatillasmay.mx/?interno=1 (quitar con ?interno=0); ese navegador no cuenta visitas.
+      try {
+        var _q = new URLSearchParams(location.search)
+        if (_q.has('interno')) { if (_q.get('interno') === '0') localStorage.removeItem('zm_interno'); else localStorage.setItem('zm_interno', '1') }
+        if (localStorage.getItem('zm_interno') === '1') { window.__zmInterno = true; window['ga-disable-G-QX8MK3D4RY'] = true }
+      } catch (e) {}
     </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
   </head>

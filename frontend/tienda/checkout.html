@@ -1136,7 +1136,7 @@ function dispararInitiateCheckout() {
   if (typeof gtag === 'function') gtag('event','begin_checkout',{ currency:'MXN', value: valor })
   // Meta CAPI (server-side) — el backend extrae la IP real del request
   try {
-    fetch(`${API}/pagos/meta/evento`, {
+    zmFetchEvento(`${API}/pagos/meta/evento`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event_name:        'InitiateCheckout',

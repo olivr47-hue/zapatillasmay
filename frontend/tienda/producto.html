@@ -1369,7 +1369,7 @@ function irACarrito() {
   // Meta CAPI: AddToCart server-side
   try {
     const _usuarioProd = (() => { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } })()
-    fetch(API + '/pagos/meta/evento', {
+    zmFetchEvento(API + '/pagos/meta/evento', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event_name: 'AddToCart', event_source_url: location.href,
@@ -1646,7 +1646,7 @@ async function cargarConfig() {
     } else if (!localStorage.getItem('zm_consent')) {
       setTimeout(() => { const b = document.getElementById('cookie-banner'); if(b) b.style.display = 'flex' }, 800)
     }
-    if (config.google_tag_manager) {
+    if (config.google_tag_manager && !window.__zmInterno) {
       const s = document.createElement('script')
       s.textContent = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${config.google_tag_manager}');`
       document.head.appendChild(s)

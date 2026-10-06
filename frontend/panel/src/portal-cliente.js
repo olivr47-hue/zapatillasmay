@@ -167,7 +167,7 @@ export function renderPortalCliente(sesionData) {
 // bundle) nunca se mezcle con las métricas de las clientas.
 let _pcAnalyticsInit = false
 function _pcInitAnalytics() {
-  if (_pcAnalyticsInit || typeof gtag !== 'function') return
+  if (_pcAnalyticsInit || typeof gtag !== 'function' || window.__zmInterno) return
   _pcAnalyticsInit = true
   try {
     gtag('js', new Date())

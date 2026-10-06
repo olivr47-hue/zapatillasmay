@@ -1,3 +1,32 @@
+// ── Dispositivo interno (del negocio) ───────────────────────────────────────────
+// Abrir una vez en cada computadora/celular del negocio:  zapatillasmay.mx/?interno=1   (quitar: ?interno=0).
+// Ese navegador queda marcado y NO manda visitas ni eventos a Google Analytics, Meta (Pixel y API de conversiones),
+// TikTok, Pinterest ni Tag Manager. Las ventas reales no se afectan: la compra se registra en el servidor.
+;(function () {
+  try {
+    var q = new URLSearchParams(location.search)
+    if (q.has('interno')) {
+      if (q.get('interno') === '0') localStorage.removeItem('zm_interno')
+      else localStorage.setItem('zm_interno', '1')
+    }
+    window.zmFetchEvento = function (u, o) { return window.__zmInterno ? Promise.resolve() : fetch(u, o) }
+    if (localStorage.getItem('zm_interno') !== '1') return
+    window.__zmInterno = true
+    window['ga-disable-G-QX8MK3D4RY'] = true                       // Google Analytics 4
+    var noop = function () {}
+    window.fbq = noop; window.fbq.queue = []; window._fbq = window.fbq   // el Pixel de Meta ya no se carga
+    window.pintrk = noop                                            // Pinterest
+    var tt = {}; ;['page','track','identify','instances','debug','on','off','once','ready','alias','group','enableCookie','load'].forEach(function (m) { tt[m] = noop })
+    window.ttq = tt                                                  // TikTok
+    document.addEventListener('DOMContentLoaded', function () {
+      var b = document.createElement('div')
+      b.textContent = '🔒 Dispositivo interno: tus visitas no se cuentan'
+      b.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483000;background:#1f2937;color:#fff;font:600 11px/1.2 system-ui,sans-serif;padding:6px 10px;border-radius:999px;opacity:.85;pointer-events:none'
+      document.body.appendChild(b)
+    })
+  } catch (e) {}
+})()
+
 // Captura de atribución (gclid, fbclid, UTMs, referrer externo) en localStorage.
 // Se incluye en TODAS las páginas de entrada del sitio porque un clic de
 // anuncio puede aterrizar en cualquiera de ellas (home, ficha de producto,
