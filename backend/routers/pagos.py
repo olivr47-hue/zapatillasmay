@@ -854,7 +854,7 @@ async def webhook_mercadopago(request: Request):
                             reclamado = supabase_patch(
                                 f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
                                 {
-                                    "status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma,
+                                    "status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma, "oculto": False,
                                     "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
                                 }
                             )

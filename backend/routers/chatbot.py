@@ -639,6 +639,28 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         total      = precio + envio
         notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
 
+        # 0. Idempotencia: si ya se generó un link para este mismo número y total en los últimos 30 min y sigue sin pagarse,
+        #    se devuelve ESE link en vez de crear otro pedido (antes cada clic en «Generar link» creaba un pedido nuevo: Michelle
+        #    quedó con 3 pedidos iguales).
+        try:
+            import datetime as _dt
+            _desde = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            _t10 = _tel10(telefono)
+            _mp_tok = os.environ.get("MP_ACCESS_TOKEN", "")
+            if _t10 and _mp_tok:
+                _prev = supabase_get(
+                    f"pedidos?canal=eq.whatsapp&status=in.(pendiente_pago,checkout_iniciado)&total=eq.{total:.2f}"
+                    f"&created_at=gte.{_desde}&telefono_cliente=like.*{_t10}&mp_preference_id=not.is.null"
+                    f"&order=created_at.desc&limit=1&select=id,mp_preference_id") or []
+                if _prev:
+                    _pref = mercadopago.SDK(_mp_tok).preference().get(_prev[0]["mp_preference_id"])
+                    _ip = ((_pref or {}).get("response") or {}).get("init_point")
+                    if _ip:
+                        print(f"[link-pago] se reutiliza el pedido {_prev[0]['id']} (mismo número y total en los últimos 30 min)")
+                        return _ip, total, _prev[0]["id"], []
+        except Exception as _e_idem:
+            print(f"[link-pago] no se pudo revisar si ya existía el link, se crea uno nuevo: {_e_idem}")
+
         # 1. Crear pedido en Supabase
         try:
             pedido_db = supabase_post("pedidos", {
