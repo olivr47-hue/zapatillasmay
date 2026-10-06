@@ -2122,6 +2122,7 @@ def _chats_desde_mensajes_legado() -> dict:
 
 
 _MOTIVOS_FALLO_WA = {
+    131042: "La cuenta de WhatsApp Business no tiene método de pago: Meta no entrega las plantillas hasta que se agregue uno (Meta Business → Facturación → Agregar método de pago).",
     131049: "WhatsApp decidió no entregar este mensaje de plantilla (protege a las clientas de mensajes promocionales que no pidieron: suele pasar si ella no ha escrito en mucho tiempo). Pídele que te escriba y vuelve a intentar.",
     131026: "El número no tiene WhatsApp, no está disponible o no aceptó los términos de WhatsApp.",
     131047: "Pasaron más de 24 h desde su último mensaje: solo se puede mandar una plantilla aprobada.",
