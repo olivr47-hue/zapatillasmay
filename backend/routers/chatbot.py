@@ -2191,6 +2191,35 @@ def _variantes_tel(telefono) -> list:
     return [d]
 
 
+def _nombres_desde_clientes(chats: dict) -> dict:
+    """A los chats que solo muestran el número (WhatsApp no mandó nombre de perfil) se les pone el nombre del cliente dado de alta
+    con ese mismo teléfono (se compara por los últimos 10 dígitos, sin importar cómo esté escrito). No modifica la base de datos."""
+    pendientes = {}
+    for tel, ch in chats.items():
+        nom = str(ch.get("nombre") or "").strip()
+        if not nom or nom.isdigit() or nom == str(tel):
+            pendientes[_tel10(tel)] = tel
+    if not pendientes:
+        return chats
+    mapa = cache_get("clientes_tel_nombre")
+    if mapa is None:
+        mapa = {}
+        try:
+            for cli in (supabase_get_all("clientes?select=nombre,telefono&order=id.asc") or []):
+                t10 = _tel10(cli.get("telefono"))
+                nom = (cli.get("nombre") or "").strip()
+                if len(t10) == 10 and nom and t10 not in mapa:
+                    mapa[t10] = nom
+        except Exception as e:
+            print(f"[chats] no se pudieron leer los clientes para poner nombres: {e}")
+        cache_set("clientes_tel_nombre", mapa, ttl=600)
+    for t10, tel in pendientes.items():
+        if mapa.get(t10):
+            chats[tel]["nombre"] = mapa[t10]
+            chats[tel]["nombre_de_cliente"] = True
+    return chats
+
+
 def _unir_chats_duplicados(chats: dict) -> dict:
     """Junta en un solo chat los que son del mismo número (misma clienta con 52… y 521…). El chat que se conserva es el
     que tiene mensajes entrantes (el de 521…); el otro se suma como alias para leer su historial."""
@@ -2264,6 +2293,7 @@ def listar_chats():
             print(f"[chats] RPC chats_lista no disponible, uso el método anterior: {e_rpc}")
             chats = _chats_desde_mensajes_legado()
         chats = _unir_chats_duplicados(chats)
+        chats = _nombres_desde_clientes(chats)
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
             control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista,origen")
