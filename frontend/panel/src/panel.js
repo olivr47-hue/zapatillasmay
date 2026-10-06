@@ -728,9 +728,9 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
         const vr = variantesRot[v.id]
         const ventasSemana = vr ? vr.d30 / 4 : 0
         const porRotacion = ventasSemana > 0 ? Math.max(0, Math.round(ventasSemana * 4) - v.stock) : 0
-        v.ventas_30 = vr ? vr.d30 : 0
-        v.ventas_90 = vr ? vr.total : 0
-        v.sugerido = v.sin_stock ? Math.max(1, porRotacion) : porRotacion
+        // Si el servidor ya calculó lo sugerido por talla/color (solo de lo que se vende), se respeta; el cálculo local es el respaldo.
+        if (!vr) { v.ventas_30 = v.ventas_30 || 0; v.ventas_90 = v.ventas_90 || 0 } else { v.ventas_30 = vr.d30; v.ventas_90 = vr.total }
+        if (v.sugerido === undefined) v.sugerido = (v.sin_stock && v.ventas_90 >= 2) ? Math.max(1, porRotacion) : porRotacion
       })
       if (p.variantes && p.variantes.length) {
         // Agrupado por color (para no mezclar colores en la tabla) y dentro
@@ -3718,7 +3718,8 @@ async function _cargarDatosAnalisisPesados() {
       // color/talla activo en cero se está perdiendo venta real de esa
       // combinación específica — debe contar como "pedir ahora" igual que en
       // sugerencias-recompra, no solo cuando el stock total baja del umbral.
-      const tieneVarianteSinStock = varIds.length > 0 && varIds.some(vid => (stockPorVariante[vid] || 0) === 0)
+      // solo cuenta una talla/color en cero si ESA variante se vende (>= 2 pares en 90 días); antes cualquier cero lo contaba
+      const tieneVarianteSinStock = varIds.length > 0 && varIds.some(vid => (stockPorVariante[vid] || 0) === 0 && ((ventasPorVariante[vid] || {}).d90 || 0) >= 2)
       const ventasSemana = ventas.d30 / 4
       const diasInventario = ventasSemana > 0 ? Math.round(stockTotal / ventasSemana * 7) : null
 

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, inventario_ajustar
 from datetime import date, datetime, timedelta, timezone
 import json
+import math
 
 # Railway corre en UTC: _hoy_mx() cambia de día a las 18:00 hora de México, así que
 # "hoy" para cierres de caja/reportes salía mal en las tardes-noches. Todo "día de negocio"
@@ -785,6 +786,13 @@ def valor_inventario():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ─── SUGERENCIAS DE RECOMPRA ──────────────────────
+# Reglas de «qué pedir» (antes cualquier talla/color en cero marcaba el modelo como URGENTE aunque casi no se hubiera vendido nunca,
+# y la cantidad sugerida era como mínimo 6 pares): ahora solo se sugiere lo que de verdad rota.
+_RECOMPRA_MIN_VENTAS_90 = 3        # pares vendidos en 90 días para considerar que un modelo «rota»
+_RECOMPRA_MIN_VENTAS_VARIANTE = 2  # pares de ESA talla/color en 90 días para que su faltante cuente
+_RECOMPRA_SEMANAS_COBERTURA = 6    # semanas de venta que se quiere tener surtidas por talla/color
+
+
 @router.get("/sugerencias-recompra/{sucursal_id}")
 def sugerencias_recompra(sucursal_id: str):
     try:
@@ -842,7 +850,9 @@ def sugerencias_recompra(sucursal_id: str):
                     "color": v.get('color', ''),
                     "sku": v.get('sku', ''),
                     "stock": stock_v,
-                    "sin_stock": stock_v == 0
+                    "sin_stock": stock_v == 0,
+                    "ventas_30": v30_por_var.get(v['id'], 0),
+                    "ventas_90": v90_por_var.get(v['id'], 0),
                 })
 
             # Ordenar por talla numérica si es posible, si no alfabético
@@ -853,15 +863,24 @@ def sugerencias_recompra(sucursal_id: str):
                     return (1, v['talla'] or '')
             variantes_detalle.sort(key=sort_talla)
 
-            variantes_sin_stock = [v for v in variantes_detalle if v['sin_stock']]
-            tiene_variante_sin_stock = len(variantes_sin_stock) > 0
+            # Solo cuenta como faltante una talla/color que SÍ se vende, y solo en modelos que rotan.
+            rota = ventas_90 >= _RECOMPRA_MIN_VENTAS_90
+            variantes_sin_stock = [v for v in variantes_detalle if v['sin_stock'] and v['ventas_90'] >= _RECOMPRA_MIN_VENTAS_VARIANTE]
+            tiene_variante_sin_stock = rota and len(variantes_sin_stock) > 0
 
             # cantidad_sugerida: al menos 1 par por cada variante sin stock,
             # y si hay velocidad, lo que dicte la rotación (lo que sea mayor)
-            cantidad_sugerida = len(variantes_sin_stock)  # mínimo 1 par x variante faltante
-            if velocidad_semanal > 0:
-                por_rotacion = max(0, round(velocidad_semanal * 4) - stock_total)
-                cantidad_sugerida = max(cantidad_sugerida, por_rotacion)
+            # Se calcula por talla/color: lo que se vende por semana x semanas de cobertura, menos lo que hay (mínimo 1 par si esa
+            # talla/color que sí se vende está en cero).
+            cantidad_sugerida = 0
+            for vd in variantes_detalle:
+                vel_v = max(vd['ventas_30'] / 4, vd['ventas_90'] / 12)
+                objetivo = math.ceil(vel_v * _RECOMPRA_SEMANAS_COBERTURA) if vel_v > 0 else 0
+                necesita = max(0, objetivo - vd['stock'])
+                if vd['sin_stock'] and vd['ventas_90'] >= _RECOMPRA_MIN_VENTAS_VARIANTE:
+                    necesita = max(1, necesita)
+                vd['sugerido'] = necesita if rota else 0
+                cantidad_sugerida += vd['sugerido']
 
             # Días "efectivos" para ordenar por urgencia real: si ya hay una
             # variante en cero (o el total está en cero), cuenta como 0 días
@@ -871,7 +890,7 @@ def sugerencias_recompra(sucursal_id: str):
             dias_efectivos = 0 if (stock_total == 0 or tiene_variante_sin_stock) else (dias_inventario if dias_inventario is not None else 9999)
 
             # Mostrar si: stock total bajo mínimo, alguna variante en 0, o días críticos
-            if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 21):
+            if rota and (stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 21)):
                 sugerencias.append({
                     "producto_id": p['id'],
                     "nombre": p['nombre'],
@@ -888,7 +907,7 @@ def sugerencias_recompra(sucursal_id: str):
                     "costo_unitario": float(p.get('costo') or 0),
                     "proveedor": p.get('proveedores'),
                     "proveedor_id": p.get('proveedor_id'),
-                    "urgente": stock_total == 0 or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 7),
+                    "urgente": bool(rota and (stock_total == 0 or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 7))),
                     "variantes": variantes_detalle
                 })
 
