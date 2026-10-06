@@ -646,7 +646,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                 "telefono_cliente": telefono,
                 "email_cliente":    email_cliente,
                 "total":            total,
-                "status":           "checkout_iniciado",
+                "status":           "pendiente_pago",   # link enviado por WhatsApp: queda en Pedidos → Pendientes hasta que pague (antes "checkout_iniciado" = "Abandonó", que casi nadie revisa)
                 "canal":            "whatsapp",
                 "notas":            notas,
                 "direccion_envio":  direccion,
