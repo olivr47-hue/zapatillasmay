@@ -850,6 +850,8 @@ def sugerencias_recompra(sucursal_id: str):
 
         sugerencias = []
         for p in productos:
+            if p.get('no_resurtir'):
+                continue   # modelo «detenido»: no se vuelve a pedir
             vars_prod = variantes_por_prod.get(p['id'], [])
             var_ids = [v['id'] for v in vars_prod]
             stock_total = sum(stock_por_var.get(vid, 0) for vid in var_ids)

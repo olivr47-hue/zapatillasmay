@@ -1597,12 +1597,29 @@ window.posponerProducto = (productoId, nombre) => {
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', 7)" style="text-align:left">📅 7 días — revisaré la próxima semana</button>
         <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', 30)" style="text-align:left">📅 30 días — esperar el mes que entra</button>
-        <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', null)" style="text-align:left;color:#c62828;border-color:#ef9a9a">🚫 No pedir por ahora (indefinido)</button>
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', null)" style="text-align:left;color:#c62828;border-color:#ef9a9a">🚫 No pedir por ahora (solo en este navegador)</button>
+        <button class="btn btn-secondary" onclick="marcarModeloDetenido('${productoId}')" style="text-align:left;color:#7f1d1d;border-color:#fca5a5;background:#fef2f2">⛔ Modelo detenido: no volver a pedirlo (para todos)</button>
       </div>
       <button onclick="document.getElementById('modal-posponer').remove()" style="margin-top:1rem;width:100%;background:none;border:none;color:#aaa;cursor:pointer;font-size:0.82rem">Cancelar</button>
     </div>`
   m.addEventListener('click', e => { if (e.target === m) m.remove() })
   document.body.appendChild(m)
+}
+
+// «Detenido»: el modelo ya no se surte. Se guarda en el producto (no solo en este navegador) y deja de salir en sugerencias de compra.
+window.marcarModeloDetenido = async (productoId, valor = true) => {
+  try {
+    const r = await fetch(API + '/productos/' + encodeURIComponent(productoId), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ no_resurtir: valor })
+    })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error || d.detail) throw new Error(d.error || d.detail || ('HTTP ' + r.status))
+    document.getElementById('modal-posponer')?.remove()
+    window._invCache = null
+    window.mostrarToastPanel && window.mostrarToastPanel(valor ? '⛔ Modelo detenido: ya no se sugerirá pedirlo' : 'Modelo reactivado para resurtido')
+    if (window._ordenesData) cargarOrdenes(window._ordenesData.containerId, window._ordenesData.sucursalId)
+    else if (typeof window._renderResumenAnalisis === 'function') window._renderResumenAnalisis()
+  } catch (e) { alert('No se pudo guardar: ' + e.message) }
 }
 
 window.aplicarPosponer = (productoId, dias) => {
@@ -4258,12 +4275,15 @@ const _INV_SEM = {
   morado:  { bg:'#f3e8ff', color:'#6b21a8', dot:'#9333ea', txt:'Venta puntual' },
   rojo:    { bg:'#fee2e2', color:'#991b1b', dot:'#dc2626', txt:'Sin movimiento' },
   gris:    { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8', txt:'Sin datos' },
+  nuevo:   { bg:'#e0f2fe', color:'#075985', dot:'#0ea5e9', txt:'Nuevo — aún sin tiempo de venderse' },
 }
 function _invRecomendacion(m) {
   const v90 = Number(m.v90 || 0), dias = m.dias == null ? null : Number(m.dias)
+  if (m.semaforo === 'nuevo') return 'Modelo nuevo (alta o entrada reciente): aún no cuenta como parado'
   if (m.semaforo === 'rojo') return 'Sin movimiento en 90 días — revisar'
   if (m.semaforo === 'morado') return `${v90} pares en 1 sola venta — no es rotación`
   if (m.semaforo === 'verde') return (dias !== null && dias <= 21) ? `Rota bien y se agota en ${dias}d — pedir ahora` : 'Ya se agotó una talla/color que sí se vende — pedir ahora'
+  if (m.semaforo === 'azul' && m.no_resurtir) return 'Rota bien, pero el modelo está detenido: no se vuelve a pedir'
   if (m.semaforo === 'azul') return dias !== null ? `Rota bien, alcanza para ${dias}d — no urge pedir` : 'Rota bien, aún con stock'
   if (m.semaforo === 'amarillo') return 'Rotación lenta'
   return 'Sin ventas recientes'
@@ -4289,14 +4309,14 @@ window._renderResumenAnalisis = async () => {
   try { d = await window._cargarInventarioRapido() } catch (e) { cont.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo calcular: ${_invEsc(e.message)}</p>`; return }
   if (window._analisisTabActivo !== 'resumen') return
   const q = d.resumen || {}, modelos = d.modelos || []
-  const pctParado = q.capital_costo > 0 ? Math.round(q.capital_parado / q.capital_costo * 100) : 0
+  const pctRez = q.capital_costo > 0 ? Math.round(q.capital_rezagado / q.capital_costo * 100) : 0
   const meses = q.cobertura_dias ? (q.cobertura_dias / 30).toFixed(1) : null
   const tarjeta = (titulo, valor, sub, bg, bd, col) => `<div style="background:${bg};border:1px solid ${bd};border-radius:14px;padding:1rem 1.1rem">
       <p style="font-size:0.67rem;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px">${titulo}</p>
       <p style="font-size:1.45rem;font-weight:800;color:${col};line-height:1.1;margin:0 0 3px">${valor}</p>
       <p style="font-size:0.72rem;color:#64748b;margin:0">${sub}</p></div>`
   const pedir = modelos.filter(m => m.semaforo === 'verde').slice(0, 10)
-  const parados = modelos.filter(m => m.semaforo === 'rojo').map(m => ({ ...m, cap: Number(m.stock) * Number(m.costo) })).sort((a, b) => b.cap - a.cap).slice(0, 10)
+  const rezagados = modelos.filter(m => m.rezagado).map(m => ({ ...m, cap: Number(m.stock) * Number(m.costo) })).sort((a, b) => b.cap - a.cap)
   const fila = (m, extra) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #f1f5f9">
       ${m.imagen_principal ? `<img src="${_invEsc(_thumbProd(m.imagen_principal))}" loading="lazy" style="width:38px;height:38px;object-fit:contain;border-radius:6px;background:#f8fafc;flex-shrink:0">` : '<div style="width:38px;height:38px;border-radius:6px;background:#f8fafc;flex-shrink:0"></div>'}
       <div style="flex:1;min-width:0"><p style="margin:0;font-size:0.8rem;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_invEsc(m.nombre)}</p>
@@ -4304,7 +4324,7 @@ window._renderResumenAnalisis = async () => {
   cont.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:1.25rem">
       ${tarjeta('Capital en inventario', _inv$(q.capital_costo), `${q.pares_stock} pares · ${q.modelos_con_stock} modelos (a costo)`, '#f0f9ff', '#bae6fd', '#0369a1')}
-      ${tarjeta('Dinero parado', _inv$(q.capital_parado), `${pctParado}% del capital · ${q.modelos_parados} modelos / ${q.pares_parados} pares sin venta en 90 días`, '#fff1f2', '#fecdd3', '#be123c')}
+      ${tarjeta('Rezagados (dinero parado)', _inv$(q.capital_rezagado), `${pctRez}% del capital · ${q.modelos_rezagados} modelos / ${q.pares_rezagados} pares: ${q.rezagados_sin_venta} sin ventas en 90 días y ${q.rezagados_lentos} que venden muy poco para lo que tienes`, '#fff1f2', '#fecdd3', '#be123c')}
       ${tarjeta('Cobertura', q.cobertura_dias ? `${q.cobertura_dias} días` : '—', meses ? `≈ ${meses} meses al ritmo de 90 días` : 'sin ventas recientes', '#faf5ff', '#e9d5ff', '#7e22ce')}
       ${tarjeta('Pedir ahora', `${q.pedir_ahora} modelos`, 'rotan bien y se agotan pronto o les falta una talla que sí se vende', '#f0fdf4', '#bbf7d0', '#15803d')}
     </div>
@@ -4316,9 +4336,10 @@ window._renderResumenAnalisis = async () => {
           <button onclick="irAPedirOrden('${_invJa(m.nombre)}')" style="margin-top:3px;font-size:0.66rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:2px 8px;cursor:pointer">Ir a pedir</button></div>`)).join('') || '<p style="font-size:0.8rem;color:#94a3b8">Nada urgente por pedir.</p>'}
       </div>
       <div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px">
-        <p style="margin:0 0 4px;font-weight:800;font-size:0.9rem;color:#b91c1c">🔴 Dinero parado (mayor capital primero)</p>
-        <p style="margin:0 0 6px;font-size:0.72rem;color:#94a3b8">Sin una sola venta en 90 días. Ideas: oferta, empujarlos en el portal de mayoristas o liquidar.</p>
-        ${parados.map(m => fila(m, `<div style="text-align:right;flex-shrink:0"><p style="margin:0;font-size:0.82rem;font-weight:800;color:#b91c1c">${_inv$(m.cap)}</p><p style="margin:0;font-size:0.66rem;color:#94a3b8">a costo</p></div>`)).join('') || '<p style="font-size:0.8rem;color:#94a3b8">No hay inventario parado.</p>'}
+        <p style="margin:0 0 4px;font-weight:800;font-size:0.9rem;color:#b91c1c">🔴 Rezagados (mayor capital primero)</p>
+        <p style="margin:0 0 6px;font-size:0.72rem;color:#94a3b8">Modelos con más de 60 días en catálogo que no se venden, o que venden muy poco (2 pares o menos en 90 días, o 6 meses o más de inventario). ${q.modelos_nuevos} modelos nuevos no cuentan. Ideas: oferta, empujarlos en el portal de mayoristas o liquidar.</p>
+        <div id="inv-rez-lista">${rezagados.map((m, i) => `<div class="inv-rez-fila" style="${i >= 15 ? 'display:none' : ''}">${fila(m, `<div style="text-align:right;flex-shrink:0"><p style="margin:0;font-size:0.82rem;font-weight:800;color:#b91c1c">${_inv$(m.cap)}</p><p style="margin:0;font-size:0.66rem;color:#94a3b8">${Number(m.v90) === 0 ? 'sin ventas' : `${m.v90} par${Number(m.v90) === 1 ? '' : 'es'} en 90d${m.dias ? ' · ' + m.dias + 'd de stock' : ''}`}${m.no_resurtir ? ' · ⛔ detenido' : ''}</p></div>`)}</div>`).join('') || '<p style="font-size:0.8rem;color:#94a3b8">No hay inventario rezagado.</p>'}</div>
+        ${rezagados.length > 15 ? `<button id="inv-rez-btn" onclick="(function(){var ocultos=document.querySelectorAll('.inv-rez-fila');var abrir=document.getElementById('inv-rez-btn').dataset.a!=='1';ocultos.forEach(function(e,i){if(i>=15)e.style.display=abrir?'':'none'});var b=document.getElementById('inv-rez-btn');b.dataset.a=abrir?'1':'0';b.textContent=abrir?'Ver menos':'Ver todos (${rezagados.length})'})()" style="margin-top:8px;width:100%;font-size:0.76rem;font-weight:700;border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:6px;cursor:pointer">Ver todos (${rezagados.length})</button>` : ''}
       </div>
     </div>
     <p style="margin:14px 0 0;font-size:0.7rem;color:#94a3b8;line-height:1.5">Cálculo en el servidor con las ventas de los últimos 90 días de todos los canales (tienda, mostrador y marketplaces) y el inventario de todas las sucursales. Se actualiza cada 2 minutos.
@@ -4347,17 +4368,19 @@ window._renderRotacionRapida = async () => {
       <button class="pill-filter pill-warning" onclick="filtrarRotacion('amarillo')">Lentos</button>
       <button class="pill-filter" style="background:#f3e8ff;border-color:#d8b4fe;color:#6b21a8" onclick="filtrarRotacion('morado')">Venta puntual</button>
       <button class="pill-filter pill-danger" onclick="filtrarRotacion('rojo')">Sin movimiento</button>
+      <button class="pill-filter pill-danger" onclick="filtrarRotacion('rezagado')">Rezagados</button>
+      <button class="pill-filter" style="background:#e0f2fe;border-color:#7dd3fc;color:#075985" onclick="filtrarRotacion('nuevo')">Nuevos</button>
     </div>
     <p style="margin:0 0 12px;font-size:0.72rem;color:#94a3b8">«Pedir ahora» solo aparece en modelos que de verdad se venden: al menos 2 ventas distintas y 3 pares en 90 días.</p>
     <div id="rotacion-lista" style="display:flex;flex-direction:column;gap:8px">
       ${modelos.map(m => { const s = _INV_SEM[m.semaforo] || _INV_SEM.gris; const sem = (Number(m.v30) / 4)
-        return `<div class="rotacion-item" data-semaforo="${m.semaforo}" data-nombre="${_invEsc((m.nombre || '').toLowerCase())}" data-sku="${_invEsc((m.sku_interno || '').toLowerCase())}"
+        return `<div class="rotacion-item" data-semaforo="${m.semaforo}" data-rez="${m.rezagado ? 1 : 0}" data-nombre="${_invEsc((m.nombre || '').toLowerCase())}" data-sku="${_invEsc((m.sku_interno || '').toLowerCase())}"
              style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           ${m.imagen_principal ? `<img src="${_invEsc(_thumbProd(m.imagen_principal))}" loading="lazy" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">` : '<div style="width:48px;height:48px;background:#f8fafc;border-radius:8px;flex-shrink:0"></div>'}
           <div style="flex:1;min-width:130px">
             <p style="font-weight:700;font-size:0.88rem;color:#0f172a;margin:0 0 2px">${_invEsc(m.nombre)}</p>
             <p style="font-size:0.72rem;color:#94a3b8;margin:0 0 6px">${_invEsc(m.sku_interno || '')} · ${m.stock} pares en stock · ${_inv$(Number(m.stock) * Number(m.costo))} a costo</p>
-            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:${s.bg};color:${s.color}"><span style="width:6px;height:6px;border-radius:50%;background:${s.dot}"></span>${s.txt}</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:${s.bg};color:${s.color}"><span style="width:6px;height:6px;border-radius:50%;background:${s.dot}"></span>${s.txt}</span>${m.rezagado ? ' <span style="display:inline-block;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:#fff1f2;color:#be123c;border:1px solid #fecdd3">Rezagado</span>' : ''}${m.no_resurtir ? ' <span style="display:inline-block;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:#fef2f2;color:#7f1d1d;border:1px solid #fca5a5">⛔ Detenido</span>' : ''}
           </div>
           <div style="min-width:160px;flex:1">
             <p style="font-size:0.67rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 5px">Ventas últimos 30 días</p>
@@ -4437,7 +4460,7 @@ window.filtrarRotacion = (semaforo) => {
     btn.classList.remove('pill-active')
   })
   const keyword = {
-    todos: 'todos', verde: 'pedir', azul: 'rotan', amarillo: 'lento', morado: 'puntual', rojo: 'movimiento'
+    todos: 'todos', verde: 'pedir', azul: 'rotan', amarillo: 'lento', morado: 'puntual', rojo: 'movimiento', rezagado: 'rezag', nuevo: 'nuevos'
   }[semaforo] || 'todos'
   const btnClicked = [...document.querySelectorAll('#analisis-tab-content .pill-filter')]
     .find(b => b.textContent.trim().toLowerCase().includes(keyword))
@@ -4455,7 +4478,7 @@ window._aplicarFiltroRotacion = () => {
   const texto = window._rotacionFiltroTexto || ''
   let visibles = 0
   document.querySelectorAll('.rotacion-item').forEach(item => {
-    const matchSemaforo = semaforo === 'todos' || item.dataset.semaforo === semaforo
+    const matchSemaforo = semaforo === 'todos' || (semaforo === 'rezagado' ? item.dataset.rez === '1' : item.dataset.semaforo === semaforo)
     const matchTexto = !texto || (item.dataset.nombre || '').includes(texto) || (item.dataset.sku || '').includes(texto)
     const visible = matchSemaforo && matchTexto
     item.style.display = visible ? '' : 'none'
@@ -8825,6 +8848,10 @@ window.mostrarFormProducto = (datos) => {
               <input type="checkbox" id="f-corrida-activa" ${d.corrida_activa ? 'checked' : ''}>
               <span class="form-label" style="margin:0">Permite media corrida</span>
             </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="Si lo marcas, este modelo ya no aparece en las sugerencias de compra (Análisis → Compras)">
+              <input type="checkbox" id="f-no-resurtir" ${d.no_resurtir ? 'checked' : ''}>
+              <span class="form-label" style="margin:0">⛔ Modelo detenido (no volver a pedir)</span>
+            </label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
               <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
               <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional)</span>
@@ -9485,6 +9512,7 @@ document.querySelectorAll('.variante-item').forEach(v => {
     tiene_descuento: document.getElementById('f-descuento') ? document.getElementById('f-descuento').checked : false,
     porcentaje_descuento: document.getElementById('f-pct') && document.getElementById('f-pct').value ? parseInt(document.getElementById('f-pct').value) : 0,
     corrida_activa: document.getElementById('f-corrida-activa') ? document.getElementById('f-corrida-activa').checked : false,
+    no_resurtir: document.getElementById('f-no-resurtir') ? document.getElementById('f-no-resurtir').checked : false,
     es_oferta: document.getElementById('f-oferta') ? document.getElementById('f-oferta').checked : false,
     tallas_disponibles: tallas,
     peso_gramos: pesoGramos,
