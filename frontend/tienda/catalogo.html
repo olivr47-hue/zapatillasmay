@@ -504,10 +504,22 @@ if (!window.fbq){
       const disponibleW = vw - 16
       const isMobile = vw < 700
 
-      // Usar el ratio de las PÁGINAS (no la portada) para dimensionar el flipbook
-      const ratioIdx = (_paginas[0]?._es_portada && _paginas.length > 1) ? 1 : 0
-      const ratioImg = await cargarImagen(_paginas[ratioIdx].imagen_url)
-      const ratio = ratioImg.naturalHeight / ratioImg.naturalWidth
+      // El ratio del flipbook es el MÁS COMÚN entre las páginas (se miden hasta 12 repartidas por todo el catálogo), no el de la
+      // primera: si la primera página era una foto cuadrada subida a mano, TODAS las páginas generadas (3:4) se estiraban a lo ancho.
+      const _idxMuestra = []
+      const _desde = _paginas[0]?._es_portada ? 1 : 0
+      const _util = Math.max(0, _paginas.length - _desde)
+      for (let k = 0; k < Math.min(12, _util); k++) _idxMuestra.push(_desde + Math.floor(k * _util / Math.min(12, _util)))
+      const _conteoRatio = {}
+      await Promise.all(_idxMuestra.map(async (i) => {
+        try {
+          const im = await cargarImagen(_paginas[i].imagen_url)
+          const k = (im.naturalHeight / im.naturalWidth).toFixed(2)
+          _conteoRatio[k] = (_conteoRatio[k] || 0) + 1
+        } catch (e) { /* una página que no carga no cuenta */ }
+      }))
+      const _mejor = Object.entries(_conteoRatio).sort((a, b) => b[1] - a[1])[0]
+      const ratio = _mejor ? parseFloat(_mejor[0]) : 1.333
 
       let pageW, pageH
       if (isMobile) {
@@ -521,9 +533,16 @@ if (!window.fbq){
         if (pageW > maxHalfW) { pageW = maxHalfW; pageH = Math.round(pageW * ratio) }
       }
 
-      // Si la portada tiene diferente ratio, dibujarla en canvas con object-fit:contain
-      // para evitar que se estire al mostrarse en el flipbook
-      if (_paginas[0]?._es_portada) {
+      // Cada página (portada incluida) se ajusta al tamaño del flipbook SIN deformarla: Cloudinary la rellena (contain) con el
+      // fondo crema hasta la proporción exacta. Las que ya tienen esa proporción solo se redimensionan.
+      const _anchoPx = Math.min(1600, pageW * 2), _altoPx = Math.min(2400, pageH * 2)
+      const _ajustarCloudinary = (u) => (u && u.includes('res.cloudinary.com') && u.includes('/upload/'))
+        ? u.replace('/upload/', `/upload/c_pad,w_${_anchoPx},h_${_altoPx},b_rgb:F5ECE2,f_auto,q_auto:good/`)
+        : null
+      _paginas.forEach(pg => { const u = _ajustarCloudinary(pg.imagen_url); if (u) pg._url_normalizada = u })
+
+      // Respaldo (portada que no es de Cloudinary): dibujarla en canvas con object-fit:contain
+      if (_paginas[0]?._es_portada && !_paginas[0]._url_normalizada) {
         // Cargar con crossOrigin para poder usar canvas.toDataURL
         const portadaImg = await new Promise(res => {
           const img = new Image()
