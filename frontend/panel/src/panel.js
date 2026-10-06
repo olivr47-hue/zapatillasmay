@@ -17656,12 +17656,12 @@ window._renderBurbujas = (chat) => {
   const mensajesOrden = [...(chat.mensajes || [])].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
-    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
+    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente'
     return esSal ? i : acc
   }, -1)
 
   return mensajesOrden.map((m, idx) => {
-    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
+    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente'
     const senderName = esc(esSaliente ? ((m.mensaje || '').match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono))
     const _parsedAt = parseUTC(m.created_at)
     const ts = _parsedAt ? _parsedAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : ''
@@ -17717,7 +17717,7 @@ window._renderBurbujas = (chat) => {
       msgBody = stUrl
         ? `<img src="${stUrl}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
         : `<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>`
-    } else if (m.tipo === 'template_saliente') {
+    } else if (m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente') {
       msgBody = `<p style="margin:0;font-size:0.85rem;word-break:break-word">${window._linkifyWA(textoLimpio.replace('[Template] ',''))}</p>
         <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`
     } else if (m.tipo === 'button_reply') {

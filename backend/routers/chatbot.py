@@ -1410,6 +1410,12 @@ async def _procesar_webhook_whatsapp(datos: dict):
                     cache_invalidate("chats_lista")
                 except Exception as e:
                     print(f"Error guardando status {status_type}: {e}")
+            # Envío FALLIDO (WhatsApp lo aceptó y luego no pudo entregarlo): se deja una nota en el chat con el motivo real.
+            if status_type == "failed" and recipient and st_wamid:
+                try:
+                    _registrar_fallo_wa(recipient, st_wamid, st.get("errors") or [])
+                except Exception as e:
+                    print(f"[wa] no se pudo registrar el fallo de entrega: {e}")
             # Métricas de broadcast: si este wamid pertenece a un envío masivo, actualizar su estado.
             if status_type in ("delivered", "read", "failed") and st_wamid:
                 try:
@@ -2113,6 +2119,39 @@ def _chats_desde_mensajes_legado() -> dict:
                 break
         chat['nombre'] = nombre
     return chats
+
+
+_MOTIVOS_FALLO_WA = {
+    131049: "WhatsApp decidió no entregar este mensaje de plantilla (protege a las clientas de mensajes promocionales que no pidieron: suele pasar si ella no ha escrito en mucho tiempo). Pídele que te escriba y vuelve a intentar.",
+    131026: "El número no tiene WhatsApp, no está disponible o no aceptó los términos de WhatsApp.",
+    131047: "Pasaron más de 24 h desde su último mensaje: solo se puede mandar una plantilla aprobada.",
+    131048: "WhatsApp limitó los envíos de la cuenta por calidad (demasiados reportes de spam).",
+    131051: "Tipo de mensaje no compatible con su WhatsApp.",
+    130472: "El número está en una prueba de Meta y no recibe este mensaje.",
+    132000: "La plantilla lleva más (o menos) datos de los que pide.",
+    132001: "La plantilla no existe o no está aprobada en ese idioma.",
+    132005: "El texto de la plantilla quedó muy largo al llenarlo.",
+    132007: "La plantilla infringe las políticas de WhatsApp y está pausada.",
+    132012: "Los datos de la plantilla no tienen el formato correcto.",
+    132015: "La plantilla está pausada por baja calidad.",
+    132016: "La plantilla está deshabilitada por baja calidad.",
+}
+
+
+def _registrar_fallo_wa(recipient: str, wamid: str, errores: list):
+    """Deja en el chat una nota «No se pudo entregar…» (solo una vez por mensaje, aunque Meta reintente el aviso)."""
+    marca = f"{wamid}#fallo"
+    if supabase_get(f"conversaciones_whatsapp?wa_message_id=eq.{urllib.parse.quote(marca, safe='')}&select=id&limit=1"):
+        return
+    e = (errores or [{}])[0]
+    codigo = e.get("code")
+    motivo = _MOTIVOS_FALLO_WA.get(codigo) or (e.get("error_data") or {}).get("details") or e.get("message") or e.get("title") or "sin detalle"
+    supabase_post("conversaciones_whatsapp", {
+        "telefono": recipient,
+        "mensaje": f"[Sistema]: ⚠️ No se pudo entregar un mensaje a la clienta (código {codigo}): {motivo}",
+        "respuesta": None, "tipo": "manual", "wa_message_id": marca, "leido": True,
+    })
+    cache_invalidate("chats_lista")
 
 
 def _variantes_tel(telefono) -> list:
