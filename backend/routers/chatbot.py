@@ -573,6 +573,9 @@ def _resolver_items_wa(items_entrada: list, mayorista: bool = False) -> tuple:
     return pedido_items_db, [], pares, subtotal
 
 
+_ERR_LINK = {"msg": ""}   # motivo del último fallo al generar un link (lo muestra el panel)
+
+
 def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
     """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id, faltantes).
 
@@ -650,6 +653,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
             })
         except Exception as e:
             print(f"[link-pago] FALLO al crear pedido en Supabase: {e}")
+            _ERR_LINK["msg"] = "No se pudo crear el pedido en la base de datos: " + str(e)[:200]
             return None, 0, None, []
         # supabase_post puede devolver lista o dict
         pedido_id = (pedido_db[0] if isinstance(pedido_db, list) else pedido_db).get("id")
@@ -670,6 +674,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         mp_token = os.environ.get("MP_ACCESS_TOKEN", "")
         if not mp_token:
             print("[link-pago] FALTA MP_ACCESS_TOKEN en variables de entorno")
+            _ERR_LINK["msg"] = "Falta MP_ACCESS_TOKEN en el servidor"
             return None, total, pedido_id, []
         try:
             sdk = mercadopago.SDK(mp_token)
@@ -702,10 +707,12 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
             link   = pref.get("init_point", "")
             if not link:
                 print(f"[link-pago] MP no devolvió init_point. Respuesta MP: {result}")
-                return None, total, pedido_id
+                _ERR_LINK["msg"] = "Mercado Pago no devolvió el link: " + str((result.get("response") or {}).get("message") or result.get("status") or "sin detalle")[:200]
+                return None, total, pedido_id, []
         except Exception as e:
             print(f"[link-pago] FALLO en Mercado Pago: {e}")
-            return None, total, pedido_id
+            _ERR_LINK["msg"] = "Falló la conexión con Mercado Pago: " + str(e)[:200]
+            return None, total, pedido_id, []
 
         if pref.get("id"):
             try:
@@ -713,11 +720,12 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                                {"mp_preference_id": pref["id"]})
             except Exception as e:
                 print(f"[link-pago] No se pudo guardar mp_preference_id (no crítico): {e}")
-        return link, total, pedido_id
+        return link, total, pedido_id, []
     except Exception as e:
         import traceback
         print(f"[link-pago] Error inesperado: {e}\n{traceback.format_exc()}")
-        return None, 0, None
+        _ERR_LINK["msg"] = "Error inesperado: " + str(e)[:200]
+        return None, 0, None, []
 
 
 def obtener_colores_modelo(sku):
@@ -1298,12 +1306,13 @@ def link_pago_manual(datos: dict):
         telefono = (datos.get("telefono") or "").strip()
         if not telefono:
             return JSONResponse(status_code=400, content={"ok": False, "error": "Falta el teléfono del cliente"})
+        _ERR_LINK["msg"] = ""
         link, total, pedido_id, faltantes = generar_link_pago_wa(telefono, datos)
         if link:
             return {"ok": True, "link": link, "total": total, "pedido_id": pedido_id}
         if faltantes:
             return JSONResponse(status_code=409, content={"ok": False, "error": "Sin existencia suficiente", "faltantes": faltantes})
-        return JSONResponse(status_code=500, content={"ok": False, "error": "No se pudo generar el link (revisa MP_ACCESS_TOKEN)"})
+        return JSONResponse(status_code=500, content={"ok": False, "error": _ERR_LINK["msg"] or "No se pudo generar el link (revisa MP_ACCESS_TOKEN)"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 

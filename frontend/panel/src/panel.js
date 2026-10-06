@@ -16024,12 +16024,14 @@ window.mostrarFormLinkPago = async (prefill) => {
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
 
   try {
-    if (!window._variantesCache || !window._productosCache) {
+    // el catálogo se vuelve a pedir si tiene más de 2 minutos (antes quedaba guardado hasta recargar y mostraba precios viejos)
+    if (!window._variantesCache || !window._productosCache || Date.now() - (window._lpCacheT || 0) > 120000) {
       const [resProductos, resVariantes] = await Promise.all([
         fetch(API + '/productos/'), fetch(API + '/variantes/')
       ])
       window._productosCache = await resProductos.json()
       window._variantesCache = await resVariantes.json()
+      window._lpCacheT = Date.now()
     }
     window._lpItems = []
 
