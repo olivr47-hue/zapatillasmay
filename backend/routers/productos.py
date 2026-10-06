@@ -500,7 +500,8 @@ def guardar_orden_home(ordenes: List[dict] = Body(...), _staff=Depends(require_s
 # Campos editables desde "Edición masiva" en el panel -- lista blanca a propósito,
 # nunca aceptar un nombre de campo arbitrario del cliente (evita sobreescribir
 # columnas como id/sku_interno/slug por error o de forma maliciosa).
-_CAMPOS_BULK = {"costo", "precio_menudeo", "categoria", "subcategoria", "activo", "altura_tacon", "ocasion", "descripcion", "temporada"}
+_CAMPOS_BULK = {"costo", "precio_menudeo", "categoria", "subcategoria", "activo", "altura_tacon", "ocasion", "descripcion", "temporada",
+                "peso_gramos", "corrida_activa"}
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
 

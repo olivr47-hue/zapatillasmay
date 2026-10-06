@@ -4957,7 +4957,7 @@ window._renderGridEdicionMasiva = (productos) => {
       </div>
     </div>
     <div class="table-card" style="overflow-x:auto">
-      <table style="min-width:1500px">
+      <table style="min-width:1700px">
         <thead>
           <tr>
             <th style="min-width:200px">Producto</th>
@@ -4967,6 +4967,8 @@ window._renderGridEdicionMasiva = (productos) => {
             <th style="min-width:90px">Costo</th>
             <th style="min-width:120px">Temporada</th>
             <th style="min-width:90px">Tacón (cm)</th>
+            <th style="min-width:90px" title="Peso del par en kilos, para calcular el envío">Peso (kg)</th>
+            <th style="min-width:110px" title="Si el modelo se puede comprar por media corrida">Media corrida</th>
             <th style="min-width:240px">Ocasión</th>
             <th style="min-width:90px">Activo</th>
             <th style="min-width:280px">Descripción</th>
@@ -4997,6 +4999,13 @@ window._renderGridEdicionMasiva = (productos) => {
                 </select>
               </td>
               <td><input type="number" step="0.5" class="form-input bulk-cell" data-campo="altura_tacon" value="${p.altura_tacon ?? ''}"></td>
+              <td><input type="number" step="0.01" min="0" class="form-input bulk-cell" data-campo="peso_kg" placeholder="0.45" value="${p.peso_gramos ? (p.peso_gramos / 1000).toFixed(2) : ''}"></td>
+              <td>
+                <select class="form-input bulk-cell" data-campo="corrida_activa">
+                  <option value="true" ${p.corrida_activa ? 'selected' : ''}>Sí</option>
+                  <option value="false" ${!p.corrida_activa ? 'selected' : ''}>No</option>
+                </select>
+              </td>
               <td>
                 <div style="display:flex;flex-wrap:wrap;gap:4px">
                   ${(window.OCASION_OPTS || []).map(o => `
@@ -5031,8 +5040,12 @@ window._bulkGuardarGrid = async () => {
       let val = el.value
       if (campo === 'precio_menudeo' || campo === 'costo' || campo === 'altura_tacon') {
         val = val === '' ? null : parseFloat(val)
-      } else if (campo === 'activo') {
+      } else if (campo === 'activo' || campo === 'corrida_activa') {
         val = val === 'true'
+      } else if (campo === 'peso_kg') {
+        // el formulario del producto maneja kilos; en la base se guarda en gramos
+        item.peso_gramos = val === '' ? null : Math.round(parseFloat(val) * 1000)
+        return
       }
       item[campo] = val
     })
