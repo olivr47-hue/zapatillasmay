@@ -4668,6 +4668,10 @@ window.guardarOportunidad = async () => {
   }
 }
 
+// Miniatura de Cloudinary para las listas del panel (foto de 44 px: antes se bajaba la imagen original completa por cada producto)
+const _thumbProd = (u, w = 96) => (u && u.includes('res.cloudinary.com') && u.includes('/upload/') && !u.includes('/upload/w_'))
+  ? u.replace('/upload/', `/upload/w_${w},h_${w},c_fill,g_auto,f_auto,q_auto/`) : u
+
 async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
   const content = document.getElementById('content')
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -4777,7 +4781,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
                       <td style="vertical-align:middle">
                         <div style="display:flex;align-items:center;gap:10px">
                           ${p.imagen_principal
-                            ? `<img src="${p.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
+                            ? `<img src="${_thumbProd(p.imagen_principal)}" loading="lazy" decoding="async" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
                             : `<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>`}
                           <div>
                             <strong>${p.nombre}</strong>
@@ -4835,6 +4839,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
       </div>
     `
   } catch(e) {
+    console.error('[productos] error al cargar/dibujar:', e)   // antes el error se tragaba y solo se veía «Error conectando»
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
 }
@@ -4979,7 +4984,7 @@ window._renderGridEdicionMasiva = (productos) => {
             <tr data-pid="${p.id}">
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
-                  ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;background:#f5f5f5;border-radius:6px;flex-shrink:0">` : ''}
+                  ${p.imagen_principal ? `<img src="${_thumbProd(p.imagen_principal)}" loading="lazy" decoding="async" style="width:36px;height:36px;object-fit:contain;background:#f5f5f5;border-radius:6px;flex-shrink:0">` : ''}
                   <strong style="font-size:0.8rem">${esc(p.nombre)}</strong>
                 </div>
               </td>
