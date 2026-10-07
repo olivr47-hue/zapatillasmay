@@ -826,6 +826,12 @@ async def webhook_mercadopago(request: Request):
                 status = payment.get("status")
                 pedido_id = payment.get("external_reference")
 
+                # Pagos del MARKETPLACE (otros vendedores): su referencia empieza con «MP-» y se procesan aparte
+                # (tablas mp_*), sin tocar pedidos/inventario/finanzas del negocio.
+                if str(pedido_id or "").startswith("MP-"):
+                    from routers.marketplace import procesar_pago_marketplace
+                    return procesar_pago_marketplace(payment, payment_id)
+
                 # Forma de pago real según el método de MercadoPago. Se calcula una sola
                 # vez y se aplica tanto si el pago quedó aprobado como si quedó pendiente
                 # (OXXO/SPEI): antes solo se guardaba al aprobar, así que un pedido con
