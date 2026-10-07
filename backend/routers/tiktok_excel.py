@@ -277,8 +277,8 @@ def generar_nuevos(contenido: bytes, export_contenido: bytes) -> dict:
         nombre = (p.get("nombre") or p.get("sku_interno") or str(pid))[:500]
         desc = (p.get("descripcion") or nombre)[:500]
         spu = (p.get("sku_interno") or str(pid))[:200]
-        # el mismo precio que ve la clienta en la tienda: precio del panel + $80 (salvo ofertas)
-        precio = float(p.get("precio_menudeo") or 0) + (0 if p.get("es_oferta") else 80)
+        # precio de la tienda (panel + $80, salvo ofertas) + $65 extra porque TikTok cobra IVA sobre el precio publicado
+        precio = float(p.get("precio_menudeo") or 0) + (0 if p.get("es_oferta") else 80) + 65
         img = _resize_cloudinary(p.get("imagen_principal") or "")
         extra = (imgs_extra(pid, img) + [""] * 8)[:8]
         pvars = vars_por_prod.get(pid, [])
