@@ -459,11 +459,12 @@ def recibir_mercancia(datos: dict):
 
 # ─── REPORTES ─────────────────────────────────────
 @router.get("/reporte/{sucursal_id}")
-def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"):
-    """Utilidades de un MES calendario (mes=YYYY-MM; sin mes = el mes en curso). costo=corrida|real."""
+def reporte_financiero(sucursal_id: str, mes: str = None):
+    """Utilidades de un MES calendario (mes=YYYY-MM; sin mes = el mes en curso). El costo de la mercancía (cmv) y las utilidades son con el
+    costo real de producción, como siempre; además se devuelve `tu_utilidad` = ventas de productos − precio de corrida (lo que le queda a quien
+    opera el sistema después de pagar la corrida)."""
     try:
         from datetime import datetime, timedelta
-        costo_base = "real" if costo == "real" else "corrida"
         hace30, fin_mes, etiqueta_mes, mes_id = _rango_mes(mes)   # (nombre histórico: ahora es el inicio del mes elegido)
 
         # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días.
@@ -492,6 +493,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
         ids_pedidos = [p['id'] for p in pedidos]
         pedidos_sin_items = []
         cmv = 0.0
+        cmv_corrida = 0.0
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
             # En bloques y paginado: antes era UNA consulta con todos los ids en la URL (se
@@ -546,7 +548,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
                 producto_id = var.get('producto_id')
                 prod        = productos_map.get(producto_id, {}) if producto_id else {}
 
-                costo  = _costo_unitario(prod, costo_base)
+                costo  = _costo_unitario(prod, "real")
+                corrida_u = _costo_unitario(prod, "corrida")
                 nombre = prod.get('nombre') or nombre_item
                 sku    = prod.get('sku_interno', '')
                 color  = var.get('color', '')
@@ -555,6 +558,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
                 subtotal_costo = costo * cantidad
                 subtotal_venta = precio_venta * cantidad
                 cmv += subtotal_costo
+                cmv_corrida += corrida_u * cantidad
                 desglose_cmv.append({
                     'nombre':         nombre,
                     'sku':            sku,
@@ -585,7 +589,6 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
         return {
             "mes":                    mes_id,
             "mes_etiqueta":           etiqueta_mes,
-            "costo_base":             costo_base,
             "total_ventas":           total_ventas,            # ingresos totales (productos + envío)
             "total_ventas_productos": total_ventas_productos,  # solo productos
             "total_envio_cobrado":    total_envio_cobrado,     # envío cobrado al cliente
@@ -593,6 +596,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
             "cmv":                    cmv,
             "utilidad_bruta":         utilidad_bruta,          # ventas productos − CMV
             "utilidad":               utilidad_neta,           # utilidad_bruta − gastos operativos
+            "cmv_corrida":            cmv_corrida,             # lo mismo, pero a precio de corrida
+            "tu_utilidad":            total_ventas_productos - cmv_corrida,   # ventas de productos − corrida (utilidad de quien opera el sistema)
             "num_pedidos":            len(pedidos),
             "ticket_promedio":        total_ventas / len(pedidos) if pedidos else 0,
             "desglose_cmv":           desglose_cmv_sorted,
@@ -603,9 +608,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"
         return JSONResponse(status_code=500, content={"error": str(e)})
         # ─── ESTADO DE RESULTADOS ─────────────────────────
 @router.get("/estado-resultados/{sucursal_id}")
-def estado_resultados(sucursal_id: str, costo: str = "corrida"):
+def estado_resultados(sucursal_id: str):
     try:
-        costo_base = "real" if costo == "real" else "corrida"
         from datetime import datetime, timedelta
         hoy = _hoy_mx()
         
@@ -651,19 +655,18 @@ def estado_resultados(sucursal_id: str, costo: str = "corrida"):
                 for i in items:
                     cant = int(i.get('cantidad') or 0)
                     ventas_prod += float(i.get('precio_unitario') or 0) * cant
-                    cmv += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), costo_base) * cant
-            utilidad_bruta = ventas_prod - cmv
-            utilidad = utilidad_bruta - gasto
+                    cmv += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida") * cant
+            utilidad = ventas - gasto          # como estaba: ventas − gastos
 
             resultado.append({
                 "mes": primer_dia.strftime("%b %Y"),
                 "mes_id": primer_dia.strftime("%Y-%m"),
                 "ventas": ventas,
-                "ventas_productos": ventas_prod,
-                "costo_mercancia": cmv,
-                "utilidad_bruta": utilidad_bruta,
                 "gastos": gasto,
-                "utilidad": utilidad,      # ahora = ventas de productos - costo - gastos (antes: ventas - gastos, sin costo)
+                "utilidad": utilidad,
+                "ventas_productos": ventas_prod,
+                "costo_corrida": cmv,                  # costo de la mercancía a precio de corrida
+                "tu_utilidad": ventas_prod - cmv,      # ventas de productos − precio de corrida
                 "num_pedidos": len(pedidos)
             })
         
