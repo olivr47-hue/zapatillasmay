@@ -4276,19 +4276,101 @@ window.switchTabAnalisis = async (tab) => {
   if (tab === 'rotacion') { await window._renderRotacionRapida(); return }
   if (tab === 'ordenes') { await window._renderComprasAnalisis(); return }
   if (tab === 'tallas' || tab === 'variantes') {
-    // Rotación/Tallas/Variantes necesitan el cálculo pesado (tablas grandes
-    // de movimientos/pedidos) -- solo se dispara aquí, la primera vez que
-    // de verdad se pide una de estas pestañas, no al entrar a Análisis.
-    if (!window._analisisDatosListos) {
-      container.innerHTML = '<p style="padding:2rem;color:#888">Calculando rotación... esto puede tardar unos segundos</p>'
-      await _asegurarDatosAnalisisPesados()
-      // El usuario pudo cambiar de pestaña mientras esperaba -- solo pintar
-      // el resultado si sigue queriendo ver esta misma pestaña.
-      if (window._analisisTabActivo !== tab) return
+    // Tallas y Variantes las calcula el servidor (antes bajaban todas las tablas al navegador y tardaban mucho)
+    container.innerHTML = '<p style="padding:2rem;color:#888">Calculando ventas por talla…</p>'
+    let datos
+    try { datos = await window._cargarTallasVariantes() } catch (e) {
+      if (window._analisisTabActivo === tab) container.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo calcular: ${_invEsc(e.message)}</p>`
+      return
     }
-    if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
-    else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
+    if (window._analisisTabActivo !== tab) return
+    container.innerHTML = tab === 'tallas' ? window._renderTallasRapido('') : window._renderVariantesRapido()
   }
+}
+
+// ── Tallas y Variantes (el cálculo lo hace el servidor) ──
+window._tvCache = null
+window._cargarTallasVariantes = async (forzar) => {
+  const c = window._tvCache
+  if (!forzar && c && Date.now() - c.t < 120000) return c.data
+  const r = await fetch(API + '/finanzas/analisis-tallas-variantes')
+  const d = await r.json()
+  if (!r.ok || !Array.isArray(d)) throw new Error((d && d.error) || ('HTTP ' + r.status))
+  window._tvCache = { t: Date.now(), data: d }
+  return d
+}
+
+window._renderTallasRapido = (filtro) => {
+  filtro = (filtro || '').toLowerCase()
+  const todos = (window._tvCache && window._tvCache.data) || []
+  const lista = todos.filter(p => !filtro || (p.nombre || '').toLowerCase().includes(filtro) || (p.sku_interno || '').toLowerCase().includes(filtro))
+  const heat = (tallasArr) => {
+    const maxV = Math.max(...tallasArr.map(t => t.total), 1)
+    return tallasArr.map(t => {
+      const pct = Math.round(t.total / maxV * 100)
+      const bg = pct === 0 ? '#f8fafc' : pct < 20 ? '#fce7f3' : pct < 50 ? '#fbcfe8' : pct < 80 ? '#f472b6' : '#E91E8C'
+      const tc = pct >= 50 ? 'white' : pct === 0 ? '#cbd5e1' : '#be185d'
+      const sub = pct >= 50 ? 'rgba(255,255,255,0.75)' : '#db2777'
+      return `<div style="background:${bg};border-radius:7px;padding:8px 5px;text-align:center;min-width:58px;${pct === 0 ? 'border:1px solid #e2e8f0' : ''}" title="T${_invEsc(t.talla)}: ${t.total} pares totales (${t.d30} en 30d)">
+        <p style="font-size:0.9rem;font-weight:800;color:${tc};line-height:1;margin-bottom:2px">${t.total}</p>
+        <p style="font-size:0.65rem;font-weight:700;color:${tc}">T${_invEsc(t.talla)}</p>
+        <p style="font-size:0.58rem;color:${t.d30 > 0 ? sub : 'transparent'};margin-top:1px">${t.d30 > 0 ? '+' + t.d30 : '·'}</p></div>`
+    }).join('')
+  }
+  const leyenda = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;flex-wrap:wrap">
+    <span style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Intensidad:</span>
+    ${[['#f8fafc', 'Sin ventas'], ['#fce7f3', '1–2 pares'], ['#fbcfe8', 'Moderado'], ['#f472b6', 'Buenas'], ['#E91E8C', 'Muy buenas']].map(l => `<div style="display:flex;align-items:center;gap:4px"><div style="width:16px;height:16px;border-radius:3px;background:${l[0]};border:1px solid rgba(0,0,0,0.08)"></div><span style="font-size:0.68rem;color:#475569">${l[1]}</span></div>`).join('')}
+    <span style="font-size:0.68rem;color:#94a3b8">— Número = pares totales · (+X) = últimos 30 días</span></div>`
+  return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <input class="form-input" placeholder="Filtrar por modelo o SKU..." style="max-width:260px;font-size:0.82rem" value="${_invEsc(filtro)}"
+        oninput="document.getElementById('analisis-tab-content').innerHTML=window._renderTallasRapido(this.value);var i=document.querySelector('#analisis-tab-content input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}">
+      <span style="font-size:0.75rem;color:#94a3b8">${lista.length} de ${todos.length} modelos</span></div>${leyenda}` +
+    (lista.length === 0 ? '<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No se encontraron modelos</div>' : lista.slice(0, 80).map(p => {
+      const top = (p.tallas || []).find(t => t.total > 0)
+      const cols = p.colores || []
+      return `<div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          ${p.imagen_principal ? `<img src="${_invEsc(p.imagen_principal)}" loading="lazy" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">` : ''}
+          <div style="flex:1"><p style="font-weight:700;font-size:0.88rem;color:#0f172a">${_invEsc(p.nombre)}</p>
+            <p style="font-size:0.7rem;color:#94a3b8">${p.d90 || 0} pares en 90d · ${cols.length ? cols.length + ' colores con ventas' : (p.tallas || []).filter(t => t.total > 0).length + ' tallas con movimiento'}</p></div>
+          ${top ? `<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:5px 12px;text-align:center;flex-shrink:0"><p style="font-size:0.6rem;color:#9d174d;font-weight:700;text-transform:uppercase">Talla global top</p><p style="font-size:1.05rem;font-weight:800;color:#be185d;line-height:1.2">T${_invEsc(top.talla)}</p><p style="font-size:0.62rem;color:#9d174d">${top.total} pares</p></div>` : ''}
+        </div>
+        ${cols.length ? cols.map(c => {
+          const mx = Math.max(...c.tallas.map(x => x.total)); const best = c.tallas.find(t => t.total === mx)
+          return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:7px"><span style="font-size:0.72rem;font-weight:700;color:#334155">${_invEsc(c.color)}</span>
+            <span style="font-size:0.65rem;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:100px">${c.total} pares totales</span>
+            ${best ? `<span style="font-size:0.65rem;color:#be185d;background:#fdf2f8;padding:1px 7px;border-radius:100px">top: T${_invEsc(best.talla)}</span>` : ''}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">${heat(c.tallas)}</div></div>`
+        }).join('<hr style="border:none;border-top:1px solid #f1f5f9;margin:4px 0 12px">') : `<div style="display:flex;gap:6px;flex-wrap:wrap">${heat(p.tallas || [])}</div>`}
+      </div>`
+    }).join('') + (lista.length > 80 ? `<p style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:8px">Se muestran 80 de ${lista.length}. Usa el filtro para encontrar un modelo.</p>` : ''))
+}
+
+window._renderVariantesRapido = () => {
+  const todos = ((window._tvCache && window._tvCache.data) || []).filter(p => (p.variantes || []).some(v => v.total > 0))
+  if (!todos.length) return '<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No hay datos de ventas por variante aún</div>'
+  const colors = ['#E91E8C', '#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#14b8a6']
+  return todos.slice(0, 80).map(p => {
+    const top = p.variantes.slice(0, 8)
+    const mx = Math.max(...top.map(v => v.total), 1)
+    const win = top[0]
+    return `<div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        ${p.imagen_principal ? `<img src="${_invEsc(p.imagen_principal)}" loading="lazy" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8fafc">` : ''}
+        <div style="flex:1"><p style="font-weight:700;font-size:0.88rem;color:#0f172a">${_invEsc(p.nombre)}</p>
+          <p style="font-size:0.7rem;color:#94a3b8">${p.variantes.filter(v => v.total > 0).length} de ${p.variantes.length} variantes con ventas</p></div>
+        ${win && win.total > 0 ? `<span style="background:#eff6ff;color:#1d4ed8;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700">⭐ ${_invEsc(win.label || '')} — ${win.total} vendidos</span>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${top.map((v, i) => `<div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.72rem;font-weight:600;color:#64748b;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_invEsc(v.label || '')}</span>
+          <div style="flex:1;height:20px;background:#f1f5f9;border-radius:4px;overflow:hidden;position:relative">
+            <div style="width:${Math.round(v.total / mx * 100)}%;height:100%;background:${colors[i % colors.length]};border-radius:4px;display:flex;align-items:center;padding-left:6px;box-sizing:border-box">
+              ${v.total / mx > 0.18 ? `<span style="font-size:0.65rem;font-weight:700;color:white">${v.total}</span>` : ''}</div>
+            ${v.total / mx <= 0.18 ? `<span style="position:absolute;left:${Math.round(v.total / mx * 100) + 1}%;top:50%;transform:translateY(-50%);font-size:0.65rem;font-weight:700;color:#334155">${v.total}</span>` : ''}
+          </div><span style="font-size:0.67rem;color:#94a3b8;min-width:52px;text-align:right">Stock: ${v.stock}</span></div>`).join('')}
+      </div></div>`
+  }).join('') + (todos.length > 80 ? `<p style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:8px">Se muestran 80 de ${todos.length} modelos (los que más vendieron en 30 días).</p>` : '')
 }
 
 // ── Análisis rápido: Resumen en dinero + Rotación + Compras (el cálculo lo hace el servidor) ─────────────────────────────

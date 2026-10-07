@@ -968,6 +968,25 @@ def analisis_inventario():
         return JSONResponse(status_code=500, content={"error": str(e)[:300]})
 
 
+_CACHE_ANALISIS_TV = {"t": 0, "data": None}
+
+
+@router.get("/analisis-tallas-variantes")
+def analisis_tallas_variantes():
+    """Pestañas Tallas y Variantes de Análisis, calculadas en la base de datos (función SQL analisis_tallas_variantes): por modelo con ventas,
+    ventas por talla, por color+talla y por variante (siempre / 90 d / 30 d) y el stock de cada variante. Se guarda 2 minutos en memoria."""
+    import time as _t
+    from database import supabase_rpc
+    try:
+        if _CACHE_ANALISIS_TV["data"] is not None and _t.time() - _CACHE_ANALISIS_TV["t"] < 120:
+            return _CACHE_ANALISIS_TV["data"]
+        data = supabase_rpc("analisis_tallas_variantes", {})
+        _CACHE_ANALISIS_TV.update({"t": _t.time(), "data": data})
+        return data
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:300]})
+
+
 # Reglas de «qué pedir» (antes cualquier talla/color en cero marcaba el modelo como URGENTE aunque casi no se hubiera vendido nunca,
 # y la cantidad sugerida era como mínimo 6 pares): ahora solo se sugiere lo que de verdad rota.
 _RECOMPRA_MIN_VENTAS_90 = 3        # pares vendidos en 90 días para considerar que un modelo «rota»
