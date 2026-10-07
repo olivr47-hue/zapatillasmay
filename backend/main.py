@@ -29,6 +29,7 @@ from routers import resenas
 from routers import pinterest
 from routers import portal
 from routers import marketplace
+from routers import demo as demo_router
 from routers import sugerencias
 from routers import push
 from routers import emails
@@ -199,6 +200,7 @@ _CACHE_PUBLICA = {"/productos/", "/productos/nuevos", "/variantes/", "/inventari
 app.include_router(productos.router)
 app.include_router(marketplace.router)
 app.include_router(marketplace.router_vendedor)
+app.include_router(demo_router.router)
 app.include_router(sucursales.router)
 app.include_router(inventario.router)
 app.include_router(clientes.router)

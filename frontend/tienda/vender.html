@@ -54,6 +54,27 @@
     .msg.ok { display:block; background:#e8f5e9; color:var(--ok); }
     .msg.err { display:block; background:#fdecea; color:#b3261e; }
     .hp { position:absolute; left:-9999px; }
+
+    .renta { background:linear-gradient(180deg,#2A1A0E,#3d2616); color:#FBF7F3; padding:56px 20px 60px; margin-top:20px; }
+    .renta .in { max-width:1020px; margin:0 auto; }
+    .renta small { letter-spacing:.18em; text-transform:uppercase; color:var(--rose); font-weight:600; font-size:.74rem; }
+    .renta h2 { color:#fff; margin:8px 0 10px; text-align:left; font-size:clamp(1.8rem,5vw,2.6rem); }
+    .renta p.lead { max-width:680px; color:rgba(251,247,243,.82); font-size:1.02rem; margin-bottom:24px; }
+    .renta .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin:22px 0; }
+    .renta .col { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:18px 20px; }
+    .renta .col h3 { font-size:1rem; color:#fff; margin-bottom:8px; }
+    .renta .col ul { list-style:none; padding:0; }
+    .renta .col li { font-size:.88rem; color:rgba(251,247,243,.82); margin:5px 0; padding-left:20px; position:relative; line-height:1.45; }
+    .renta .col li::before { content:'✓'; position:absolute; left:0; color:var(--rose); font-weight:700; }
+    .renta .chips { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 4px; }
+    .renta .chips span { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius:50px; padding:5px 14px; font-size:.82rem; color:#fff; }
+    .renta .cta { margin-top:26px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .renta .btn { background:var(--rose); color:#2A1A0E; }
+    .renta .nota { font-size:.8rem; color:rgba(251,247,243,.6); margin-top:14px; }
+    .ov { position:fixed; inset:0; background:rgba(42,26,14,.65); z-index:60; display:none; align-items:flex-start; justify-content:center; padding:4vh 12px; overflow:auto; }
+    .ov.on { display:flex; }
+    .ov .modal { background:#fff; color:var(--black); border-radius:18px; width:100%; max-width:480px; padding:24px; }
+    .ov .modal h3 { font-family:'Cormorant Garamond',serif; font-size:1.7rem; font-weight:500; margin-bottom:4px; }
     footer { background:var(--black); color:rgba(251,247,243,.7); text-align:center; padding:22px; font-size:.82rem; }
   </style>
 </head>
@@ -132,6 +153,72 @@
   </form>
 </div>
 
+<section class="renta" id="sistema">
+  <div class="in">
+    <small>Para tu negocio</small>
+    <h2>¿Quieres este mismo sistema para tu negocio?</h2>
+    <p class="lead">Todo lo que ves aquí lo maneja un solo sistema: el punto de venta de mi tienda, el inventario, la tienda en línea, el WhatsApp con inteligencia artificial, el marketplace de vendedores y mis ventas en MercadoLibre, Amazon, Walmart, SHEIN y TikTok. Se renta, y primero puedes entrar a verlo funcionando.</p>
+
+    <div class="cols">
+      <div class="col"><h3>🧾 Punto de venta</h3><ul>
+        <li>Venta en mostrador con efectivo, tarjeta (terminal MercadoPago), transferencia o pago combinado</li>
+        <li>Tickets, apartados con anticipo, cambios y devoluciones</li>
+        <li>Caja con apertura y cierre, y etiquetas con código QR</li></ul></div>
+      <div class="col"><h3>📦 Inventario y compras</h3><ul>
+        <li>Varias sucursales o bodegas, con tallas y colores</li>
+        <li>Edición masiva de productos, precios y existencias</li>
+        <li>Órdenes de compra, proveedores y cuentas por pagar</li>
+        <li>Análisis de qué rota, qué está parado y qué conviene pedir</li></ul></div>
+      <div class="col"><h3>👥 Clientes y ventas</h3><ul>
+        <li>Clientes, créditos, notas de crédito y referidos</li>
+        <li>CRM con embudo de seguimiento y avisos de recompra</li>
+        <li>Portal de mayoristas con precios por volumen y envío por peso</li></ul></div>
+      <div class="col"><h3>🛍️ Tienda en línea propia</h3><ul>
+        <li>Tienda con carrito, SEO y pago con MercadoPago</li>
+        <li>Carrito abandonado, reseñas y notificaciones</li>
+        <li>Marketplace: otros vendedores publican en tu sitio y tú ganas por cada par</li></ul></div>
+      <div class="col"><h3>💬 WhatsApp, Instagram y Facebook</h3><ul>
+        <li>Asistente con inteligencia artificial que atiende, resuelve y genera links de pago</li>
+        <li>Conversaciones de WhatsApp, Instagram y Facebook en un solo lugar</li>
+        <li>Plantillas, difusiones y secuencias de mensajes</li></ul></div>
+      <div class="col"><h3>📣 Marketing</h3><ul>
+        <li>Publicaciones para Instagram y Facebook con fotos de tus productos (collage, carrusel y más)</li>
+        <li>Catálogos en PDF, feeds para Google y Meta, píxeles y conversiones</li>
+        <li>Estadísticas de visitas y de dónde llegan tus clientes</li></ul></div>
+      <div class="col"><h3>📊 Finanzas</h3><ul>
+        <li>Ventas y utilidad por mes, estado de resultados y gastos</li>
+        <li>Flujo de efectivo, cuentas por cobrar y valor del inventario</li>
+        <li>Roles: administrador, vendedor y cajero</li></ul></div>
+    </div>
+
+    <p style="font-size:.9rem;margin:6px 0 8px;color:#fff;font-weight:600">Integraciones con las que ya trabaja</p>
+    <div class="chips"><span>MercadoLibre</span><span>Amazon</span><span>Walmart</span><span>SHEIN</span><span>TikTok Shop</span><span>MercadoPago y terminal Point</span><span>WhatsApp Business</span><span>Instagram</span><span>Facebook</span><span>Google Analytics</span><span>Google Merchant</span><span>Search Console</span><span>Meta Pixel y conversiones</span><span>Pinterest</span><span>Correo transaccional</span></div>
+
+    <div class="cta">
+      <button class="btn" onclick="abrirDemo()">Probar la demo</button>
+      <span style="font-size:.9rem;color:rgba(251,247,243,.8)">Déjanos tus datos y entra a ver el sistema funcionando.</span>
+    </div>
+    <p class="nota">Las integraciones se conectan con las cuentas de cada negocio. Cuéntanos qué usas y te decimos cómo quedaría para ti.</p>
+  </div>
+</section>
+
+<div class="ov" id="ov-demo"><div class="modal">
+  <h3>Prueba el sistema</h3>
+  <p style="font-size:.85rem;color:var(--gray);margin-bottom:6px">Deja tus datos y te damos acceso a la demo, sin compromiso.</p>
+  <form onsubmit="return pedirDemo(event)">
+    <label for="d-nombre">Tu nombre *</label><input type="text" id="d-nombre" maxlength="80" required autocomplete="name">
+    <div class="grid2"><div><label for="d-wa">WhatsApp (10 dígitos) *</label><input type="tel" id="d-wa" inputmode="numeric" maxlength="14" required autocomplete="tel"></div>
+      <div><label for="d-email">Correo *</label><input type="email" id="d-email" maxlength="120" required autocomplete="email"></div>
+      <div><label for="d-negocio">Nombre de tu negocio</label><input type="text" id="d-negocio" maxlength="80"></div>
+      <div><label for="d-tipo">¿Qué vendes?</label><input type="text" id="d-tipo" maxlength="60" placeholder="Zapatos, ropa, ferretería…"></div></div>
+    <label for="d-msg">¿Qué te gustaría resolver con el sistema?</label><textarea id="d-msg" rows="2" maxlength="400" placeholder="Ej: llevar inventario de 2 sucursales y vender en MercadoLibre."></textarea>
+    <input type="text" class="hp" id="d-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+      <button type="button" class="btn sec" onclick="cerrarDemo()">Cancelar</button><button class="btn" id="d-btn" type="submit">Quiero ver la demo</button></div>
+    <div class="msg" id="d-msg-r"></div>
+  </form>
+</div></div>
+
 <footer>Zapatillas May · León, Guanajuato · <a href="https://wa.me/5214792244560" style="color:#e8b4a0">¿Dudas? Escríbenos por WhatsApp</a></footer>
 
 <script>
@@ -153,6 +240,25 @@
       setTimeout(() => { location.href = '/vendedor' }, 2500)
     } catch (e) { msg.className = 'msg err'; msg.textContent = e.message }
     btn.disabled = false; btn.textContent = 'Enviar solicitud'
+    return false
+  }
+
+  function abrirDemo() { document.getElementById('ov-demo').classList.add('on') }
+  function cerrarDemo() { document.getElementById('ov-demo').classList.remove('on') }
+  async function pedirDemo(ev) {
+    ev.preventDefault()
+    const v = (id) => document.getElementById(id).value, btn = document.getElementById('d-btn'), msg = document.getElementById('d-msg-r')
+    msg.className = 'msg'; msg.style.display = 'none'; btn.disabled = true; btn.textContent = 'Enviando…'
+    try {
+      const r = await fetch(API + '/demo/solicitar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        nombre: v('d-nombre'), whatsapp: v('d-wa'), email: v('d-email'), negocio: v('d-negocio'), tipo_negocio: v('d-tipo'), mensaje: v('d-msg'), sitio_web: v('d-hp'), origen: 'vender' }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(d.error || 'No se pudo enviar. Intenta de nuevo.')
+      if (d.url) { location.href = d.url; return }            // cuando la demo está lista, entra directo
+      msg.className = 'msg ok'; msg.textContent = '¡Listo! Recibimos tus datos. Te escribimos por WhatsApp para darte tu acceso a la demo.'
+      document.querySelector('#ov-demo form').reset()
+    } catch (e) { msg.className = 'msg err'; msg.textContent = e.message }
+    btn.disabled = false; btn.textContent = 'Quiero ver la demo'
     return false
   }
 </script>
