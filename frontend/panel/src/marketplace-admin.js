@@ -70,12 +70,20 @@ async function mpVendedores(c) {
       <td style="font-size:0.8rem">${v.publicados} publicados${v.por_aprobar ? `<br><span style="color:#b26a00">${v.por_aprobar} por aprobar</span>` : ''}<br><span style="color:#94a3b8">${v.productos} en total</span></td>
       <td>${v.pedidos}</td><td>${$$(v.ventas)}</td><td><b>${$$(v.comision_ganada)}</b><br><span style="font-size:0.7rem;color:#94a3b8">${$$(v.comision_por_par)} de ganancia por par</span></td>
       <td style="white-space:nowrap">${v.estado !== 'activo' ? `<button class="btn btn-primary" style="font-size:0.72rem;padding:3px 10px" onclick="mpVendEstado('${esc(v.id)}','activo')">${v.estado === 'pendiente' ? 'Aprobar' : 'Reactivar'}</button>` : `<button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px;color:#b3261e" onclick="mpVendEstado('${esc(v.id)}','suspendido')">Suspender</button>`}
-        <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px" onclick="mpVendAjustes('${esc(v.id)}')">Ajustes</button></td></tr>`).join('')}</tbody></table></div>`
+        <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px" onclick="mpVendAjustes('${esc(v.id)}')">Ajustes</button>
+        <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px;color:#7c3aed;border-color:#c4b5fd" onclick="mpVerComo('${esc(v.id)}')" title="Abre el portal de vendedor de esta tienda, tal como lo ve ella">👁 Ver como vendedor</button></td></tr>`).join('')}</tbody></table></div>`
     : '<p style="color:#94a3b8;padding:1rem">Todavía no hay vendedores. Comparte zapatillasmay.mx/vender.</p>'
 }
 window.mpVendEstado = async (id, estado) => {
   if (!confirm(estado === 'activo' ? '¿Activar esta cuenta? Sus productos aprobados se podrán publicar y se le avisa por correo.' : '¿Suspender esta cuenta? Sus productos dejan de verse y no podrá entrar.')) return
   try { await mpApi('/marketplace/admin/vendedores/' + id, { method: 'PATCH', json: { estado } }); mpTab('vendedores') } catch (e) { alert(e.message) }
+}
+window.mpVerComo = async (id) => {
+  const w = window.open('', '_blank')   // se abre antes del fetch para que el navegador no bloquee la ventana
+  try {
+    const d = await mpApi(`/marketplace/admin/vendedores/${id}/entrar`, { method: 'POST' })
+    if (w) w.location.href = d.url; else alert('Permite las ventanas emergentes para ver el portal.')
+  } catch (e) { if (w) w.close(); alert(e.message) }
 }
 window.mpVendAjustes = async (id) => {
   const v = (MP.datos.vend || []).find(x => x.id === id); if (!v) return

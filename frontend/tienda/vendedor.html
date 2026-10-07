@@ -203,7 +203,12 @@ async function restablecer() {
 }
 function salir() { guardado.set(null); location.href = '/vendedor' }
 
+// Acceso de administrador («Ver como vendedor» desde el panel del negocio): el token viene en el fragmento (#acceso=...), que no viaja al servidor
+function _payloadToken(t) { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))) } catch (e) { return {} } }
+function _modoAdmin() { return !!_payloadToken(guardado.get() || '').admin_view }
 async function iniciar() {
+  const _m = location.hash.match(/^#acceso=(.+)$/)
+  if (_m) { guardado.set(_m[1]); history.replaceState(null, '', location.pathname) }
   const reset = new URLSearchParams(location.search).get('reset')
   if (reset) { vistaAcceso('reset'); return }
   if (guardado.get()) { try { V = await api('/vendedor/yo'); abrirPanel(); return } catch (e) {} }
@@ -215,8 +220,10 @@ function abrirPanel() {
   pintarAviso(); cambiarTab('resumen')
 }
 function pintarAviso() {
-  $('aviso-estado').innerHTML = V.estado === 'pendiente'
+  const admin = _modoAdmin() ? `<div class="aviso" style="background:#f3e8ff;border-color:#d8b4fe;color:#5b21b6"><b>👁 Modo administrador:</b> estás viendo el portal de <b>${esc(V.nombre_tienda)}</b> tal como lo ve la tienda. Lo que hagas aquí queda en su cuenta. El acceso dura 2 horas.</div>` : ''
+  const pend = V.estado === 'pendiente'
     ? '<div class="aviso"><b>Tu cuenta está en revisión.</b> Ya puedes preparar tus productos y fotos; los publicamos en cuanto aprobemos tu cuenta (te avisamos por correo).</div>' : ''
+  $('aviso-estado').innerHTML = admin + pend
 }
 document.addEventListener('click', (e) => { const b = e.target.closest('#tabs button'); if (b) cambiarTab(b.dataset.t) })
 async function cambiarTab(t) {

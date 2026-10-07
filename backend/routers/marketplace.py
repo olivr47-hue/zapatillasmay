@@ -140,7 +140,7 @@ def require_vendedor(credentials: HTTPAuthorizationCredentials = Depends(bearer_
     if not filas:
         raise HTTPException(status_code=401, detail="Cuenta no encontrada")
     v = filas[0]
-    if v.get("estado") == "suspendido":
+    if v.get("estado") == "suspendido" and not payload.get("admin_view"):
         raise HTTPException(status_code=403, detail="Tu cuenta está suspendida. Escríbenos por WhatsApp.")
     return v
 
@@ -1033,6 +1033,17 @@ def admin_editar_vendedor(vid: str, datos: dict, _a=Depends(require_admin)):
                 f"<p style='color:#555;line-height:1.6'>Aprobamos tu cuenta. Entra a tu panel, sube tus productos y mándalos a revisión: en cuanto los aprobemos se publican en zapatillasmay.mx.</p>"
                 f"{_boton('Entrar a mi panel', _FRONT + '/vendedor')}", "marketplace_activo")
     return {"ok": True}
+
+
+@router.post("/admin/vendedores/{vid}/entrar")
+def admin_ver_como_vendedor(vid: str, _a=Depends(require_admin)):
+    """«Ver como vendedor»: da al administrador un acceso de 2 horas al portal de esa tienda, para ver exactamente lo que ella ve (y revisarlo o ayudarle).
+    Es un acceso del administrador: el portal lo muestra con un aviso y todo lo que se haga ahí queda en la cuenta de esa tienda."""
+    v = (supabase_get(f"mp_vendedores?id=eq.{_q(vid)}&select=id,email,nombre_tienda") or [None])[0]
+    if not v:
+        return JSONResponse(status_code=404, content={"error": "No encontrado"})
+    token = create_token({"sub": v["id"], "tipo": "vendedor", "vendedor": True, "email": v["email"], "admin_view": True}, expires_hours=2)
+    return {"token": token, "url": f"{_FRONT}/vendedor#acceso={token}", "tienda": v["nombre_tienda"]}
 
 
 @router.get("/admin/productos")
