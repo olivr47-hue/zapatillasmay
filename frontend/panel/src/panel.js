@@ -20214,7 +20214,6 @@ window.verTuUtilidadDesglose = async () => {
     if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status))
     const fila = (f, extra = '') => `<tr${extra}><td>${f.nombre}</td><td style="text-align:right">${f.pedidos}</td><td style="text-align:right">${f.pares}</td><td style="text-align:right">${mon(f.cobrado)}</td><td style="text-align:right">${mon(f.corrida)}</td><td style="text-align:right;font-weight:700;color:#6a1b9a">${mon(f.utilidad)}</td></tr>`
     const tot = (nombre, t, estilo) => `<tr style="${estilo}"><td><b>${nombre}</b></td><td style="text-align:right"><b>${t.pedidos}</b></td><td style="text-align:right"><b>${t.pares}</b></td><td style="text-align:right"><b>${mon(t.cobrado)}</b></td><td style="text-align:right"><b>${mon(t.corrida)}</b></td><td style="text-align:right;color:#6a1b9a"><b>${mon(t.utilidad)}</b></td></tr>`
-    const solos = d.filas.filter(f => f.llega_solo), resto = d.filas.filter(f => !f.llega_solo)
     caja.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
         <h3 style="margin:0">👤 Tu utilidad — ${d.mes_etiqueta}</h3>
@@ -20224,13 +20223,10 @@ window.verTuUtilidadDesglose = async () => {
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem">
         <thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th>Canal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Pares</th><th style="text-align:right">Total cobrado</th><th style="text-align:right">Corrida</th><th style="text-align:right">Utilidad</th></tr></thead>
         <tbody>
-          <tr><td colspan="6" style="padding-top:8px;font-size:0.72rem;font-weight:700;color:#166534">LO QUE LLEGA SOLO</td></tr>
-          ${solos.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:6px 0">Sin ventas de este tipo en el mes.</td></tr>'}
-          ${tot('Suma de lo que llega solo', d.llegan_solos, 'background:#f0fdf4')}
-          <tr><td colspan="6" style="padding-top:12px;font-size:0.72rem;font-weight:700;color:#64748b">LO QUE CAPTURASTE TÚ O TUS CLIENTAS</td></tr>
-          ${resto.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:6px 0">Nada en el mes.</td></tr>'}
-          ${tot('Total del mes', d.total, 'background:#f3e5f5;border-top:2px solid #ce93d8')}
-        </tbody></table></div>`
+          ${d.filas.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:10px 0">Sin ventas de este tipo en el mes.</td></tr>'}
+          ${tot('Total — Tu utilidad del mes', d.total, 'background:#f3e5f5;border-top:2px solid #ce93d8')}
+        </tbody></table></div>
+      <p style="margin:12px 0 0;font-size:0.72rem;color:#94a3b8">Solo cuenta lo que llega solo. No cuenta: mostrador, lo que capturas tú ni las clientas que registraste tú, ni SHEIN.</p>`
     caja.querySelectorAll('td,th').forEach(td => { td.style.padding = '7px 8px' })
   } catch (e) { caja.innerHTML = `<p style="color:#b91c1c">No se pudo calcular: ${e.message}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-tu-utilidad').remove()">Cerrar</button>` }
 }

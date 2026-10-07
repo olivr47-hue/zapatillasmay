@@ -44,6 +44,30 @@ def _costo_unitario(prod: dict, base: str) -> float:
     return pc if pc > 0 else max(float(prod.get("precio_menudeo") or 0) - 100.0, 0.0)
 
 
+_ORIGEN_PROPIO = ('tienda', 'google', 'auto-reparado')   # fichas que la clienta creó sola
+
+
+def _origenes_clientes(cids):
+    """{cliente_id: origen} para decidir si una clienta del portal se registró sola o la registró el dueño."""
+    cids = list({c for c in cids if c})
+    out = {}
+    for k in range(0, len(cids), 150):
+        for cl in supabase_get(f"clientes?id=in.({','.join(cids[k:k + 150])})&select=id,origen") or []:
+            out[cl['id']] = cl.get('origen')
+    return out
+
+
+def _cuenta_en_tu_utilidad(canal, origen_cliente):
+    """«Tu utilidad» solo cuenta lo que llega solo: tienda en línea, MercadoLibre, WhatsApp y portal de clientas que se registraron solas.
+    NO cuenta mostrador, lo que captura el dueño ni las clientas que registró él, ni SHEIN y demás."""
+    canal = (canal or '').lower()
+    if canal in ('web', 'online', 'mercadolibre', 'whatsapp'):
+        return True
+    if canal == 'portal_mayoreo':
+        return origen_cliente in _ORIGEN_PROPIO
+    return False
+
+
 def _fecha_mx(ts: str):
     """Fecha (hora México) de un timestamp ISO que viene de la BD; None si no se puede."""
     try:
@@ -473,12 +497,12 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         pedidos_sucursal = supabase_get(
             f"pedidos?sucursal_id=eq.{sucursal_id}"
             f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}"
-            f"&select=id,total"
+            f"&select=id,total,canal,cliente_id"
         ) or []
         pedidos_online = supabase_get(
             f"pedidos?sucursal_id=is.null"
             f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}"
-            f"&select=id,total"
+            f"&select=id,total,canal,cliente_id"
         ) or []
         pedidos = pedidos_sucursal + pedidos_online
 
@@ -494,6 +518,9 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         pedidos_sin_items = []
         cmv = 0.0
         cmv_corrida = 0.0
+        tu_ventas = 0.0
+        origenes = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+        cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), origenes.get(p.get('cliente_id'))) for p in pedidos}
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
             # En bloques y paginado: antes era UNA consulta con todos los ids en la URL (se
@@ -558,7 +585,9 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
                 subtotal_costo = costo * cantidad
                 subtotal_venta = precio_venta * cantidad
                 cmv += subtotal_costo
-                cmv_corrida += corrida_u * cantidad
+                if cuenta.get(item.get('pedido_id')):   # solo lo que llega solo
+                    cmv_corrida += corrida_u * cantidad
+                    tu_ventas += subtotal_venta
                 desglose_cmv.append({
                     'nombre':         nombre,
                     'sku':            sku,
@@ -596,8 +625,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
             "cmv":                    cmv,
             "utilidad_bruta":         utilidad_bruta,          # ventas productos − CMV
             "utilidad":               utilidad_neta,           # utilidad_bruta − gastos operativos
-            "cmv_corrida":            cmv_corrida,             # lo mismo, pero a precio de corrida
-            "tu_utilidad":            total_ventas_productos - cmv_corrida,   # ventas de productos − corrida (utilidad de quien opera el sistema)
+            "cmv_corrida":            cmv_corrida,             # costo a precio de corrida de lo que llega solo
+            "tu_utilidad":            tu_ventas - cmv_corrida, # solo lo que llega solo: ventas de productos − precio de corrida
             "num_pedidos":            len(pedidos),
             "ticket_promedio":        total_ventas / len(pedidos) if pedidos else 0,
             "desglose_cmv":           desglose_cmv_sorted,
@@ -611,23 +640,33 @@ _GRUPOS_TU_UTILIDAD = [
     ("tienda", "Tienda en línea"),
     ("mercadolibre", "MercadoLibre"),
     ("whatsapp", "WhatsApp (Maya y links)"),
-    ("otros_mkt", "Otros marketplaces (SHEIN, Walmart, Amazon, TikTok)"),
     ("portal_solas", "Portal: clientas que se registraron solas"),
-    ("portal_tuyas", "Portal: clientas que registraste tú"),
-    ("mostrador", "Mostrador (sucursal)"),
-    ("otros", "Otros"),
 ]
 
 
 @router.get("/tu-utilidad-desglose/{sucursal_id}")
 def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
-    """Desglose de «Tu utilidad» (ventas de productos − precio de corrida) del mes, por canal. Las filas «llegan solos» son las que no capturaste tú
-    (tienda, MercadoLibre, WhatsApp, otros marketplaces y portal de clientas que se registraron solas)."""
+    """Desglose de «Tu utilidad» (ventas de productos − precio de corrida) del mes, por canal. Solo cuenta lo que llega solo (tienda,
+    MercadoLibre, WhatsApp y portal de clientas que se registraron solas); mostrador, lo que captura el dueño y SHEIN no cuentan."""
     try:
         ini, fin, etiqueta, mes_id = _rango_mes(mes)
         pedidos = supabase_get_all(
             f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)"
             f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id,total,canal,cliente_id") or []
+        origen = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+
+        def grupo(p):
+            canal = (p.get('canal') or '').lower()
+            if canal in ('web', 'online'):
+                return "tienda"
+            if canal == 'mercadolibre':
+                return "mercadolibre"
+            if canal == 'whatsapp':
+                return "whatsapp"
+            if canal == 'portal_mayoreo' and origen.get(p.get('cliente_id')) in _ORIGEN_PROPIO:
+                return "portal_solas"
+            return None
+        pedidos = [p for p in pedidos if grupo(p)]
         ids = [p['id'] for p in pedidos]
         items = []
         for k in range(0, len(ids), 150):
@@ -643,12 +682,6 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
         for k in range(0, len(pids), 150):
             for pr in supabase_get(f"productos?id=in.({','.join(pids[k:k + 150])})&select=id,costo,precio_corrida,precio_menudeo") or []:
                 pmap[pr['id']] = pr
-        # origen de la ficha de cada clienta (solo importa para el portal)
-        cids = list({p['cliente_id'] for p in pedidos if p.get('cliente_id') and p.get('canal') == 'portal_mayoreo'})
-        origen = {}
-        for k in range(0, len(cids), 150):
-            for cl in supabase_get(f"clientes?id=in.({','.join(cids[k:k + 150])})&select=id,origen") or []:
-                origen[cl['id']] = cl.get('origen')
         por_pedido = {}
         for i in items:
             cant = int(i.get('cantidad') or 0)
@@ -658,40 +691,20 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
             d["pares"] += cant
         acum = {k: {"pedidos": 0, "pares": 0, "cobrado": 0.0, "venta_productos": 0.0, "corrida": 0.0} for k, _ in _GRUPOS_TU_UTILIDAD}
         for p in pedidos:
-            canal = (p.get('canal') or '').lower()
-            if canal in ('web', 'online'):
-                g = "tienda"
-            elif canal == 'mercadolibre':
-                g = "mercadolibre"
-            elif canal == 'whatsapp':
-                g = "whatsapp"
-            elif canal in ('shein', 'walmart', 'amazon', 'tiktok'):
-                g = "otros_mkt"
-            elif canal == 'portal_mayoreo':
-                g = "portal_solas" if origen.get(p.get('cliente_id')) in ('tienda', 'google', 'auto-reparado') else "portal_tuyas"
-            elif canal == 'sucursal':
-                g = "mostrador"
-            else:
-                g = "otros"
-            d = por_pedido.get(p['id'])
-            a = acum[g]
+            a = acum[grupo(p)]
             a["pedidos"] += 1
             a["cobrado"] += float(p.get('total') or 0)
+            d = por_pedido.get(p['id'])
             if d:
                 a["pares"] += d["pares"]; a["venta_productos"] += d["venta"]; a["corrida"] += d["corrida"]
         filas = []
         for k, nombre in _GRUPOS_TU_UTILIDAD:
             a = acum[k]
             if a["pedidos"]:
-                filas.append({"grupo": k, "nombre": nombre, "llega_solo": k in ("tienda", "mercadolibre", "whatsapp", "otros_mkt", "portal_solas"),
-                              "pedidos": a["pedidos"], "pares": a["pares"], "cobrado": a["cobrado"],
+                filas.append({"grupo": k, "nombre": nombre, "pedidos": a["pedidos"], "pares": a["pares"], "cobrado": a["cobrado"],
                               "venta_productos": a["venta_productos"], "corrida": a["corrida"], "utilidad": a["venta_productos"] - a["corrida"]})
-        def suma(fs, campo):
-            return sum(f[campo] for f in fs)
-        solos = [f for f in filas if f["llega_solo"]]
-        return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas,
-                "llegan_solos": {k: suma(solos, k) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")},
-                "total": {k: suma(filas, k) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")}}
+        total = {k: sum(f[k] for f in filas) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")}
+        return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas, "total": total}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -718,19 +731,21 @@ def estado_resultados(sucursal_id: str):
             _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
             # Sucursal + ventas en línea/marketplaces (sin sucursal): antes faltaban estas últimas y el estado de resultados
             # daba menos ventas que el reporte de 30 días.
-            pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=id,total")
+            pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=id,total,canal,cliente_id")
             gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
             gasto = sum(float(g['monto'] or 0) for g in gastos)
             # costo de la mercancía vendida ese mes (con la base de costo elegida) y venta solo de productos
             ids = [p['id'] for p in pedidos]
+            _orig = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+            _cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), _orig.get(p.get('cliente_id'))) for p in pedidos}
             ventas_prod = cmv = 0.0
             if ids:
                 items = []
                 for _k in range(0, len(ids), 150):
-                    items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[_k:_k + 150])})&select=cantidad,variante_id,precio_unitario") or []
-                items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0]
+                    items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[_k:_k + 150])})&select=pedido_id,cantidad,variante_id,precio_unitario") or []
+                items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0 and _cuenta.get(i.get('pedido_id'))]
                 vids = list({i['variante_id'] for i in items})
                 vmap = {}
                 for _k in range(0, len(vids), 150):
