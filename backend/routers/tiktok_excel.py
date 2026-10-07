@@ -16,6 +16,8 @@ Flujo:
 """
 import base64
 import io
+import re
+import unicodedata
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -76,6 +78,7 @@ def _cargar_erp():
     for v in variantes:
         vars_por_prod.setdefault(v["producto_id"], []).append(v)
     inv_por_sku = {}
+    _ALIAS_ID.clear()
     for p in productos:
         spu = p.get("sku_interno") or str(p["id"])
         inv_por_sku[spu] = {}
@@ -83,33 +86,90 @@ def _cargar_erp():
             color = (v.get("color") or "Unico").strip().upper()
             talla = str(v.get("talla") or "Unica").strip()
             inv_por_sku[spu][(color, talla)] = inv.get(v["id"], 0)
+        if spu != str(p["id"]):
+            inv_por_sku[str(p["id"])] = inv_por_sku[spu]   # mismo modelo, por si el SKU de TikTok empieza con el id
+            _ALIAS_ID[str(p["id"])] = spu
     return productos, vars_por_prod, inv, inv_por_sku
+
+
+_UUID_RX = re.compile(r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+_ALIAS_ID = {}   # id del producto -> sku_interno (se llena en _cargar_erp)
+
+
+def _clave_color(t):
+    """Color sin acentos, mayúsculas y sin espacios/guiones: «Verde metálico» = «VERDEMETALICO»."""
+    s = unicodedata.normalize("NFKD", str(t or "")).encode("ascii", "ignore").decode().upper()
+    return re.sub(r"[^A-Z0-9]", "", s)
+
+
+def _clave_talla(t):
+    """«25_5» (así se publicaron algunos SKU viejos en TikTok) = «25.5»."""
+    v = str(t or "").strip().replace("_", ".").replace(",", ".")
+    return v[:-2] if v.endswith(".0") else v
+
+
+def _spu_de(sku_vend, inv_por_sku):
+    """(clave del modelo en inv_por_sku, partes que quedan: color/talla). None si el modelo no está en el ERP."""
+    if not sku_vend:
+        return None, []
+    m = _UUID_RX.match(sku_vend)
+    if m:   # modelo publicado cuando aún no tenía SKU interno: el SKU empieza con su id
+        spu = m.group(0).lower()
+        resto = [x for x in sku_vend[m.end():].split("-") if x]
+        return (spu, resto) if spu in inv_por_sku else (None, [])
+    partes = sku_vend.split("-")
+    if len(partes) >= 3 and "-".join(partes[:3]) in inv_por_sku:
+        return "-".join(partes[:3]), partes[3:]
+    if sku_vend in inv_por_sku:
+        return sku_vend, []
+    return None, []
+
+
+def _qty_tolerante(variantes_prod, resto):
+    """Cruce por color/talla ignorando acentos, espacios, abreviaturas (ROJ = ROJO, NEG = NEGRO) y 25_5 = 25.5.
+    Si la abreviatura coincide con varios colores del modelo se toma la existencia MENOR (más prudente: no vender de más)."""
+    idx = [(_clave_color(c), _clave_talla(t), q) for (c, t), q in variantes_prod.items()]
+    tallas = {t for _, t, _ in idx}
+    talla, color_tk = None, ""
+    if len(resto) >= 2 and re.match(r"^\d+(?:[._,]\d+)?$", resto[-1]) and _clave_talla(resto[-1]) not in tallas:
+        return None   # esa talla no existe en el ERP: no se le asigna la existencia de otra talla
+    if resto and _clave_talla(resto[-1]) in tallas and len(resto) >= 2:
+        talla = _clave_talla(resto[-1])
+        color_tk = _clave_color("".join(resto[:-1]))
+    else:
+        color_tk = _clave_color("".join(resto))
+    if not color_tk:
+        return None
+    cands = [x for x in idx if talla is None or x[1] == talla]
+    exactos = [x for x in cands if x[0] == color_tk]
+    if not exactos:
+        exactos = [x for x in cands if x[0].startswith(color_tk) or color_tk.startswith(x[0])]
+    if not exactos:
+        return None
+    return min(x[2] for x in exactos) if len({x[0] for x in exactos}) > 1 else exactos[0][2]
 
 
 def _buscar_qty(sku_vend, inv_por_sku):
     """Existencias del ERP para un SKU de vendedor de TikTok. None = no se encontró en el ERP."""
-    if not sku_vend:
+    spu, resto = _spu_de(sku_vend, inv_por_sku)
+    if spu is None:
         return None
-    partes = sku_vend.split("-")
-    if len(partes) >= 3:
-        spu = "-".join(partes[:3])
-        if spu in inv_por_sku:
-            variantes_prod = inv_por_sku[spu]
-            if len(partes) == 3:
-                return sum(variantes_prod.values())
-            resto = partes[3:]
-            for n_color in range(len(resto), 0, -1):
-                color = "-".join(resto[:n_color]).upper()
-                talla = "-".join(resto[n_color:]) if resto[n_color:] else ""
-                if (color, talla) in variantes_prod:
-                    return variantes_prod[(color, talla)]
-                for (c, t), qty in variantes_prod.items():
-                    if c == color:
-                        return qty
-            return None
-    if sku_vend in inv_por_sku:
-        return sum(inv_por_sku[sku_vend].values())
-    return None
+    variantes_prod = inv_por_sku[spu]
+    if not resto:
+        return sum(variantes_prod.values())
+    # 1) cruce exacto (como antes)
+    for n_color in range(len(resto), 0, -1):
+        color = "-".join(resto[:n_color]).upper()
+        talla = "-".join(resto[n_color:]) if resto[n_color:] else ""
+        if (color, talla) in variantes_prod:
+            return variantes_prod[(color, talla)]
+        if talla == "":   # SKU solo con color: la existencia de cualquier talla de ese color
+            for (c, t), qty in variantes_prod.items():
+                if c == color:
+                    return qty
+        # (antes, si la talla no existía en el ERP, se devolvía la existencia de OTRA talla del mismo color: vender de más)
+    # 2) cruce tolerante
+    return _qty_tolerante(variantes_prod, resto)
 
 
 def _filas_tiktok(ws):
@@ -126,13 +186,9 @@ def _skus_en_tiktok(filas, inv_por_sku):
     """sku_interno del ERP que ya existen en TikTok (por las primeras 3 partes del SKU del vendedor)."""
     ya = set()
     for _, sv in filas:
-        if not sv:
-            continue
-        partes = sv.split("-")
-        if len(partes) >= 3 and "-".join(partes[:3]) in inv_por_sku:
-            ya.add("-".join(partes[:3]))
-        elif sv in inv_por_sku:
-            ya.add(sv)
+        spu, _resto = _spu_de(sv, inv_por_sku)
+        if spu is not None:
+            ya.add(_ALIAS_ID.get(spu, spu))   # si el SKU empieza con el id, se cuenta como el sku_interno del modelo
     return ya
 
 
