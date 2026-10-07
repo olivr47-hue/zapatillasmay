@@ -50,7 +50,7 @@ def _pin_api(ruta: str, metodo: str = "GET", datos: dict = None):
         raise _GraphError(None, str(e))
 
 
-def _explicar_pin(e: _GraphError) -> str:
+def _explicar_pin(e: "_GraphError") -> str:
     c, m = e.codigo, (e.mensaje or "")
     if c in (401, 403) or "scope" in m.lower() or "permission" in m.lower() or "not authorized" in m.lower():
         return ("Pinterest no deja publicar con este token: necesita los permisos boards:read, pins:read y pins:write (y la app de Pinterest con acceso para publicar). "
