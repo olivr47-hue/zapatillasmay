@@ -20323,7 +20323,7 @@ window.verTuUtilidadDesglose = async () => {
           ${d.filas.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:10px 0">Sin ventas de este tipo en el mes.</td></tr>'}
           ${tot('Total — Tu utilidad del mes', d.total, 'background:#f3e5f5;border-top:2px solid #ce93d8')}
         </tbody></table></div>
-      <p style="margin:12px 0 0;font-size:0.72rem;color:#94a3b8">Solo cuenta lo que llega solo. No cuenta: mostrador, lo que capturas tú ni las clientas que registraste tú, ni SHEIN.</p>`
+      <p style="margin:12px 0 0;font-size:0.72rem;color:#94a3b8">Solo cuenta lo que llega solo y lo que vendes con el cliente «TikTok». No cuenta: mostrador, lo que capturas tú ni las clientas que registraste tú, ni SHEIN.</p>`
     caja.querySelectorAll('td,th').forEach(td => { td.style.padding = '7px 8px' })
   } catch (e) { caja.innerHTML = `<p style="color:#b91c1c">No se pudo calcular: ${e.message}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-tu-utilidad').remove()">Cerrar</button>` }
 }

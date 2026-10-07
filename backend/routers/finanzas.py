@@ -58,9 +58,12 @@ def _origenes_clientes(cids):
 
 
 def _cuenta_en_tu_utilidad(canal, origen_cliente):
-    """«Tu utilidad» solo cuenta lo que llega solo: tienda en línea, MercadoLibre, WhatsApp y portal de clientas que se registraron solas.
+    """«Tu utilidad» solo cuenta lo que llega solo: tienda en línea, MercadoLibre, WhatsApp, portal de clientas que se registraron solas y las
+    ventas de TikTok (las que se capturan en el sistema con el cliente «TikTok», origen 'tiktok', sea cual sea el canal).
     NO cuenta mostrador, lo que captura el dueño ni las clientas que registró él, ni SHEIN y demás."""
     canal = (canal or '').lower()
+    if origen_cliente == 'tiktok':
+        return True
     if canal in ('web', 'online', 'mercadolibre', 'whatsapp'):
         return True
     if canal == 'portal_mayoreo':
@@ -519,7 +522,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         cmv = 0.0
         cmv_corrida = 0.0
         tu_ventas = 0.0
-        origenes = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+        origenes = _origenes_clientes([p.get('cliente_id') for p in pedidos])
         cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), origenes.get(p.get('cliente_id'))) for p in pedidos}
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
@@ -641,6 +644,7 @@ _GRUPOS_TU_UTILIDAD = [
     ("mercadolibre", "MercadoLibre"),
     ("whatsapp", "WhatsApp (Maya y links)"),
     ("portal_solas", "Portal: clientas que se registraron solas"),
+    ("tiktok", "TikTok (ventas capturadas con el cliente TikTok)"),
 ]
 
 
@@ -653,10 +657,12 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
         pedidos = supabase_get_all(
             f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)"
             f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id,total,canal,cliente_id") or []
-        origen = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+        origen = _origenes_clientes([p.get('cliente_id') for p in pedidos])
 
         def grupo(p):
             canal = (p.get('canal') or '').lower()
+            if origen.get(p.get('cliente_id')) == 'tiktok':
+                return "tiktok"
             if canal in ('web', 'online'):
                 return "tienda"
             if canal == 'mercadolibre':
@@ -738,7 +744,7 @@ def estado_resultados(sucursal_id: str):
             gasto = sum(float(g['monto'] or 0) for g in gastos)
             # costo de la mercancía vendida ese mes (con la base de costo elegida) y venta solo de productos
             ids = [p['id'] for p in pedidos]
-            _orig = _origenes_clientes([p.get('cliente_id') for p in pedidos if p.get('canal') == 'portal_mayoreo'])
+            _orig = _origenes_clientes([p.get('cliente_id') for p in pedidos])
             _cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), _orig.get(p.get('cliente_id'))) for p in pedidos}
             ventas_prod = cmv = 0.0
             if ids:
