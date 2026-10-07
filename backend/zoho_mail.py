@@ -292,10 +292,19 @@ def enviar_correo(para: str, asunto: str, html: str, cc: str = "", responder_a_m
     }
     if cc:
         payload["ccAddress"] = cc
+    cuenta = _account_id()
     if responder_a_message_id:
-        payload["refMessageId"] = responder_a_message_id
-        payload["mode"] = "reply"
-    return _request_post(f"/accounts/{_account_id()}/messages", payload)
+        # Zoho no acepta refMessageId/mode en el envio normal (EXTRA_KEY_FOUND_IN_JSON);
+        # las respuestas van al endpoint del mensaje con action=reply. Si falla,
+        # se manda como correo nuevo para que la respuesta no se pierda.
+        try:
+            return _request_post(
+                f"/accounts/{cuenta}/messages/{responder_a_message_id}",
+                {**payload, "action": "reply"},
+            )
+        except RuntimeError as e:
+            print(f"[zoho] reply en hilo fallo, se envia como correo nuevo: {e}")
+    return _request_post(f"/accounts/{cuenta}/messages", payload)
 
 
 def contar_no_leidos(limite: int = 50) -> int:
