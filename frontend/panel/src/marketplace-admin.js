@@ -64,7 +64,10 @@ async function mpResumen(c) {
 
 async function mpVendedores(c) {
   const l = await mpApi('/marketplace/admin/vendedores'); MP.datos.vend = l
-  c.innerHTML = l.length ? `<div class="table-card"><table><thead><tr><th>Tienda</th><th>Contacto</th><th>Estado</th><th>Productos</th><th>Pedidos</th><th>Vendido</th><th>Tu ganancia</th><th>Acciones</th></tr></thead><tbody>
+  const botonPrueba = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 14px">
+    <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px" onclick="mpTiendaPrueba()">👁 Ver el portal de vendedor (tienda de prueba)</button>
+    <span style="font-size:0.76rem;color:#6b21a8">Abre el portal tal como lo ve una vendedora, con una tienda de prueba que nadie más ve. No necesitas registrarte. Para ver el de una vendedora real, usa el botón «Ver como vendedor» de su renglón.</span></div>`
+  c.innerHTML = botonPrueba + (l.length ? `<div class="table-card"><table><thead><tr><th>Tienda</th><th>Contacto</th><th>Estado</th><th>Productos</th><th>Pedidos</th><th>Vendido</th><th>Tu ganancia</th><th>Acciones</th></tr></thead><tbody>
     ${l.map(v => `<tr><td><strong>${esc(v.nombre_tienda)}</strong><br><span style="font-size:0.72rem;color:#94a3b8">${esc(v.ciudad || '')} ${esc(v.estado_region || '')}</span></td>
       <td style="font-size:0.78rem">${esc(v.nombre_contacto || '')}<br>${esc(v.telefono || '')}<br>${esc(v.email)}</td><td>${tag(ETQ_V, v.estado)}</td>
       <td style="font-size:0.8rem">${v.publicados} publicados${v.por_aprobar ? `<br><span style="color:#b26a00">${v.por_aprobar} por aprobar</span>` : ''}<br><span style="color:#94a3b8">${v.productos} en total</span></td>
@@ -72,11 +75,19 @@ async function mpVendedores(c) {
       <td style="white-space:nowrap">${v.estado !== 'activo' ? `<button class="btn btn-primary" style="font-size:0.72rem;padding:3px 10px" onclick="mpVendEstado('${esc(v.id)}','activo')">${v.estado === 'pendiente' ? 'Aprobar' : 'Reactivar'}</button>` : `<button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px;color:#b3261e" onclick="mpVendEstado('${esc(v.id)}','suspendido')">Suspender</button>`}
         <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px" onclick="mpVendAjustes('${esc(v.id)}')">Ajustes</button>
         <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px;color:#7c3aed;border-color:#c4b5fd" onclick="mpVerComo('${esc(v.id)}')" title="Abre el portal de vendedor de esta tienda, tal como lo ve ella">👁 Ver como vendedor</button></td></tr>`).join('')}</tbody></table></div>`
-    : '<p style="color:#94a3b8;padding:1rem">Todavía no hay vendedores. Comparte zapatillasmay.mx/vender.</p>'
+    : '<p style="color:#94a3b8;padding:1rem">Todavía no hay vendedores. Comparte zapatillasmay.mx/vender.</p>')
 }
 window.mpVendEstado = async (id, estado) => {
   if (!confirm(estado === 'activo' ? '¿Activar esta cuenta? Sus productos aprobados se podrán publicar y se le avisa por correo.' : '¿Suspender esta cuenta? Sus productos dejan de verse y no podrá entrar.')) return
   try { await mpApi('/marketplace/admin/vendedores/' + id, { method: 'PATCH', json: { estado } }); mpTab('vendedores') } catch (e) { alert(e.message) }
+}
+window.mpTiendaPrueba = async () => {
+  const w = window.open('', '_blank')
+  try {
+    const d = await mpApi('/marketplace/admin/tienda-prueba', { method: 'POST' })
+    if (w) w.location.href = d.url; else alert('Permite las ventanas emergentes para ver el portal.')
+    mpTab('vendedores')
+  } catch (e) { if (w) w.close(); alert(e.message) }
 }
 window.mpVerComo = async (id) => {
   const w = window.open('', '_blank')   // se abre antes del fetch para que el navegador no bloquee la ventana

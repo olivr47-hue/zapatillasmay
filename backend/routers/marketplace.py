@@ -1046,6 +1046,31 @@ def admin_ver_como_vendedor(vid: str, _a=Depends(require_admin)):
     return {"token": token, "url": f"{_FRONT}/vendedor#acceso={token}", "tienda": v["nombre_tienda"]}
 
 
+@router.post("/admin/tienda-prueba")
+def admin_tienda_prueba(_a=Depends(require_admin)):
+    """Crea (una sola vez) una tienda de PRUEBA para que el negocio vea el portal de vendedor aunque todavía no se haya registrado nadie, y devuelve el acceso
+    de administrador a ella. La tienda queda suspendida: no se muestra en el sitio y sus productos son borradores, así que nadie más la ve ni compra."""
+    email = "tienda-prueba@zapatillasmay.mx"
+    v = (supabase_get(f"mp_vendedores?email=eq.{_q(email)}&select=*&limit=1") or [None])[0]
+    if not v:
+        v = supabase_post("mp_vendedores", {
+            "email": email, "password_hash": hash_password(secrets.token_urlsafe(32)), "nombre_tienda": "Tienda de prueba", "slug": _slug_unico("mp_vendedores", "tienda-de-prueba"),
+            "nombre_contacto": "Cuenta de demostración", "telefono": "4790000000", "ciudad": "León", "estado_region": "Guanajuato",
+            "descripcion": "Cuenta para que el negocio vea el portal de vendedor tal como lo ve una tienda.", "comision_por_par": COMISION_POR_PAR,
+            "estado": "suspendido", "notas_admin": "TIENDA DE PRUEBA: no se muestra en el sitio ni se puede comprar.",
+        })[0]
+    if not (supabase_get(f"mp_productos?vendedor_id=eq.{v['id']}&select=id&limit=1") or []):
+        pr = supabase_post("mp_productos", {
+            "vendedor_id": v["id"], "nombre": "Botín de ejemplo", "slug": _slug_unico("mp_productos", "botin-de-ejemplo-prueba"), "categoria": "botines", "material": "Piel",
+            "descripcion": "Producto de ejemplo para ver cómo se captura. Aquí va la descripción: altura de tacón, forro, a qué talla corre…",
+            "precio": 500, "precio_mayoreo3": 440, "envio": 120, "estado": "borrador",
+        })[0]
+        for talla, stock in (("23", 2), ("24", 3), ("25", 3), ("26", 1)):
+            supabase_post("mp_variantes", {"producto_id": pr["id"], "color": "Negro", "talla": talla, "stock": stock})
+    token = create_token({"sub": v["id"], "tipo": "vendedor", "vendedor": True, "email": v["email"], "admin_view": True}, expires_hours=2)
+    return {"token": token, "url": f"{_FRONT}/vendedor#acceso={token}", "tienda": v["nombre_tienda"]}
+
+
 @router.get("/admin/productos")
 def admin_productos(estado: str = "", _a=Depends(require_admin)):
     filtro = f"&estado=eq.{_q(estado)}" if estado in _ESTADOS_PRODUCTO else ""
