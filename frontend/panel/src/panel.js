@@ -30832,7 +30832,7 @@ window._contarRepetidosClientes = async () => {
 // ── Ritmo de compra de los mayoristas: quién ya pasó su tiempo promedio entre pedidos ──
 window._contarRitmoMayoristas = async () => {
   try {
-    const r = await fetch(API + '/clientes/ritmo-compra')
+    const r = await fetch(API + '/clientes/ritmo/compra')
     if (!r.ok) return
     const d = await r.json()
     window._ritmoMay = d.clientes || []
@@ -30857,7 +30857,7 @@ window.abrirRitmoMayoristas = async () => {
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
   const cuerpo = document.getElementById('ritmo-may-cuerpo')
   try {
-    const r = await fetch(API + '/clientes/ritmo-compra')
+    const r = await fetch(API + '/clientes/ritmo/compra')
     const d = await r.json()
     if (!r.ok) throw new Error(d.error || d.detail || 'Error')
     const lista = d.clientes || []

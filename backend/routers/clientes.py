@@ -599,7 +599,7 @@ def calcular_ritmo_mayoristas() -> list:
     return salida
 
 
-@router.get("/ritmo-compra")
+@router.get("/ritmo/compra")
 def ritmo_mayoristas(_staff=Depends(require_staff)):
     """Mayoristas que ya pasaron su tiempo promedio de pedido (ver calcular_ritmo_mayoristas)."""
     try:
