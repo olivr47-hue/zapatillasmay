@@ -327,6 +327,8 @@ def _validar_producto(datos: dict, parcial: bool = False):
         c["peso_gramos"] = int(pg) if pg else None
     if "imagenes" in datos:
         c["imagenes"] = _publicas_img(datos.get("imagenes"))
+        if datos.get("imagenes") and not c["imagenes"]:
+            return None, "Las fotos deben subirse desde tu panel (JPG, PNG o WEBP)."
     return c, None
 
 
