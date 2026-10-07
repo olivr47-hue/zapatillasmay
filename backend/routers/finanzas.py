@@ -746,8 +746,15 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
 
 @router.get("/estado-resultados/{sucursal_id}")
 def estado_resultados(sucursal_id: str):
+    """Últimos 6 meses. Los meses se calculan EN PARALELO (antes uno tras otro: eran decenas de consultas seguidas y Finanzas tardaba en
+    abrir) y el resultado se guarda 60 segundos."""
     try:
         from datetime import datetime, timedelta
+        from cache import cache_get, cache_set
+        _ck = "estado_resultados_" + str(sucursal_id)
+        _hit = cache_get(_ck)
+        if _hit is not None:
+            return _hit
         hoy = _hoy_mx()
         
         # Últimos 6 meses (aritmética de meses real; antes restaba i*30 días y en marzo
@@ -760,8 +767,8 @@ def estado_resultados(sucursal_id: str):
             ultimo_dia = date(sig_idx // 12, sig_idx % 12 + 1, 1) - timedelta(days=1)
             meses.append((primer_dia, ultimo_dia))
 
-        resultado = []
-        for primer_dia, ultimo_dia in meses:
+        def _calc_mes(par):
+            primer_dia, ultimo_dia = par
             _ini = _inicio_dia_mx(primer_dia)
             _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
             # Sucursal + ventas en línea/marketplaces (sin sucursal): antes faltaban estas últimas y el estado de resultados
@@ -798,7 +805,7 @@ def estado_resultados(sucursal_id: str):
             ext = _externas_rango(_ini, _fin)   # TikTok importado: suma a las utilidades, no a las ventas
             utilidad = ventas - gasto + ext["utilidad_real"]   # ventas − gastos (como estaba) + utilidad de lo importado de TikTok
 
-            resultado.append({
+            return {
                 "mes": primer_dia.strftime("%b %Y"),
                 "mes_id": primer_dia.strftime("%Y-%m"),
                 "ventas": ventas,
@@ -810,8 +817,12 @@ def estado_resultados(sucursal_id: str):
                 "utilidad_externa": ext["utilidad_real"],   # parte de «utilidad» que viene de TikTok importado
                 "tu_utilidad_externa": ext["tu_utilidad"],
                 "num_pedidos": len(pedidos)
-            })
-        
+            }
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            resultado = list(ex.map(_calc_mes, meses))
+        cache_set(_ck, resultado, 60)
         return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -936,10 +947,17 @@ def valor_inventario():
     PostgREST por default -- con supabase_get se perdían variantes enteras
     del total sin ningún error visible."""
     try:
-        inventario = supabase_get_all("inventario?cantidad=gt.0&select=cantidad,variante_id,sucursal_id")
-        variantes = supabase_get_all("variantes?select=id,producto_id")
-        productos = supabase_get_all("productos?select=id,costo,precio_menudeo")
-        sucursales = supabase_get_all("sucursales?select=id,nombre")
+        from cache import cache_get, cache_set
+        from concurrent.futures import ThreadPoolExecutor
+        _hit = cache_get("valor_inventario")
+        if _hit is not None:
+            return _hit
+        # las 4 tablas se bajan al mismo tiempo (antes una tras otra) y el resultado se guarda 2 minutos
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            _f = [ex.submit(supabase_get_all, q) for q in (
+                "inventario?cantidad=gt.0&select=cantidad,variante_id,sucursal_id", "variantes?select=id,producto_id",
+                "productos?select=id,costo,precio_menudeo", "sucursales?select=id,nombre")]
+            inventario, variantes, productos, sucursales = [x.result() for x in _f]
 
         producto_de_variante = {v['id']: v['producto_id'] for v in variantes}
         productos_map = {p['id']: p for p in productos}
@@ -972,7 +990,7 @@ def valor_inventario():
             s["valor_costo"] += cantidad * costo
             s["valor_venta"] += cantidad * precio
 
-        return {
+        _res = {
             "pares_totales": total_pares,
             "variantes_con_stock": len(variantes_con_stock),
             "valor_costo": round(valor_costo, 2),
@@ -982,6 +1000,8 @@ def valor_inventario():
                 for k, v in sorted(por_sucursal.items(), key=lambda x: -x[1]["valor_costo"])
             ],
         }
+        cache_set("valor_inventario", _res, 120)
+        return _res
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
