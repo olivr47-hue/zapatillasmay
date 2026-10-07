@@ -34,6 +34,10 @@ if (_demo) {
   // 4) sin analítica ni notificaciones reales
   window['ga-disable-G-QX8MK3D4RY'] = true
   window.__zmInterno = true
+  // la demo no muestra Marketplace ni Renta del sistema (son del negocio, no del sistema que se renta)
+  const est = document.createElement('style')
+  est.textContent = '[data-modulo="marketplace"],[data-modulo="prospectos"]{display:none!important}'
+  document.head.appendChild(est)
   // 5) cinta superior
   const poner = () => {
     if (document.getElementById('zm-demo-banner')) return

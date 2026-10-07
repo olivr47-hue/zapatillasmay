@@ -56,7 +56,7 @@ ruta('GET', /^\/pedidos\/por-enviar-resumen$/, () => db.pedidos.filter(p => p.st
 ruta('GET', /^\/pedidos\/apartados$/, () => db.pedidos.filter(p => p.status === 'apartado'))
 ruta('GET', /^\/pedidos\/solicitudes-liberacion$/, () => ({ solicitudes: [], total: 0 }))
 ruta('GET', /^\/pedidos\/solicitudes-total$/, () => ({ total: 0 }))
-ruta('GET', /^\/pedidos\/([^/]+)$/, ({ m }) => db.pedidos.find(p => p.id === m[1]) || null)
+ruta('GET', /^\/pedidos\/([^/]+)$/, ({ m }) => { const p = db.pedidos.find(x => x.id === m[1]); return p ? [{ ...p, pedido_items: p.pedido_items.map(i => { const v = db.variantes.find(x => x.id === i.variante_id); const pr = v && db.productos.find(x => x.id === v.producto_id); return { ...i, variantes: v ? { ...v, productos: pr } : null } }) }] : [] })
 ruta('POST', /^\/pedidos\/?$/, ({ body }) => {
   const cli = db.clientes.find(c => c.id === body.cliente_id)
   const abierto = ['borrador', 'pendiente_pago', 'apartado'].includes(body.status)
@@ -85,7 +85,7 @@ ruta('DELETE', /^\/pedidos\/([^/]+)$/, ({ m }) => { const i = db.pedidos.findInd
 // Clientes
 ruta('GET', /^\/clientes\/resumen$/, () => db.clientes)
 ruta('GET', /^\/clientes\/?$/, () => db.clientes)
-ruta('GET', /^\/clientes\/([^/]+)$/, ({ m }) => db.clientes.find(c => c.id === m[1]) || null)
+ruta('GET', /^\/clientes\/([^/]+)$/, ({ m }) => db.clientes.filter(c => c.id === m[1]))
 ruta('POST', /^\/clientes\/?$/, ({ body }) => { const c = { id: nuevoId(), activo: true, tipo: 'menudeo', created_at: new Date().toISOString(), ...body }; db.clientes.unshift(c); return c })
 ruta('PATCH', /^\/clientes\/([^/]+)$/, ({ m, body }) => { const c = db.clientes.find(x => x.id === m[1]); if (c) Object.assign(c, body); return c })
 
@@ -94,7 +94,7 @@ ruta('GET', /^\/productos\/?$/, ({ qs }) => { let l = db.productos; const a = q(
 ruta('GET', /^\/productos\/siguiente-sku\/.+$/, () => ({ sku: 'L-DEMO-0999', siguiente: 999 }))
 ruta('GET', /^\/productos\/(destacados|nuevos|mas-vendidos)$/, () => db.productos.slice(0, 8))
 ruta('GET', /^\/productos\/catalog-version$/, () => ({ version: 'demo' }))
-ruta('GET', /^\/productos\/([^/]+)$/, ({ m }) => db.productos.find(p => p.id === m[1]) || null)
+ruta('GET', /^\/productos\/([^/]+)$/, ({ m }) => db.productos.filter(p => p.id === m[1]))
 ruta('POST', /^\/productos\/?$/, ({ body }) => { const p = { id: nuevoId(), activo: true, created_at: new Date().toISOString(), ...body }; db.productos.unshift(p); return [p] })
 ruta('PATCH', /^\/productos\/([^/]+)(\/.*)?$/, ({ m, body }) => { const p = db.productos.find(x => x.id === m[1]); if (p && body && typeof body === 'object') Object.assign(p, body); return p ? [p] : { ok: true } })
 ruta('GET', /^\/variantes\/?$/, ({ qs }) => {
