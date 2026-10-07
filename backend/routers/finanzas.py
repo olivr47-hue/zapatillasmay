@@ -71,6 +71,27 @@ def _cuenta_en_tu_utilidad(canal, origen_cliente):
     return False
 
 
+def _externas_rango(ini, fin) -> dict:
+    """Ventas de otros canales cargadas aparte (tabla ventas_externas: pedidos de TikTok importados de su archivo). NO son ventas del sistema
+    ni mueven inventario: solo suman a la utilidad del mes (la general, con costo real, y «Tu utilidad», con precio de corrida).
+    Las líneas sin costo (producto no encontrado) no suman: se cuentan en `sin_costo`."""
+    filas = supabase_get_all(f"ventas_externas?fecha_venta=gte.{ini}&fecha_venta=lt.{fin}&select=pedido_externo,cantidad,venta_unit,costo_real_unit,costo_corrida_unit") or []
+    peds, pares, venta, tu, real, sin_costo = set(), 0, 0.0, 0.0, 0.0, 0
+    for f in filas:
+        cant = int(f.get("cantidad") or 0)
+        v = float(f.get("venta_unit") or 0)
+        cr, cc = f.get("costo_real_unit"), f.get("costo_corrida_unit")
+        if cc is None or cr is None or float(cr) <= 0:
+            sin_costo += 1
+            if cc is None:
+                continue
+        peds.add(f["pedido_externo"]); pares += cant; venta += v * cant
+        tu += (v - float(cc)) * cant
+        if cr is not None and float(cr) > 0:
+            real += (v - float(cr)) * cant
+    return {"pedidos": len(peds), "pares": pares, "venta": venta, "tu_utilidad": tu, "utilidad_real": real, "sin_costo": sin_costo, "corrida": venta - tu}
+
+
 def _fecha_mx(ts: str):
     """Fecha (hora México) de un timestamp ISO que viene de la BD; None si no se puede."""
     try:
@@ -613,7 +634,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         total_envio_cobrado    = total_ventas - total_ventas_productos
 
         # Utilidad basada en ingresos de productos (sin distorsionar con el envío)
-        utilidad_bruta = total_ventas_productos - cmv
+        ext = _externas_rango(hace30, fin_mes)   # TikTok importado: suma a las utilidades, no a las ventas
+        utilidad_bruta = total_ventas_productos - cmv + ext["utilidad_real"]
         utilidad_neta  = utilidad_bruta - total_gastos
 
         desglose_cmv_sorted = sorted(desglose_cmv, key=lambda x: x['subtotal_costo'], reverse=True)
@@ -629,7 +651,10 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
             "utilidad_bruta":         utilidad_bruta,          # ventas productos − CMV
             "utilidad":               utilidad_neta,           # utilidad_bruta − gastos operativos
             "cmv_corrida":            cmv_corrida,             # costo a precio de corrida de lo que llega solo
-            "tu_utilidad":            tu_ventas - cmv_corrida, # solo lo que llega solo: ventas de productos − precio de corrida
+            "tu_utilidad":            tu_ventas - cmv_corrida + ext["tu_utilidad"], # lo que llega solo + TikTok importado: ventas de productos − precio de corrida
+            "utilidad_externa":       ext["utilidad_real"],    # ya incluida en utilidad_bruta y utilidad: TikTok importado (no es venta del sistema)
+            "tu_utilidad_externa":    ext["tu_utilidad"],      # ya incluida en tu_utilidad
+            "externas":               ext,
             "num_pedidos":            len(pedidos),
             "ticket_promedio":        total_ventas / len(pedidos) if pedidos else 0,
             "desglose_cmv":           desglose_cmv_sorted,
@@ -709,6 +734,10 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
             if a["pedidos"]:
                 filas.append({"grupo": k, "nombre": nombre, "pedidos": a["pedidos"], "pares": a["pares"], "cobrado": a["cobrado"],
                               "venta_productos": a["venta_productos"], "corrida": a["corrida"], "utilidad": a["venta_productos"] - a["corrida"]})
+        ext = _externas_rango(ini, fin)
+        if ext["pedidos"]:
+            filas.append({"grupo": "tiktok_importado", "nombre": "TikTok (pedidos importados del archivo, no son ventas del sistema)", "pedidos": ext["pedidos"],
+                          "pares": ext["pares"], "cobrado": ext["venta"], "venta_productos": ext["venta"], "corrida": ext["corrida"], "utilidad": ext["tu_utilidad"]})
         total = {k: sum(f[k] for f in filas) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")}
         return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas, "total": total}
     except Exception as e:
@@ -766,7 +795,8 @@ def estado_resultados(sucursal_id: str):
                     cant = int(i.get('cantidad') or 0)
                     ventas_prod += float(i.get('precio_unitario') or 0) * cant
                     cmv += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida") * cant
-            utilidad = ventas - gasto          # como estaba: ventas − gastos
+            ext = _externas_rango(_ini, _fin)   # TikTok importado: suma a las utilidades, no a las ventas
+            utilidad = ventas - gasto + ext["utilidad_real"]   # ventas − gastos (como estaba) + utilidad de lo importado de TikTok
 
             resultado.append({
                 "mes": primer_dia.strftime("%b %Y"),
@@ -776,7 +806,9 @@ def estado_resultados(sucursal_id: str):
                 "utilidad": utilidad,
                 "ventas_productos": ventas_prod,
                 "costo_corrida": cmv,                  # costo de la mercancía a precio de corrida
-                "tu_utilidad": ventas_prod - cmv,      # ventas de productos − precio de corrida
+                "tu_utilidad": ventas_prod - cmv + ext["tu_utilidad"],   # ventas de productos − precio de corrida (+ TikTok importado)
+                "utilidad_externa": ext["utilidad_real"],   # parte de «utilidad» que viene de TikTok importado
+                "tu_utilidad_externa": ext["tu_utilidad"],
                 "num_pedidos": len(pedidos)
             })
         

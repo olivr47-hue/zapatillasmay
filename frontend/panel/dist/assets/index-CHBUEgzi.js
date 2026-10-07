@@ -956,11 +956,13 @@ Minimum version required to store current data is: `+r+`.
           <p style="font-size:1.5rem;font-weight:700;color:#1565c0">$${(C.utilidad_bruta||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad bruta</p>
           <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo</p>
+          ${C.utilidad_externa?`<p style="font-size:0.58rem;color:#1565c0;margin-top:3px">incluye $${Math.round(C.utilidad_externa).toLocaleString("es-MX")} de TikTok importado (no cuenta como venta)</p>`:""}
         </div>
         <div style="background:${(C.utilidad||0)>=0?"#e8f5e9":"#ffebee"};border-radius:12px;padding:1.25rem;border:1px solid ${(C.utilidad||0)>=0?"#a5d6a7":"#ffcdd2"};text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:${(C.utilidad||0)>=0?"#2e7d32":"#c62828"}">$${(C.utilidad||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad neta</p>
           <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo − gastos</p>
+          ${C.utilidad_externa?'<p style="font-size:0.58rem;color:#2e7d32;margin-top:3px">incluye TikTok importado</p>':""}
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#7b1fa2">$${(C.cmv_corrida||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
@@ -1129,7 +1131,7 @@ Minimum version required to store current data is: `+r+`.
                   <td><strong>${C.mes}</strong></td>
                   <td style="color:#E91E8C;font-weight:600">$${C.ventas.toFixed(0)}</td>
                   <td style="color:#c62828">$${C.gastos.toFixed(0)}</td>
-                  <td style="color:${C.utilidad>=0?"#2e7d32":"#c62828"};font-weight:700">$${C.utilidad.toFixed(0)}</td>
+                  <td style="color:${C.utilidad>=0?"#2e7d32":"#c62828"};font-weight:700">$${C.utilidad.toFixed(0)}${C.utilidad_externa?`<br><span style="font-weight:400;font-size:0.65rem;color:#94a3b8" title="Utilidad de pedidos de TikTok importados: suma a la utilidad, no a las ventas">(incl. $${Math.round(C.utilidad_externa)} TikTok)</span>`:""}</td>
                   <td style="color:#6a1b9a;font-weight:700">$${(C.tu_utilidad||0).toFixed(0)}</td>
                   <td>${C.num_pedidos}</td>
                   <td>
