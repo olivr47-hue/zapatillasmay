@@ -80,6 +80,6 @@ export function registrarRutasExtra({ db, ruta, q, num, mes, cerrado, nuevoId })
   ruta('GET', /^\/chatbot\/(tareas-hoy|plantillas)$/, () => ({ tareas: [], total: 0 }))
   ruta('GET', /^\/marketplace\/admin\/resumen$/, () => ({ vendedores_pendientes: 2, productos_pendientes: 3, pedidos_por_recibir: 1, por_liquidar: 1840 }))
   ruta('GET', /^\/(ml|shein|walmart|amazon)\/ping$/, () => ({ ok: true, conectado: true, demo: true }))
-  ruta('GET', /^\/redes\/estado$/, () => ({ instagram: { conectado: true }, facebook: { conectado: true } }))
+  ruta('GET', /^\/redes\/estado$/, () => ({ conectado: true, pagina: 'Mi Tienda', instagram_usuario: 'mitienda', facebook: true, instagram: true, pinterest: { conectado: true, tableros: [{ id: 'b1', nombre: 'Tacones' }, { id: 'b2', nombre: 'Novedades' }], problema: '', tablero_predeterminado: '' } }))
   ruta('GET', /^\/config\/envio$/, () => ({ umbral_envio_gratis: 1299, costo_envio: 150 }))
 }

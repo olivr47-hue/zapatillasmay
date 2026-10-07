@@ -1,4 +1,4 @@
-"""Publicaciones en Facebook e Instagram (Estudio de publicaciones del panel).
+"""Publicaciones en Facebook, Instagram y Pinterest (Estudio de publicaciones del panel).
 
 El panel arma las imágenes (canvas) y las sube a Cloudinary; aquí solo se publican por la Graph API de Meta con el token de la
 página (FB_PAGE_ACCESS_TOKEN, el mismo que ya usa Maya para Messenger/Instagram). Hace falta que ese token tenga los permisos
@@ -20,6 +20,75 @@ from security import require_staff
 router = APIRouter(prefix="/redes", tags=["Redes sociales"])
 
 _GRAPH = "https://graph.facebook.com/v21.0"
+_PIN = "https://api.pinterest.com/v5"
+_cache_tableros = {"t": 0, "d": None}
+
+
+def _pin_token() -> str:
+    # Para publicar pines hace falta un token con permisos boards:read, pins:read y pins:write (el de la API de conversiones, PINTEREST_ACCESS_TOKEN, puede no
+    # traerlos). Si existe PINTEREST_PUBLISH_TOKEN se usa ese; si no, el de siempre.
+    return os.environ.get("PINTEREST_PUBLISH_TOKEN", "") or os.environ.get("PINTEREST_ACCESS_TOKEN", "")
+
+
+def _pin_api(ruta: str, metodo: str = "GET", datos: dict = None):
+    t = _pin_token()
+    if not t:
+        raise _GraphError(None, "Falta el token de Pinterest (PINTEREST_PUBLISH_TOKEN o PINTEREST_ACCESS_TOKEN)")
+    req = urllib.request.Request(f"{_PIN}/{ruta}", data=(json.dumps(datos).encode("utf-8") if datos is not None else None), method=metodo,
+                                 headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=45) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        crudo = e.read().decode("utf-8", errors="replace")
+        try:
+            j = json.loads(crudo)
+        except Exception:
+            j = {}
+        raise _GraphError(e.code, j.get("message") or crudo[:200])
+    except Exception as e:
+        raise _GraphError(None, str(e))
+
+
+def _explicar_pin(e: _GraphError) -> str:
+    c, m = e.codigo, (e.mensaje or "")
+    if c in (401, 403) or "scope" in m.lower() or "permission" in m.lower() or "not authorized" in m.lower():
+        return ("Pinterest no deja publicar con este token: necesita los permisos boards:read, pins:read y pins:write (y la app de Pinterest con acceso para publicar). "
+                "Genera un token con esos permisos y guárdalo en Conexiones → Pinterest → «Token para publicar».")
+    if c == 429:
+        return "Pinterest pidió esperar un momento (demasiadas publicaciones). Intenta de nuevo en unos minutos."
+    return f"Pinterest respondió: {m[:180]}"
+
+
+def _tableros_pinterest(forzar: bool = False):
+    """Tableros de la cuenta (se guardan 5 minutos). Devuelve (lista, problema)."""
+    if not forzar and _cache_tableros["d"] is not None and time.time() - _cache_tableros["t"] < 300:
+        return _cache_tableros["d"]
+    if not _pin_token():
+        return [], "Falta el token de Pinterest"
+    try:
+        d = _pin_api("boards?page_size=100")
+        lista = [{"id": b.get("id"), "nombre": b.get("name")} for b in (d.get("items") or []) if b.get("id")]
+        res = (lista, "" if lista else "Tu cuenta de Pinterest no tiene tableros: crea uno en Pinterest.")
+    except _GraphError as e:
+        res = ([], _explicar_pin(e))
+    if not res[1]:
+        _cache_tableros.update({"t": time.time(), "d": res})
+    return res
+
+
+def _publicar_pinterest(urls, caption, link, board_id):
+    lineas = [l.strip() for l in (caption or "").split("\n") if l.strip()]
+    titulo = (lineas[0] if lineas else "Zapatillas May")[:100]
+    desc = (caption or "")[:800]
+    cuerpo = {"board_id": board_id, "title": titulo, "description": desc}
+    if link:
+        cuerpo["link"] = link
+    if len(urls) == 1:
+        cuerpo["media_source"] = {"source_type": "image_url", "url": urls[0]}
+    else:
+        cuerpo["media_source"] = {"source_type": "multiple_image_urls", "items": [{"url": u, **({"link": link} if link else {})} for u in urls[:5]]}
+    return _pin_api("pins", "POST", cuerpo).get("id")
 
 
 class _GraphError(Exception):
@@ -89,6 +158,13 @@ def _cuentas() -> dict:
 @router.get("/estado")
 def estado(_staff=Depends(require_staff)):
     """¿Qué tan lista está la conexión para publicar? (sin publicar nada)."""
+    r = _estado_meta()
+    tabs, problema = _tableros_pinterest()
+    r["pinterest"] = {"conectado": bool(tabs), "tableros": tabs, "problema": problema, "tablero_predeterminado": os.environ.get("PINTEREST_BOARD_ID", "")}
+    return r
+
+
+def _estado_meta():
     if not _token():
         return {"conectado": False, "problema": "Falta FB_PAGE_ACCESS_TOKEN en Railway", "facebook": False, "instagram": False}
     try:
@@ -213,15 +289,17 @@ def publicar(datos: dict, _staff=Depends(require_staff)):
     """datos: {urls:[...], caption, destinos:['facebook','instagram'], historia:bool, producto_ids:[...]}.
     Devuelve el resultado por destino (si uno falla el otro igual se intenta)."""
     urls = [u for u in (datos.get("urls") or []) if isinstance(u, str) and u.startswith("https://")][:10]
-    destinos = [d for d in (datos.get("destinos") or []) if d in ("facebook", "instagram")]
+    destinos = [d for d in (datos.get("destinos") or []) if d in ("facebook", "instagram", "pinterest")]
     caption = str(datos.get("caption") or "")[:2100]
     historia = bool(datos.get("historia"))
     if not urls or not destinos:
         return JSONResponse(status_code=400, content={"ok": False, "error": "Faltan imágenes o destino"})
-    try:
-        cuentas = _cuentas()
-    except _GraphError as e:
-        return JSONResponse(status_code=502, content={"ok": False, "error": _explicar(e, "facebook")})
+    cuentas = {}
+    if any(d in ("facebook", "instagram") for d in destinos):
+        try:
+            cuentas = _cuentas()
+        except _GraphError as e:
+            return JSONResponse(status_code=502, content={"ok": False, "error": _explicar(e, "facebook")})
     resultados = {}
     quien = (_staff or {}).get("nombre") or (_staff or {}).get("email") or "personal"
     # Etiqueta de producto en Instagram: solo cuando la publicación es de UN solo modelo (con varios no se sabe qué foto es de cuál)
@@ -236,7 +314,19 @@ def publicar(datos: dict, _staff=Depends(require_staff)):
             aviso_tag = "Con varios modelos no se etiquetan productos (se puede hacer a mano en la app de Instagram)."
     for d in destinos:
         try:
-            if d == "facebook":
+            if d == "pinterest":
+                if historia:
+                    raise _GraphError(None, "Las historias solo se publican en Instagram desde aquí")
+                tabs, problema = _tableros_pinterest()
+                board = str(datos.get("pinterest_board") or os.environ.get("PINTEREST_BOARD_ID") or "")
+                if board and tabs and board not in [t["id"] for t in tabs]:
+                    raise _GraphError(None, "Ese tablero de Pinterest ya no existe: elige otro")
+                if not board:
+                    if not tabs:
+                        raise _GraphError(None, problema or "No hay tableros de Pinterest")
+                    board = tabs[0]["id"]
+                post = _publicar_pinterest(urls, caption, _link_pin(datos), board)
+            elif d == "facebook":
                 if historia:
                     raise _GraphError(None, "Las historias solo se publican en Instagram desde aquí")
                 post = _publicar_facebook(cuentas, urls, caption)
@@ -255,10 +345,24 @@ def publicar(datos: dict, _staff=Depends(require_staff)):
             except Exception as e:
                 print(f"[redes] no se pudo guardar el historial: {e}")
         except _GraphError as e:
-            resultados[d] = {"ok": False, "error": _explicar(e, d)}
+            resultados[d] = {"ok": False, "error": _explicar_pin(e) if d == "pinterest" else _explicar(e, d)}
         except Exception as e:
             resultados[d] = {"ok": False, "error": str(e)[:200]}
     return {"ok": all(r["ok"] for r in resultados.values()), "resultados": resultados}
+
+
+def _link_pin(datos: dict) -> str:
+    """Enlace del pin: la ficha del modelo si la publicación es de uno solo; si no, la tienda."""
+    ids = [x for x in (datos.get("producto_ids") or []) if isinstance(x, str)]
+    if len(ids) == 1 and all(ch.isalnum() or ch == "-" for ch in ids[0]):
+        try:
+            f = supabase_get(f"productos?id=eq.{ids[0]}&select=slug,sku_interno&limit=1") or []
+            slug = (f[0].get("slug") or f[0].get("sku_interno")) if f else None
+            if slug:
+                return f"https://zapatillasmay.mx/producto/{urllib.parse.quote(str(slug))}"
+        except Exception:
+            pass
+    return "https://zapatillasmay.mx"
 
 
 @router.get("/historial")

@@ -731,6 +731,7 @@ window.cargarRedes = async function () {
   const hace = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000
   const nuevos = S.prods.filter(p => hace(p.created_at) <= 30 && !S.publicados.has(p.id)).slice(0, 14)
   const e = S.estado || {}
+  const pinOk = !!(e.pinterest && e.pinterest.conectado)
   const chip = (ok, texto) => `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:100px;font-size:0.74rem;font-weight:700;background:${ok === true ? '#e8f5e9' : ok === false ? '#fee2e2' : '#fef3c7'};color:${ok === true ? '#2e7d32' : ok === false ? '#b91c1c' : '#92400e'}">${ok === true ? '✓' : ok === false ? '✗' : '?'} ${texto}</span>`
   content.innerHTML = `
   <style>
@@ -762,7 +763,7 @@ window.cargarRedes = async function () {
       <div><p style="font-size:0.7rem;font-weight:700;letter-spacing:.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Redes sociales</p>
         <h2 style="font-size:1.3rem;font-weight:800;margin:0">Estudio de publicaciones</h2></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${e.conectado ? chip(e.facebook, 'Facebook' + (e.pagina ? ': ' + esc(e.pagina) : '')) + chip(e.instagram, 'Instagram' + (e.instagram_usuario ? ': @' + esc(e.instagram_usuario) : '')) : chip(false, 'Sin conexión con Meta')}
+        ${e.conectado ? chip(e.facebook, 'Facebook' + (e.pagina ? ': ' + esc(e.pagina) : '')) + chip(e.instagram, 'Instagram' + (e.instagram_usuario ? ': @' + esc(e.instagram_usuario) : '')) : chip(false, 'Sin conexión con Meta')}${chip(pinOk, pinOk ? 'Pinterest' : 'Pinterest sin conexión')}
         ${e.conectado && e.permisos_conocidos ? chip(e.puede_facebook && e.puede_instagram, 'Permisos de publicar') : ''}
       </div>
     </div>
@@ -869,6 +870,9 @@ window.cargarRedes = async function () {
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0;font-size:0.82rem">
         <label><input type="checkbox" id="rs-d-fb" ${e.facebook ? 'checked' : ''}> Publicar en Facebook</label>
         <label><input type="checkbox" id="rs-d-ig" ${e.instagram ? 'checked' : ''}> Publicar en Instagram</label>
+        ${pinOk ? `<label><input type="checkbox" id="rs-d-pin" onchange="document.getElementById('rs-pin-tab').style.display=this.checked?'inline-block':'none'"> Publicar en Pinterest</label>
+          <select id="rs-pin-tab" class="form-input" style="display:none;width:auto;font-size:0.8rem;padding:3px 8px">${(e.pinterest.tableros || []).map(t => `<option value="${esc(t.id)}" ${t.id === e.pinterest.tablero_predeterminado ? 'selected' : ''}>${esc(t.nombre)}</option>`).join('')}</select>`
+          : `<span style="color:#94a3b8" title="${esc((e.pinterest && e.pinterest.problema) || 'Sin conexión con Pinterest')}">📌 Pinterest sin conexión · configúralo en Conexiones</span>`}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary" id="rs-btn-pub" onclick="rsPublicar()" ${e.conectado ? '' : 'disabled'}>🚀 Publicar ahora</button>
@@ -1160,14 +1164,17 @@ window.rsCopiarTexto = async () => {
 }
 window.rsPublicar = async () => {
   const fb = document.getElementById('rs-d-fb').checked, ig = document.getElementById('rs-d-ig').checked
-  const destinos = [fb && 'facebook', ig && 'instagram'].filter(Boolean)
+  const pin = !!(document.getElementById('rs-d-pin') && document.getElementById('rs-d-pin').checked)
+  const destinos = [fb && 'facebook', ig && 'instagram', pin && 'pinterest'].filter(Boolean)
+  const NOM = { facebook: 'Facebook', instagram: 'Instagram', pinterest: 'Pinterest' }
   const res = document.getElementById('rs-res-pub'), btn = document.getElementById('rs-btn-pub')
   const msg = (t, ok) => { res.style.display = 'block'; res.style.color = ok ? '#15803d' : '#b91c1c'; res.innerHTML = t }
-  if (!destinos.length) { msg('Elige dónde publicar (Facebook, Instagram o ambos).', false); return }
+  if (!destinos.length) { msg('Elige dónde publicar (Facebook, Instagram o Pinterest).', false); return }
   if (!S.imgs.length) return
   const esHistoria = OPT.formato === 'historia'
-  if (esHistoria && fb) { msg('Las historias solo se publican en Instagram: quita Facebook o cambia el formato.', false); return }
-  if (!confirm(`¿Publicar ahora en ${destinos.map(d => d === 'facebook' ? 'Facebook' : 'Instagram').join(' y ')}? ${S.imgs.length > 1 ? `(${S.imgs.length} imágenes)` : ''} Se publica de verdad.`)) return
+  if (esHistoria && (fb || pin)) { msg('Las historias solo se publican en Instagram: quita Facebook y Pinterest o cambia el formato.', false); return }
+  if (pin && S.imgs.length > 5) { msg('Pinterest acepta hasta 5 imágenes por pin: deja 5 o menos para publicar ahí.', false); return }
+  if (!confirm(`¿Publicar ahora en ${destinos.map(d => NOM[d]).join(', ')}? ${S.imgs.length > 1 ? `(${S.imgs.length} imágenes)` : ''} Se publica de verdad.`)) return
   btn.disabled = true
   try {
     const urls = []
@@ -1183,10 +1190,10 @@ window.rsPublicar = async () => {
     }
     btn.textContent = 'Publicando en Meta (puede tardar un minuto)...'
     const r = await fetch(API + '/redes/publicar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls, caption: document.getElementById('rs-caption').value, destinos, historia: esHistoria, producto_ids: S.sel }) })
+      body: JSON.stringify({ urls, caption: document.getElementById('rs-caption').value, destinos, historia: esHistoria, producto_ids: S.sel, pinterest_board: pin ? document.getElementById('rs-pin-tab').value : undefined }) })
     const d = await r.json().catch(() => ({}))
     if (!d.resultados) throw new Error(d.error || `El servidor no contestó bien (código ${r.status}). Pudo haberse reiniciado o tardado demasiado. ANTES de volver a intentar, revisa en Facebook e Instagram si la publicación ya salió, para no duplicarla.`)
-    const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${k === 'facebook' ? 'Facebook' : 'Instagram'}:</strong> ${v.ok ? 'publicado' : esc(v.error)}${v.aviso ? '<br><small style="color:#b45309">⚠️ ' + esc(v.aviso) + '</small>' : ''}`)
+    const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${NOM[k] || k}:</strong> ${v.ok ? 'publicado' : esc(v.error)}${v.aviso ? '<br><small style="color:#b45309">⚠️ ' + esc(v.aviso) + '</small>' : ''}`)
     msg(lineas.join('<br>'), d.ok)
     if (d.ok) { S.sel.forEach(id => S.publicados.add(id)); window.rsHistorial() }
   } catch (e) { msg('Error: ' + esc(e.message), false) }
@@ -1196,7 +1203,7 @@ window.rsHistorial = async () => {
   const el = document.getElementById('rs-hist'); if (!el) return
   try {
     const l = await fetch(API + '/redes/historial').then(r => r.json())
-    el.innerHTML = Array.isArray(l) && l.length ? l.slice(0, 10).map(x => `<div style="padding:6px 0;border-top:1px solid #f1f5f9"><strong>${x.destino === 'facebook' ? 'Facebook' : 'Instagram'}</strong> · ${esc(x.tipo)} · ${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}<br><span style="color:#94a3b8">${esc(String(x.caption || '').split('\n')[2] || String(x.caption || '').slice(0, 70))}</span></div>`).join('') : 'Todavía no has publicado desde aquí.'
+    el.innerHTML = Array.isArray(l) && l.length ? l.slice(0, 10).map(x => `<div style="padding:6px 0;border-top:1px solid #f1f5f9"><strong>${{ facebook: 'Facebook', instagram: 'Instagram', pinterest: 'Pinterest' }[x.destino] || esc(x.destino)}</strong> · ${esc(x.tipo)} · ${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}<br><span style="color:#94a3b8">${esc(String(x.caption || '').split('\n')[2] || String(x.caption || '').slice(0, 70))}</span></div>`).join('') : 'Todavía no has publicado desde aquí.'
   } catch (e) { el.textContent = 'No se pudo cargar el historial.' }
 }
 
