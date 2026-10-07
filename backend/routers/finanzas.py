@@ -607,6 +607,95 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
         # ─── ESTADO DE RESULTADOS ─────────────────────────
+_GRUPOS_TU_UTILIDAD = [
+    ("tienda", "Tienda en línea"),
+    ("mercadolibre", "MercadoLibre"),
+    ("whatsapp", "WhatsApp (Maya y links)"),
+    ("otros_mkt", "Otros marketplaces (SHEIN, Walmart, Amazon, TikTok)"),
+    ("portal_solas", "Portal: clientas que se registraron solas"),
+    ("portal_tuyas", "Portal: clientas que registraste tú"),
+    ("mostrador", "Mostrador (sucursal)"),
+    ("otros", "Otros"),
+]
+
+
+@router.get("/tu-utilidad-desglose/{sucursal_id}")
+def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
+    """Desglose de «Tu utilidad» (ventas de productos − precio de corrida) del mes, por canal. Las filas «llegan solos» son las que no capturaste tú
+    (tienda, MercadoLibre, WhatsApp, otros marketplaces y portal de clientas que se registraron solas)."""
+    try:
+        ini, fin, etiqueta, mes_id = _rango_mes(mes)
+        pedidos = supabase_get_all(
+            f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)"
+            f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id,total,canal,cliente_id") or []
+        ids = [p['id'] for p in pedidos]
+        items = []
+        for k in range(0, len(ids), 150):
+            items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[k:k + 150])})&select=pedido_id,cantidad,variante_id,precio_unitario") or []
+        items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0]
+        vids = list({i['variante_id'] for i in items})
+        vmap = {}
+        for k in range(0, len(vids), 150):
+            for v in supabase_get(f"variantes?id=in.({','.join(vids[k:k + 150])})&select=id,producto_id") or []:
+                vmap[v['id']] = v.get('producto_id')
+        pids = list({x for x in vmap.values() if x})
+        pmap = {}
+        for k in range(0, len(pids), 150):
+            for pr in supabase_get(f"productos?id=in.({','.join(pids[k:k + 150])})&select=id,costo,precio_corrida,precio_menudeo") or []:
+                pmap[pr['id']] = pr
+        # origen de la ficha de cada clienta (solo importa para el portal)
+        cids = list({p['cliente_id'] for p in pedidos if p.get('cliente_id') and p.get('canal') == 'portal_mayoreo'})
+        origen = {}
+        for k in range(0, len(cids), 150):
+            for cl in supabase_get(f"clientes?id=in.({','.join(cids[k:k + 150])})&select=id,origen") or []:
+                origen[cl['id']] = cl.get('origen')
+        por_pedido = {}
+        for i in items:
+            cant = int(i.get('cantidad') or 0)
+            d = por_pedido.setdefault(i['pedido_id'], {"venta": 0.0, "corrida": 0.0, "pares": 0})
+            d["venta"] += float(i.get('precio_unitario') or 0) * cant
+            d["corrida"] += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida") * cant
+            d["pares"] += cant
+        acum = {k: {"pedidos": 0, "pares": 0, "cobrado": 0.0, "venta_productos": 0.0, "corrida": 0.0} for k, _ in _GRUPOS_TU_UTILIDAD}
+        for p in pedidos:
+            canal = (p.get('canal') or '').lower()
+            if canal in ('web', 'online'):
+                g = "tienda"
+            elif canal == 'mercadolibre':
+                g = "mercadolibre"
+            elif canal == 'whatsapp':
+                g = "whatsapp"
+            elif canal in ('shein', 'walmart', 'amazon', 'tiktok'):
+                g = "otros_mkt"
+            elif canal == 'portal_mayoreo':
+                g = "portal_solas" if origen.get(p.get('cliente_id')) in ('tienda', 'google', 'auto-reparado') else "portal_tuyas"
+            elif canal == 'sucursal':
+                g = "mostrador"
+            else:
+                g = "otros"
+            d = por_pedido.get(p['id'])
+            a = acum[g]
+            a["pedidos"] += 1
+            a["cobrado"] += float(p.get('total') or 0)
+            if d:
+                a["pares"] += d["pares"]; a["venta_productos"] += d["venta"]; a["corrida"] += d["corrida"]
+        filas = []
+        for k, nombre in _GRUPOS_TU_UTILIDAD:
+            a = acum[k]
+            if a["pedidos"]:
+                filas.append({"grupo": k, "nombre": nombre, "llega_solo": k in ("tienda", "mercadolibre", "whatsapp", "otros_mkt", "portal_solas"),
+                              "pedidos": a["pedidos"], "pares": a["pares"], "cobrado": a["cobrado"],
+                              "venta_productos": a["venta_productos"], "corrida": a["corrida"], "utilidad": a["venta_productos"] - a["corrida"]})
+        def suma(fs, campo):
+            return sum(f[campo] for f in fs)
+        solos = [f for f in filas if f["llega_solo"]]
+        return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas,
+                "llegan_solos": {k: suma(solos, k) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")},
+                "total": {k: suma(filas, k) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")}}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/estado-resultados/{sucursal_id}")
 def estado_resultados(sucursal_id: str):
     try:

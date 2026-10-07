@@ -1991,10 +1991,10 @@ async function cargarFinanzas(sucursalElegida) {
           <p style="font-size:1.5rem;font-weight:700;color:#7b1fa2">$${(reporte.cmv_corrida||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo a precio de corrida</p>
         </div>
-        <div style="background:#f3e5f5;border-radius:12px;padding:1.25rem;border:1px solid #ce93d8;text-align:center">
+        <div style="background:#f3e5f5;border-radius:12px;padding:1.25rem;border:1px solid #ce93d8;text-align:center;cursor:pointer" onclick="window.verTuUtilidadDesglose()" title="Ver de dónde sale tu utilidad">
           <p style="font-size:1.5rem;font-weight:700;color:#6a1b9a">$${(reporte.tu_utilidad||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#6a1b9a;text-transform:uppercase;letter-spacing:0.5px">Tu utilidad</p>
-          <p style="font-size:0.6rem;color:#8e24aa;margin-top:2px">ventas − precio de corrida</p>
+          <p style="font-size:0.6rem;color:#8e24aa;margin-top:2px">ventas − precio de corrida · <b>ver desglose ▾</b></p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#333">$${(flujo.semana?.ingresos||0).toFixed(0)}</p>
@@ -20196,6 +20196,43 @@ window.validarCantidadTalla = (varianteId, maxStock) => {
   if (val > maxStock) val = maxStock
   input.value = val
   input.style.borderColor = val > 0 ? '#E91E8C' : '#ddd'
+}
+
+// «Tu utilidad»: desglose del mes elegido por canal (lo que llega solo, aparte de mostrador y clientas que registraste tú)
+window.verTuUtilidadDesglose = async () => {
+  document.getElementById('modal-tu-utilidad')?.remove()
+  const m = document.createElement('div'); m.id = 'modal-tu-utilidad'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto'
+  m.addEventListener('click', e => { if (e.target === m) m.remove() })
+  m.innerHTML = '<div style="background:#fff;border-radius:16px;width:min(900px,100%);padding:20px 22px"><p style="color:#888;margin:0">Calculando…</p></div>'
+  document.body.appendChild(m)
+  const caja = m.firstElementChild
+  const mon = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })
+  try {
+    const r = await fetch(API + '/finanzas/tu-utilidad-desglose/' + window._finSucursalId + '?mes=' + (window._finMes || ''))
+    const d = await r.json()
+    if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status))
+    const fila = (f, extra = '') => `<tr${extra}><td>${f.nombre}</td><td style="text-align:right">${f.pedidos}</td><td style="text-align:right">${f.pares}</td><td style="text-align:right">${mon(f.cobrado)}</td><td style="text-align:right">${mon(f.corrida)}</td><td style="text-align:right;font-weight:700;color:#6a1b9a">${mon(f.utilidad)}</td></tr>`
+    const tot = (nombre, t, estilo) => `<tr style="${estilo}"><td><b>${nombre}</b></td><td style="text-align:right"><b>${t.pedidos}</b></td><td style="text-align:right"><b>${t.pares}</b></td><td style="text-align:right"><b>${mon(t.cobrado)}</b></td><td style="text-align:right"><b>${mon(t.corrida)}</b></td><td style="text-align:right;color:#6a1b9a"><b>${mon(t.utilidad)}</b></td></tr>`
+    const solos = d.filas.filter(f => f.llega_solo), resto = d.filas.filter(f => !f.llega_solo)
+    caja.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
+        <h3 style="margin:0">👤 Tu utilidad — ${d.mes_etiqueta}</h3>
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-tu-utilidad').remove()">Cerrar</button>
+      </div>
+      <p style="margin:0 0 12px;font-size:0.78rem;color:#64748b;line-height:1.5">Ventas de productos menos el precio de corrida (si el modelo no tiene precio de corrida capturado se usa el precio de menudeo del panel − $100). No incluye comisiones ni envíos.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th>Canal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Pares</th><th style="text-align:right">Total cobrado</th><th style="text-align:right">Corrida</th><th style="text-align:right">Utilidad</th></tr></thead>
+        <tbody>
+          <tr><td colspan="6" style="padding-top:8px;font-size:0.72rem;font-weight:700;color:#166534">LO QUE LLEGA SOLO</td></tr>
+          ${solos.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:6px 0">Sin ventas de este tipo en el mes.</td></tr>'}
+          ${tot('Suma de lo que llega solo', d.llegan_solos, 'background:#f0fdf4')}
+          <tr><td colspan="6" style="padding-top:12px;font-size:0.72rem;font-weight:700;color:#64748b">LO QUE CAPTURASTE TÚ O TUS CLIENTAS</td></tr>
+          ${resto.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:6px 0">Nada en el mes.</td></tr>'}
+          ${tot('Total del mes', d.total, 'background:#f3e5f5;border-top:2px solid #ce93d8')}
+        </tbody></table></div>`
+    caja.querySelectorAll('td,th').forEach(td => { td.style.padding = '7px 8px' })
+  } catch (e) { caja.innerHTML = `<p style="color:#b91c1c">No se pudo calcular: ${e.message}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-tu-utilidad').remove()">Cerrar</button>` }
 }
 
 window.recargarFinanzas = async (sucursalId) => {
