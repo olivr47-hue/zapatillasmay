@@ -20,6 +20,30 @@ def _inicio_dia_mx(d: date) -> str:
     return f"{d.isoformat()}T06:00:00Z"
 
 
+_MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _rango_mes(mes: str = None):
+    """(inicio_utc, fin_utc_exclusivo, 'octubre 2026', 'YYYY-MM') de un mes calendario en hora de México. Sin `mes` = el mes en curso."""
+    hoy = _hoy_mx()
+    try:
+        a, m = (int(x) for x in str(mes).split("-")[:2]) if mes else (hoy.year, hoy.month)
+        primer = date(a, m, 1)
+    except Exception:
+        primer = date(hoy.year, hoy.month, 1)
+    sig = date(primer.year + (primer.month // 12), primer.month % 12 + 1, 1)
+    return _inicio_dia_mx(primer), _inicio_dia_mx(sig), f"{_MESES_ES[primer.month - 1]} {primer.year}", primer.strftime("%Y-%m")
+
+
+def _costo_unitario(prod: dict, base: str) -> float:
+    """Costo de un par: 'corrida' = lo que cobra el proveedor/propietaria a quien opera el sistema (precio de corrida; si no está capturado,
+    precio de menudeo del panel − $100), 'real' = el costo de producción capturado en el producto."""
+    if base == "real":
+        return float(prod.get("costo") or 0)
+    pc = float(prod.get("precio_corrida") or 0)
+    return pc if pc > 0 else max(float(prod.get("precio_menudeo") or 0) - 100.0, 0.0)
+
+
 def _fecha_mx(ts: str):
     """Fecha (hora México) de un timestamp ISO que viene de la BD; None si no se puede."""
     try:
@@ -435,29 +459,30 @@ def recibir_mercancia(datos: dict):
 
 # ─── REPORTES ─────────────────────────────────────
 @router.get("/reporte/{sucursal_id}")
-def reporte_financiero(sucursal_id: str):
+def reporte_financiero(sucursal_id: str, mes: str = None, costo: str = "corrida"):
+    """Utilidades de un MES calendario (mes=YYYY-MM; sin mes = el mes en curso). costo=corrida|real."""
     try:
         from datetime import datetime, timedelta
-        hoy = _hoy_mx()
-        hace30 = _inicio_dia_mx(hoy - timedelta(days=30))
+        costo_base = "real" if costo == "real" else "corrida"
+        hace30, fin_mes, etiqueta_mes, mes_id = _rango_mes(mes)   # (nombre histórico: ahora es el inicio del mes elegido)
 
         # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días.
         # Se filtra por confirmado_at (fecha real de venta), no created_at (fecha del
         # carrito/borrador, que puede ser de mucho antes si se dejo pendiente).
         pedidos_sucursal = supabase_get(
             f"pedidos?sucursal_id=eq.{sucursal_id}"
-            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}"
+            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}"
             f"&select=id,total"
         ) or []
         pedidos_online = supabase_get(
             f"pedidos?sucursal_id=is.null"
-            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}"
+            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}"
             f"&select=id,total"
         ) or []
         pedidos = pedidos_sucursal + pedidos_online
 
         gastos = supabase_get(
-            f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}"
+            f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}&created_at=lt.{fin_mes}"
         ) or []
 
         total_ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -505,7 +530,7 @@ def reporte_financiero(sucursal_id: str):
                 ps = []
                 for _i in range(0, len(producto_ids_unicos), 150):
                     ps += supabase_get(
-                        f"productos?id=in.({','.join(producto_ids_unicos[_i:_i + 150])})&select=id,nombre,costo,sku_interno"
+                        f"productos?id=in.({','.join(producto_ids_unicos[_i:_i + 150])})&select=id,nombre,costo,precio_corrida,precio_menudeo,sku_interno"
                     ) or []
                 productos_map = {p['id']: p for p in ps}
 
@@ -521,7 +546,7 @@ def reporte_financiero(sucursal_id: str):
                 producto_id = var.get('producto_id')
                 prod        = productos_map.get(producto_id, {}) if producto_id else {}
 
-                costo  = float(prod.get('costo') or 0)
+                costo  = _costo_unitario(prod, costo_base)
                 nombre = prod.get('nombre') or nombre_item
                 sku    = prod.get('sku_interno', '')
                 color  = var.get('color', '')
@@ -558,6 +583,9 @@ def reporte_financiero(sucursal_id: str):
         desglose_cmv_sorted = sorted(desglose_cmv, key=lambda x: x['subtotal_costo'], reverse=True)
 
         return {
+            "mes":                    mes_id,
+            "mes_etiqueta":           etiqueta_mes,
+            "costo_base":             costo_base,
             "total_ventas":           total_ventas,            # ingresos totales (productos + envío)
             "total_ventas_productos": total_ventas_productos,  # solo productos
             "total_envio_cobrado":    total_envio_cobrado,     # envío cobrado al cliente
@@ -575,8 +603,9 @@ def reporte_financiero(sucursal_id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
         # ─── ESTADO DE RESULTADOS ─────────────────────────
 @router.get("/estado-resultados/{sucursal_id}")
-def estado_resultados(sucursal_id: str):
+def estado_resultados(sucursal_id: str, costo: str = "corrida"):
     try:
+        costo_base = "real" if costo == "real" else "corrida"
         from datetime import datetime, timedelta
         hoy = _hoy_mx()
         
@@ -596,18 +625,45 @@ def estado_resultados(sucursal_id: str):
             _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
             # Sucursal + ventas en línea/marketplaces (sin sucursal): antes faltaban estas últimas y el estado de resultados
             # daba menos ventas que el reporte de 30 días.
-            pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
+            pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=id,total")
             gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
             gasto = sum(float(g['monto'] or 0) for g in gastos)
-            utilidad = ventas - gasto
-            
+            # costo de la mercancía vendida ese mes (con la base de costo elegida) y venta solo de productos
+            ids = [p['id'] for p in pedidos]
+            ventas_prod = cmv = 0.0
+            if ids:
+                items = []
+                for _k in range(0, len(ids), 150):
+                    items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[_k:_k + 150])})&select=cantidad,variante_id,precio_unitario") or []
+                items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0]
+                vids = list({i['variante_id'] for i in items})
+                vmap = {}
+                for _k in range(0, len(vids), 150):
+                    for v in supabase_get(f"variantes?id=in.({','.join(vids[_k:_k + 150])})&select=id,producto_id") or []:
+                        vmap[v['id']] = v.get('producto_id')
+                pids = list({x for x in vmap.values() if x})
+                pmap = {}
+                for _k in range(0, len(pids), 150):
+                    for pr in supabase_get(f"productos?id=in.({','.join(pids[_k:_k + 150])})&select=id,costo,precio_corrida,precio_menudeo") or []:
+                        pmap[pr['id']] = pr
+                for i in items:
+                    cant = int(i.get('cantidad') or 0)
+                    ventas_prod += float(i.get('precio_unitario') or 0) * cant
+                    cmv += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), costo_base) * cant
+            utilidad_bruta = ventas_prod - cmv
+            utilidad = utilidad_bruta - gasto
+
             resultado.append({
                 "mes": primer_dia.strftime("%b %Y"),
+                "mes_id": primer_dia.strftime("%Y-%m"),
                 "ventas": ventas,
+                "ventas_productos": ventas_prod,
+                "costo_mercancia": cmv,
+                "utilidad_bruta": utilidad_bruta,
                 "gastos": gasto,
-                "utilidad": utilidad,
+                "utilidad": utilidad,      # ahora = ventas de productos - costo - gastos (antes: ventas - gastos, sin costo)
                 "num_pedidos": len(pedidos)
             })
         
@@ -617,18 +673,18 @@ def estado_resultados(sucursal_id: str):
 
 # ─── FLUJO DE EFECTIVO ────────────────────────────
 @router.get("/flujo/{sucursal_id}")
-def flujo_efectivo(sucursal_id: str):
+def flujo_efectivo(sucursal_id: str, mes: str = None):
     try:
         from datetime import timedelta
         hoy = _hoy_mx()
         hace7 = _inicio_dia_mx(hoy - timedelta(days=7))
-        hace30 = _inicio_dia_mx(hoy - timedelta(days=30))
+        hace30, fin_mes, _etq, _id = _rango_mes(mes)   # el bloque «mes» es el mes calendario elegido (antes: últimos 30 días)
         _suc = f"or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)"   # sucursal + ventas en línea, igual que el reporte
 
         pedidos_semana = supabase_get_all(f"pedidos?{_suc}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace7}&select=total")
-        pedidos_mes = supabase_get_all(f"pedidos?{_suc}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&select=total")
+        pedidos_mes = supabase_get_all(f"pedidos?{_suc}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}&select=total")
         gastos_semana = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}&select=monto")
-        gastos_mes = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}&select=monto")
+        gastos_mes = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}&created_at=lt.{fin_mes}&select=monto")
 
         # Por forma de pago hoy
         pedidos_hoy = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}&select=*")
@@ -712,11 +768,10 @@ def cuentas_por_cobrar():
 
 # ─── GASTOS POR CATEGORIA ─────────────────────────
 @router.get("/gastos-categorias/{sucursal_id}")
-def gastos_por_categoria(sucursal_id: str):
+def gastos_por_categoria(sucursal_id: str, mes: str = None):
     try:
-        from datetime import timedelta
-        hace30 = (_hoy_mx() - timedelta(days=30)).isoformat()
-        gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
+        ini, fin, _etq, _id = _rango_mes(mes)
+        gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{ini}&created_at=lt.{fin}")
         
         categorias = {}
         for g in gastos:

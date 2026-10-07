@@ -1870,14 +1870,24 @@ async function cargarFinanzas(sucursalElegida) {
     const sucursalId = (sucursalElegida && sucursales.find(s => s.id === sucursalElegida)) ? sucursalElegida : sucursales[0]?.id
     window._finSucursalId = sucursalId
 
+    // Utilidades por MES calendario (no «últimos 30 días») y base de costo elegible: corrida (lo que sobra después del precio de corrida) o costo real
+    const _mesHoyMx = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }).slice(0, 7)
+    const mesSel = window._finMes || _mesHoyMx
+    const costoSel = window._finCosto || 'corrida'
+    window._finMes = mesSel; window._finCosto = costoSel
+    const _MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    const opcionesMes = []
+    { let [ya, ym] = _mesHoyMx.split('-').map(Number)
+      for (let i = 0; i < 12; i++) { opcionesMes.push({ v: `${ya}-${String(ym).padStart(2, '0')}`, t: `${_MESES_ES[ym - 1]} ${ya}` }); ym--; if (ym === 0) { ym = 12; ya-- } } }
+
     const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias, resCxP, resDeudas, resValorInv] = await Promise.all([
       fetch(API + '/finanzas/caja/hoy/' + sucursalId),
-      fetch(API + '/finanzas/reporte/' + sucursalId),
+      fetch(API + '/finanzas/reporte/' + sucursalId + `?mes=${mesSel}&costo=${costoSel}`),
       fetch(API + '/finanzas/gastos/' + sucursalId),
-      fetch(API + '/finanzas/estado-resultados/' + sucursalId),
-      fetch(API + '/finanzas/flujo/' + sucursalId),
+      fetch(API + '/finanzas/estado-resultados/' + sucursalId + `?costo=${costoSel}`),
+      fetch(API + '/finanzas/flujo/' + sucursalId + `?mes=${mesSel}`),
       fetch(API + '/finanzas/cuentas-por-cobrar'),
-      fetch(API + '/finanzas/gastos-categorias/' + sucursalId),
+      fetch(API + '/finanzas/gastos-categorias/' + sucursalId + `?mes=${mesSel}`),
       fetch(API + '/finanzas/cuentas-por-pagar'),
       fetch(API + '/finanzas/deudas'),
       fetch(API + '/finanzas/valor-inventario')
@@ -1894,6 +1904,7 @@ async function cargarFinanzas(sucursalElegida) {
     const deudas = await resDeudas.json()
     const valorInv = await resValorInv.json()
 
+    window._finMesEtiqueta = (reporte && reporte.mes_etiqueta) || (opcionesMes.find(o => o.v === mesSel) || {}).t || mesSel
     const cajaActiva = cajas.find(c => c.status === 'abierta')
     // "Hoy" en hora de México (toISOString es UTC: después de las 6 pm ya daba el día siguiente)
     const _fmtMx = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
@@ -1912,6 +1923,13 @@ async function cargarFinanzas(sucursalElegida) {
           <p style="color:#888;font-size:0.85rem">Control de caja, gastos y reportes financieros</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="fin-mes" style="max-width:190px" title="Mes de las utilidades" onchange="window._finMes=this.value;recargarFinanzas(window._finSucursalId)">
+            ${opcionesMes.map(o => `<option value="${o.v}" ${o.v === mesSel ? 'selected' : ''}>${o.t}</option>`).join('')}
+          </select>
+          <select class="form-input" id="fin-costo" style="max-width:230px" title="Con qué costo se calcula la utilidad" onchange="window._finCosto=this.value;recargarFinanzas(window._finSucursalId)">
+            <option value="corrida" ${costoSel === 'corrida' ? 'selected' : ''}>Costo: precio de corrida</option>
+            <option value="real" ${costoSel === 'real' ? 'selected' : ''}>Costo: real de producción</option>
+          </select>
           <select class="form-input" id="fin-sucursal" style="max-width:200px" onchange="recargarFinanzas(this.value)">
             ${sucursales.map(s => `<option value="${s.id}" ${s.id === sucursalId ? 'selected' : ''}>${s.nombre}</option>`).join('')}
           </select>
@@ -1954,11 +1972,12 @@ async function cargarFinanzas(sucursalElegida) {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
-          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas ${window._finMesEtiqueta}</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#b5651d">$${(reporte.cmv||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo mercancía</p>
+          <p style="font-size:0.6rem;color:#aaa;margin-top:2px">${costoSel === 'corrida' ? 'a precio de corrida' : 'costo real'}</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
@@ -2044,7 +2063,7 @@ window.mostrarTabFinanzas = (tab) => {
     container.innerHTML = `
       <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
         <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <p style="font-weight:700;font-size:0.9rem">📦 Desglose de costo de mercancía — 30 días</p>
+          <p style="font-weight:700;font-size:0.9rem">📦 Desglose de costo de mercancía — ${window._finMesEtiqueta}</p>
           <div style="display:flex;gap:16px;font-size:0.82rem">
             <span>Total vendido: <strong style="color:#E91E8C">$${totalVtas.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></span>
             <span>Costo total: <strong style="color:#b5651d">$${totalCmv.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></span>
@@ -2057,7 +2076,7 @@ window.mostrarTabFinanzas = (tab) => {
           <span><strong>${sinDesglose} pedido${sinDesglose>1?'s':''} ($${totalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN)</strong> no tienen productos desglosados — por eso "Ventas 30 días" es mayor que "Venta total" aquí. Son ventas registradas sin items individuales (POS antiguo o pedidos manuales sin productos).</span>
         </div>` : ''}
         ${desglose.length === 0
-          ? '<p style="padding:2rem;text-align:center;color:#888">Sin ventas con costo registrado en los últimos 30 días</p>'
+          ? '<p style="padding:2rem;text-align:center;color:#888">Sin ventas con costo registrado en ' + window._finMesEtiqueta + '</p>'
           : `<div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
               <thead>
@@ -2132,7 +2151,7 @@ window.mostrarTabFinanzas = (tab) => {
         </div>
         <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
           <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
-            <p style="font-weight:700;font-size:0.9rem">📊 Gastos por categoría (30 días)</p>
+            <p style="font-weight:700;font-size:0.9rem">📊 Gastos por categoría (${window._finMesEtiqueta})</p>
           </div>
           <div style="padding:1rem">
             ${categorias.length === 0
@@ -2164,6 +2183,7 @@ window.mostrarTabFinanzas = (tab) => {
               <tr>
                 <th>Mes</th>
                 <th>Ventas</th>
+                <th>Costo</th>
                 <th>Gastos</th>
                 <th>Utilidad</th>
                 <th>Pedidos</th>
@@ -2175,6 +2195,7 @@ window.mostrarTabFinanzas = (tab) => {
                 <tr>
                   <td><strong>${m.mes}</strong></td>
                   <td style="color:#E91E8C;font-weight:600">$${m.ventas.toFixed(0)}</td>
+                  <td style="color:#b5651d">$${(m.costo_mercancia || 0).toFixed(0)}</td>
                   <td style="color:#c62828">$${m.gastos.toFixed(0)}</td>
                   <td style="color:${m.utilidad >= 0 ? '#2e7d32' : '#c62828'};font-weight:700">$${m.utilidad.toFixed(0)}</td>
                   <td>${m.num_pedidos}</td>
@@ -2241,7 +2262,7 @@ window.mostrarTabFinanzas = (tab) => {
           </div>
         </div>
         <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📆 Últimos 30 días</p>
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📆 ${window._finMesEtiqueta}</p>
           <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
             <span style="font-size:0.82rem;color:#888">Ingresos</span>
             <span style="font-weight:700;color:#2e7d32">$${(flujo.mes?.ingresos||0).toFixed(0)}</span>
