@@ -14990,6 +14990,10 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   const items = pedido.pedido_items || []
   const cliente = pedido.clientes || {}
   const fecha = new Date().toLocaleString('es-MX')
+  // El total y los pares salen del pedido tal como está AHORA en el servidor, no de los números que le pasó la pantalla
+  // (una lista de Pedidos abierta desde antes imprimía un total viejo: $11,980 en vez de $14,440 con las mismas líneas).
+  if (Number(pedido.total) > 0) total = Number(pedido.total)
+  totalPares = items.reduce((s, i) => s + ((i.cantidad || 0) > 0 ? i.cantidad : 0), 0) || totalPares
   ticket.document.write(`
     <!DOCTYPE html>
     <html>
