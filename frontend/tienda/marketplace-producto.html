@@ -86,6 +86,7 @@
       P = await r.json()
     } catch (e) { $('app').innerHTML = '<p class="vacio">Este producto ya no está disponible. <a href="/marketplace" style="color:var(--pink)">Ver el marketplace →</a></p>'; return }
     document.title = `${P.nombre} — ${P.vendedor.nombre_tienda} | Zapatillas May`
+    seoProducto()
     color = [...new Set(P.mp_variantes.map(v => v.color))][0] || ''
     pintar()
   }
@@ -98,6 +99,22 @@
       ['Empeine', emp[P.ajuste_empeine]], ['Ocasión', (P.ocasion || []).map(o => oc[o]).filter(Boolean).join(', ')], ['Recomendación de talla', P.recomendacion_talla]].filter(x => x[1])
     const vid = /^https:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com)\//.test(P.video_url || '') ? `<p style="margin-top:10px"><a href="${esc(P.video_url)}" target="_blank" rel="noopener" style="color:var(--pink);font-weight:600">🎬 Ver el video del producto</a></p>` : ''
     return (f.length ? `<h4>Detalles</h4><div class="conf" style="margin-top:0">${f.map(x => `<span><b>${x[0]}:</b> ${esc(x[1])}</span>`).join('')}</div>` : '') + vid
+  }
+  function seoProducto() {
+    const url = `https://zapatillasmay.mx/marketplace/${encodeURIComponent(P.slug)}`
+    const desc = (String(P.descripcion || '').replace(/\s+/g, ' ').trim() || `${P.nombre} de ${P.vendedor.nombre_tienda}. Calzado de dama con envío a todo México y pago seguro en Zapatillas May.`).slice(0, 155)
+    const meta = (sel, attrs) => { let e = document.head.querySelector(sel); if (!e) { e = document.createElement(sel.startsWith('link') ? 'link' : 'meta'); document.head.appendChild(e) } Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)) }
+    meta('meta[name="description"]', { name: 'description', content: desc })
+    meta('link[rel="canonical"]', { rel: 'canonical', href: url })
+    meta('meta[property="og:title"]', { property: 'og:title', content: document.title })
+    meta('meta[property="og:description"]', { property: 'og:description', content: desc })
+    meta('meta[property="og:url"]', { property: 'og:url', content: url })
+    if ((P.imagenes || [])[0]) meta('meta[property="og:image"]', { property: 'og:image', content: P.imagenes[0] })
+    const hay = P.mp_variantes.some(v => v.stock > 0)
+    const ld = { '@context': 'https://schema.org', '@type': 'Product', name: P.nombre, description: desc, image: P.imagenes || [], category: P.categoria || undefined, material: P.material || undefined,
+      brand: { '@type': 'Brand', name: P.vendedor.nombre_tienda }, offers: { '@type': 'Offer', url, priceCurrency: 'MXN', price: String(P.precio), availability: hay ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock', itemCondition: 'https://schema.org/NewCondition', seller: { '@type': 'Organization', name: 'Zapatillas May' } } }
+    let s = document.getElementById('ld-producto'); if (!s) { s = document.createElement('script'); s.id = 'ld-producto'; s.type = 'application/ld+json'; document.head.appendChild(s) }
+    s.textContent = JSON.stringify(ld)
   }
   function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch (e) { return [] } }
   function pintar() {

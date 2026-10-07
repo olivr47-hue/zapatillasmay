@@ -1512,6 +1512,8 @@ def sitemap():
             'https://zapatillasmay.mx/guia-plataformas-como-elegir',
             'https://zapatillasmay.mx/guia-como-elegir-tu-talla',
             'https://zapatillasmay.mx/guia-flats-como-elegir',
+            'https://zapatillasmay.mx/vender',
+            'https://zapatillasmay.mx/marketplace',
         ]
         for cat in categorias:
             slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
@@ -1575,6 +1577,17 @@ def sitemap():
                 xml += (f'    <image:image>\n      <image:loc>{img_esc}</image:loc>\n'
                         f'      <image:title>{titulo_img}</image:title>\n    </image:image>\n')
             xml += '  </url>\n'
+        # Marketplace: productos publicados de tiendas activas, con existencia y foto
+        try:
+            for mp in supabase_get("mp_productos?estado=eq.publicado&mp_vendedores.estado=eq.activo&select=slug,nombre,imagenes,updated_at,mp_vendedores!inner(estado),mp_variantes(stock)&limit=500") or []:
+                imgs = [u for u in (mp.get("imagenes") or []) if u]
+                if not mp.get("slug") or not imgs or not any((v.get("stock") or 0) > 0 for v in (mp.get("mp_variantes") or [])):
+                    continue
+                xml += (f'  <url>\n    <loc>https://zapatillasmay.mx/marketplace/{_html.escape(mp["slug"], quote=True)}</loc>\n    <lastmod>{(mp.get("updated_at") or _today)[:10]}</lastmod>\n'
+                        f'    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n    <image:image>\n      <image:loc>{_html.escape(imgs[0], quote=True)}</image:loc>\n'
+                        f'      <image:title>{_html.escape(str(mp.get("nombre") or "Calzado")[:150], quote=True)}</image:title>\n    </image:image>\n  </url>\n')
+        except Exception as e_mp:
+            print(f"[sitemap] marketplace: {e_mp}")
         xml += '</urlset>'
         cache_set("seo_sitemap", xml, ttl=TTL_FEEDS)
         return Response(content=xml, media_type="application/xml")
@@ -1587,6 +1600,7 @@ def robots():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /panel\n"
+        "Disallow: /vendedor\n"
         "Disallow: /checkout\n"
         "Disallow: /success\n"
         "Disallow: /pedido-exitoso\n"
