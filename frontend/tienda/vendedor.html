@@ -64,6 +64,30 @@
     .fotos .f button { position:absolute; top:2px; right:2px; background:rgba(0,0,0,.65); color:#fff; border:0; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:.7rem; }
     .fotos .f em { position:absolute; bottom:0; left:0; right:0; background:rgba(181,104,122,.9); color:#fff; font-size:.6rem; text-align:center; font-style:normal; }
     .subir { width:84px; height:84px; border:2px dashed var(--rose); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--rose); font-size:1.8rem; cursor:pointer; }
+    .modal.ancho { max-width:820px; }
+    .sec-p { border-top:1px solid var(--cd); margin-top:16px; padding-top:12px; }
+    .sec-p h3 { font-size:.95rem; color:var(--black); margin-bottom:2px; }
+    .sec-p .sub { font-size:.76rem; color:var(--gray); margin-bottom:6px; }
+    .g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    @media (max-width:620px) { .g3 { grid-template-columns:1fr; } }
+    .chk { display:flex; flex-wrap:wrap; gap:6px; }
+    .chk label { display:flex; align-items:center; gap:5px; margin:0; font-weight:400; font-size:.82rem; background:var(--cream); border:1px solid var(--cd); border-radius:10px; padding:6px 10px; cursor:pointer; }
+    .chk input { width:auto; }
+    .col-card { border:1px solid var(--cd); border-radius:14px; padding:12px; margin-top:10px; background:#fffdfb; }
+    .col-card .cab { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+    .col-card .cab input[type=color] { width:38px; height:38px; padding:2px; border:2px solid var(--cd); border-radius:8px; cursor:pointer; flex:0 0 auto; }
+    .col-card .cab input[type=text] { flex:1; min-width:120px; }
+    .pal { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
+    .pal i { width:22px; height:22px; border-radius:50%; border:2px solid #ddd; cursor:pointer; display:inline-block; }
+    .pal i:hover { transform:scale(1.2); }
+    .tallas { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+    .tallas button { min-width:44px; padding:7px 10px; background:#fff; border:1.5px solid var(--cd); border-radius:10px; font:500 .85rem 'Outfit'; cursor:pointer; }
+    .tallas button.on { background:var(--black); color:#fff; border-color:var(--black); }
+    .stk { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+    .stk div { background:var(--cream); border-radius:10px; padding:6px 8px; text-align:center; font-size:.74rem; color:var(--mauve); }
+    .stk input { width:64px; padding:5px 6px; margin-top:3px; text-align:center; }
+    .fotos .f .mv { position:absolute; bottom:14px; left:0; right:0; display:flex; justify-content:space-between; padding:0 2px; }
+    .fotos .f .mv button { position:static; width:18px; height:18px; font-size:.6rem; }
     table.v { width:100%; border-collapse:collapse; font-size:.85rem; }
     table.v th { text-align:left; font-size:.72rem; color:var(--mauve); padding:4px 4px; }
     table.v td { padding:3px 4px; }
@@ -126,29 +150,57 @@
 </main>
 
 <!-- FORMULARIO DE PRODUCTO -->
-<div class="overlay" id="ov-prod"><div class="modal">
+<div class="overlay" id="ov-prod"><div class="modal ancho">
   <h2 id="pf-titulo">Nuevo producto</h2>
-  <p style="font-size:.82rem;color:var(--gray);margin-bottom:6px">Lo revisamos antes de publicarlo. Mientras tanto queda como borrador.</p>
-  <label>Nombre del producto *</label><input type="text" id="pf-nombre" maxlength="120" placeholder="Ej: Botín negro tacón 7 cm con hebilla">
-  <div class="g2">
-    <div><label>Categoría</label><select id="pf-cat"></select></div>
-    <div><label>Material</label><input type="text" id="pf-material" maxlength="60" placeholder="Piel, sintético, charol…"></div>
-    <div><label>Precio de menudeo: lo que quieres RECIBIR por par *</label><input type="number" id="pf-precio" min="50" max="20000" step="1" placeholder="500" oninput="vistaPrevia()"></div>
-    <div><label>Precio por 3+ pares: lo que quieres recibir por par si la clienta lleva 3 o más en su carrito</label><input type="number" id="pf-precio3" min="50" max="20000" step="1" placeholder="440" oninput="vistaPrevia()"></div>
-    <div><label>Costo de tu envío (lo que te cuesta enviar un pedido)</label><input type="number" id="pf-envio" min="0" max="1500" step="1" value="150"></div>
+  <p style="font-size:.82rem;color:var(--gray);margin-bottom:6px">Lo revisamos antes de publicarlo. Mientras tanto queda como borrador. Captúralo como en el panel de Zapatillas May: datos, precios, y cada color con sus fotos y tallas.</p>
+
+  <div class="sec-p" style="border-top:0;margin-top:6px;padding-top:0"><h3>Datos del producto</h3>
+    <label>Nombre del producto *</label><input type="text" id="pf-nombre" maxlength="120" placeholder="Ej: Sandalia de tacón Valentina">
+    <div class="g2">
+      <div><label>Categoría *</label><select id="pf-cat"></select></div>
+      <div><label>Subcategoría</label><input type="text" id="pf-subcat" maxlength="60" placeholder="Casual, fiesta, trabajo…"></div>
+    </div>
+    <label>Descripción</label><textarea id="pf-desc" rows="3" maxlength="1500" placeholder="Describe el producto con detalle: a qué talla corre, comodidad, para qué ocasión…"></textarea>
   </div>
-  <div id="pf-vista" style="font-size:.82rem;color:#4b3a2f;background:var(--cream);border-radius:10px;padding:9px 12px;margin-top:8px;line-height:1.5">Escribe tus precios para ver cuánto verá la clienta.</div>
-  <p style="font-size:.76rem;color:var(--gray);margin:6px 0 0">Como en el panel de Zapatillas May: tu precio de menudeo y tu precio por 3+ pares. Tú recibes esos precios completos: nosotros sumamos nuestra ganancia y la comisión de MercadoPago al precio que ve la clienta. El descuento por 3+ pares se suma entre todos los productos del carrito, también con otras tiendas.</p>
-  <label>Descripción</label><textarea id="pf-desc" rows="3" maxlength="1500" placeholder="Altura de tacón, forro, a qué talla corre…"></textarea>
-  <label>Fotos (máximo 8; la primera es la principal) *</label>
-  <div class="fotos" id="pf-fotos"></div>
-  <input type="file" id="pf-file" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
-  <label>Tallas y existencias *</label>
-  <table class="v" id="pf-vars"><thead><tr><th>Color</th><th>Talla</th><th>Pares</th><th></th></tr></thead><tbody></tbody></table>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-    <button class="btn sec mini" onclick="agregarVar()">+ Agregar talla</button>
-    <button class="btn sec mini" onclick="agregarTallas()">+ Tallas 22 a 27 de un color</button>
+
+  <div class="sec-p"><h3>Detalles técnicos</h3>
+    <div class="g3">
+      <div><label>Material</label><input type="text" id="pf-material" maxlength="60" placeholder="Cuero sintético"></div>
+      <div><label>Material de suela</label><input type="text" id="pf-suela" maxlength="60" placeholder="Hule"></div>
+      <div><label>Forro</label><input type="text" id="pf-forro" maxlength="60" placeholder="Textil"></div>
+      <div><label>Horma (¿corre chico o grande?)</label><select id="pf-horma"><option value="">Selecciona…</option><option value="normal">Normal — talla real</option><option value="reducida">Reducida — corre chico (pedir talla mayor)</option><option value="amplia">Amplia — corre grande (pedir talla menor)</option></select></div>
+      <div><label>Altura de tacón (cm)</label><input type="number" id="pf-tacon" step="0.5" min="0" max="30" placeholder="8.5"></div>
+      <div><label>Tipo de tacón</label><select id="pf-tipotacon"><option value="">Selecciona…</option><option value="aguja">Aguja</option><option value="bloque">Bloque</option><option value="cuna">Cuña</option><option value="plataforma">Plataforma</option><option value="sin_tacon">Sin tacón</option></select></div>
+      <div><label>Temporada</label><select id="pf-temporada"><option value="">Todo el año</option><option value="primavera_verano">Primavera / Verano</option><option value="otono_invierno">Otoño / Invierno</option></select></div>
+      <div><label>Ajuste de empeine</label><select id="pf-empeine"><option value="">Normal</option><option value="delgado">Delgado (estrecho)</option><option value="alto">Empeine alto (amplio)</option></select></div>
+      <div><label>Peso (kg, para el envío)</label><input type="number" id="pf-peso" step="0.01" min="0.05" max="5" placeholder="0.45"></div>
+    </div>
+    <label>Recomendación de talla</label><input type="text" id="pf-recotalla" maxlength="200" placeholder="Ej: Fiel a la talla. Si tienes pie ancho, pide media talla más.">
+    <label>Ocasión (para los filtros de la tienda)</label>
+    <div class="chk" id="pf-ocasion"></div>
   </div>
+
+  <div class="sec-p"><h3>Precios</h3>
+    <div class="g2">
+      <div><label>Precio de menudeo: lo que quieres RECIBIR por par *</label><input type="number" id="pf-precio" min="50" max="20000" step="1" placeholder="500" oninput="vistaPrevia()"></div>
+      <div><label>Precio por 3+ pares: lo que quieres recibir por par si la clienta lleva 3 o más en su carrito</label><input type="number" id="pf-precio3" min="50" max="20000" step="1" placeholder="440" oninput="vistaPrevia()"></div>
+      <div><label>Costo de tu envío (lo que te cuesta enviar un pedido)</label><input type="number" id="pf-envio" min="0" max="1500" step="1" value="150"></div>
+    </div>
+    <div id="pf-vista" style="font-size:.82rem;color:#4b3a2f;background:var(--cream);border-radius:10px;padding:9px 12px;margin-top:8px;line-height:1.5">Escribe tus precios para ver cuánto verá la clienta.</div>
+    <p style="font-size:.76rem;color:var(--gray);margin:6px 0 0">Tú recibes esos precios completos: nosotros sumamos nuestra ganancia y la comisión de MercadoPago al precio que ve la clienta. El descuento por 3+ pares se suma entre todos los productos del carrito, también con otras tiendas.</p>
+  </div>
+
+  <div class="sec-p"><h3>Colores, fotos y tallas</h3>
+    <p class="sub">Agrega un bloque por cada color. La 1.ª foto de cada color es su portada, y el primer color es el que aparece primero en la tienda. Marca las tallas que tienes y captura cuántos pares hay de cada una.</p>
+    <div id="pf-colores"></div>
+    <button class="btn sec mini" style="margin-top:10px" onclick="agregarColor()">+ Agregar otro color</button>
+    <input type="file" id="pf-file" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
+  </div>
+
+  <div class="sec-p"><h3>🎬 Video del producto <span style="font-size:.7rem;font-weight:400;color:var(--gray)">(opcional)</span></h3>
+    <input type="text" id="pf-video" maxlength="300" placeholder="Link de YouTube, TikTok o Vimeo (https://…)">
+  </div>
+
   <div class="msg" id="pf-msg"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
     <button class="btn sec" onclick="cerrarProd()">Cancelar</button>
@@ -162,7 +214,13 @@ const API = 'https://zapatillasmay-production.up.railway.app'
 const $ = (id) => document.getElementById(id)
 const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const $$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
-const CATS = ['tacones', 'botines', 'botas', 'sandalias', 'flats', 'plataformas', 'tenis', 'otros']
+const CATS = ['tacones', 'sandalias', 'botas', 'botines', 'flats', 'plataformas', 'tenis', 'nina', 'accesorios', 'otros']
+const CAT_ETQ = { nina: 'Calzado de niña' }
+const TALLAS = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+const PALETA = [['Negro', '#000000'], ['Blanco', '#FFFFFF'], ['Hueso', '#F5F0E8'], ['Nude', '#E8C4A0'], ['Beige', '#E8D5B0'], ['Camel', '#C19A6B'], ['Café', '#7B4F2E'], ['Gris', '#808080'], ['Rojo', '#CC0000'], ['Vino', '#722F37'],
+  ['Rosa', '#FF69B4'], ['Fucsia', '#E91E8C'], ['Dorado', '#C8A951'], ['Plateado', '#A8A8A8'], ['Azul marino', '#001F5B'], ['Azul', '#0000CC'], ['Verde', '#006400'], ['Morado', '#800080'], ['Naranja', '#FF6600'], ['Amarillo', '#FFD700']]
+const OCAS = [['casual', 'Casual / Diario'], ['formal', 'Formal / Vestir'], ['trabajo', 'Trabajo / Oficina'], ['fiesta', 'Fiesta / Noche'], ['urbano', 'Urbano']]
+let COLS = [], COL_SUBIR = 0
 let V = null, TAB = 'resumen', PRODS = [], PEDS = [], EDIT = null, FOTOS = []
 const guardado = { get: () => { try { return localStorage.getItem('mp_token') } catch (e) { return null } }, set: (t) => { try { t ? localStorage.setItem('mp_token', t) : localStorage.removeItem('mp_token') } catch (e) {} } }
 
@@ -285,18 +343,34 @@ async function estadoProd(id, estado) { try { await api(`/vendedor/productos/${i
 async function borrarProd(id) { if (!confirm('¿Borrar este producto?')) return; try { await api('/vendedor/productos/' + id, { method: 'DELETE' }); tabProductos() } catch (e) { alert(e.message) } }
 
 // ── formulario de producto ──
-function filaVar(v = {}) { return `<tr><td><input type="text" class="vc" maxlength="30" placeholder="Negro" value="${esc(v.color || '')}"></td><td><input type="text" class="vt" maxlength="8" placeholder="24" value="${esc(v.talla || '')}" style="max-width:80px"></td><td><input type="number" class="vs" min="0" max="999" value="${esc(v.stock == null ? 1 : v.stock)}" style="max-width:80px"></td><td><button class="link" onclick="this.closest('tr').remove()">quitar</button></td></tr>` }
-function agregarVar() { $('pf-vars').querySelector('tbody').insertAdjacentHTML('beforeend', filaVar()) }
-function agregarTallas() {
-  const color = prompt('¿De qué color? (déjalo vacío si es un solo color)', ''); if (color === null) return
-  const tb = $('pf-vars').querySelector('tbody')
-  ;['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27'].forEach(t => tb.insertAdjacentHTML('beforeend', filaVar({ color: color.trim(), talla: t, stock: 0 })))
+function colorVacio() { return { color: '', hex: '#000000', fotos: [], tallas: {} } }
+function agregarColor() { COLS.push(colorVacio()); pintarColores() }
+function quitarColor(i) { if (COLS.length > 1 && !confirm('¿Quitar este color con sus fotos y tallas?')) return; COLS.splice(i, 1); if (!COLS.length) COLS.push(colorVacio()); pintarColores() }
+function setCol(i, k, v) { COLS[i][k] = v }
+function elegirPaleta(i, k) { COLS[i].hex = PALETA[k][1]; if (!COLS[i].color) COLS[i].color = PALETA[k][0]; pintarColores() }
+function toggleTalla(i, t) { const x = COLS[i].tallas; if (t in x) delete x[t]; else x[t] = 1; pintarColores() }
+function setStock(i, t, v) { COLS[i].tallas[t] = Math.max(0, Math.min(999, parseInt(v, 10) || 0)) }
+function llenarStock(i) { const n = prompt('¿Cuántos pares de cada talla marcada?', '2'); if (n === null) return; Object.keys(COLS[i].tallas).forEach(t => { COLS[i].tallas[t] = Math.max(0, Math.min(999, parseInt(n, 10) || 0)) }); pintarColores() }
+function quitarFotoCol(i, k) { COLS[i].fotos.splice(k, 1); pintarColores() }
+function moverFoto(i, k, d) { const f = COLS[i].fotos; const j = k + d; if (j < 0 || j >= f.length) return; [f[k], f[j]] = [f[j], f[k]]; pintarColores() }
+function subirFotosColor(i) { COL_SUBIR = i; $('pf-file').click() }
+function pintarColores() {
+  $('pf-colores').innerHTML = COLS.map((c, i) => `<div class="col-card">
+    <div class="cab"><b style="font-size:.85rem">Color ${i + 1}${i === 0 ? ' · portada' : ''}</b>
+      <input type="color" value="${esc(c.hex)}" oninput="setCol(${i}, 'hex', this.value)">
+      <input type="text" maxlength="30" placeholder="Nombre del color (Negro, Nude, Carey…)" value="${esc(c.color)}" oninput="setCol(${i}, 'color', this.value)">
+      ${COLS.length > 1 ? `<button class="link" onclick="quitarColor(${i})">quitar color</button>` : ''}</div>
+    <div class="pal">${PALETA.map((x, k) => `<i style="background:${x[1]}" title="${esc(x[0])}" onclick="elegirPaleta(${i}, ${k})"></i>`).join('')}</div>
+    <label style="margin-top:4px">Fotos de este color (máximo 6; la 1.ª es la portada) *</label>
+    <div class="fotos">${c.fotos.map((u, k) => `<div class="f"><img src="${esc(u)}" alt="">${k === 0 ? '<em>portada</em>' : ''}<button onclick="quitarFotoCol(${i}, ${k})" title="Quitar">✕</button>
+      <div class="mv"><button onclick="moverFoto(${i}, ${k}, -1)" title="Mover antes">◀</button><button onclick="moverFoto(${i}, ${k}, 1)" title="Mover después">▶</button></div></div>`).join('')}
+      ${c.fotos.length < 6 ? `<div class="subir" onclick="subirFotosColor(${i})" title="Subir fotos">＋</div>` : ''}</div>
+    <label>Tallas que tienes de este color</label>
+    <div class="tallas">${TALLAS.map(t => `<button type="button" class="${t in c.tallas ? 'on' : ''}" onclick="toggleTalla(${i}, '${t}')">${t === 'Unica' ? 'Única' : t}</button>`).join('')}</div>
+    ${Object.keys(c.tallas).length ? `<div class="stk">${Object.keys(c.tallas).sort((a, b) => (parseFloat(a) || 99) - (parseFloat(b) || 99)).map(t => `<div>Talla ${t === 'Unica' ? 'única' : t}<br><input type="number" min="0" max="999" value="${c.tallas[t]}" oninput="setStock(${i}, '${t}', this.value)"><br>pares</div>`).join('')}</div>
+    <button class="link" style="margin-top:6px" onclick="llenarStock(${i})">Poner la misma cantidad en todas</button>` : '<p style="font-size:.76rem;color:var(--gray)">Toca las tallas que tienes para capturar sus pares.</p>'}
+  </div>`).join('')
 }
-function pintarFotos() {
-  $('pf-fotos').innerHTML = FOTOS.map((u, i) => `<div class="f"><img src="${esc(u)}" alt="">${i === 0 ? '<em>principal</em>' : ''}<button onclick="quitarFoto(${i})" title="Quitar">✕</button></div>`).join('') +
-    (FOTOS.length < 8 ? '<div class="subir" onclick="$(\'pf-file\').click()" title="Subir fotos">＋</div>' : '')
-}
-function quitarFoto(i) { FOTOS.splice(i, 1); pintarFotos() }
 async function reducir(file) {
   // las fotos del celular pesan mucho: se reducen a 1600 px antes de subirlas
   try {
@@ -311,13 +385,14 @@ async function reducir(file) {
 }
 document.addEventListener('change', async (ev) => {
   if (ev.target.id !== 'pf-file') return
-  const files = [...ev.target.files].slice(0, 8 - FOTOS.length); ev.target.value = ''
+  const i = COL_SUBIR
+  const files = [...ev.target.files].slice(0, 6 - COLS[i].fotos.length); ev.target.value = ''
   for (const f of files) {
     msg('pf-msg', 'Subiendo foto…', true)
     try {
       const fd = new FormData(); fd.append('archivo', await reducir(f))
       const d = await api('/vendedor/subir-foto', { method: 'POST', body: fd })
-      FOTOS.push(d.url); pintarFotos()
+      COLS[i].fotos.push(d.url); pintarColores()
       $('pf-msg').style.display = 'none'
     } catch (e) { msg('pf-msg', e.message, false) }
   }
@@ -338,20 +413,44 @@ function vistaPrevia() {
 function abrirProd(id) {
   EDIT = id ? PRODS.find(p => p.id === id) : null
   $('pf-titulo').textContent = EDIT ? 'Editar producto' : 'Nuevo producto'
-  $('pf-cat').innerHTML = CATS.map(c => `<option value="${c}">${c[0].toUpperCase() + c.slice(1)}</option>`).join('')
-  $('pf-nombre').value = EDIT ? EDIT.nombre : ''; $('pf-cat').value = EDIT ? (EDIT.categoria || 'otros') : 'tacones'
-  $('pf-material').value = EDIT ? (EDIT.material || '') : ''; $('pf-precio').value = EDIT ? EDIT.precio : ''; $('pf-precio3').value = EDIT && EDIT.precio_mayoreo3 ? EDIT.precio_mayoreo3 : ''; vistaPrevia()
-  $('pf-envio').value = EDIT ? EDIT.envio : 150; $('pf-desc').value = EDIT ? (EDIT.descripcion || '') : ''
-  FOTOS = EDIT ? [...(EDIT.imagenes || [])] : []; pintarFotos()
-  $('pf-vars').querySelector('tbody').innerHTML = (EDIT && EDIT.mp_variantes.length ? EDIT.mp_variantes : [{ color: '', talla: '', stock: 1 }]).map(filaVar).join('')
+  $('pf-cat').innerHTML = CATS.map(c => `<option value="${c}">${esc(CAT_ETQ[c] || c[0].toUpperCase() + c.slice(1))}</option>`).join('')
+  const e = EDIT || {}
+  const val = (id, v) => { $(id).value = v == null ? '' : v }
+  val('pf-nombre', e.nombre); $('pf-cat').value = EDIT ? (e.categoria || 'otros') : 'tacones'
+  val('pf-subcat', e.subcategoria); val('pf-desc', e.descripcion); val('pf-material', e.material); val('pf-suela', e.material_suela); val('pf-forro', e.forro)
+  val('pf-horma', e.horma); val('pf-tacon', e.altura_tacon); val('pf-tipotacon', e.tipo_tacon); val('pf-temporada', e.temporada); val('pf-empeine', e.ajuste_empeine)
+  val('pf-peso', e.peso_gramos ? (e.peso_gramos / 1000).toFixed(2) : ''); val('pf-recotalla', e.recomendacion_talla); val('pf-video', e.video_url)
+  $('pf-ocasion').innerHTML = OCAS.map(o => `<label><input type="checkbox" value="${o[0]}" ${(e.ocasion || []).includes(o[0]) ? 'checked' : ''}> ${o[1]}</label>`).join('')
+  val('pf-precio', e.precio); val('pf-precio3', e.precio_mayoreo3); val('pf-envio', EDIT ? e.envio : 150); vistaPrevia()
+  // colores = las variantes agrupadas por color (las fotos del producto viejo, sin fotos por color, pasan al primer color)
+  COLS = []
+  ;(e.mp_variantes || []).forEach(v => {
+    let c = COLS.find(x => x.color === v.color)
+    if (!c) { c = { color: v.color || '', hex: v.color_hex || '#000000', fotos: [...(v.imagenes || [])], tallas: {} }; COLS.push(c) }
+    c.tallas[v.talla] = v.stock
+  })
+  if (!COLS.length) COLS.push(colorVacio())
+  if (EDIT && !COLS.some(c => c.fotos.length) && (e.imagenes || []).length) COLS[0].fotos = [...e.imagenes].slice(0, 6)
+  pintarColores()
   $('pf-msg').style.display = 'none'
   $('pf-revision').style.display = EDIT && ['pendiente', 'publicado', 'pausado'].includes(EDIT.estado) ? 'none' : ''
   $('ov-prod').classList.add('on')
 }
 function cerrarProd() { $('ov-prod').classList.remove('on') }
 async function guardarProd(revision) {
-  const variantes = [...$('pf-vars').querySelectorAll('tbody tr')].map(tr => ({ color: tr.querySelector('.vc').value.trim(), talla: tr.querySelector('.vt').value.trim(), stock: tr.querySelector('.vs').value })).filter(v => v.talla)
-  const datos = { nombre: $('pf-nombre').value, categoria: $('pf-cat').value, material: $('pf-material').value, precio: $('pf-precio').value, precio_mayoreo3: $('pf-precio3').value, envio: $('pf-envio').value, descripcion: $('pf-desc').value, imagenes: FOTOS, variantes }
+  const variantes = []
+  COLS.forEach(c => Object.keys(c.tallas).forEach(t => variantes.push({ color: c.color.trim(), color_hex: c.hex, talla: t, stock: c.tallas[t], imagenes: c.fotos })))
+  if (!variantes.length) return msg('pf-msg', 'Marca al menos una talla con su existencia.', false)
+  if (COLS.length > 1 && COLS.some(c => !c.color.trim() && Object.keys(c.tallas).length)) return msg('pf-msg', 'Ponle nombre a cada color.', false)
+  if (revision && !COLS.some(c => c.fotos.length)) return msg('pf-msg', 'Sube al menos una foto para mandarlo a revisión.', false)
+  const peso = parseFloat($('pf-peso').value)
+  const datos = {
+    nombre: $('pf-nombre').value, categoria: $('pf-cat').value, subcategoria: $('pf-subcat').value, descripcion: $('pf-desc').value,
+    material: $('pf-material').value, material_suela: $('pf-suela').value, forro: $('pf-forro').value, horma: $('pf-horma').value, altura_tacon: $('pf-tacon').value,
+    tipo_tacon: $('pf-tipotacon').value, temporada: $('pf-temporada').value, ajuste_empeine: $('pf-empeine').value, recomendacion_talla: $('pf-recotalla').value,
+    ocasion: [...$('pf-ocasion').querySelectorAll('input:checked')].map(x => x.value), peso_gramos: peso > 0 ? Math.round(peso * 1000) : null, video_url: $('pf-video').value,
+    precio: $('pf-precio').value, precio_mayoreo3: $('pf-precio3').value, envio: $('pf-envio').value, variantes,
+  }
   $('pf-guardar').disabled = $('pf-revision').disabled = true
   try {
     const p = EDIT ? await api('/vendedor/productos/' + EDIT.id, { method: 'PATCH', json: datos }) : await api('/vendedor/productos', { method: 'POST', json: datos })

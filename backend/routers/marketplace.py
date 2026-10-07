@@ -35,7 +35,13 @@ router_vendedor = APIRouter(prefix="/vendedor", tags=["Vendedor"])
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
 COMISION_POR_PAR = 20.0
-CATEGORIAS = ("tacones", "botines", "botas", "sandalias", "flats", "plataformas", "tenis", "otros")
+CATEGORIAS = ("tacones", "botines", "botas", "sandalias", "flats", "plataformas", "tenis", "nina", "accesorios", "otros")
+OCASIONES = ("casual", "formal", "trabajo", "fiesta", "urbano")
+HORMAS = ("normal", "reducida", "amplia")
+TIPOS_TACON = ("aguja", "bloque", "cuna", "plataforma", "sin_tacon")
+TEMPORADAS = ("primavera_verano", "otono_invierno")
+EMPEINES = ("normal", "delgado", "alto")
+FOTOS_POR_COLOR = 6
 _ESTADOS_PRODUCTO = ("borrador", "pendiente", "publicado", "rechazado", "pausado")
 _EXP_TOKEN_HORAS = 24 * 7
 _EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -93,10 +99,10 @@ def _talla_key(t) -> tuple:
         return (999.0, str(t))
 
 
-def _publicas_img(urls) -> list:
+def _publicas_img(urls, maximo: int = 8) -> list:
     """Solo URLs https de Cloudinary (las que genera nuestra subida de fotos): evita enlazar imágenes arbitrarias."""
     out = []
-    for u in (urls or [])[:8]:
+    for u in (urls or [])[:maximo]:
         u = str(u or "").strip()
         if u.startswith("https://res.cloudinary.com/") and len(u) < 500 and '"' not in u and "<" not in u:
             out.append(u)
@@ -298,8 +304,22 @@ def _variantes_validas(lista) -> list:
         if not talla or stock is None or (color, talla) in vistos:
             continue
         vistos.add((color, talla))
-        out.append({"color": color, "talla": talla, "stock": int(stock)})
+        hexc = str(x.get("color_hex") or "").strip()
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", hexc):
+            hexc = None
+        out.append({"color": color, "talla": talla, "stock": int(stock), "color_hex": hexc, "imagenes": _publicas_img(x.get("imagenes"), FOTOS_POR_COLOR)})
     return out
+
+
+def _galeria(variantes: list) -> list:
+    """Galería del producto = las fotos de cada color, en el orden en que se capturaron los colores (el primer color es la portada)."""
+    vistas, out = set(), []
+    for v in variantes:
+        for u in v.get("imagenes") or []:
+            if u not in vistas:
+                vistas.add(u)
+                out.append(u)
+    return out[:30]
 
 
 def _validar_producto(datos: dict, parcial: bool = False):
@@ -339,6 +359,21 @@ def _validar_producto(datos: dict, parcial: bool = False):
         c["categoria"] = cat if cat in CATEGORIAS else "otros"
     if "material" in datos:
         c["material"] = _txt(datos.get("material"), 60)
+    for k, largo in (("subcategoria", 60), ("material_suela", 60), ("forro", 60), ("recomendacion_talla", 200)):
+        if k in datos:
+            c[k] = _txt(datos.get(k), largo) or None
+    for k, validos in (("horma", HORMAS), ("tipo_tacon", TIPOS_TACON), ("temporada", TEMPORADAS), ("ajuste_empeine", EMPEINES)):
+        if k in datos:
+            val = str(datos.get(k) or "").lower()
+            c[k] = val if val in validos else None
+    if "altura_tacon" in datos:
+        h = _num(datos.get("altura_tacon"), 0, 30, None)
+        c["altura_tacon"] = round(h, 1) if h else None
+    if "ocasion" in datos:
+        c["ocasion"] = [o for o in (datos.get("ocasion") or []) if o in OCASIONES][:5] if isinstance(datos.get("ocasion"), list) else []
+    if "video_url" in datos:
+        vu = str(datos.get("video_url") or "").strip()[:300]
+        c["video_url"] = vu if vu.startswith("https://") and '"' not in vu and "<" not in vu else None
     if "peso_gramos" in datos:
         pg = _num(datos.get("peso_gramos"), 50, 5000, None)
         c["peso_gramos"] = int(pg) if pg else None
@@ -364,7 +399,7 @@ def _sincronizar_variantes(producto_id: str, nuevas: list):
     for n in nuevas:
         vid = por_clave.get((n["color"], n["talla"]))
         if vid:
-            supabase_patch(f"mp_variantes?id=eq.{vid}", {"stock": n["stock"]})
+            supabase_patch(f"mp_variantes?id=eq.{vid}", {"stock": n["stock"], "color_hex": n.get("color_hex"), "imagenes": n.get("imagenes") or []})
         else:
             supabase_post("mp_variantes", {"producto_id": producto_id, **n})
     cache_invalidate_prefix("mp_")
@@ -386,6 +421,9 @@ def crear_producto(request: Request, datos: dict, v=Depends(require_vendedor)):
         return JSONResponse(status_code=400, content={"error": "Agrega al menos una talla con su existencia."})
     if len(supabase_get(f"mp_productos?vendedor_id=eq.{v['id']}&select=id&limit=300") or []) >= 300:
         return JSONResponse(status_code=400, content={"error": "Llegaste al máximo de productos por cuenta."})
+    galeria = _galeria(vars_)
+    if galeria:
+        c["imagenes"] = galeria
     p = supabase_post("mp_productos", {**c, "vendedor_id": v["id"], "slug": _slug_unico("mp_productos", c["nombre"]), "estado": "borrador"})[0]
     _sincronizar_variantes(p["id"], vars_)
     return _producto_con_variantes(p["id"], v["id"])
@@ -405,8 +443,11 @@ def editar_producto(pid: str, datos: dict, v=Depends(require_vendedor)):
         if not vars_:
             return JSONResponse(status_code=400, content={"error": "Agrega al menos una talla con su existencia."})
         _sincronizar_variantes(pid, vars_)
+        galeria = _galeria(vars_)
+        if galeria:
+            c["imagenes"] = galeria
     # lo que cambia lo que la clienta ve (nombre, descripción, fotos, categoría, material) vuelve a revisión; precio, envío y existencias no
-    for k in ("nombre", "descripcion", "categoria", "material", "imagenes"):
+    for k in ("nombre", "descripcion", "categoria", "material", "imagenes", "subcategoria", "material_suela", "forro", "video_url"):
         if k in c and c[k] != p.get(k):
             reaprobar = True
     if c:
@@ -652,7 +693,7 @@ def productos_publicos(categoria: str = "", q: str = "", vendedor: str = "", lim
 @router.get("/productos/{slug}")
 def producto_publico(slug: str):
     filas = supabase_get(f"mp_productos?slug=eq.{_q(slug[:80])}&estado=eq.publicado&mp_vendedores.estado=eq.activo"
-                         f"&select=id,slug,nombre,descripcion,categoria,material,precio,precio_mayoreo3,envio,peso_gramos,imagenes,mp_vendedores!inner(id,nombre_tienda,slug,ciudad,estado_region,descripcion,comision_por_par),mp_variantes(id,color,talla,stock)&limit=1") or []
+                         f"&select=id,slug,nombre,descripcion,categoria,subcategoria,material,material_suela,forro,horma,altura_tacon,tipo_tacon,ocasion,ajuste_empeine,recomendacion_talla,temporada,video_url,precio,precio_mayoreo3,envio,peso_gramos,imagenes,mp_vendedores!inner(id,nombre_tienda,slug,ciudad,estado_region,descripcion,comision_por_par),mp_variantes(id,color,color_hex,imagenes,talla,stock)&limit=1") or []
     if not filas:
         return JSONResponse(status_code=404, content={"error": "Producto no encontrado"})
     p = filas[0]

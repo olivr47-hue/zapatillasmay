@@ -89,11 +89,22 @@
     color = [...new Set(P.mp_variantes.map(v => v.color))][0] || ''
     pintar()
   }
+  function detalles() {
+    const hormas = { normal: 'Normal (talla real)', reducida: 'Reducida: corre chico, pide una talla más', amplia: 'Amplia: corre grande, pide una talla menos' }
+    const tipos = { aguja: 'Aguja', bloque: 'Bloque', cuna: 'Cuña', plataforma: 'Plataforma', sin_tacon: 'Sin tacón' }
+    const emp = { delgado: 'Delgado (estrecho)', alto: 'Empeine alto (amplio)' }
+    const oc = { casual: 'Casual', formal: 'Formal', trabajo: 'Trabajo', fiesta: 'Fiesta', urbano: 'Urbano' }
+    const f = [['Material', P.material], ['Suela', P.material_suela], ['Forro', P.forro], ['Altura de tacón', P.altura_tacon ? P.altura_tacon + ' cm' : ''], ['Tipo de tacón', tipos[P.tipo_tacon]], ['Horma', hormas[P.horma]],
+      ['Empeine', emp[P.ajuste_empeine]], ['Ocasión', (P.ocasion || []).map(o => oc[o]).filter(Boolean).join(', ')], ['Recomendación de talla', P.recomendacion_talla]].filter(x => x[1])
+    const vid = /^https:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com)\//.test(P.video_url || '') ? `<p style="margin-top:10px"><a href="${esc(P.video_url)}" target="_blank" rel="noopener" style="color:var(--pink);font-weight:600">🎬 Ver el video del producto</a></p>` : ''
+    return (f.length ? `<h4>Detalles</h4><div class="conf" style="margin-top:0">${f.map(x => `<span><b>${x[0]}:</b> ${esc(x[1])}</span>`).join('')}</div>` : '') + vid
+  }
   function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch (e) { return [] } }
   function pintar() {
     const colores = [...new Set(P.mp_variantes.map(v => v.color))]
     const tallas = P.mp_variantes.filter(v => v.color === color)
-    const imgs = P.imagenes || []
+    const delColor = (tallas.find(v => (v.imagenes || []).length) || {}).imagenes || []
+    const imgs = delColor.length ? delColor : (P.imagenes || [])
     const hayDesc = P.precio_mayoreo3 && P.precio_mayoreo3 < P.precio
     $('app').innerHTML = `<div class="mig"><a href="/marketplace">Marketplace</a> › ${esc(P.categoria || '')}</div>
     <div class="prod">
@@ -116,12 +127,14 @@
         </div>
         <div id="aviso" style="margin-top:12px;font-size:.88rem"></div>
         <div class="desc">${esc(P.descripcion || '')}</div>
-        <div class="conf">${P.material ? `<span>Material: ${esc(P.material)}</span>` : ''}<span>Tienda aliada: ${esc(P.vendedor.nombre_tienda)}${P.vendedor.descripcion ? ' — ' + esc(P.vendedor.descripcion) : ''}</span>
+        ${detalles()}
+        <div class="conf"><span>Tienda aliada: ${esc(P.vendedor.nombre_tienda)}${P.vendedor.descripcion ? ' — ' + esc(P.vendedor.descripcion) : ''}</span>
           <span>Envío de esta tienda: ${Number(P.envio) ? $$(P.envio) : 'gratis'} (gratis en pedidos desde $1,299)</span>
           <span>¿Dudas? <a href="https://wa.me/5214792244560" style="color:var(--pink)">Escríbenos por WhatsApp</a></span></div>
       </div></div>`
   }
-  function foto(i) { $('im').src = P.imagenes[i]; document.querySelectorAll('.th img').forEach((e, k) => e.classList.toggle('on', k === i)) }
+  function fotosActuales() { const t = P.mp_variantes.filter(v => v.color === color); const d = (t.find(v => (v.imagenes || []).length) || {}).imagenes || []; return d.length ? d : (P.imagenes || []) }
+  function foto(i) { $('im').src = fotosActuales()[i]; document.querySelectorAll('.th img').forEach((e, k) => e.classList.toggle('on', k === i)) }
   function elegirColor(c) { color = c; talla = ''; cant = 1; pintar() }
   function elegirTalla(t) { talla = t; cant = 1; pintar() }
   function cambiar(d) {
@@ -136,7 +149,7 @@
     const nueva = (ya ? ya.cantidad : 0) + cant
     if (nueva > v.stock) { $('aviso').innerHTML = `<span style="color:#b3261e">De esa talla solo quedan ${v.stock}${ya ? ` (ya tienes ${ya.cantidad} en tu carrito)` : ''}.</span>`; return }
     if (ya) { ya.cantidad = nueva; ya.stock_mp = v.stock } else c.push({
-      variante_id: v.id, producto_id: P.id, nombre: P.nombre, color, talla, cantidad: cant, imagen: (P.imagenes || [])[0] || null,
+      variante_id: v.id, producto_id: P.id, nombre: P.nombre, color, talla, cantidad: cant, imagen: fotosActuales()[0] || null,
       precio_menudeo: P.precio, precio_mayoreo3: P.precio_mayoreo3 || P.precio, precio_corrida: P.precio, es_oferta: false, precio_unitario: P.precio,
       mp: true, mp_slug: P.slug, vendedor: P.vendedor.nombre_tienda, vendedor_id: P.vendedor.id, envio_mp: P.envio, stock_mp: v.stock, sku_interno: ''
     })

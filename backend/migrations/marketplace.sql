@@ -132,3 +132,11 @@ create or replace function public.mp_devolver_stock(p_variante uuid, p_cantidad 
 returns integer language sql as $$
   update public.mp_variantes set stock = stock + p_cantidad where id = p_variante returning stock;
 $$;
+
+-- Producto del vendedor completo (como en Productos del panel): detalles técnicos, video y fotos/color por color
+alter table public.mp_productos
+  add column if not exists subcategoria text, add column if not exists material_suela text, add column if not exists forro text,
+  add column if not exists horma text, add column if not exists altura_tacon numeric, add column if not exists tipo_tacon text,
+  add column if not exists ocasion text[] not null default '{}', add column if not exists ajuste_empeine text,
+  add column if not exists recomendacion_talla text, add column if not exists temporada text, add column if not exists video_url text;
+alter table public.mp_variantes add column if not exists color_hex text, add column if not exists imagenes text[] not null default '{}';
