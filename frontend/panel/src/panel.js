@@ -1723,8 +1723,23 @@ window.guardarOrdenCompra2 = async () => {
 function renderDashboardHTML() {
   const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})
   const nombre = (window._empleadoActual?.nombre || 'May').split(' ')[0]
+  // Mes que se está viendo (ventas del mes, clientes nuevos, mejor día, canales, top clientes). Por defecto, el mes en curso.
+  const _mesHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }).slice(0, 7)
+  const _mesSel = window._dashMes || _mesHoy
+  const _mesesEs = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+  const _opcMes = []
+  { let [ya, ym] = _mesHoy.split('-').map(Number)
+    for (let i = 0; i < 12; i++) { _opcMes.push({ v: `${ya}-${String(ym).padStart(2, '0')}`, t: `${_mesesEs[ym - 1]} ${ya}` }); ym--; if (ym === 0) { ym = 12; ya-- } } }
   return `
     <div id="dashboard-contenido">
+
+      <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px;flex-wrap:wrap">
+        <span style="font-size:0.78rem;color:var(--text-3);font-weight:600">📆 Ver el mes:</span>
+        <select class="form-input" id="dash-mes" style="max-width:190px;padding:5px 9px;font-size:0.82rem" onchange="window._dashSetMes(this.value)">
+          ${_opcMes.map(o => `<option value="${o.v}" ${o.v === _mesSel ? 'selected' : ''}>${o.t}</option>`).join('')}
+        </select>
+        <span style="font-size:0.7rem;color:var(--text-3)">Hoy y 7 días siguen siendo en vivo; lo demás es del mes elegido.</span>
+      </div>
 
       <!-- ROW 1: Banner + 2 KPI cards -->
       <div class="dash-row-1" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch">
@@ -1784,7 +1799,7 @@ function renderDashboardHTML() {
             <p class="dash-kpi-mini-sub" id="kpi-ventas-7d-sub"></p>
           </div>
           <div class="dash-kpi-mini">
-            <p class="dash-kpi-mini-lbl">Ventas 30 días</p>
+            <p class="dash-kpi-mini-lbl" id="lbl-ventas-mes">Ventas del mes</p>
             <p class="dash-kpi-mini-val" id="kpi-ventas-30d">—</p>
             <p class="dash-kpi-mini-sub" id="kpi-ventas-30d-sub"></p>
           </div>
@@ -1809,7 +1824,7 @@ function renderDashboardHTML() {
           <div class="dash-card-header" style="margin-bottom:16px">
             <div>
               <p class="dash-card-title">Canales de venta</p>
-              <p class="dash-card-sub">Distribución acumulada</p>
+              <p class="dash-card-sub" id="lbl-canales-mes">Distribución del mes</p>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:14px">
@@ -1846,7 +1861,7 @@ function renderDashboardHTML() {
       <div class="dash-row-4" style="display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
         <div class="dash-card" style="padding:20px 22px">
           <div class="dash-card-header" style="margin-bottom:14px">
-            <p class="dash-card-title">Top clientes — 30 días</p>
+            <p class="dash-card-title" id="lbl-top-clientes">Top clientes del mes</p>
           </div>
           <div id="dash-top-clientes"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
         </div>
@@ -15850,6 +15865,12 @@ window.exportarHistorialCSV = () => {
   document.body.appendChild(a); a.click(); a.remove()
 }
 
+window._dashSetMes = (v) => {
+  window._dashMes = v
+  document.getElementById('content').innerHTML = renderDashboardHTML()
+  setTimeout(() => cargarDashboard(), 100)
+}
+
 async function cargarDashboard() {
   try {
     const resPedidos = await fetch(API + '/pedidos/?ligero=true')
@@ -15861,7 +15882,14 @@ async function cargarDashboard() {
 
     const hoy = new Date(); hoy.setHours(0,0,0,0)
     const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
-    const hace30 = new Date(hoy); hace30.setDate(hace30.getDate()-30)
+    // Mes que se está viendo (selector de arriba): [mesIni, mesFin)
+    const _mesEnCurso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }).slice(0, 7)
+    const _mesElegido = window._dashMes || _mesEnCurso
+    const [_ma, _mm] = _mesElegido.split('-').map(Number)
+    const mesIni = new Date(_ma, _mm - 1, 1)
+    const mesFin = new Date(_ma, _mm, 1)
+    const _MESES_D = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+    const etqMes = `${_MESES_D[_mm - 1]} ${_ma}`
 
     // fechaVenta: cuando el pedido realmente se confirmo/vendio, no cuando se creo
     // el carrito/borrador (que puede ser dias antes si se dejo pendiente en Carritos).
@@ -15872,29 +15900,31 @@ async function cargarDashboard() {
 
     const ventasHoy = hoyP.reduce((s,p) => s + parseFloat(p.total||0), 0)
     const ventas7 = s7P.reduce((s,p) => s + parseFloat(p.total||0), 0)
-    const clientesNuevos = clientes.filter(c => c.created_at && new Date(c.created_at) >= hace30).length
+    const enMes = (f) => f >= mesIni && f < mesFin
+    const clientesNuevos = clientes.filter(c => c.created_at && enMes(new Date(c.created_at))).length
+    const confMes = conf.filter(p => enMes(fechaVenta(p)))
 
     const diasNombre = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
     const porDia = {}; diasNombre.forEach(d => porDia[d] = 0)
-    conf.filter(p => fechaVenta(p) >= hace30).forEach(p => {
+    confMes.forEach(p => {
       const d = diasNombre[fechaVenta(p).getDay()]
       porDia[d] += parseFloat(p.total||0)
     })
 
     const porCanal = {}
-    conf.forEach(p => { porCanal[p.canal||'sucursal'] = (porCanal[p.canal||'sucursal']||0) + parseFloat(p.total||0) })
+    confMes.forEach(p => { porCanal[p.canal||'sucursal'] = (porCanal[p.canal||'sucursal']||0) + parseFloat(p.total||0) })
 
     const porPago = {}
-    conf.forEach(p => { porPago[p.forma_pago||'efectivo'] = (porPago[p.forma_pago||'efectivo']||0) + 1 })
+    confMes.forEach(p => { porPago[p.forma_pago||'efectivo'] = (porPago[p.forma_pago||'efectivo']||0) + 1 })
 
     const porEmpleado = {}
-    conf.forEach(p => { porEmpleado[p.empleado||'Admin'] = (porEmpleado[p.empleado||'Admin']||0) + parseFloat(p.total||0) })
+    confMes.forEach(p => { porEmpleado[p.empleado||'Admin'] = (porEmpleado[p.empleado||'Admin']||0) + parseFloat(p.total||0) })
 
     const porMes = {}
     conf.forEach(p => { const m = fechaVenta(p).toLocaleDateString('es-MX',{month:'short',year:'numeric'}); porMes[m] = (porMes[m]||0) + parseFloat(p.total||0) })
 
     const porCliente = {}
-    conf.forEach(p => { if(p.clientes){ porCliente[p.clientes.nombre] = (porCliente[p.clientes.nombre]||0) + parseFloat(p.total||0) } })
+    confMes.forEach(p => { if(p.clientes){ porCliente[p.clientes.nombre] = (porCliente[p.clientes.nombre]||0) + parseFloat(p.total||0) } })
 
     const topClientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,5)
     const diaMas = Object.entries(porDia).sort((a,b)=>b[1]-a[1])[0]
@@ -15903,8 +15933,8 @@ async function cargarDashboard() {
     const dashboard = document.getElementById('dashboard-contenido')
     if (!dashboard) return
 
-    // Ventas 30 días
-    const hace30P = conf.filter(p => fechaVenta(p) >= hace30)
+    // Ventas del mes elegido
+    const hace30P = confMes
     const ventas30 = hace30P.reduce((s,p) => s + parseFloat(p.total||0), 0)
 
     // Últimos 7 días por día (para gráfica tendencia)
@@ -15928,7 +15958,11 @@ async function cargarDashboard() {
     setKpi('kpi-pedidos-hoy',  hoyP.length, 'confirmados')
     setKpi('kpi-ventas-7d',    '$'+ventas7.toLocaleString('es-MX',{maximumFractionDigits:0}), s7P.length+' pedidos')
     setKpi('kpi-ventas-30d',   '$'+ventas30.toLocaleString('es-MX',{maximumFractionDigits:0}), hace30P.length+' pedidos')
-    setKpi('kpi-clientes-nuevos', clientesNuevos, 'últimos 30 días')
+    setKpi('kpi-clientes-nuevos', clientesNuevos, etqMes)
+    const _setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t }
+    _setTxt('lbl-ventas-mes', 'Ventas ' + etqMes)
+    _setTxt('lbl-top-clientes', 'Top clientes — ' + etqMes)
+    _setTxt('lbl-canales-mes', 'Distribución de ' + etqMes)
     setKpi('kpi-stock-bajo',   alertasTotal, alertasTotal > 0 ? '⚠ reabastecer' : '✓ ok', alertasTotal > 0 ? '#f59e0b' : '#10b981')
     setKpi('kpi-mejor-dia',    diaMas ? diaMas[0] : '—', diaMas ? '$'+diaMas[1].toLocaleString('es-MX',{maximumFractionDigits:0}) : '')
     setKpi('kpi-total-clientes', clientes.length, 'registrados')
