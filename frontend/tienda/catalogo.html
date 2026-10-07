@@ -426,6 +426,7 @@ if (!window.fbq){
   let pageFlip = null
   let _paginas = []
   let _catalogoActual = null
+  let _aperturaId = 0   // cada apertura de catálogo lleva un número; si llega otra mientras esta carga, la vieja se descarta
 
   // ── CARGAR CATÁLOGOS ────────────────────────────────────
 
@@ -465,7 +466,8 @@ if (!window.fbq){
 
   // ── ABRIR FLIPBOOK ──────────────────────────────────────
 
-  async function abrirCatalogo(catalogoId, nombre) {
+  async function abrirCatalogo(catalogoId, nombre, sinHistorial) {
+    const miId = ++_aperturaId
     const overlay = document.getElementById('flipbook-overlay')
     const stage   = document.getElementById('flipbook-stage')
     document.getElementById('fb-titulo').textContent = nombre
@@ -486,7 +488,9 @@ if (!window.fbq){
       ])
       const catData  = await resCat.json()
       const catInfo  = Array.isArray(catData) ? catData[0] : catData
-      _paginas = await resPag.json()
+      const _pagsNuevas = await resPag.json()
+      if (miId !== _aperturaId) return   // se abrió otro catálogo mientras este cargaba
+      _paginas = _pagsNuevas
 
       // Anteponer portada como primera página si existe y no está ya en páginas
       if (catInfo?.portada_url) {
@@ -523,6 +527,7 @@ if (!window.fbq){
           _conteoRatio[k] = (_conteoRatio[k] || 0) + 1
         } catch (e) { /* una página que no carga no cuenta */ }
       }))
+      if (miId !== _aperturaId) return
       const _mejor = Object.entries(_conteoRatio).sort((a, b) => b[1] - a[1])[0]
       const ratio = _mejor ? parseFloat(_mejor[0]) : 1.333
 
@@ -575,9 +580,14 @@ if (!window.fbq){
         }
       }
 
+      if (miId !== _aperturaId) return
+      // El flipbook se monta en un contenedor propio: pageFlip.destroy() BORRA del DOM el elemento donde se montó. Antes se montaba en
+      // #flipbook-stage y, al cerrar un catálogo, ese elemento desaparecía: el siguiente catálogo se quedaba en «Cargando…» para siempre.
       stage.innerHTML = ''
+      const holder = document.createElement('div')
+      stage.appendChild(holder)
 
-      pageFlip = new St.PageFlip(stage, {
+      pageFlip = new St.PageFlip(holder, {
         width: pageW,
         height: pageH,
         size: 'fixed',
@@ -608,10 +618,11 @@ if (!window.fbq){
       renderThumbs(urls, 0)
       actualizarEstado(0)
 
-      // Pushstate para botón atrás
-      window.history.pushState({ catalogo: catalogoId }, '', `/catalogo/${catalogoId}`)
+      // Pushstate para botón atrás (no al preparar una descarga: ahí el visor se cierra solo)
+      if (!sinHistorial) window.history.pushState({ catalogo: catalogoId }, '', `/catalogo/${catalogoId}`)
 
     } catch (e) {
+      if (miId !== _aperturaId) return
       stage.innerHTML = `<div style="color:rgba(255,255,255,0.5);padding:40px">Error al cargar páginas: ${e.message}</div>`
     }
   }
@@ -708,12 +719,13 @@ if (!window.fbq){
     const texto = btn ? btn.textContent : ''
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando…' }
     try {
-      await abrirCatalogo(c.id, c.nombre || '')
+      await abrirCatalogo(c.id, c.nombre || '', true)
+      if (_catalogoActual?.id !== c.id) return   // el usuario abrió otro catálogo mientras tanto
       await descargarPDF()
     } catch (e) {
       alert('No se pudo preparar el PDF. Intenta de nuevo.')
     } finally {
-      try { cerrarFlipbook() } catch (e) {}
+      if (_catalogoActual?.id === c.id) { try { cerrarFlipbook() } catch (e) {} }   // si ya abrieron otro catálogo, no se lo cierro
       if (btn) { btn.disabled = false; btn.textContent = texto }
     }
   }

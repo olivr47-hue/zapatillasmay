@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Mi panel de vendedor — Zapatillas May</title>
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root { --black:#2A1A0E; --white:#FBF7F3; --pink:#B5687A; --rose:#C8967A; --cream:#F5ECE2; --cd:#EDE0D2; --mauve:#A07860; --gray:#8B6A54; --ok:#2e7d32; --warn:#b26a00; --bad:#b3261e; }
+    body { font-family:'Outfit',sans-serif; background:var(--white); color:var(--black); line-height:1.55; min-height:100vh; }
+    header { background:var(--black); padding:.9rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    header .logo { color:var(--white); text-decoration:none; font-family:'Cormorant Garamond',serif; font-size:1.4rem; letter-spacing:1px; }
+    header .quien { color:rgba(251,247,243,.8); font-size:.82rem; display:flex; gap:12px; align-items:center; }
+    header button { background:transparent; color:var(--white); border:1px solid rgba(255,255,255,.35); border-radius:20px; padding:5px 14px; font:500 .78rem 'Outfit'; cursor:pointer; }
+    .caja { max-width:430px; margin:46px auto; background:#fff; border:1px solid var(--cd); border-radius:20px; padding:28px; box-shadow:0 10px 30px rgba(42,26,14,.07); }
+    .caja h1 { font-family:'Cormorant Garamond',serif; font-size:1.9rem; font-weight:500; margin-bottom:4px; }
+    .caja p.s { color:var(--gray); font-size:.9rem; margin-bottom:12px; }
+    label { display:block; font-size:.78rem; font-weight:600; color:var(--mauve); margin:10px 0 4px; }
+    input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], textarea, select { width:100%; padding:10px 12px; border:1.5px solid var(--cd); border-radius:10px; font:400 .93rem 'Outfit'; background:var(--white); color:var(--black); }
+    input:focus, textarea:focus, select:focus { outline:none; border-color:var(--pink); }
+    .btn { display:inline-block; background:var(--pink); color:#fff; border:0; border-radius:50px; padding:11px 26px; font:600 .88rem 'Outfit'; cursor:pointer; text-decoration:none; }
+    .btn:disabled { opacity:.6; cursor:wait; }
+    .btn.sec { background:transparent; color:var(--pink); border:1.5px solid var(--pink); }
+    .btn.mini { padding:6px 14px; font-size:.78rem; }
+    .btn.bad { background:#fff; color:var(--bad); border:1.5px solid #e6b8b4; }
+    .link { color:var(--pink); background:none; border:0; font:500 .85rem 'Outfit'; cursor:pointer; text-decoration:underline; padding:0; }
+    .msg { margin-top:12px; padding:10px 14px; border-radius:10px; font-size:.88rem; display:none; }
+    .msg.ok { display:block; background:#e8f5e9; color:var(--ok); }
+    .msg.err { display:block; background:#fdecea; color:var(--bad); }
+    main { max-width:1000px; margin:0 auto; padding:18px 16px 60px; }
+    .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid var(--cd); padding-bottom:8px; }
+    .tabs button { background:none; border:0; font:600 .9rem 'Outfit'; color:var(--gray); padding:8px 14px; border-radius:20px; cursor:pointer; }
+    .tabs button.on { background:var(--pink); color:#fff; }
+    .aviso { background:#fff4e5; border:1px solid #f3d3a3; color:#7a4b00; border-radius:12px; padding:12px 16px; font-size:.88rem; margin-bottom:14px; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:18px; }
+    .card { background:#fff; border:1px solid var(--cd); border-radius:16px; padding:16px; }
+    .card b { display:block; font-family:'Cormorant Garamond',serif; font-size:1.9rem; line-height:1.1; color:var(--pink); }
+    .card span { font-size:.8rem; color:var(--gray); }
+    .fila { display:flex; gap:12px; background:#fff; border:1px solid var(--cd); border-radius:16px; padding:12px; margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+    .fila img { width:70px; height:70px; object-fit:cover; border-radius:10px; background:var(--cream); flex-shrink:0; }
+    .fila .ph { width:70px; height:70px; border-radius:10px; background:var(--cream); display:flex; align-items:center; justify-content:center; color:var(--rose); font-size:1.6rem; flex-shrink:0; }
+    .fila .info { flex:1; min-width:180px; }
+    .fila .info h3 { font-size:.98rem; font-weight:600; }
+    .fila .info p { font-size:.8rem; color:var(--gray); }
+    .acc { display:flex; gap:6px; flex-wrap:wrap; }
+    .tag { display:inline-block; font-size:.7rem; font-weight:700; padding:2px 10px; border-radius:20px; }
+    .t-borrador { background:#eee; color:#555; } .t-pendiente { background:#fff4e5; color:var(--warn); } .t-publicado { background:#e8f5e9; color:var(--ok); }
+    .t-rechazado { background:#fdecea; color:var(--bad); } .t-pausado { background:#e8eaf6; color:#3949ab; }
+    .t-pagado { background:#fff4e5; color:var(--warn); } .t-enviado { background:#e3f2fd; color:#1565c0; } .t-entregado { background:#e8f5e9; color:var(--ok); } .t-cancelado { background:#fdecea; color:var(--bad); }
+    .vacio { text-align:center; color:var(--gray); padding:34px 10px; }
+    .overlay { position:fixed; inset:0; background:rgba(42,26,14,.55); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:3vh 12px; overflow:auto; }
+    .overlay.on { display:flex; }
+    .modal { background:#fff; border-radius:18px; width:100%; max-width:640px; padding:22px; }
+    .modal h2 { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:500; margin-bottom:6px; }
+    .g2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width:520px) { .g2 { grid-template-columns:1fr; } }
+    .fotos { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0; }
+    .fotos .f { position:relative; width:84px; height:84px; border-radius:10px; overflow:hidden; border:1px solid var(--cd); }
+    .fotos .f img { width:100%; height:100%; object-fit:cover; }
+    .fotos .f button { position:absolute; top:2px; right:2px; background:rgba(0,0,0,.65); color:#fff; border:0; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:.7rem; }
+    .fotos .f em { position:absolute; bottom:0; left:0; right:0; background:rgba(181,104,122,.9); color:#fff; font-size:.6rem; text-align:center; font-style:normal; }
+    .subir { width:84px; height:84px; border:2px dashed var(--rose); border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--rose); font-size:1.8rem; cursor:pointer; }
+    table.v { width:100%; border-collapse:collapse; font-size:.85rem; }
+    table.v th { text-align:left; font-size:.72rem; color:var(--mauve); padding:4px 4px; }
+    table.v td { padding:3px 4px; }
+    table.v input { padding:7px 8px; }
+    .ped { background:#fff; border:1px solid var(--cd); border-radius:16px; padding:14px 16px; margin-bottom:12px; }
+    .ped h3 { font-size:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .ped ul { margin:6px 0 6px 18px; font-size:.88rem; color:#4b3a2f; }
+    .ped .dir { font-size:.85rem; color:#4b3a2f; background:var(--cream); border-radius:10px; padding:8px 12px; margin:6px 0; }
+    .envio-f { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:flex-end; }
+    .envio-f > div { flex:1; min-width:140px; }
+    table.t { width:100%; border-collapse:collapse; font-size:.88rem; background:#fff; border:1px solid var(--cd); border-radius:12px; overflow:hidden; }
+    table.t th { background:var(--cream); text-align:left; padding:8px 12px; font-size:.75rem; color:var(--mauve); }
+    table.t td { padding:8px 12px; border-top:1px solid var(--cream); }
+  </style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/">Zapatillas May</a>
+  <div class="quien" id="quien" style="display:none"><span id="quien-n"></span><button onclick="salir()">Salir</button></div>
+</header>
+
+<!-- ACCESO -->
+<div id="vista-acceso">
+  <div class="caja" id="caja-login">
+    <h1>Mi panel de vendedor</h1>
+    <p class="s">Entra para administrar tus productos, pedidos y pagos.</p>
+    <label>Correo</label><input type="email" id="l-email" autocomplete="username">
+    <label>Contraseña</label><input type="password" id="l-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
+    <div style="margin-top:16px"><button class="btn" id="l-btn" onclick="entrar()" style="width:100%">Entrar</button></div>
+    <div class="msg" id="l-msg"></div>
+    <p style="margin-top:14px;font-size:.85rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <button class="link" onclick="vistaAcceso('recuperar')">Olvidé mi contraseña</button>
+      <a class="link" href="/vender">Quiero vender</a>
+    </p>
+  </div>
+  <div class="caja" id="caja-recuperar" style="display:none">
+    <h1>Recuperar contraseña</h1>
+    <p class="s">Te mandamos un enlace a tu correo.</p>
+    <label>Correo</label><input type="email" id="r-email">
+    <div style="margin-top:16px"><button class="btn" id="r-btn" onclick="recuperar()" style="width:100%">Enviar enlace</button></div>
+    <div class="msg" id="r-msg"></div>
+    <p style="margin-top:14px"><button class="link" onclick="vistaAcceso('login')">Volver</button></p>
+  </div>
+  <div class="caja" id="caja-reset" style="display:none">
+    <h1>Nueva contraseña</h1>
+    <p class="s">Elige una contraseña de al menos 8 caracteres.</p>
+    <label>Contraseña nueva</label><input type="password" id="n-pass" autocomplete="new-password">
+    <div style="margin-top:16px"><button class="btn" id="n-btn" onclick="restablecer()" style="width:100%">Guardar</button></div>
+    <div class="msg" id="n-msg"></div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<main id="vista-panel" style="display:none">
+  <div id="aviso-estado"></div>
+  <div class="tabs" id="tabs">
+    <button data-t="resumen" class="on">Resumen</button><button data-t="productos">Mis productos</button><button data-t="pedidos">Pedidos</button><button data-t="saldo">Mis pagos</button><button data-t="cuenta">Mi cuenta</button>
+  </div>
+  <div id="contenido"></div>
+</main>
+
+<!-- FORMULARIO DE PRODUCTO -->
+<div class="overlay" id="ov-prod"><div class="modal">
+  <h2 id="pf-titulo">Nuevo producto</h2>
+  <p style="font-size:.82rem;color:var(--gray);margin-bottom:6px">Lo revisamos antes de publicarlo. Mientras tanto queda como borrador.</p>
+  <label>Nombre del producto *</label><input type="text" id="pf-nombre" maxlength="120" placeholder="Ej: Botín negro tacón 7 cm con hebilla">
+  <div class="g2">
+    <div><label>Categoría</label><select id="pf-cat"></select></div>
+    <div><label>Material</label><input type="text" id="pf-material" maxlength="60" placeholder="Piel, sintético, charol…"></div>
+    <div><label>Precio al público (por par) *</label><input type="number" id="pf-precio" min="50" max="20000" step="1" placeholder="599"></div>
+    <div><label>Envío (lo paga la clienta y es tuyo)</label><input type="number" id="pf-envio" min="0" max="1500" step="1" value="150"></div>
+  </div>
+  <label>Descripción</label><textarea id="pf-desc" rows="3" maxlength="1500" placeholder="Altura de tacón, forro, a qué talla corre…"></textarea>
+  <label>Fotos (máximo 8; la primera es la principal) *</label>
+  <div class="fotos" id="pf-fotos"></div>
+  <input type="file" id="pf-file" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
+  <label>Tallas y existencias *</label>
+  <table class="v" id="pf-vars"><thead><tr><th>Color</th><th>Talla</th><th>Pares</th><th></th></tr></thead><tbody></tbody></table>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+    <button class="btn sec mini" onclick="agregarVar()">+ Agregar talla</button>
+    <button class="btn sec mini" onclick="agregarTallas()">+ Tallas 22 a 27 de un color</button>
+  </div>
+  <div class="msg" id="pf-msg"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+    <button class="btn sec" onclick="cerrarProd()">Cancelar</button>
+    <button class="btn" id="pf-guardar" onclick="guardarProd(false)">Guardar borrador</button>
+    <button class="btn" id="pf-revision" onclick="guardarProd(true)" style="background:var(--ok)">Guardar y mandar a revisión</button>
+  </div>
+</div></div>
+
+<script>
+const API = 'https://zapatillasmay-production.up.railway.app'
+const $ = (id) => document.getElementById(id)
+const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+const $$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+const CATS = ['tacones', 'botines', 'botas', 'sandalias', 'flats', 'plataformas', 'tenis', 'otros']
+let V = null, TAB = 'resumen', PRODS = [], PEDS = [], EDIT = null, FOTOS = []
+const guardado = { get: () => { try { return localStorage.getItem('mp_token') } catch (e) { return null } }, set: (t) => { try { t ? localStorage.setItem('mp_token', t) : localStorage.removeItem('mp_token') } catch (e) {} } }
+
+async function api(ruta, op = {}) {
+  const h = { ...(op.headers || {}) }
+  const t = guardado.get(); if (t) h.Authorization = 'Bearer ' + t
+  if (op.json !== undefined) { h['Content-Type'] = 'application/json'; op.body = JSON.stringify(op.json) }
+  const r = await fetch(API + ruta, { method: op.method || 'GET', headers: h, body: op.body })
+  const d = await r.json().catch(() => ({}))
+  if (r.status === 401 && t && ruta !== '/vendedor/login') { guardado.set(null); location.reload(); throw new Error('Tu sesión venció. Inicia sesión de nuevo.') }
+  if (!r.ok) throw new Error(d.error || d.detail || 'Ocurrió un error. Intenta de nuevo.')
+  return d
+}
+const msg = (id, t, ok) => { const e = $(id); e.className = 'msg ' + (ok ? 'ok' : 'err'); e.textContent = t; e.style.display = 'block' }
+
+function vistaAcceso(c) { ['login', 'recuperar', 'reset'].forEach(x => $('caja-' + x).style.display = x === c ? '' : 'none') }
+async function entrar() {
+  $('l-btn').disabled = true
+  try {
+    const d = await api('/vendedor/login', { method: 'POST', json: { email: $('l-email').value, password: $('l-pass').value } })
+    guardado.set(d.token); V = d.vendedor; abrirPanel()
+  } catch (e) { msg('l-msg', e.message, false) }
+  $('l-btn').disabled = false
+}
+async function recuperar() {
+  $('r-btn').disabled = true
+  try { const d = await api('/vendedor/recuperar', { method: 'POST', json: { email: $('r-email').value } }); msg('r-msg', d.mensaje, true) } catch (e) { msg('r-msg', e.message, false) }
+  $('r-btn').disabled = false
+}
+async function restablecer() {
+  $('n-btn').disabled = true
+  try {
+    const token = new URLSearchParams(location.search).get('reset')
+    const d = await api('/vendedor/restablecer', { method: 'POST', json: { token, password_nueva: $('n-pass').value } })
+    msg('n-msg', d.mensaje, true); setTimeout(() => { location.href = '/vendedor' }, 1800)
+  } catch (e) { msg('n-msg', e.message, false) }
+  $('n-btn').disabled = false
+}
+function salir() { guardado.set(null); location.href = '/vendedor' }
+
+async function iniciar() {
+  const reset = new URLSearchParams(location.search).get('reset')
+  if (reset) { vistaAcceso('reset'); return }
+  if (guardado.get()) { try { V = await api('/vendedor/yo'); abrirPanel(); return } catch (e) {} }
+  vistaAcceso('login')
+}
+function abrirPanel() {
+  $('vista-acceso').style.display = 'none'; $('vista-panel').style.display = 'block'
+  $('quien').style.display = 'flex'; $('quien-n').textContent = V.nombre_tienda
+  pintarAviso(); cambiarTab('resumen')
+}
+function pintarAviso() {
+  $('aviso-estado').innerHTML = V.estado === 'pendiente'
+    ? '<div class="aviso"><b>Tu cuenta está en revisión.</b> Ya puedes preparar tus productos y fotos; los publicamos en cuanto aprobemos tu cuenta (te avisamos por correo).</div>' : ''
+}
+document.addEventListener('click', (e) => { const b = e.target.closest('#tabs button'); if (b) cambiarTab(b.dataset.t) })
+async function cambiarTab(t) {
+  TAB = t
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t))
+  $('contenido').innerHTML = '<p class="vacio">Cargando…</p>'
+  try {
+    if (t === 'resumen') await tabResumen()
+    else if (t === 'productos') await tabProductos()
+    else if (t === 'pedidos') await tabPedidos()
+    else if (t === 'saldo') await tabSaldo()
+    else tabCuenta()
+  } catch (e) { $('contenido').innerHTML = '<p class="vacio" style="color:#b3261e">' + esc(e.message) + '</p>' }
+}
+
+async function tabResumen() {
+  const [p, ped, s] = await Promise.all([api('/vendedor/productos'), api('/vendedor/pedidos'), api('/vendedor/saldo')])
+  PRODS = p; PEDS = ped
+  const porEnviar = ped.filter(x => x.status === 'pagado').length
+  $('contenido').innerHTML = `
+    <div class="cards">
+      <div class="card"><b>${porEnviar}</b><span>pedidos por enviar</span></div>
+      <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (ya enviados)</span></div>
+      <div class="card"><b>${$$(s.por_enviar)}</b><span>en camino a ser tuyos (por enviar)</span></div>
+      <div class="card"><b>${p.filter(x => x.estado === 'publicado').length}</b><span>productos publicados de ${p.length}</span></div>
+    </div>
+    ${porEnviar ? '<div class="aviso">Tienes pedidos pagados esperando tu envío. Ve a <b>Pedidos</b>, manda el paquete y captura la guía.</div>' : ''}
+    ${p.some(x => x.estado === 'rechazado') ? '<div class="aviso">Hay productos que necesitan cambios. Revisa el motivo en <b>Mis productos</b>.</div>' : ''}
+    <div class="card" style="font-size:.9rem;color:#4b3a2f">
+      <b style="font-size:1.1rem;font-family:Outfit;color:var(--black)">Cómo te pagamos</b>
+      <span style="display:block;margin-top:6px">La clienta paga en zapatillasmay.mx. Tú envías el pedido y capturas la guía; ese dinero pasa a «por pagarte». Te depositamos por lote a tu cuenta
+      (revisa que tus datos de pago estén en <b>Mi cuenta</b>). Comisión: <b>${$$(V.comision_por_par)}</b> por par${Number(V.cargo_pago_pct) ? ' + ' + Number(V.cargo_pago_pct) + '% por procesamiento de pago' : ''}.</span>
+    </div>`
+}
+
+function totalStock(p) { return (p.mp_variantes || []).reduce((s, v) => s + (v.stock || 0), 0) }
+async function tabProductos() {
+  PRODS = await api('/vendedor/productos')
+  $('contenido').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><b>${PRODS.length} producto(s)</b><button class="btn" onclick="abrirProd()">+ Nuevo producto</button></div>` +
+    (PRODS.length ? PRODS.map(p => `<div class="fila">
+      ${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : '<div class="ph">👠</div>'}
+      <div class="info"><h3>${esc(p.nombre)} <span class="tag t-${esc(p.estado)}">${esc({ borrador: 'Borrador', pendiente: 'En revisión', publicado: 'Publicado', rechazado: 'Necesita cambios', pausado: 'Pausado' }[p.estado] || p.estado)}</span></h3>
+        <p>${$$(p.precio)} · ${totalStock(p)} pares · ${esc(p.categoria || '')}</p>
+        ${p.estado === 'rechazado' && p.motivo_rechazo ? `<p style="color:#b3261e">Motivo: ${esc(p.motivo_rechazo)}</p>` : ''}</div>
+      <div class="acc">
+        <button class="btn sec mini" onclick="abrirProd('${esc(p.id)}')">Editar</button>
+        ${p.estado === 'borrador' || p.estado === 'rechazado' ? `<button class="btn mini" onclick="estadoProd('${esc(p.id)}','pendiente')">Mandar a revisión</button>` : ''}
+        ${p.estado === 'publicado' ? `<button class="btn sec mini" onclick="estadoProd('${esc(p.id)}','pausado')">Pausar</button>` : ''}
+        ${p.estado === 'pausado' ? `<button class="btn mini" onclick="estadoProd('${esc(p.id)}','publicado')">Reanudar</button>` : ''}
+        ${['borrador', 'rechazado', 'pausado'].includes(p.estado) ? `<button class="btn bad mini" onclick="borrarProd('${esc(p.id)}')">Borrar</button>` : ''}
+      </div></div>`).join('') : '<p class="vacio">Todavía no has subido productos. Toca «Nuevo producto» para empezar.</p>')
+}
+async function estadoProd(id, estado) { try { await api(`/vendedor/productos/${id}/estado`, { method: 'POST', json: { estado } }); tabProductos() } catch (e) { alert(e.message) } }
+async function borrarProd(id) { if (!confirm('¿Borrar este producto?')) return; try { await api('/vendedor/productos/' + id, { method: 'DELETE' }); tabProductos() } catch (e) { alert(e.message) } }
+
+// ── formulario de producto ──
+function filaVar(v = {}) { return `<tr><td><input type="text" class="vc" maxlength="30" placeholder="Negro" value="${esc(v.color || '')}"></td><td><input type="text" class="vt" maxlength="8" placeholder="24" value="${esc(v.talla || '')}" style="max-width:80px"></td><td><input type="number" class="vs" min="0" max="999" value="${esc(v.stock == null ? 1 : v.stock)}" style="max-width:80px"></td><td><button class="link" onclick="this.closest('tr').remove()">quitar</button></td></tr>` }
+function agregarVar() { $('pf-vars').querySelector('tbody').insertAdjacentHTML('beforeend', filaVar()) }
+function agregarTallas() {
+  const color = prompt('¿De qué color? (déjalo vacío si es un solo color)', ''); if (color === null) return
+  const tb = $('pf-vars').querySelector('tbody')
+  ;['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27'].forEach(t => tb.insertAdjacentHTML('beforeend', filaVar({ color: color.trim(), talla: t, stock: 0 })))
+}
+function pintarFotos() {
+  $('pf-fotos').innerHTML = FOTOS.map((u, i) => `<div class="f"><img src="${esc(u)}" alt="">${i === 0 ? '<em>principal</em>' : ''}<button onclick="quitarFoto(${i})" title="Quitar">✕</button></div>`).join('') +
+    (FOTOS.length < 8 ? '<div class="subir" onclick="$(\'pf-file\').click()" title="Subir fotos">＋</div>' : '')
+}
+function quitarFoto(i) { FOTOS.splice(i, 1); pintarFotos() }
+async function reducir(file) {
+  // las fotos del celular pesan mucho: se reducen a 1600 px antes de subirlas
+  try {
+    const url = URL.createObjectURL(file)
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url })
+    const e = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight))
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * e); c.height = Math.round(img.naturalHeight * e)
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url)
+    const b = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.88))
+    return b ? new File([b], 'foto.jpg', { type: 'image/jpeg' }) : file
+  } catch (e) { return file }
+}
+document.addEventListener('change', async (ev) => {
+  if (ev.target.id !== 'pf-file') return
+  const files = [...ev.target.files].slice(0, 8 - FOTOS.length); ev.target.value = ''
+  for (const f of files) {
+    msg('pf-msg', 'Subiendo foto…', true)
+    try {
+      const fd = new FormData(); fd.append('archivo', await reducir(f))
+      const d = await api('/vendedor/subir-foto', { method: 'POST', body: fd })
+      FOTOS.push(d.url); pintarFotos()
+      $('pf-msg').style.display = 'none'
+    } catch (e) { msg('pf-msg', e.message, false) }
+  }
+})
+function abrirProd(id) {
+  EDIT = id ? PRODS.find(p => p.id === id) : null
+  $('pf-titulo').textContent = EDIT ? 'Editar producto' : 'Nuevo producto'
+  $('pf-cat').innerHTML = CATS.map(c => `<option value="${c}">${c[0].toUpperCase() + c.slice(1)}</option>`).join('')
+  $('pf-nombre').value = EDIT ? EDIT.nombre : ''; $('pf-cat').value = EDIT ? (EDIT.categoria || 'otros') : 'tacones'
+  $('pf-material').value = EDIT ? (EDIT.material || '') : ''; $('pf-precio').value = EDIT ? EDIT.precio : ''
+  $('pf-envio').value = EDIT ? EDIT.envio : 150; $('pf-desc').value = EDIT ? (EDIT.descripcion || '') : ''
+  FOTOS = EDIT ? [...(EDIT.imagenes || [])] : []; pintarFotos()
+  $('pf-vars').querySelector('tbody').innerHTML = (EDIT && EDIT.mp_variantes.length ? EDIT.mp_variantes : [{ color: '', talla: '', stock: 1 }]).map(filaVar).join('')
+  $('pf-msg').style.display = 'none'
+  $('pf-revision').style.display = EDIT && ['pendiente', 'publicado', 'pausado'].includes(EDIT.estado) ? 'none' : ''
+  $('ov-prod').classList.add('on')
+}
+function cerrarProd() { $('ov-prod').classList.remove('on') }
+async function guardarProd(revision) {
+  const variantes = [...$('pf-vars').querySelectorAll('tbody tr')].map(tr => ({ color: tr.querySelector('.vc').value.trim(), talla: tr.querySelector('.vt').value.trim(), stock: tr.querySelector('.vs').value })).filter(v => v.talla)
+  const datos = { nombre: $('pf-nombre').value, categoria: $('pf-cat').value, material: $('pf-material').value, precio: $('pf-precio').value, envio: $('pf-envio').value, descripcion: $('pf-desc').value, imagenes: FOTOS, variantes }
+  $('pf-guardar').disabled = $('pf-revision').disabled = true
+  try {
+    const p = EDIT ? await api('/vendedor/productos/' + EDIT.id, { method: 'PATCH', json: datos }) : await api('/vendedor/productos', { method: 'POST', json: datos })
+    if (revision && ['borrador', 'rechazado'].includes(p.estado)) await api(`/vendedor/productos/${p.id}/estado`, { method: 'POST', json: { estado: 'pendiente' } })
+    cerrarProd(); tabProductos()
+  } catch (e) { msg('pf-msg', e.message, false) }
+  $('pf-guardar').disabled = $('pf-revision').disabled = false
+}
+
+// ── pedidos ──
+const PAQ = ['DHL', 'Estafeta', 'FedEx', 'J&T Express', 'Paquetexpress', 'Redpack', '99 Minutos', 'Correos de México', 'Otra']
+async function tabPedidos() {
+  PEDS = await api('/vendedor/pedidos')
+  $('contenido').innerHTML = PEDS.length ? PEDS.map(p => `<div class="ped">
+    <h3>Pedido #${esc(p.numero)} <span class="tag t-${esc(p.status)}">${esc({ pagado: 'Por enviar', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' }[p.status] || p.status)}</span>
+      <span style="margin-left:auto;font-size:.85rem;color:var(--gray);font-weight:400">${new Date(p.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span></h3>
+    <ul>${(p.mp_pedido_items || []).map(i => `<li>${esc(i.cantidad)} × ${esc(i.nombre)} · talla ${esc(i.talla)} ${esc(i.color || '')}</li>`).join('')}</ul>
+    <div class="dir"><b>${esc(p.cliente_nombre)}</b> · WhatsApp ${esc(p.cliente_telefono || '')}<br>${esc(p.direccion || '')}, ${esc(p.ciudad || '')}, ${esc(p.estado_region || '')} CP ${esc(p.cp || '')}${p.notas ? '<br><i>Nota: ' + esc(p.notas) + '</i>' : ''}</div>
+    <div style="font-size:.85rem;color:#4b3a2f">Cobrado a la clienta: ${$$(p.total)} · Comisión: ${$$(p.comision)} · <b>Te toca: ${$$(p.neto_vendedor)}</b></div>
+    ${p.status === 'pagado' ? `<div class="envio-f"><div><label>Paquetería</label><select id="pq-${esc(p.id)}">${PAQ.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+      <div><label>Número de guía</label><input type="text" id="gu-${esc(p.id)}" maxlength="60"></div><button class="btn mini" onclick="enviarPed('${esc(p.id)}')">Marcar enviado</button></div>` :
+      (p.guia ? `<p style="font-size:.85rem;margin-top:6px">Guía: <b>${esc(p.paqueteria)} ${esc(p.guia)}</b>${p.liquidacion_id ? ' · ya liquidado ✅' : ''}</p>` : '')}
+  </div>`).join('') : '<p class="vacio">Aún no tienes pedidos pagados. Cuando vendas, aparecen aquí.</p>'
+}
+async function enviarPed(id) {
+  const guia = $('gu-' + id).value.trim(); if (!guia) { alert('Escribe el número de guía.'); return }
+  if (!confirm('¿Marcar este pedido como enviado? Le mandaremos la guía a la clienta.')) return
+  try { await api(`/vendedor/pedidos/${id}/enviar`, { method: 'POST', json: { paqueteria: $('pq-' + id).value, guia } }); tabPedidos() } catch (e) { alert(e.message) }
+}
+
+// ── pagos ──
+async function tabSaldo() {
+  const s = await api('/vendedor/saldo')
+  $('contenido').innerHTML = `<div class="cards">
+      <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (pedidos ya enviados)</span></div>
+      <div class="card"><b>${$$(s.por_enviar)}</b><span>pedidos pagados por enviar</span></div>
+      <div class="card"><b>${$$(s.liquidado_total)}</b><span>depósitos recibidos</span></div>
+      <div class="card"><b>${$$(s.comision_total)}</b><span>comisión total de tus ventas</span></div></div>
+    <h3 style="margin:8px 0">Depósitos</h3>` +
+    (s.liquidaciones.length ? `<table class="t"><tr><th>Fecha</th><th>Monto</th><th>Referencia</th></tr>${s.liquidaciones.map(l => `<tr><td>${new Date(l.created_at).toLocaleDateString('es-MX')}</td><td><b>${$$(l.monto)}</b></td><td>${esc(l.referencia || '')}</td></tr>`).join('')}</table>` : '<p class="vacio">Todavía no te hemos depositado.</p>')
+}
+
+// ── cuenta ──
+function tabCuenta() {
+  $('contenido').innerHTML = `<div class="card" style="max-width:560px">
+    <h3 style="margin-bottom:4px">Mis datos</h3>
+    <label>Nombre de contacto</label><input type="text" id="c-nom" maxlength="80" value="${esc(V.nombre_contacto || '')}">
+    <div class="g2"><div><label>WhatsApp</label><input type="tel" id="c-tel" value="${esc(V.telefono || '')}"></div><div><label>Ciudad</label><input type="text" id="c-ciu" maxlength="60" value="${esc(V.ciudad || '')}"></div></div>
+    <label>Cuéntale a las clientas sobre tu tienda</label><textarea id="c-desc" rows="3" maxlength="400">${esc(V.descripcion || '')}</textarea>
+    <h3 style="margin:16px 0 4px">Datos para tus depósitos</h3>
+    <div class="g2"><div><label>Banco</label><input type="text" id="c-banco" maxlength="60" value="${esc(V.banco || '')}"></div><div><label>Titular</label><input type="text" id="c-tit" maxlength="100" value="${esc(V.titular || '')}"></div></div>
+    <label>CLABE (18 dígitos)</label><input type="text" id="c-clabe" inputmode="numeric" maxlength="18" value="${esc(V.clabe || '')}">
+    <h3 style="margin:16px 0 4px">Cambiar contraseña (opcional)</h3>
+    <div class="g2"><div><label>Actual</label><input type="password" id="c-pa" autocomplete="current-password"></div><div><label>Nueva</label><input type="password" id="c-pn" autocomplete="new-password"></div></div>
+    <div style="margin-top:14px"><button class="btn" id="c-btn" onclick="guardarCuenta()">Guardar</button></div><div class="msg" id="c-msg"></div>
+    <p style="font-size:.8rem;color:var(--gray);margin-top:10px">Correo de acceso: ${esc(V.email)}. Para cambiarlo escríbenos por WhatsApp.</p></div>`
+}
+async function guardarCuenta() {
+  $('c-btn').disabled = true
+  const d = { nombre_contacto: $('c-nom').value, telefono: $('c-tel').value, ciudad: $('c-ciu').value, descripcion: $('c-desc').value, banco: $('c-banco').value, titular: $('c-tit').value, clabe: $('c-clabe').value }
+  if ($('c-pn').value) { d.password_actual = $('c-pa').value; d.password_nueva = $('c-pn').value }
+  try { V = await api('/vendedor/yo', { method: 'PATCH', json: d }); msg('c-msg', 'Datos guardados.', true); $('c-pa').value = $('c-pn').value = '' } catch (e) { msg('c-msg', e.message, false) }
+  $('c-btn').disabled = false
+}
+iniciar()
+</script>
+</body>
+</html>

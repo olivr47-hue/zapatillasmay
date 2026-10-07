@@ -100,6 +100,10 @@
     { "source": "/links",          "destination": "/links.html" },
     { "source": "/ofertas",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/ofertas" },
     { "source": "/mi-cuenta",      "destination": "/mi-cuenta.html" },
+    { "source": "/vender",         "destination": "/vender.html" },
+    { "source": "/vendedor",       "destination": "/vendedor.html" },
+    { "source": "/marketplace",    "destination": "/marketplace.html" },
+    { "source": "/marketplace/:slug", "destination": "/marketplace-producto.html" },
     { "source": "/((?!.*\\.).*)",   "destination": "/index.html" }
   ]
 }

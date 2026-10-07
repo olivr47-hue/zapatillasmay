@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Producto — Marketplace | Zapatillas May</title>
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600&family=Outfit:wght@300;400;500;600;700&display=swap">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root { --black:#2A1A0E; --white:#FBF7F3; --pink:#B5687A; --rose:#C8967A; --cream:#F5ECE2; --cd:#EDE0D2; --mauve:#A07860; --gray:#8B6A54; }
+    body { font-family:'Outfit',sans-serif; background:var(--white); color:var(--black); line-height:1.6; }
+    a { color:inherit; text-decoration:none; }
+    header { background:var(--black); padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    header .logo { color:var(--white); font-family:'Cormorant Garamond',serif; font-size:1.55rem; font-weight:500; letter-spacing:1px; }
+    header nav a { font-size:.85rem; color:rgba(251,247,243,.75); margin-left:1.2rem; }
+    header nav a:hover { color:var(--rose); }
+    .wrap { max-width:1000px; margin:0 auto; padding:20px 16px 60px; }
+    .mig { font-size:.82rem; color:var(--gray); margin-bottom:14px; }
+    .mig a { color:var(--pink); }
+    .prod { display:grid; grid-template-columns:1fr 1fr; gap:30px; }
+    @media (max-width:760px) { .prod { grid-template-columns:1fr; gap:18px; } }
+    .gal .main { aspect-ratio:4/5; background:var(--cream); border-radius:18px; overflow:hidden; }
+    .gal .main img { width:100%; height:100%; object-fit:cover; display:block; }
+    .gal .th { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .gal .th img { width:62px; height:62px; object-fit:cover; border-radius:10px; border:2px solid transparent; cursor:pointer; background:var(--cream); }
+    .gal .th img.on { border-color:var(--pink); }
+    h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(1.7rem,4vw,2.3rem); font-weight:500; line-height:1.15; }
+    .vend { display:inline-block; margin-top:6px; font-size:.82rem; background:var(--cream); color:var(--mauve); padding:4px 14px; border-radius:50px; }
+    .precio { font-family:'Cormorant Garamond',serif; font-size:2.2rem; font-weight:600; color:var(--pink); margin:10px 0 2px; }
+    .env { font-size:.85rem; color:var(--gray); }
+    h4 { font-size:.8rem; letter-spacing:.06em; text-transform:uppercase; color:var(--mauve); margin:18px 0 8px; }
+    .opts { display:flex; gap:8px; flex-wrap:wrap; }
+    .opts button { min-width:46px; padding:9px 14px; background:#fff; border:1.5px solid var(--cd); border-radius:12px; font:500 .9rem 'Outfit'; cursor:pointer; color:var(--black); }
+    .opts button.on { background:var(--black); color:#fff; border-color:var(--black); }
+    .opts button small { display:block; font-size:.62rem; color:#b26a00; }
+    .opts button.on small { color:#f3d3a3; }
+    .cant { display:inline-flex; align-items:center; border:1.5px solid var(--cd); border-radius:50px; background:#fff; }
+    .cant button { width:38px; height:38px; background:none; border:0; font-size:1.2rem; cursor:pointer; color:var(--pink); }
+    .cant span { min-width:30px; text-align:center; font-weight:600; }
+    .btn { display:inline-block; background:var(--pink); color:#fff; border:0; border-radius:50px; padding:14px 30px; font:600 .95rem 'Outfit'; cursor:pointer; }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .btn.sec { background:transparent; color:var(--pink); border:1.5px solid var(--pink); }
+    .lineas { margin-top:16px; background:var(--cream); border-radius:14px; padding:12px 14px; font-size:.9rem; }
+    .lineas div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; }
+    .lineas button { background:none; border:0; color:var(--pink); cursor:pointer; font-size:.8rem; text-decoration:underline; }
+    .tot { display:flex; justify-content:space-between; font-weight:600; margin-top:6px; padding-top:8px; border-top:1px solid var(--cd); }
+    .desc { margin-top:22px; font-size:.93rem; color:#4b3a2f; white-space:pre-line; }
+    .conf { margin-top:16px; font-size:.82rem; color:var(--gray); display:grid; gap:4px; }
+    .overlay { position:fixed; inset:0; background:rgba(42,26,14,.55); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:3vh 12px; overflow:auto; }
+    .overlay.on { display:flex; }
+    .modal { background:#fff; border-radius:18px; width:100%; max-width:520px; padding:22px; }
+    .modal h2 { font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:500; margin-bottom:4px; }
+    label { display:block; font-size:.78rem; font-weight:600; color:var(--mauve); margin:10px 0 4px; }
+    input[type=text], input[type=email], input[type=tel], textarea { width:100%; padding:10px 12px; border:1.5px solid var(--cd); border-radius:10px; font:400 .93rem 'Outfit'; background:var(--white); }
+    input:focus, textarea:focus { outline:none; border-color:var(--pink); }
+    .g2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .msg { margin-top:12px; padding:10px 14px; border-radius:10px; font-size:.88rem; display:none; background:#fdecea; color:#b3261e; }
+    .vacio { text-align:center; padding:60px 10px; color:var(--gray); }
+    footer { background:var(--black); color:rgba(251,247,243,.7); text-align:center; padding:22px; font-size:.82rem; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/">Zapatillas May</a>
+  <nav><a href="/">Inicio</a><a href="/catalogo">Catálogos</a><a href="/marketplace">Marketplace</a><a href="/vender">Vende con nosotras</a></nav>
+</header>
+<div class="wrap" id="app"><p class="vacio">Cargando…</p></div>
+
+<div class="overlay" id="ov"><div class="modal">
+  <h2>Datos de envío</h2>
+  <p style="font-size:.82rem;color:var(--gray)">Pagas en zapatillasmay.mx con MercadoPago. La tienda te envía el pedido y te llega la guía por correo.</p>
+  <label>Nombre completo *</label><input type="text" id="c-nombre" maxlength="80" autocomplete="name">
+  <div class="g2"><div><label>Correo *</label><input type="email" id="c-email" maxlength="120" autocomplete="email"></div><div><label>WhatsApp (10 dígitos) *</label><input type="tel" id="c-tel" inputmode="numeric" maxlength="14" autocomplete="tel"></div></div>
+  <label>Calle y número *</label><input type="text" id="c-dir" maxlength="160" autocomplete="street-address">
+  <div class="g2"><div><label>Ciudad *</label><input type="text" id="c-ciudad" maxlength="60" autocomplete="address-level2"></div><div><label>Estado</label><input type="text" id="c-estado" maxlength="60" autocomplete="address-level1"></div></div>
+  <div class="g2"><div><label>Código postal *</label><input type="text" id="c-cp" inputmode="numeric" maxlength="5" autocomplete="postal-code"></div><div><label>Notas (opcional)</label><input type="text" id="c-notas" maxlength="300"></div></div>
+  <div class="msg" id="c-msg"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+    <button class="btn sec" onclick="cerrar()">Volver</button><button class="btn" id="c-btn" onclick="pagar()">Ir a pagar</button>
+  </div>
+</div></div>
+<footer>Zapatillas May · León, Guanajuato · <a href="https://wa.me/5214792244560" style="color:#e8b4a0">¿Dudas? WhatsApp</a></footer>
+
+<script>
+  const API = 'https://zapatillasmay-production.up.railway.app'
+  const $ = (id) => document.getElementById(id)
+  const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+  const $$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+  let P = null, color = '', talla = '', cant = 1, lineas = []   // lineas: [{variante_id, color, talla, cantidad}]
+
+  async function iniciar() {
+    const slug = decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop())
+    try {
+      const r = await fetch(`${API}/marketplace/productos/${encodeURIComponent(slug)}`)
+      if (!r.ok) throw new Error('nf')
+      P = await r.json()
+    } catch (e) { $('app').innerHTML = '<p class="vacio">Este producto ya no está disponible. <a href="/marketplace" style="color:var(--pink)">Ver el marketplace →</a></p>'; return }
+    document.title = `${P.nombre} — ${P.vendedor.nombre_tienda} | Zapatillas May`
+    const colores = [...new Set(P.mp_variantes.map(v => v.color))]
+    color = colores[0] || ''
+    pintar()
+  }
+  function stockDe(vid) { const v = P.mp_variantes.find(x => x.id === vid); return v ? v.stock : 0 }
+  function pintar() {
+    const colores = [...new Set(P.mp_variantes.map(v => v.color))]
+    const tallas = P.mp_variantes.filter(v => v.color === color)
+    const imgs = P.imagenes || []
+    $('app').innerHTML = `<div class="mig"><a href="/marketplace">Marketplace</a> › ${esc(P.categoria || '')}</div>
+    <div class="prod">
+      <div class="gal"><div class="main"><img id="im" src="${esc(imgs[0] || '')}" alt="${esc(P.nombre)}"></div>
+        <div class="th">${imgs.map((u, i) => `<img src="${esc(u)}" class="${i === 0 ? 'on' : ''}" onclick="foto(${i})" alt="">`).join('')}</div></div>
+      <div>
+        <h1>${esc(P.nombre)}</h1>
+        <span class="vend">Vendido y enviado por <b>${esc(P.vendedor.nombre_tienda)}</b>${P.vendedor.ciudad ? ' · ' + esc(P.vendedor.ciudad) : ''}</span>
+        <div class="precio">${$$(P.precio)}</div>
+        <div class="env">Envío ${Number(P.envio) ? $$(P.envio) : 'gratis'} por pedido · Pago seguro con MercadoPago</div>
+        ${colores.length > 1 || colores[0] ? `<h4>Color</h4><div class="opts">${colores.map(c => `<button class="${c === color ? 'on' : ''}" data-c="${esc(c)}" onclick="elegirColor(this.dataset.c)">${esc(c || 'Único')}</button>`).join('')}</div>` : ''}
+        <h4>Talla</h4>
+        <div class="opts">${tallas.map(v => `<button class="${v.talla === talla ? 'on' : ''}" data-t="${esc(v.talla)}" onclick="elegirTalla(this.dataset.t)">${esc(v.talla)}${v.stock <= 2 ? '<small>¡últimos!</small>' : ''}</button>`).join('')}</div>
+        <h4>Cantidad</h4>
+        <div class="cant"><button onclick="cambiar(-1)">−</button><span id="cn">${cant}</span><button onclick="cambiar(1)">+</button></div>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn sec" onclick="agregar()" ${talla ? '' : 'disabled'}>Agregar al pedido</button></div>
+        <div id="lineas"></div>
+        <div class="desc">${esc(P.descripcion || '')}</div>
+        <div class="conf">${P.material ? `<span>Material: ${esc(P.material)}</span>` : ''}<span>Tienda aliada: ${esc(P.vendedor.nombre_tienda)}${P.vendedor.descripcion ? ' — ' + esc(P.vendedor.descripcion) : ''}</span>
+          <span>¿Dudas? <a href="https://wa.me/5214792244560" style="color:var(--pink)">Escríbenos por WhatsApp</a></span></div>
+      </div></div>`
+    pintarLineas()
+  }
+  function foto(i) { $('im').src = P.imagenes[i]; document.querySelectorAll('.th img').forEach((e, k) => e.classList.toggle('on', k === i)) }
+  function elegirColor(c) { color = c; talla = ''; cant = 1; pintar() }
+  function elegirTalla(t) { talla = t; cant = 1; pintar() }
+  function cambiar(d) {
+    const v = P.mp_variantes.find(x => x.color === color && x.talla === talla); if (!v) return
+    cant = Math.max(1, Math.min(v.stock, cant + d)); $('cn').textContent = cant
+  }
+  function agregar() {
+    const v = P.mp_variantes.find(x => x.color === color && x.talla === talla); if (!v) return
+    const ya = lineas.find(l => l.variante_id === v.id)
+    const nueva = (ya ? ya.cantidad : 0) + cant
+    if (nueva > v.stock) { alert(`De esa talla solo quedan ${v.stock}.`); return }
+    if (ya) ya.cantidad = nueva; else lineas.push({ variante_id: v.id, color, talla, cantidad: cant })
+    talla = ''; cant = 1; pintar()
+  }
+  function quitar(i) { lineas.splice(i, 1); pintar() }
+  function totales() { const sub = lineas.reduce((s, l) => s + l.cantidad * Number(P.precio), 0); return { sub, env: lineas.length ? Number(P.envio) : 0 } }
+  function pintarLineas() {
+    const el = $('lineas'); if (!el) return
+    if (!lineas.length) { el.innerHTML = ''; return }
+    const t = totales()
+    el.innerHTML = `<div class="lineas">${lineas.map((l, i) => `<div><span>${l.cantidad} × talla ${esc(l.talla)} ${esc(l.color)}</span><span>${$$(l.cantidad * Number(P.precio))} <button onclick="quitar(${i})">quitar</button></span></div>`).join('')}
+      <div><span>Envío</span><span>${t.env ? $$(t.env) : 'Gratis'}</span></div>
+      <div class="tot"><span>Total</span><span>${$$(t.sub + t.env)}</span></div></div>
+      <button class="btn" style="margin-top:12px;width:100%" onclick="abrir()">Comprar</button>`
+  }
+  function abrir() { $('c-msg').style.display = 'none'; $('ov').classList.add('on') }
+  function cerrar() { $('ov').classList.remove('on') }
+  async function pagar() {
+    const v = (id) => $(id).value.trim()
+    const btn = $('c-btn'), m = $('c-msg')
+    btn.disabled = true; btn.textContent = 'Un momento…'; m.style.display = 'none'
+    try {
+      const r = await fetch(API + '/marketplace/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        items: lineas.map(l => ({ variante_id: l.variante_id, cantidad: l.cantidad })),
+        cliente: { nombre: v('c-nombre'), email: v('c-email'), telefono: v('c-tel'), direccion: v('c-dir'), ciudad: v('c-ciudad'), estado: v('c-estado'), cp: v('c-cp'), notas: v('c-notas') } }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.init_point) throw new Error(d.error || 'No se pudo generar el pago. Intenta de nuevo.')
+      location.href = d.init_point
+    } catch (e) { m.textContent = e.message; m.style.display = 'block'; btn.disabled = false; btn.textContent = 'Ir a pagar' }
+  }
+  iniciar()
+</script>
+</body>
+</html>
