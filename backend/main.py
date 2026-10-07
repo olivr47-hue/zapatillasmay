@@ -651,7 +651,8 @@ def _iniciar_hilos():
 def inicio():
     return {
         "mensaje": "ERP Zapatillas May funcionando",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "commit": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "")[:7]   # para saber qué versión está desplegada
     }
 
 @app.get("/salud")
