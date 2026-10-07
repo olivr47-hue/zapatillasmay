@@ -144,6 +144,14 @@ def _qty_tolerante(variantes_prod, resto):
     exactos = [x for x in cands if x[0] == color_tk]
     if not exactos:
         exactos = [x for x in cands if x[0].startswith(color_tk) or color_tk.startswith(x[0])]
+    if not exactos and len(color_tk) >= 3:
+        # abreviatura por letras del color (CFO = CAFE OSCURO): solo si identifica un único color del modelo
+        def _subseq(a, b):
+            it = iter(b)
+            return all(ch in it for ch in a)
+        posibles = [x for x in cands if x[0][:1] == color_tk[:1] and _subseq(color_tk, x[0])]
+        if len({x[0] for x in posibles}) == 1:
+            exactos = posibles
     if not exactos:
         return None
     return min(x[2] for x in exactos) if len({x[0] for x in exactos}) > 1 else exactos[0][2]
