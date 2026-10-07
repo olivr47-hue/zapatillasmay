@@ -3,6 +3,7 @@ import './redes.js'
 import './analytics.js'
 import './seo-paginas.js'
 import './fotos-limpias.js'
+import './marketplace-admin.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -99,6 +100,7 @@ const modulos = [
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
   { id: 'redes', icon: '📣', label: 'Publicaciones', section: 'Catalogo', soloAdmin: true },
+  { id: 'marketplace', icon: '🛍️', label: 'Marketplace', section: 'Catalogo', soloAdmin: true },
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
@@ -629,6 +631,7 @@ function renderNav() {
         ${m.id === 'correo' ? '<span id="badge-correo-nuevo" style="display:none;background:#0d9488;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'mercadolibre' ? '<span id="badge-preguntas-ml" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'shein' ? '<span id="badge-pendientes-shein" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'marketplace' ? '<span id="badge-marketplace" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'walmart' ? '<span id="badge-pendientes-walmart" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
       </div>
     `).join('')}
@@ -643,6 +646,7 @@ async function cargarModulo(id) {
   switch(id) {
     case 'catalogos': await cargarCatalogos(); break
     case 'redes': await window.cargarRedes(); break
+    case 'marketplace': await window.cargarMarketplace(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break
