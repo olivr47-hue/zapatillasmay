@@ -323,21 +323,45 @@ async function tabResumen() {
 }
 
 function totalStock(p) { return (p.mp_variantes || []).reduce((s, v) => s + (v.stock || 0), 0) }
+const ETQ_EST = { borrador: 'Borrador', pendiente: 'En revisión', publicado: 'Publicado', rechazado: 'Necesita cambios', pausado: 'Pausado' }
+let FILT = { q: '', estado: '', cat: '' }
 async function tabProductos() {
   PRODS = await api('/vendedor/productos')
-  $('contenido').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><b>${PRODS.length} producto(s)</b><button class="btn" onclick="abrirProd()">+ Nuevo producto</button></div>` +
-    (PRODS.length ? PRODS.map(p => `<div class="fila">
-      ${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : '<div class="ph">👠</div>'}
-      <div class="info"><h3>${esc(p.nombre)} <span class="tag t-${esc(p.estado)}">${esc({ borrador: 'Borrador', pendiente: 'En revisión', publicado: 'Publicado', rechazado: 'Necesita cambios', pausado: 'Pausado' }[p.estado] || p.estado)}</span></h3>
-        <p>Recibes ${$$(p.precio)}${p.precio_mayoreo3 ? ' · 3+ pares: ' + $$(p.precio_mayoreo3) : ''} · ${totalStock(p)} pares · ${esc(p.categoria || '')}</p>
-        ${p.estado === 'rechazado' && p.motivo_rechazo ? `<p style="color:#b3261e">Motivo: ${esc(p.motivo_rechazo)}</p>` : ''}</div>
-      <div class="acc">
+  pintarProductos(true)
+}
+function setFiltro(k, v) { FILT[k] = v; pintarProductos(false) }
+function pintarProductos(completo) {
+  const n = (e) => PRODS.filter(p => p.estado === e).length
+  const sinStock = PRODS.filter(p => totalStock(p) === 0).length
+  const q = FILT.q.trim().toLowerCase()
+  const lista = PRODS.filter(p => (!FILT.estado || p.estado === FILT.estado) && (!FILT.cat || p.categoria === FILT.cat) && (!q || (p.nombre + ' ' + (p.subcategoria || '')).toLowerCase().includes(q)))
+  const cats = [...new Set(PRODS.map(p => p.categoria).filter(Boolean))]
+  const cab = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><b style="font-size:1.05rem">Productos</b><button class="btn" onclick="abrirProd()">+ Nuevo producto</button></div>
+    <div class="cards" style="margin-bottom:12px">
+      <div class="card"><b>${PRODS.length}</b><span>productos</span></div><div class="card"><b>${n('publicado')}</b><span>publicados</span></div>
+      <div class="card"><b>${n('pendiente')}</b><span>en revisión</span></div><div class="card"><b>${n('borrador') + n('rechazado')}</b><span>borradores / por corregir</span></div>
+      <div class="card"><b>${sinStock}</b><span>sin existencias</span></div><div class="card"><b>${PRODS.reduce((t, p) => t + totalStock(p), 0)}</b><span>pares en total</span></div></div>
+    <div class="g3" style="margin-bottom:10px"><input type="text" id="fl-q" placeholder="Buscar producto…" value="${esc(FILT.q)}" oninput="setFiltro('q', this.value)">
+      <select onchange="setFiltro('estado', this.value)"><option value="">Todos los estados</option>${Object.keys(ETQ_EST).map(e => `<option value="${e}" ${FILT.estado === e ? 'selected' : ''}>${ETQ_EST[e]}</option>`).join('')}</select>
+      <select onchange="setFiltro('cat', this.value)"><option value="">Todas las categorías</option>${cats.map(c => `<option value="${esc(c)}" ${FILT.cat === c ? 'selected' : ''}>${esc(CAT_ETQ[c] || c)}</option>`).join('')}</select></div>`
+  const tabla = lista.length ? `<div style="overflow-x:auto"><table class="v" style="min-width:760px;background:#fff;border-radius:12px"><thead><tr><th></th><th>Producto</th><th>Precio que recibes</th><th>Colores y existencias</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${lista.map(p => { const cols = {}; (p.mp_variantes || []).forEach(v => { (cols[v.color || 'Único'] = cols[v.color || 'Único'] || { hex: v.color_hex, t: [] }).t.push(v) })
+      return `<tr style="border-top:1px solid var(--cd);vertical-align:top">
+      <td style="width:64px;padding:8px">${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px">` : '<div class="ph" style="width:56px;height:56px">👠</div>'}</td>
+      <td style="padding:8px"><b>${esc(p.nombre)}</b><br><span style="font-size:.74rem;color:var(--gray)">${esc(CAT_ETQ[p.categoria] || p.categoria || '')}${p.subcategoria ? ' · ' + esc(p.subcategoria) : ''}${p.altura_tacon ? ' · tacón ' + esc(p.altura_tacon) + ' cm' : ''}</span>
+        ${p.estado === 'rechazado' && p.motivo_rechazo ? `<br><span style="color:#b3261e;font-size:.76rem">Motivo: ${esc(p.motivo_rechazo)}</span>` : ''}</td>
+      <td style="padding:8px;white-space:nowrap">${$$(p.precio)}${p.precio_mayoreo3 ? `<br><span style="font-size:.74rem;color:#2e7d32">3+ pares: ${$$(p.precio_mayoreo3)}</span>` : ''}<br><span style="font-size:.72rem;color:var(--gray)">envío ${$$(p.envio)}</span></td>
+      <td style="padding:8px;font-size:.78rem">${Object.entries(cols).map(([c, o]) => `<div style="margin-bottom:3px"><i style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${esc(o.hex || '#ccc')};border:1px solid #ccc;vertical-align:middle"></i> <b>${esc(c)}</b>: ${o.t.sort((a, b) => (parseFloat(a.talla) || 99) - (parseFloat(b.talla) || 99)).map(v => `<span style="${v.stock <= 2 ? 'color:#b26a00;font-weight:600' : ''}">${esc(v.talla)}(${v.stock})</span>`).join(' ')}</div>`).join('') || '—'}</td>
+      <td style="padding:8px"><span class="tag t-${esc(p.estado)}">${esc(ETQ_EST[p.estado] || p.estado)}</span></td>
+      <td style="padding:8px;white-space:nowrap"><div class="acc">
         <button class="btn sec mini" onclick="abrirProd('${esc(p.id)}')">Editar</button>
-        ${p.estado === 'borrador' || p.estado === 'rechazado' ? `<button class="btn mini" onclick="estadoProd('${esc(p.id)}','pendiente')">Mandar a revisión</button>` : ''}
-        ${p.estado === 'publicado' ? `<button class="btn sec mini" onclick="estadoProd('${esc(p.id)}','pausado')">Pausar</button>` : ''}
+        ${p.estado === 'borrador' || p.estado === 'rechazado' ? `<button class="btn mini" onclick="estadoProd('${esc(p.id)}','pendiente')">A revisión</button>` : ''}
+        ${p.estado === 'publicado' ? `<a class="btn sec mini" href="/marketplace/${esc(p.slug)}" target="_blank" rel="noopener">Ver en tienda</a><button class="btn sec mini" onclick="estadoProd('${esc(p.id)}','pausado')">Pausar</button>` : ''}
         ${p.estado === 'pausado' ? `<button class="btn mini" onclick="estadoProd('${esc(p.id)}','publicado')">Reanudar</button>` : ''}
-        ${['borrador', 'rechazado', 'pausado'].includes(p.estado) ? `<button class="btn bad mini" onclick="borrarProd('${esc(p.id)}')">Borrar</button>` : ''}
-      </div></div>`).join('') : '<p class="vacio">Todavía no has subido productos. Toca «Nuevo producto» para empezar.</p>')
+        ${['borrador', 'rechazado', 'pausado'].includes(p.estado) ? `<button class="btn bad mini" onclick="borrarProd('${esc(p.id)}')">Borrar</button>` : ''}</div></td></tr>` }).join('')}
+    </tbody></table></div>` : `<p class="vacio">${PRODS.length ? 'Ningún producto coincide con el filtro.' : 'Todavía no has subido productos. Toca «Nuevo producto» para empezar.'}</p>`
+  if (completo) $('contenido').innerHTML = cab + '<div id="tabla-prods"></div>'
+  $('tabla-prods').innerHTML = tabla
 }
 async function estadoProd(id, estado) { try { await api(`/vendedor/productos/${id}/estado`, { method: 'POST', json: { estado } }); tabProductos() } catch (e) { alert(e.message) } }
 async function borrarProd(id) { if (!confirm('¿Borrar este producto?')) return; try { await api('/vendedor/productos/' + id, { method: 'DELETE' }); tabProductos() } catch (e) { alert(e.message) } }
