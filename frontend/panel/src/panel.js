@@ -6789,6 +6789,7 @@ async function cargarClientes() {
           <button class="pill-filter" data-flag="sincompras" onclick="_cliFlag('sincompras')">⚪ Nunca han comprado</button>
           <button class="pill-filter" data-flag="frecuentes" onclick="_cliFlag('frecuentes')">⭐ Frecuentes</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="sugerirFrecuentes()" title="Marca de una vez a las que más te han comprado">✨ Sugerir frecuentes</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;color:#7c3aed;border-color:#c4b5fd" onclick="abrirUnirClientes()" title="Encuentra clientes repetidos (mismo teléfono o mismo nombre) y los junta en uno">🔗 Unir clientes</button>
           <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliSelVisibles()">☑ Seleccionar los que se ven</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="_cliLimpiar()">Limpiar filtros</button>
@@ -30689,6 +30690,71 @@ window._guardarFrecuentes = async (ids, valor) => {
   if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo guardar')
   return d
 }
+// ── Unir clientes duplicados (mismo teléfono o mismo nombre) ──
+window.abrirUnirClientes = async () => {
+  document.getElementById('unir-cli-overlay')?.remove()
+  const ov = document.createElement('div')
+  ov.id = 'unir-cli-overlay'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto'
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;padding:1.25rem 1.5rem;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <h3 style="margin:0;font-size:1.05rem;flex:1">🔗 Unir clientes repetidos</h3>
+      <button class="btn btn-secondary" style="padding:3px 10px" onclick="document.getElementById('unir-cli-overlay').remove()">Cerrar</button>
+    </div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Al unir, los pedidos, el acceso al portal y el crédito pasan al cliente que elijas como principal, y le completamos los datos que le falten. Los repetidos no se borran: quedan ocultos con una nota.</p>
+    <div id="unir-cli-cuerpo"><p style="padding:1rem;color:#94a3b8">Buscando repetidos…</p></div></div>`
+  document.body.appendChild(ov)
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
+  await _cargarUnirClientes()
+}
+
+async function _cargarUnirClientes() {
+  const cuerpo = document.getElementById('unir-cli-cuerpo')
+  if (!cuerpo) return
+  try {
+    const r = await fetch(API + '/clientes/duplicados/lista')
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error || d.detail || 'Error')
+    const grupos = d.grupos || []
+    window._unirGrupos = grupos
+    if (!grupos.length) { cuerpo.innerHTML = '<p style="padding:1.2rem;color:#16a34a;font-weight:600">✅ No hay clientes repetidos (ni por teléfono ni por nombre).</p>'; return }
+    const fecha = f => f ? new Date(f).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'
+    cuerpo.innerHTML = `<p style="font-size:0.8rem;color:#475569;margin:0 0 8px"><strong>${grupos.length}</strong> grupo(s). Marca con el círculo cuál se queda como <strong>principal</strong> (te dejo sugerido el que tiene el pedido más reciente).</p>` +
+      grupos.map((g, gi) => `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:0.72rem;color:#7c3aed;font-weight:700;margin-bottom:6px">${_e(g.motivo)}</div>
+        ${g.clientes.map(c => `<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid #f1f5f9;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="unir-p-${gi}" value="${c.id}" ${c.id === g.sugerido ? 'checked' : ''} style="margin-top:3px">
+          <span style="flex:1"><strong>${_e(c.nombre || '(sin nombre)')}</strong> · ${_e(c.telefono || 'sin teléfono')} · ${_e(c.email || 'sin correo')}<br>
+            <span style="color:#64748b;font-size:0.74rem">${c.pedidos} pedido(s)${c.ultimo_pedido ? ' · último ' + fecha(c.ultimo_pedido) : ''} · alta ${fecha(c.created_at)} · ${_e(c.tipo || '')}${c.origen ? ' · origen ' + _e(c.origen) : ''}${c.tiene_acceso ? ' · 🔑 con acceso al portal' : ''}</span></span></label>`).join('')}
+        <div style="text-align:right;margin-top:6px"><button class="btn btn-primary" style="font-size:0.78rem;padding:5px 12px" onclick="unirGrupoClientes(${gi}, this)">Unir este grupo</button></div></div>`).join('')
+  } catch (e) {
+    cuerpo.innerHTML = `<p style="padding:1rem;color:#dc2626">No se pudo cargar: ${_e(e.message || e)}</p>`
+  }
+}
+
+window.unirGrupoClientes = async (gi, btn) => {
+  const g = (window._unirGrupos || [])[gi]
+  if (!g) return
+  const principal = document.querySelector(`input[name="unir-p-${gi}"]:checked`)?.value
+  if (!principal) { alert('Elige cuál se queda como principal.'); return }
+  const dups = g.clientes.map(c => c.id).filter(id => id !== principal)
+  const nombre = (g.clientes.find(c => c.id === principal) || {}).nombre
+  if (!confirm(`¿Unir ${g.clientes.length} fichas en "${nombre}"? Los pedidos y el acceso al portal pasan a esa ficha. Los repetidos quedan ocultos (no se borran).`)) return
+  if (btn) { btn.disabled = true; btn.textContent = 'Uniendo…' }
+  try {
+    const r = await fetch(API + '/clientes/duplicados/unir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ principal_id: principal, duplicados: dups }) })
+    const d = await r.json()
+    if (!r.ok || !d.ok) throw new Error(d.error || d.detail || 'Error')
+    const movidos = (d.unidos || []).flatMap(u => Object.entries(u.movidos || {}).map(([t, n]) => `${n} ${t}`))
+    alert('✅ Unidos en ' + d.principal + (movidos.length ? '\nSe pasó: ' + movidos.join(', ') : '') + (d.datos_completados?.length ? '\nDatos completados: ' + d.datos_completados.join(', ') : '') + (d.avisos?.length ? '\n⚠️ Avisos: ' + d.avisos.join(' | ') : ''))
+    await _cargarUnirClientes()
+    if (document.getElementById('cli-lista')) cargarClientes()
+  } catch (e) {
+    alert('No se pudo unir: ' + (e.message || e))
+    if (btn) { btn.disabled = false; btn.textContent = 'Unir este grupo' }
+  }
+}
+
 window.marcarFrecuentesSel = async (valor) => {
   const ids = [...document.querySelectorAll('.cli-sel:checked')].map(c => c.dataset.id)
   if (!ids.length) return

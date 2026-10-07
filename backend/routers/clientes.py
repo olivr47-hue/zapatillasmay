@@ -306,3 +306,148 @@ def dar_acceso_portal(id: str, _staff=Depends(require_staff)):
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ───────────────────────── Unir clientes duplicados ─────────────────────────
+# Tablas que apuntan a clientes(id): al unir, todo lo del duplicado pasa al cliente principal.
+_TABLAS_CLIENTE = (
+    "pedidos", "usuarios", "crm_seguimientos", "crm_etiquetas", "crm_oportunidades", "portal_otp",
+    "sugerencias_clientes", "push_subscriptions", "restock_watchers", "clientes_creditos_historial", "mayorista_registro",
+)
+_CAMPOS_RELLENAR = ("telefono", "email", "ciudad", "estado", "direccion", "codigo_postal", "lada", "origen")
+
+
+def _clave_nombre(n) -> str:
+    import re, unicodedata
+    s = unicodedata.normalize("NFKD", str(n or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", " ", s).strip()
+
+
+def _tel10(t) -> str:
+    return "".join(c for c in str(t or "") if c.isdigit())[-10:]
+
+
+@router.get("/duplicados/lista")
+def clientes_duplicados(_staff=Depends(require_staff)):
+    """Grupos de clientes activos que parecen la misma persona: mismo teléfono (10 dígitos) o mismo nombre."""
+    try:
+        cs = supabase_get_all("clientes?activo=eq.true&select=id,nombre,telefono,email,origen,tipo,created_at,credito_disponible")
+        padre = {c["id"]: c["id"] for c in cs}
+
+        def raiz(x):
+            while padre[x] != x:
+                padre[x] = padre[padre[x]]
+                x = padre[x]
+            return x
+
+        def unir(a, b):
+            ra, rb = raiz(a), raiz(b)
+            if ra != rb:
+                padre[ra] = rb
+
+        por_tel, por_nom = {}, {}
+        for c in cs:
+            t = _tel10(c.get("telefono"))
+            if len(t) == 10:
+                por_tel.setdefault(t, []).append(c["id"])
+            n = _clave_nombre(c.get("nombre"))
+            if len(n.split()) >= 2:   # un nombre de una sola palabra no basta para suponer que es la misma persona
+                por_nom.setdefault(n, []).append(c["id"])
+        for grupo in list(por_tel.values()) + list(por_nom.values()):
+            for x in grupo[1:]:
+                unir(grupo[0], x)
+        grupos = {}
+        for c in cs:
+            grupos.setdefault(raiz(c["id"]), []).append(c)
+        grupos = [g for g in grupos.values() if len(g) > 1]
+        if not grupos:
+            return {"grupos": []}
+
+        ids = [c["id"] for g in grupos for c in g]
+        pedidos, usuarios = [], set()
+        for i in range(0, len(ids), 100):
+            lote = ",".join(ids[i:i + 100])
+            pedidos += supabase_get_all(f"pedidos?cliente_id=in.({lote})&select=cliente_id,created_at") or []
+            usuarios |= {u["cliente_id"] for u in (supabase_get(f"usuarios?cliente_id=in.({lote})&select=cliente_id") or [])}
+        info = {}
+        for p in pedidos:
+            d = info.setdefault(p["cliente_id"], {"n": 0, "ultimo": ""})
+            d["n"] += 1
+            d["ultimo"] = max(d["ultimo"], p.get("created_at") or "")
+        salida = []
+        for g in grupos:
+            for c in g:
+                d = info.get(c["id"], {"n": 0, "ultimo": ""})
+                c["pedidos"], c["ultimo_pedido"], c["tiene_acceso"] = d["n"], d["ultimo"] or None, c["id"] in usuarios
+            # sugerido como principal: el del pedido más reciente; si nadie tiene, el que tiene acceso al portal; si no, el más nuevo
+            g.sort(key=lambda c: (c["ultimo_pedido"] or "", c["tiene_acceso"], c.get("created_at") or ""), reverse=True)
+            tels = {_tel10(c.get("telefono")) for c in g}
+            noms = {_clave_nombre(c.get("nombre")) for c in g}
+            mismo_tel = len(tels) == 1 and len(next(iter(tels))) == 10
+            motivo = "mismo teléfono y mismo nombre" if mismo_tel and len(noms) == 1 else ("mismo teléfono" if mismo_tel else "mismo nombre")
+            salida.append({"motivo": motivo, "sugerido": g[0]["id"], "clientes": g})
+        salida.sort(key=lambda x: -sum(c["pedidos"] for c in x["clientes"]))
+        return {"grupos": salida}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/duplicados/unir")
+def unir_clientes(datos: dict, _staff=Depends(require_staff)):
+    """Une clientes duplicados en uno (principal): pedidos, acceso al portal, CRM, crédito, etc. pasan al principal; los datos de contacto
+    que le falten se rellenan con los del duplicado. El duplicado NO se borra: queda inactivo (sin teléfono, para que no estorbe) con una nota."""
+    import re as _re
+    from datetime import datetime
+    uuid = r"[0-9a-fA-F-]{36}"
+    principal_id = str(datos.get("principal_id") or "")
+    dups = [str(i) for i in (datos.get("duplicados") or []) if str(i) != principal_id]
+    if not _re.fullmatch(uuid, principal_id) or not dups or not all(_re.fullmatch(uuid, i) for i in dups) or len(dups) > 10:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Elige el cliente principal y al menos un duplicado"})
+    try:
+        pr = supabase_get(f"clientes?id=eq.{principal_id}")
+        if not pr:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "No se encontró el cliente principal"})
+        principal = pr[0]
+        resultado, avisos, notas = [], [], []
+        cambios = {}
+        credito = float(principal.get("credito_disponible") or 0)
+        limite = float(principal.get("limite_credito") or 0)
+        for did in dups:
+            d = (supabase_get(f"clientes?id=eq.{did}") or [None])[0]
+            if not d:
+                avisos.append(f"{did}: no existe")
+                continue
+            movidos = {}
+            for t in _TABLAS_CLIENTE:
+                try:
+                    filas = supabase_get(f"{t}?cliente_id=eq.{did}&select=cliente_id&limit=1000") or []
+                    if filas:
+                        supabase_patch(f"{t}?cliente_id=eq.{did}", {"cliente_id": principal_id})
+                        movidos[t] = len(filas)
+                except Exception as e:
+                    avisos.append(f"{t}: {str(e)[:120]}")
+            for campo in _CAMPOS_RELLENAR:
+                if not (principal.get(campo) or cambios.get(campo)) and d.get(campo):
+                    cambios[campo] = d[campo]
+            credito += float(d.get("credito_disponible") or 0)
+            limite = max(limite, float(d.get("limite_credito") or 0))
+            if d.get("frecuente_wa") and not principal.get("frecuente_wa"):
+                cambios["frecuente_wa"] = True
+            if d.get("comentarios_internos"):
+                notas.append(str(d["comentarios_internos"]))
+            nota = f"Unido a {principal.get('nombre')} ({principal_id}) el {datetime.now().strftime('%Y-%m-%d')}. Teléfono original: {d.get('telefono') or '—'}; correo: {d.get('email') or '—'}."
+            supabase_patch(f"clientes?id=eq.{did}", {
+                "activo": False, "telefono": None,
+                "comentarios_internos": ((d.get("comentarios_internos") or "") + "\n" + nota).strip(),
+            })
+            resultado.append({"id": did, "nombre": d.get("nombre"), "movidos": movidos})
+        if credito != float(principal.get("credito_disponible") or 0):
+            cambios["credito_disponible"] = credito
+        if limite != float(principal.get("limite_credito") or 0):
+            cambios["limite_credito"] = limite
+        if notas:
+            cambios["comentarios_internos"] = ((principal.get("comentarios_internos") or "") + "\n" + "\n".join(notas)).strip()
+        if cambios:
+            supabase_patch(f"clientes?id=eq.{principal_id}", cambios)
+        return {"ok": True, "principal": principal.get("nombre"), "unidos": resultado, "datos_completados": sorted(cambios.keys()), "avisos": avisos}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
