@@ -1040,7 +1040,7 @@ window.rsPublicar = async () => {
     const r = await fetch(API + '/redes/publicar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls, caption: document.getElementById('rs-caption').value, destinos, historia: esHistoria, producto_ids: S.sel }) })
     const d = await r.json().catch(() => ({}))
-    if (!d.resultados) throw new Error(d.error || 'No se pudo publicar')
+    if (!d.resultados) throw new Error(d.error || `El servidor no contestó bien (código ${r.status}). Pudo haberse reiniciado o tardado demasiado. ANTES de volver a intentar, revisa en Facebook e Instagram si la publicación ya salió, para no duplicarla.`)
     const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${k === 'facebook' ? 'Facebook' : 'Instagram'}:</strong> ${v.ok ? 'publicado' : esc(v.error)}${v.aviso ? '<br><small style="color:#b45309">⚠️ ' + esc(v.aviso) + '</small>' : ''}`)
     msg(lineas.join('<br>'), d.ok)
     if (d.ok) { S.sel.forEach(id => S.publicados.add(id)); window.rsHistorial() }
