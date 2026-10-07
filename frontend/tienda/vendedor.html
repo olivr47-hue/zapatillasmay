@@ -247,8 +247,8 @@ async function tabResumen() {
     ${p.some(x => x.estado === 'rechazado') ? '<div class="aviso">Hay productos que necesitan cambios. Revisa el motivo en <b>Mis productos</b>.</div>' : ''}
     <div class="card" style="font-size:.9rem;color:#4b3a2f">
       <b style="font-size:1.1rem;font-family:Outfit;color:var(--black)">Cómo te pagamos</b>
-      <span style="display:block;margin-top:6px">La clienta paga en zapatillasmay.mx. Tú envías el pedido y capturas la guía; ese dinero pasa a «por pagarte». Te depositamos por lote a tu cuenta
-      (revisa que tus datos de pago estén en <b>Mi cuenta</b>). <b>No pagas comisión</b>: recibes el precio que pusiste.</span>
+      <span style="display:block;margin-top:6px">La clienta paga en zapatillasmay.mx. Tú envías el pedido y capturas la guía; ese dinero pasa a «por pagarte». Los pares que recibimos nosotros <b>se pagan 24 horas después de que los recibimos</b>; los que envías directo, al capturar tu guía.
+      Te depositamos a tu cuenta (revisa que tus datos de pago estén en <b>Mi cuenta</b>). <b>No pagas comisión</b>: recibes el precio que pusiste.</span>
     </div>
     <div class="card" style="font-size:.88rem;color:#4b3a2f;margin-top:12px">
       <b style="font-size:1.05rem;font-family:Outfit;color:var(--black)">Compras cruzadas: todo se suma</b>
@@ -363,7 +363,7 @@ async function tabPedidos() {
       <span style="margin-left:auto;font-size:.85rem;color:var(--gray);font-weight:400">${new Date(p.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span></h3>
     <ul>${(p.mp_pedido_items || []).map(i => `<li>${esc(i.cantidad)} × ${esc(i.nombre)} · talla ${esc(i.talla)} ${esc(i.color || '')}</li>`).join('')}</ul>
     ${p.modo_envio === 'consolidado'
-      ? `<div class="dir"><b>📦 Pedido cruzado: lo recibimos nosotros y lo enviamos junto con otros productos.</b><br>${p.status === 'pagado' ? 'Trae estos pares a: ' + esc(p.entregar_en || 'nuestra bodega') : 'Ya recibimos tus pares ✅'}</div>`
+      ? `<div class="dir"><b>📦 Pedido cruzado: lo recibimos nosotros y lo enviamos junto con otros productos.</b><br>${p.status === 'pagado' ? 'Trae estos pares a: ' + esc(p.entregar_en || 'nuestra bodega') + '<br><b>Te pagamos 24 horas después de que los recibamos.</b>' : (p.status === 'recibido' && p.recibido_at ? 'Ya recibimos tus pares ✅ Te los pagamos a partir del ' + new Date(new Date(p.recibido_at).getTime() + 24 * 3600 * 1000).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Ya recibimos tus pares ✅')}</div>`
       : `<div class="dir"><b>${esc(p.cliente_nombre)}</b> · WhatsApp ${esc(p.cliente_telefono || '')}<br>${esc(p.direccion || '')}, ${esc(p.ciudad || '')}, ${esc(p.estado_region || '')} CP ${esc(p.cp || '')}${p.notas ? '<br><i>Nota: ' + esc(p.notas) + '</i>' : ''}</div>`}
     <div style="font-size:.85rem;color:#4b3a2f"><b>Te toca: ${$$(p.neto_vendedor)}</b>${p.modo_envio === 'directo' ? ' (ya considera el envío de este pedido)' : ''}</div>
     ${p.status === 'pagado' && p.modo_envio === 'directo' ? `<div class="envio-f"><div><label>Paquetería</label><select id="pq-${esc(p.id)}">${PAQ.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
@@ -382,7 +382,7 @@ async function tabSaldo() {
   const s = await api('/vendedor/saldo')
   $('contenido').innerHTML = `<div class="cards">
       <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (pedidos ya enviados)</span></div>
-      <div class="card"><b>${$$(s.por_enviar)}</b><span>pedidos pagados por enviar</span></div>
+      <div class="card"><b>${$$(s.por_enviar)}</b><span>en camino: por enviar o entregarnos, o recibidos hace menos de 24 horas</span></div>
       <div class="card"><b>${$$(s.liquidado_total)}</b><span>depósitos recibidos</span></div></div>
     <h3 style="margin:8px 0">Depósitos</h3>` +
     (s.liquidaciones.length ? `<table class="t"><tr><th>Fecha</th><th>Monto</th><th>Referencia</th></tr>${s.liquidaciones.map(l => `<tr><td>${new Date(l.created_at).toLocaleDateString('es-MX')}</td><td><b>${$$(l.monto)}</b></td><td>${esc(l.referencia || '')}</td></tr>`).join('')}</table>` : '<p class="vacio">Todavía no te hemos depositado.</p>')

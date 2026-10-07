@@ -478,6 +478,22 @@ def subir_foto(request: Request, archivo: UploadFile = File(...), v=Depends(requ
 # + la comisión de MercadoPago (porcentaje + cuota fija + IVA sobre ambas), de modo que al negocio le queden sus $20 netos y al vendedor su precio.
 _ESTADOS_PAGADOS = ("pagado", "recibido", "enviado", "entregado")
 _ESTADOS_LIQUIDABLES = ("recibido", "enviado", "entregado")   # el vendedor ya cumplió (envió, o el negocio recibió sus pares)
+HORAS_PAGO_RECIBIDO = 24   # los pares que recibe el negocio se pagan 24 horas después de recibirlos (lo dice la página /vender)
+
+
+def _liquidable(p: dict) -> bool:
+    """¿Ya se le puede liquidar este pedido al vendedor? Enviado/entregado: sí. Recibido por el negocio: 24 horas después de recibirlo."""
+    if p.get("liquidacion_id"):
+        return False
+    if p.get("status") in ("enviado", "entregado"):
+        return True
+    if p.get("status") == "recibido":
+        try:
+            t = _dt.datetime.fromisoformat(str(p.get("recibido_at")).replace("Z", "+00:00"))
+            return _dt.datetime.now(_dt.timezone.utc) - t >= _dt.timedelta(hours=HORAS_PAGO_RECIBIDO)
+        except Exception:
+            return False
+    return False
 
 
 def _cfg_precios() -> dict:
@@ -581,9 +597,10 @@ def marcar_enviado(pid: str, datos: dict, v=Depends(require_vendedor)):
 
 
 def _saldo_vendedor(vendedor_id: str) -> dict:
-    ped = supabase_get_all(f"mp_pedidos?vendedor_id=eq.{vendedor_id}&status=in.({','.join(_ESTADOS_PAGADOS)})&select=status,neto_vendedor,liquidacion_id") or []
-    por_pagar = sum(float(p["neto_vendedor"] or 0) for p in ped if p["status"] in _ESTADOS_LIQUIDABLES and not p.get("liquidacion_id"))
-    por_enviar = sum(float(p["neto_vendedor"] or 0) for p in ped if p["status"] == "pagado")
+    ped = supabase_get_all(f"mp_pedidos?vendedor_id=eq.{vendedor_id}&status=in.({','.join(_ESTADOS_PAGADOS)})&select=status,neto_vendedor,liquidacion_id,recibido_at") or []
+    por_pagar = sum(float(p["neto_vendedor"] or 0) for p in ped if _liquidable(p))
+    # «en camino»: pedidos pagados que aún no son cobrables (por enviar/entregarnos, o recibidos hace menos de 24 horas)
+    por_enviar = sum(float(p["neto_vendedor"] or 0) for p in ped if not p.get("liquidacion_id") and not _liquidable(p) and p["status"] in ("pagado", "recibido"))
     liq = supabase_get(f"mp_liquidaciones?vendedor_id=eq.{vendedor_id}&select=id,monto,referencia,nota,created_at&order=created_at.desc&limit=100") or []
     return {"por_pagar": round(por_pagar, 2), "por_enviar": round(por_enviar, 2),
             "liquidado_total": round(sum(float(x["monto"] or 0) for x in liq), 2), "liquidaciones": liq}
@@ -958,7 +975,7 @@ def on_pedido_negocio_cancelado(pedido_negocio_id):
 def admin_resumen(_a=Depends(require_admin)):
     vend = supabase_get_all("mp_vendedores?select=id,estado") or []
     prods = supabase_get_all("mp_productos?select=id,estado") or []
-    ped = supabase_get_all("mp_pedidos?status=in.(pagado,recibido,enviado,entregado)&select=status,modo_envio,total,comision,neto_vendedor,liquidacion_id") or []
+    ped = supabase_get_all("mp_pedidos?status=in.(pagado,recibido,enviado,entregado)&select=status,modo_envio,total,comision,neto_vendedor,liquidacion_id,recibido_at") or []
     return {
         "vendedores_pendientes": sum(1 for v in vend if v["estado"] == "pendiente"),
         "vendedores_activos": sum(1 for v in vend if v["estado"] == "activo"),
@@ -968,7 +985,7 @@ def admin_resumen(_a=Depends(require_admin)):
         "pedidos_por_recibir": sum(1 for p in ped if p["status"] == "pagado" and p.get("modo_envio") == "consolidado"),
         "ventas_total": round(sum(float(p["total"]) for p in ped), 2),
         "comision_total": round(sum(float(p["comision"]) for p in ped), 2),
-        "por_liquidar": round(sum(float(p["neto_vendedor"]) for p in ped if p["status"] in _ESTADOS_LIQUIDABLES and not p.get("liquidacion_id")), 2),
+        "por_liquidar": round(sum(float(p["neto_vendedor"]) for p in ped if _liquidable(p)), 2),
     }
 
 
@@ -1093,27 +1110,28 @@ def admin_cancelar(pid: str, _a=Depends(require_admin)):
 @router.get("/admin/saldos")
 def admin_saldos(_a=Depends(require_admin)):
     vend = supabase_get_all("mp_vendedores?select=id,nombre_tienda,banco,clabe,titular,estado&order=nombre_tienda.asc") or []
-    ped = supabase_get_all("mp_pedidos?status=in.(pagado,recibido,enviado,entregado)&select=vendedor_id,status,neto_vendedor,comision,liquidacion_id") or []
+    ped = supabase_get_all("mp_pedidos?status=in.(pagado,recibido,enviado,entregado)&select=vendedor_id,status,neto_vendedor,comision,liquidacion_id,recibido_at") or []
     liq = supabase_get_all("mp_liquidaciones?select=vendedor_id,monto") or []
     out = []
     for v in vend:
         pv = [p for p in ped if p["vendedor_id"] == v["id"]]
-        por_pagar = sum(float(p["neto_vendedor"]) for p in pv if p["status"] in _ESTADOS_LIQUIDABLES and not p.get("liquidacion_id"))
-        por_enviar = sum(float(p["neto_vendedor"]) for p in pv if p["status"] == "pagado")
+        por_pagar = sum(float(p["neto_vendedor"]) for p in pv if _liquidable(p))
+        por_enviar = sum(float(p["neto_vendedor"]) for p in pv if not p.get("liquidacion_id") and not _liquidable(p) and p["status"] in ("pagado", "recibido"))
         pagado = sum(float(x["monto"]) for x in liq if x["vendedor_id"] == v["id"])
         if por_pagar or por_enviar or pagado:
             out.append({**v, "por_pagar": round(por_pagar, 2), "por_enviar": round(por_enviar, 2), "liquidado": round(pagado, 2),
-                        "pedidos_por_liquidar": sum(1 for p in pv if p["status"] in _ESTADOS_LIQUIDABLES and not p.get("liquidacion_id"))})
+                        "pedidos_por_liquidar": sum(1 for p in pv if _liquidable(p))})
     return out
 
 
 @router.post("/admin/liquidar")
 def admin_liquidar(datos: dict, _a=Depends(require_admin)):
-    """Liquida a un vendedor TODO lo pendiente (pedidos enviados, entregados o recibidos por el negocio, sin liquidar): crea la liquidación y marca esos pedidos."""
+    """Liquida a un vendedor TODO lo que ya se puede pagar (pedidos enviados o entregados, y los recibidos por el negocio hace 24 horas o más): crea la liquidación y marca esos pedidos."""
     vid = str(datos.get("vendedor_id") or "")
-    pend = supabase_get(f"mp_pedidos?vendedor_id=eq.{_q(vid)}&status=in.({','.join(_ESTADOS_LIQUIDABLES)})&liquidacion_id=is.null&select=id,neto_vendedor") or []
+    pend = supabase_get(f"mp_pedidos?vendedor_id=eq.{_q(vid)}&status=in.({','.join(_ESTADOS_LIQUIDABLES)})&liquidacion_id=is.null&select=id,status,recibido_at,neto_vendedor") or []
+    pend = [p for p in pend if _liquidable(p)]   # los recibidos por el negocio se pagan 24 horas después de recibirlos
     if not pend:
-        return JSONResponse(status_code=400, content={"error": "No hay pedidos pendientes de liquidar para este vendedor."})
+        return JSONResponse(status_code=400, content={"error": "No hay pedidos listos para liquidar (los pares que recibimos se pagan 24 horas después de recibirlos)."})
     monto = round(sum(float(p["neto_vendedor"]) for p in pend), 2)
     quien = str((_a or {}).get("nombre") or (_a or {}).get("email") or "admin")[:60]
     liq = supabase_post("mp_liquidaciones", {"vendedor_id": vid, "monto": monto, "referencia": _txt(datos.get("referencia"), 80),

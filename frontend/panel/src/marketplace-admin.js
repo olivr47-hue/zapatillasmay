@@ -134,7 +134,7 @@ window.mpPedAccion = async (id, accion) => {
 
 async function mpPagos(c) {
   const l = await mpApi('/marketplace/admin/saldos'); MP.datos.saldos = l
-  c.innerHTML = `<p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">«Por pagar» = pedidos que el vendedor ya envió, o que tú ya recibiste (pedidos cruzados), y todavía no le depositas. Al liquidar, haces el depósito a su cuenta y aquí lo registras: el sistema le avisa por correo.</p>` +
+  c.innerHTML = `<p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">«Por pagar» = pedidos que el vendedor ya envió, o que tú recibiste hace 24 horas o más (pedidos cruzados: a las tiendas se les paga 24 horas después de que recibes sus pares), y todavía no le depositas. Al liquidar, haces el depósito a su cuenta y aquí lo registras: el sistema le avisa por correo.</p>` +
     (l.length ? `<div class="table-card"><table><thead><tr><th>Vendedor</th><th>Por pagar</th><th>Por enviar (aún no es tuyo)</th><th>Ya liquidado</th><th>Datos para depositar</th><th></th></tr></thead><tbody>
       ${l.map(v => `<tr><td><strong>${esc(v.nombre_tienda)}</strong></td><td><b style="color:#be185d">${$$(v.por_pagar)}</b><br><span style="font-size:0.7rem;color:#94a3b8">${v.pedidos_por_liquidar} pedido(s)</span></td><td>${$$(v.por_enviar)}</td><td>${$$(v.liquidado)}</td>
         <td style="font-size:0.76rem">${v.clabe ? `${esc(v.titular || '')}<br>${esc(v.banco || '')}<br><b>${esc(v.clabe)}</b>` : '<span style="color:#b26a00">Aún no capturó su CLABE</span>'}</td>
