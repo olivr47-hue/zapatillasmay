@@ -5,6 +5,7 @@ import './seo-paginas.js'
 import './fotos-limpias.js'
 import './marketplace-admin.js'
 import './renta-admin.js'
+import './conexiones.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -110,6 +111,7 @@ const modulos = [
   { id: 'walmart', icon: '🏬', label: 'Walmart', section: 'Integraciones', soloAdmin: true },
   { id: 'amazon', icon: '📦', label: 'Amazon', section: 'Integraciones', soloAdmin: true },
   { id: 'tiktok', icon: '🎵', label: 'TikTok Shop', section: 'Integraciones', soloAdmin: true },
+  { id: 'conexiones', icon: '🔌', label: 'Conexiones', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Analítica', section: 'Integraciones', soloAdmin: true },
@@ -651,6 +653,7 @@ async function cargarModulo(id) {
     case 'redes': await window.cargarRedes(); break
     case 'marketplace': await window.cargarMarketplace(); break
     case 'prospectos': await window.cargarProspectos(); break
+    case 'conexiones': await window.cargarConexiones(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break

@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 from security import limiter, require_staff, AUTH_ENFORCE, verify_token, es_personal, _aplicar_vigencia
 import re as _re
 from database import supabase_get
+import integraciones_cfg
+integraciones_cfg.cargar_overrides()   # claves capturadas en el panel (Conexiones): deben estar en os.environ ANTES de importar los routers
 from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
@@ -30,6 +32,7 @@ from routers import pinterest
 from routers import portal
 from routers import marketplace
 from routers import demo as demo_router
+from routers import conexiones
 from routers import sugerencias
 from routers import push
 from routers import emails
@@ -201,6 +204,7 @@ app.include_router(productos.router)
 app.include_router(marketplace.router)
 app.include_router(marketplace.router_vendedor)
 app.include_router(demo_router.router)
+app.include_router(conexiones.router)
 app.include_router(sucursales.router)
 app.include_router(inventario.router)
 app.include_router(clientes.router)

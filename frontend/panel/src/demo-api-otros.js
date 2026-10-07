@@ -13,6 +13,22 @@ export function registrarRutasOtros({ db, ruta }) {
   ruta('GET', /^\/analytics\/ia-referrals$/, () => ({ total_sesiones: 0, referencias: [], por_dia: [] }))
   ruta('GET', /^\/analytics\/portal-visitas$/, () => ({ total_sesiones: 214, dias: Array.from({ length: 30 }, (_, i) => ({ fecha: dia(29 - i).replace(/-/g, ''), sesiones: 4 + (i * 7) % 11 })) }))
 
+  // Conexiones (datos de ejemplo: ninguna clave real)
+  const G = (id, nombre, icono, descripcion, probar, campos) => ({ id, nombre, icono, descripcion, probar, campos: campos.map(([clave, etiqueta, secreto, conf]) => ({ clave, etiqueta, secreto, ayuda: '', configurado: conf, origen: conf ? 'servidor' : 'vacio', vista: conf ? (secreto ? '••••a1b2' : 'EJEMPLO-123') : '' })) })
+  const CON = [
+    G('mercadopago', 'MercadoPago', '💳', 'Cobros de la tienda en línea y del portal de mayoristas.', null, [['MP_ACCESS_TOKEN', 'Access Token (producción)', true, true], ['MP_PUBLIC_KEY', 'Public Key (producción)', false, true], ['MP_WEBHOOK_SECRET', 'Clave secreta del webhook', true, true]]),
+    G('whatsapp', 'WhatsApp Business (Meta)', '💬', 'Mensajes, asistente y avisos de pedidos.', null, [['WHATSAPP_TOKEN', 'Token de acceso', true, true], ['WHATSAPP_PHONE_ID', 'ID del número de teléfono', false, true], ['WHATSAPP_WABA_ID', 'ID de la cuenta (WABA)', false, true]]),
+    G('mercadolibre', 'MercadoLibre', '🛒', 'Publicaciones, ventas, preguntas y mensajes.', '/ml/ping', [['ML_APP_ID', 'App ID', false, true], ['ML_CLIENT_SECRET', 'Clave secreta', true, true], ['ML_REFRESH_TOKEN', 'Refresh token', true, true]]),
+    G('amazon', 'Amazon México', '📦', 'Publicaciones, existencias y pedidos.', '/amazon/ping', [['AMAZON_LWA_CLIENT_ID', 'LWA Client ID', false, true], ['AMAZON_LWA_CLIENT_SECRET', 'LWA Client Secret', true, false], ['AMAZON_SELLER_ID', 'Seller ID', false, false]]),
+    G('walmart', 'Walmart Marketplace', '🏬', 'Catálogo, inventario y órdenes.', '/walmart/ping', [['WALMART_CLIENT_ID', 'Client ID', false, true], ['WALMART_CLIENT_SECRET', 'Client Secret', true, true]]),
+    G('shein', 'SHEIN', '🛍️', 'Publicaciones, inventario y ventas.', '/shein/ping', [['SHEIN_APP_ID', 'App ID', false, true], ['SHEIN_APP_SECRET', 'App Secret', true, true]]),
+    G('correo', 'Correo', '📧', 'Envío de correos a clientas.', null, [['RESEND_API_KEY', 'Resend: API key', true, true], ['NOTIF_EMAIL', 'Correo del negocio', false, true]]),
+  ].map(g => ({ ...g, configurados: g.campos.filter(c => c.configurado).length, total: g.campos.length, estado: g.campos.every(c => c.configurado) ? 'completo' : (g.campos.some(c => c.configurado) ? 'parcial' : 'sin_configurar') }))
+  const refrescar = (g) => { g.configurados = g.campos.filter(c => c.configurado).length; g.estado = g.configurados === g.total ? 'completo' : (g.configurados ? 'parcial' : 'sin_configurar') }
+  ruta('GET', /^\/config\/integraciones$/, () => ({ integraciones: CON, cifrado: true }))
+  ruta('PUT', /^\/config\/integraciones\/([^/]+)$/, ({ m }) => { CON.forEach(g => g.campos.forEach(c => { if (c.clave === m[1]) { c.configurado = true; c.origen = 'panel'; c.vista = c.secreto ? '••••demo' : 'EJEMPLO' } })); CON.forEach(refrescar); return { ok: true } })
+  ruta('DELETE', /^\/config\/integraciones\/([^/]+)$/, ({ m }) => { CON.forEach(g => g.campos.forEach(c => { if (c.clave === m[1]) { c.configurado = false; c.origen = 'vacio'; c.vista = '' } })); CON.forEach(refrescar); return { ok: true } })
+
   ruta('GET', /^\/config\/envio$/, () => ({ tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299, mayoreo_tiers: [{ min_kg: 3, max_kg: 6, precio: 230 }, { min_kg: 6, max_kg: 12, precio: 280 }, { min_kg: 12, max_kg: 30, precio: 360 }, { min_kg: 30, max_kg: 50, precio: 440 }] }))
   ruta('GET', /^\/seo\/config$/, () => [
     { clave: 'meta_titulo_home', valor: 'Mi Tienda | Calzado para dama' },
