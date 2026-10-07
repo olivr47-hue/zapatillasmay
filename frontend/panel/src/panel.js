@@ -6871,7 +6871,7 @@ async function cargarClientes() {
           <button class="pill-filter" data-flag="sincompras" onclick="_cliFlag('sincompras')">⚪ Nunca han comprado</button>
           <button class="pill-filter" data-flag="frecuentes" onclick="_cliFlag('frecuentes')">⭐ Frecuentes</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="sugerirFrecuentes()" title="Marca de una vez a las que más te han comprado">✨ Sugerir frecuentes</button>
-          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;color:#7c3aed;border-color:#c4b5fd" onclick="abrirUnirClientes()" title="Encuentra clientes repetidos (mismo teléfono o mismo nombre) y los junta en uno">🔗 Unir clientes</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;color:#7c3aed;border-color:#c4b5fd" id="btn-unir-clientes" onclick="abrirUnirClientes()" title="Encuentra clientes repetidos (mismo teléfono, correo o nombre) y los junta en uno">🔗 Unir clientes</button>
           <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliSelVisibles()">☑ Seleccionar los que se ven</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="_cliLimpiar()">Limpiar filtros</button>
@@ -6884,7 +6884,7 @@ async function cargarClientes() {
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="marcarFrecuentesSel(false)">Quitar ⭐</button>
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="_cliSelNinguno()">Quitar selección</button>
         </div>
-        <div id="cli-lista">
+        <div id="cli-lista" ${(setTimeout(() => window._contarRepetidosClientes && window._contarRepetidosClientes(), 600), '')}>
           ${clientesEnriquecidos.map(c => `
             <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${_e(c.nombre.toLowerCase())}" data-tel="${_e(c.telefono || '')}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}" data-frec="${c.frecuente_wa ? 1 : 0}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
@@ -10005,11 +10005,21 @@ window.guardarCliente = async (id) => {
   try {
     const method = id ? 'PATCH' : 'POST'
     const url = id ? API + '/clientes/' + id : API + '/clientes/'
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cliente)
     })
+    if (res.status === 409 && !id) {
+      // ya existe alguien con ese teléfono, correo o nombre: se pregunta antes de duplicar
+      const dup = await res.json().catch(() => ({}))
+      const lista = (dup.parecidos || []).map(x => `• ${x.nombre || '(sin nombre)'} · ${x.telefono || 'sin teléfono'} · ${x.email || 'sin correo'} (${x.motivo})`).join('\n')
+      if (!confirm('⚠️ Ya existe un cliente parecido:\n\n' + lista + '\n\nPara NO duplicarlo, pulsa Cancelar y búscalo en Clientes.\nSi de verdad es otra persona, pulsa Aceptar y se crea de todos modos.')) {
+        if (btn) { btn.textContent = 'Guardar cliente'; btn.disabled = false }
+        return
+      }
+      res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cliente, forzar: true }) })
+    }
     if (res.ok) {
       alert('Cliente guardado correctamente')
       navegarA('clientes')
@@ -30773,6 +30783,17 @@ window._guardarFrecuentes = async (ids, valor) => {
   return d
 }
 // ── Unir clientes duplicados (mismo teléfono o mismo nombre) ──
+// Pone el número de posibles repetidos en el botón (se pide en segundo plano al abrir Clientes)
+window._contarRepetidosClientes = async () => {
+  try {
+    const r = await fetch(API + '/clientes/duplicados/conteo')
+    if (!r.ok) return
+    const d = await r.json()
+    const b = document.getElementById('btn-unir-clientes')
+    if (b && d.grupos > 0) { b.textContent = `🔗 Unir clientes (${d.grupos})`; b.style.background = '#f5f3ff' }
+  } catch (e) {}
+}
+
 window.abrirUnirClientes = async () => {
   document.getElementById('unir-cli-overlay')?.remove()
   const ov = document.createElement('div')

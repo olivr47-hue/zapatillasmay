@@ -135,6 +135,13 @@ def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends
 @router.post("/")
 def crear_cliente(cliente: dict, _staff=Depends(require_staff)):
     try:
+        forzar = bool(cliente.pop("forzar", False))
+        if not forzar:
+            parecidos = _buscar_parecidos(cliente.get("nombre"), cliente.get("telefono"), cliente.get("email"))
+            if parecidos:
+                return JSONResponse(status_code=409, content={"ok": False, "duplicado": True, "parecidos": parecidos,
+                                    "error": "Ya existe un cliente con ese teléfono, correo o nombre"})
+        _CACHE_DUP["data"] = None
         return supabase_post("clientes", cliente)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -326,10 +333,69 @@ def _tel10(t) -> str:
     return "".join(c for c in str(t or "") if c.isdigit())[-10:]
 
 
+_CACHE_DUP = {"t": 0, "data": None}
+
+
+def _nombre_contenido(a: str, b: str) -> bool:
+    """Los dos nombres (ya normalizados) son la misma persona escrita más corta o más larga: «alejandra vergara» ⊂ «alejandra vergara benitez».
+    El corto necesita al menos 2 palabras."""
+    ta, tb = set(a.split()), set(b.split())
+    corto, largo = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
+    return len(corto) >= 2 and corto <= largo
+
+
+def _buscar_parecidos(nombre, telefono, email) -> list:
+    """Clientes activos que ya tienen ese teléfono (10 dígitos), ese correo, ese nombre exacto o un nombre que lo contiene."""
+    t10 = _tel10(telefono)
+    mail = str(email or "").strip().lower()
+    nom = _clave_nombre(nombre)
+    cs = supabase_get_all("clientes?activo=eq.true&select=id,nombre,telefono,email,tipo,created_at")
+    salida = []
+    for c in cs:
+        motivo = None
+        if len(t10) == 10 and _tel10(c.get("telefono")) == t10:
+            motivo = "mismo teléfono"
+        elif mail and str(c.get("email") or "").strip().lower() == mail:
+            motivo = "mismo correo"
+        elif nom and len(nom.split()) >= 2:
+            cn = _clave_nombre(c.get("nombre"))
+            if cn == nom:
+                motivo = "mismo nombre"
+            elif _nombre_contenido(nom, cn):
+                tc = _tel10(c.get("telefono"))
+                if not (len(t10) == 10 and len(tc) == 10 and tc != t10):
+                    motivo = "nombre parecido"
+        if motivo:
+            salida.append({"id": c["id"], "nombre": c.get("nombre"), "telefono": c.get("telefono"), "email": c.get("email"), "motivo": motivo})
+    return salida[:5]
+
+
+@router.get("/duplicados/conteo")
+def clientes_duplicados_conteo(_staff=Depends(require_staff)):
+    """Cuántos grupos de posibles repetidos hay (para el número del botón Unir clientes)."""
+    r = clientes_duplicados(_staff)
+    if isinstance(r, dict):
+        return {"grupos": len(r.get("grupos") or [])}
+    return {"grupos": 0}
+
+
 @router.get("/duplicados/lista")
 def clientes_duplicados(_staff=Depends(require_staff)):
-    """Grupos de clientes activos que parecen la misma persona: mismo teléfono (10 dígitos) o mismo nombre."""
+    """Grupos de clientes activos que parecen la misma persona: mismo teléfono (10 dígitos), mismo correo, mismo nombre o un nombre que
+    contiene al otro (siempre que los teléfonos no se contradigan). Se guarda 60 segundos en memoria."""
+    import time as _t
+    if _CACHE_DUP["data"] is not None and _t.time() - _CACHE_DUP["t"] < 60:
+        return _CACHE_DUP["data"]
     try:
+        r = _clientes_duplicados_calc()
+        _CACHE_DUP.update({"t": _t.time(), "data": r})
+        return r
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _clientes_duplicados_calc():
+    if True:
         cs = supabase_get_all("clientes?activo=eq.true&select=id,nombre,telefono,email,origen,tipo,created_at,credito_disponible")
         padre = {c["id"]: c["id"] for c in cs}
 
@@ -344,7 +410,8 @@ def clientes_duplicados(_staff=Depends(require_staff)):
             if ra != rb:
                 padre[ra] = rb
 
-        por_tel, por_nom = {}, {}
+        por_tel, por_nom, por_mail = {}, {}, {}
+        info_c = {}
         for c in cs:
             t = _tel10(c.get("telefono"))
             if len(t) == 10:
@@ -352,9 +419,25 @@ def clientes_duplicados(_staff=Depends(require_staff)):
             n = _clave_nombre(c.get("nombre"))
             if len(n.split()) >= 2:   # un nombre de una sola palabra no basta para suponer que es la misma persona
                 por_nom.setdefault(n, []).append(c["id"])
-        for grupo in list(por_tel.values()) + list(por_nom.values()):
+            m = str(c.get("email") or "").strip().lower()
+            if m and not m.startswith("contacto@"):   # el correo genérico del negocio lo comparten muchos mayoristas
+                por_mail.setdefault(m, []).append(c["id"])
+            info_c[c["id"]] = (n, t)
+        for grupo in list(por_tel.values()) + list(por_nom.values()) + list(por_mail.values()):
             for x in grupo[1:]:
                 unir(grupo[0], x)
+        # nombre contenido en otro («Alejandra Vergara» y «ALEJANDRA VERGARA BENITEZ»), siempre que los teléfonos no se contradigan
+        por_primero = {}
+        for cid, (n, t) in info_c.items():
+            if len(n.split()) >= 2:
+                por_primero.setdefault(n.split()[0], []).append(cid)
+        for lst in por_primero.values():
+            for ia in range(len(lst)):
+                for ib in range(ia + 1, len(lst)):
+                    na, ta = info_c[lst[ia]]
+                    nb, tb = info_c[lst[ib]]
+                    if _nombre_contenido(na, nb) and not (len(ta) == 10 and len(tb) == 10 and ta != tb):
+                        unir(lst[ia], lst[ib])
         grupos = {}
         for c in cs:
             grupos.setdefault(raiz(c["id"]), []).append(c)
@@ -382,13 +465,21 @@ def clientes_duplicados(_staff=Depends(require_staff)):
             g.sort(key=lambda c: (c["ultimo_pedido"] or "", c["tiene_acceso"], c.get("created_at") or ""), reverse=True)
             tels = {_tel10(c.get("telefono")) for c in g}
             noms = {_clave_nombre(c.get("nombre")) for c in g}
+            mails = {str(c.get("email") or "").strip().lower() for c in g}
             mismo_tel = len(tels) == 1 and len(next(iter(tels))) == 10
-            motivo = "mismo teléfono y mismo nombre" if mismo_tel and len(noms) == 1 else ("mismo teléfono" if mismo_tel else "mismo nombre")
+            if mismo_tel and len(noms) == 1:
+                motivo = "mismo teléfono y mismo nombre"
+            elif mismo_tel:
+                motivo = "mismo teléfono"
+            elif len(noms) == 1:
+                motivo = "mismo nombre"
+            elif len(mails) == 1 and "" not in mails:
+                motivo = "mismo correo"
+            else:
+                motivo = "nombre parecido (uno es más corto que el otro)"
             salida.append({"motivo": motivo, "sugerido": g[0]["id"], "clientes": g})
         salida.sort(key=lambda x: -sum(c["pedidos"] for c in x["clientes"]))
         return {"grupos": salida}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.post("/duplicados/unir")
@@ -448,6 +539,7 @@ def unir_clientes(datos: dict, _staff=Depends(require_staff)):
             cambios["comentarios_internos"] = ((principal.get("comentarios_internos") or "") + "\n" + "\n".join(notas)).strip()
         if cambios:
             supabase_patch(f"clientes?id=eq.{principal_id}", cambios)
+        _CACHE_DUP["data"] = None
         return {"ok": True, "principal": principal.get("nombre"), "unidos": resultado, "datos_completados": sorted(cambios.keys()), "avisos": avisos}
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})

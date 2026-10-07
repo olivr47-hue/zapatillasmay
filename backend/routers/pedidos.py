@@ -845,6 +845,13 @@ def crear_pedido(pedido: dict, request: Request):
                     cli_existente = supabase_get(f"clientes?telefono=eq.{_up.quote(tel_c, safe='')}&select=id&limit=2") or []
                     if len(cli_existente) != 1:
                         cli_existente = []
+                    # mismo teléfono escrito distinto (con +52, espacios o guiones): se compara por los últimos 10 dígitos
+                    t10_c = "".join(ch for ch in tel_c if ch.isdigit())[-10:]
+                    if not cli_existente and len(t10_c) == 10:
+                        cand = supabase_get(f"clientes?activo=eq.true&telefono=like.*{t10_c[-4:]}&select=id,telefono&limit=50") or []
+                        cand = [x for x in cand if "".join(ch for ch in str(x.get("telefono") or "") if ch.isdigit())[-10:] == t10_c]
+                        if len(cand) == 1:
+                            cli_existente = [{"id": cand[0]["id"]}]
                 if cli_existente:
                     pedido["cliente_id"] = cli_existente[0]["id"]
                 else:
