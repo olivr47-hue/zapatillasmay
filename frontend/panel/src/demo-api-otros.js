@@ -15,10 +15,10 @@ export function registrarRutasOtros({ db, ruta }) {
 
   ruta('GET', /^\/config\/envio$/, () => ({ tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299, mayoreo_tiers: [{ min_kg: 3, max_kg: 6, precio: 230 }, { min_kg: 6, max_kg: 12, precio: 280 }, { min_kg: 12, max_kg: 30, precio: 360 }, { min_kg: 30, max_kg: 50, precio: 440 }] }))
   ruta('GET', /^\/seo\/config$/, () => [
-    { clave: 'meta_titulo_home', valor: 'Zapatillas May | Calzado para dama (demo)' },
-    { clave: 'meta_descripcion_home', valor: 'Tacones, sandalias, botines y más. Envíos a todo México.' },
+    { clave: 'meta_titulo_home', valor: 'Mi Tienda | Calzado para dama' },
+    { clave: 'meta_descripcion_home', valor: 'Tacones, sandalias, botines y más. Envíos a todo el país.' },
     { clave: 'categorias_estilo', valor: '{}' }])
-  ruta('GET', /^\/clientes\/referidos$/, () => db.clientes.filter(c => c.tipo === 'menudeo').map((c, i) => ({ ...c, codigo_referido: 'MAY' + (100 + i), credito_disponible: i % 3 === 0 ? 60 : 0, referido_por: i > 2 && i % 2 ? 'MAY100' : null })))
+  ruta('GET', /^\/clientes\/referidos$/, () => db.clientes.filter(c => c.tipo === 'menudeo').map((c, i) => ({ ...c, codigo_referido: 'DEMO' + (100 + i), credito_disponible: i % 3 === 0 ? 60 : 0, referido_por: i > 2 && i % 2 ? 'DEMO100' : null })))
   ruta('GET', /^\/carrito-abandonado\/listar$/, () => ({
     carritos: db.clientes.slice(0, 4).map((c, i) => ({ id: 'ca' + i, nombre: c.nombre, email: c.email, telefono: c.telefono, total: 590 + i * 130, items: [{ nombre: 'Tacón Aurora', color: 'Negro', talla: '25', cantidad: 1, precio: 590 + i * 130 }], created_at: new Date(Date.now() - (i + 1) * 36e5 * 7).toISOString(), recordatorios_enviados: i % 2, estado: 'abandonado', recuperado: false })),
     stats: { total: 4, recuperados: 1, valor_total: 2900, valor_recuperado: 640 } }))

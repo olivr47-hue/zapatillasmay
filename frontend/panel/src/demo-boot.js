@@ -36,8 +36,11 @@ if (_demo) {
   window.__zmInterno = true
   // la demo no muestra Marketplace ni Renta del sistema (son del negocio, no del sistema que se renta)
   const est = document.createElement('style')
-  est.textContent = '[data-modulo="marketplace"],[data-modulo="prospectos"]{display:none!important}'
+  est.textContent = '[data-modulo="marketplace"],[data-modulo="prospectos"],[data-modulo="editor-visual"]{display:none!important}'
   document.head.appendChild(est)
+  // enlaces a los archivos reales del negocio (sitemap, feeds...) no se ofrecen en la demo
+  const limpiarEnlaces = () => document.querySelectorAll('a[href*="zapatillasmay"]').forEach(a => { if (!a.closest('#zm-demo-banner')) { a.removeAttribute('href'); a.style.cursor = 'default' } })
+  new MutationObserver(limpiarEnlaces).observe(document.documentElement, { childList: true, subtree: true })
   // 5) cinta superior
   const poner = () => {
     if (document.getElementById('zm-demo-banner')) return
