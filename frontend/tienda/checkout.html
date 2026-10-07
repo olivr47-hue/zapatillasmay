@@ -381,6 +381,7 @@ if (!window.fbq){
   </div>
 </div>
 
+<script src="/assets/mpcarrito.f3cb3abf.js"></script>
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
@@ -397,6 +398,7 @@ function _pintarBotonEntrega(btn, activo) {
 }
 
 function seleccionarEntrega(tipo) {
+  if (tipo === 'recoger' && zmCarritoTieneMp(leerCarrito())) { mostrarToast('Con productos de tiendas aliadas el pedido se envía a domicilio'); tipo = 'domicilio' }
   window._entregaTipo = tipo
   _pintarBotonEntrega(document.getElementById('entrega-btn-domicilio'), tipo === 'domicilio')
   _pintarBotonEntrega(document.getElementById('entrega-btn-recoger'), tipo === 'recoger')
@@ -509,7 +511,7 @@ function render() {
     return `<div class="ritem">${img}
       <div class="ritem-info">
         <p class="ritem-name">${item.nombre}</p>
-        <p class="ritem-meta">${item.color||''}${item.es_corrida?' · Corrida':(item.talla?' · T'+item.talla:'')} · ${pares} ${pares>1?'pares':'par'}</p>
+        <p class="ritem-meta">${item.color||''}${item.es_corrida?' · Corrida':(item.talla?' · T'+item.talla:'')} · ${pares} ${pares>1?'pares':'par'}${item.mp ? ` · <span style="color:var(--mauve)">Vendido por ${String(item.vendedor || 'tienda aliada').replace(/[<>&"]/g, '')}</span>` : ''}</p>
       </div>
       <span class="ritem-price">$${sub.toLocaleString('es-MX',{maximumFractionDigits:0})}</span>
     </div>`
@@ -526,12 +528,14 @@ function render() {
   }, 0)
   const ahorro = subtotalSinDesc - subtotalProductos
   const esRecoger = window._entregaTipo === 'recoger'
-  const costoEnvio = esRecoger ? 0 : calcularEnvio(total, subtotalProductos)
+  const _envMp = esRecoger ? null : zmEnvioCarrito(carrito, total, subtotalProductos, cfgEnvio, calcularPrecioUnitario)
+  const costoEnvio = esRecoger ? 0 : (_envMp !== null ? _envMp : calcularEnvio(total, subtotalProductos))
   const totalFinal = subtotalProductos + costoEnvio
 
   const tieneCorridaResumen = carrito.some(i => i.es_corrida)
   const tipoDesc = tieneCorridaResumen ? 'Descuento corrida completa' : total >= 3 ? 'Precio mayoreo (3+ pares)' : ''
-  let h = `<div class="resumen-row"><span>Subtotal (${total} ${total===1?'par':'pares'})</span><span>$${subtotalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
+  let h = zmCarritoTieneMp(carrito) ? `<div style="font-size:0.72rem;line-height:1.5;color:var(--gray);background:rgba(200,150,122,0.08);border-radius:10px;padding:9px 12px;margin-bottom:10px">${zmNotaCruzada(cfgEnvio)}</div>` : ''
+  h += `<div class="resumen-row"><span>Subtotal (${total} ${total===1?'par':'pares'})</span><span>$${subtotalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   if (ahorro > 0) h += `<div class="resumen-row" style="color:var(--mauve)"><span>${tipoDesc}</span><span>−$${ahorro.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   if (esRecoger) {
     h += `<div class="resumen-row" style="color:#22c55e"><span>🏪 Recoger en tienda</span><span style="font-weight:700">GRATIS</span></div>`
@@ -707,11 +711,14 @@ async function procesarPago() {
       ? `RECOGER EN TIENDA — ${sucursalPickup?.nombre || 'Sucursal'}, ${sucursalPickup?.direccion || ''}`
       : `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`
     const notasFinal = esRecoger ? `[Recoge en tienda] ${notas}`.trim() : notas
-    const resPedido = await fetch(`${API}/pedidos/`, {
+    const _conMp = zmCarritoTieneMp(carrito)
+    const resPedido = await fetch(_conMp ? `${API}/marketplace/checkout-carrito` : `${API}/pedidos/`, {
       method:'POST', headers: authH({'Content-Type':'application/json'}),
       body: JSON.stringify({
+        // carrito con productos de tiendas aliadas: el servidor separa lo del negocio de lo de cada tienda y recalcula precios y envío
+        ...(_conMp ? { items_mp: carrito.filter(i => i.mp).map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad })) } : {}),
         cliente_id: usuarioActual?.cliente_id || null,
-        items: carrito.map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
+        items: carrito.filter(i => !i.mp).map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, es_corrida:!!i.es_corrida, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
         total: totalFinal, status:'borrador',
         nombre_cliente:nombre, email_cliente:email, telefono_cliente:telefono,
         ciudad_cliente: esRecoger ? 'León' : ciudad, estado_cliente: esRecoger ? 'Guanajuato' : estado, cp_cliente: cp,
@@ -731,6 +738,21 @@ async function procesarPago() {
       })
     })
     const pedido = await resPedido.json()
+    if (_conMp) {
+      // un solo pago para todo el carrito (Checkout Pro): se guarda lo mismo que en el flujo normal y se manda a MercadoPago
+      if (!resPedido.ok || !pedido.init_point) throw new Error(pedido.error || pedido.detail || 'No se pudo crear tu pedido')
+      guardarDatosEnCuenta({ nombre, telefono, calle, colonia, cp, ciudad, estado })
+      try {
+        localStorage.setItem('zm_form_datos', JSON.stringify({ nombre, email, telefono, calle, colonia, cp, ciudad, estado }))
+        localStorage.setItem('zm_checkout_email', email)
+        localStorage.setItem('zm_purchase_value', String(pedido.total || totalFinal))
+        localStorage.setItem('zm_checkout_pedido_id', String(pedido.pedido_id))
+        localStorage.removeItem('zm_carrito')
+      } catch(e) {}
+      if (window.fbq) fbq('track','AddPaymentInfo',{value:pedido.total||totalFinal,currency:'MXN'})
+      window.location.href = pedido.init_point
+      return
+    }
     if (!pedido.id) throw new Error(pedido.error || pedido.detail || 'Error creando pedido')
     // Guardar dirección en la cuenta del cliente si está logueado
     guardarDatosEnCuenta({ nombre, telefono, calle, colonia, cp, ciudad, estado })
@@ -1287,6 +1309,7 @@ async function refrescarPreciosCarrito() {
 }
 
 async function init() {
+  await zmRefrescarMp()
   await cargarCarritoDesdeURL()
   await refrescarPreciosCarrito()
   if (!window.history.state) {

@@ -50,7 +50,7 @@
     .tag { display:inline-block; font-size:.7rem; font-weight:700; padding:2px 10px; border-radius:20px; }
     .t-borrador { background:#eee; color:#555; } .t-pendiente { background:#fff4e5; color:var(--warn); } .t-publicado { background:#e8f5e9; color:var(--ok); }
     .t-rechazado { background:#fdecea; color:var(--bad); } .t-pausado { background:#e8eaf6; color:#3949ab; }
-    .t-pagado { background:#fff4e5; color:var(--warn); } .t-enviado { background:#e3f2fd; color:#1565c0; } .t-entregado { background:#e8f5e9; color:var(--ok); } .t-cancelado { background:#fdecea; color:var(--bad); }
+    .t-pagado { background:#fff4e5; color:var(--warn); } .t-recibido { background:#e3f2fd; color:#1565c0; } .t-enviado { background:#e3f2fd; color:#1565c0; } .t-entregado { background:#e8f5e9; color:var(--ok); } .t-cancelado { background:#fdecea; color:var(--bad); }
     .vacio { text-align:center; color:var(--gray); padding:34px 10px; }
     .overlay { position:fixed; inset:0; background:rgba(42,26,14,.55); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:3vh 12px; overflow:auto; }
     .overlay.on { display:flex; }
@@ -133,9 +133,12 @@
   <div class="g2">
     <div><label>Categoría</label><select id="pf-cat"></select></div>
     <div><label>Material</label><input type="text" id="pf-material" maxlength="60" placeholder="Piel, sintético, charol…"></div>
-    <div><label>Precio al público (por par) *</label><input type="number" id="pf-precio" min="50" max="20000" step="1" placeholder="599"></div>
-    <div><label>Envío (lo paga la clienta y es tuyo)</label><input type="number" id="pf-envio" min="0" max="1500" step="1" value="150"></div>
+    <div><label>Precio de menudeo: lo que quieres RECIBIR por par *</label><input type="number" id="pf-precio" min="50" max="20000" step="1" placeholder="500" oninput="vistaPrevia()"></div>
+    <div><label>Precio por 3+ pares: lo que quieres recibir por par si la clienta lleva 3 o más en su carrito</label><input type="number" id="pf-precio3" min="50" max="20000" step="1" placeholder="440" oninput="vistaPrevia()"></div>
+    <div><label>Costo de tu envío (lo que te cuesta enviar un pedido)</label><input type="number" id="pf-envio" min="0" max="1500" step="1" value="150"></div>
   </div>
+  <div id="pf-vista" style="font-size:.82rem;color:#4b3a2f;background:var(--cream);border-radius:10px;padding:9px 12px;margin-top:8px;line-height:1.5">Escribe tus precios para ver cuánto verá la clienta.</div>
+  <p style="font-size:.76rem;color:var(--gray);margin:6px 0 0">Como en el panel de Zapatillas May: tu precio de menudeo y tu precio por 3+ pares. Tú recibes esos precios completos: nosotros sumamos nuestra ganancia y la comisión de MercadoPago al precio que ve la clienta. El descuento por 3+ pares se suma entre todos los productos del carrito, también con otras tiendas.</p>
   <label>Descripción</label><textarea id="pf-desc" rows="3" maxlength="1500" placeholder="Altura de tacón, forro, a qué talla corre…"></textarea>
   <label>Fotos (máximo 8; la primera es la principal) *</label>
   <div class="fotos" id="pf-fotos"></div>
@@ -235,8 +238,8 @@ async function tabResumen() {
   const porEnviar = ped.filter(x => x.status === 'pagado').length
   $('contenido').innerHTML = `
     <div class="cards">
-      <div class="card"><b>${porEnviar}</b><span>pedidos por enviar</span></div>
-      <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (ya enviados)</span></div>
+      <div class="card"><b>${porEnviar}</b><span>pedidos pagados por enviar o entregarnos</span></div>
+      <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (ya enviados o recibidos por nosotros)</span></div>
       <div class="card"><b>${$$(s.por_enviar)}</b><span>en camino a ser tuyos (por enviar)</span></div>
       <div class="card"><b>${p.filter(x => x.estado === 'publicado').length}</b><span>productos publicados de ${p.length}</span></div>
     </div>
@@ -245,7 +248,12 @@ async function tabResumen() {
     <div class="card" style="font-size:.9rem;color:#4b3a2f">
       <b style="font-size:1.1rem;font-family:Outfit;color:var(--black)">Cómo te pagamos</b>
       <span style="display:block;margin-top:6px">La clienta paga en zapatillasmay.mx. Tú envías el pedido y capturas la guía; ese dinero pasa a «por pagarte». Te depositamos por lote a tu cuenta
-      (revisa que tus datos de pago estén en <b>Mi cuenta</b>). Comisión: <b>${$$(V.comision_por_par)}</b> por par${Number(V.cargo_pago_pct) ? ' + ' + Number(V.cargo_pago_pct) + '% por procesamiento de pago' : ''}.</span>
+      (revisa que tus datos de pago estén en <b>Mi cuenta</b>). <b>No pagas comisión</b>: recibes el precio que pusiste.</span>
+    </div>
+    <div class="card" style="font-size:.88rem;color:#4b3a2f;margin-top:12px">
+      <b style="font-size:1.05rem;font-family:Outfit;color:var(--black)">Compras cruzadas: todo se suma</b>
+      <span style="display:block;margin-top:6px;line-height:1.55">El carrito es uno solo para todas las tiendas y Zapatillas May. Los pares se suman para el <b>descuento de 3+ pares</b> (cada producto usa su precio de 3+ pares, aunque de tu tienda sea un solo par) y el total se suma para el <b>envío gratis desde $1,299</b>.
+      Cuando el envío sale gratis en un pedido cruzado, <b>su costo se reparte entre quienes participan</b>, en proporción a lo que vende cada quien (se descuenta de lo que te toca). En pedidos de 3+ pares de varias tiendas, <b>nosotros los recibimos</b>: tú nos traes tus pares y nosotros enviamos todo junto.</span>
     </div>`
 }
 
@@ -256,7 +264,7 @@ async function tabProductos() {
     (PRODS.length ? PRODS.map(p => `<div class="fila">
       ${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : '<div class="ph">👠</div>'}
       <div class="info"><h3>${esc(p.nombre)} <span class="tag t-${esc(p.estado)}">${esc({ borrador: 'Borrador', pendiente: 'En revisión', publicado: 'Publicado', rechazado: 'Necesita cambios', pausado: 'Pausado' }[p.estado] || p.estado)}</span></h3>
-        <p>${$$(p.precio)} · ${totalStock(p)} pares · ${esc(p.categoria || '')}</p>
+        <p>Recibes ${$$(p.precio)}${p.precio_mayoreo3 ? ' · 3+ pares: ' + $$(p.precio_mayoreo3) : ''} · ${totalStock(p)} pares · ${esc(p.categoria || '')}</p>
         ${p.estado === 'rechazado' && p.motivo_rechazo ? `<p style="color:#b3261e">Motivo: ${esc(p.motivo_rechazo)}</p>` : ''}</div>
       <div class="acc">
         <button class="btn sec mini" onclick="abrirProd('${esc(p.id)}')">Editar</button>
@@ -307,12 +315,25 @@ document.addEventListener('change', async (ev) => {
     } catch (e) { msg('pf-msg', e.message, false) }
   }
 })
+let _vpT = null
+function vistaPrevia() {
+  clearTimeout(_vpT)
+  _vpT = setTimeout(async () => {
+    const a = Number($('pf-precio').value), b = Number($('pf-precio3').value)
+    if (!(a >= 50)) { $('pf-vista').textContent = 'Escribe tus precios para ver cuánto verá la clienta.'; return }
+    try {
+      const [x, y] = await Promise.all([api('/vendedor/precio-publico?neto=' + a), b >= 50 ? api('/vendedor/precio-publico?neto=' + b) : Promise.resolve(null)])
+      $('pf-vista').innerHTML = `La clienta verá <b>${$$(x.precio_publico)}</b> por par` + (y ? ` y <b>${$$(y.precio_publico)}</b> por par con 3+ pares en el carrito` : '') +
+        `. Tú recibes <b>${$$(a)}</b>${y ? ' y <b>' + $$(b) + '</b>' : ''} por par. ${b > a ? '<br><span style="color:#b3261e">El precio por 3+ pares no puede ser mayor al de menudeo.</span>' : ''}`
+    } catch (e) { $('pf-vista').textContent = e.message }
+  }, 350)
+}
 function abrirProd(id) {
   EDIT = id ? PRODS.find(p => p.id === id) : null
   $('pf-titulo').textContent = EDIT ? 'Editar producto' : 'Nuevo producto'
   $('pf-cat').innerHTML = CATS.map(c => `<option value="${c}">${c[0].toUpperCase() + c.slice(1)}</option>`).join('')
   $('pf-nombre').value = EDIT ? EDIT.nombre : ''; $('pf-cat').value = EDIT ? (EDIT.categoria || 'otros') : 'tacones'
-  $('pf-material').value = EDIT ? (EDIT.material || '') : ''; $('pf-precio').value = EDIT ? EDIT.precio : ''
+  $('pf-material').value = EDIT ? (EDIT.material || '') : ''; $('pf-precio').value = EDIT ? EDIT.precio : ''; $('pf-precio3').value = EDIT && EDIT.precio_mayoreo3 ? EDIT.precio_mayoreo3 : ''; vistaPrevia()
   $('pf-envio').value = EDIT ? EDIT.envio : 150; $('pf-desc').value = EDIT ? (EDIT.descripcion || '') : ''
   FOTOS = EDIT ? [...(EDIT.imagenes || [])] : []; pintarFotos()
   $('pf-vars').querySelector('tbody').innerHTML = (EDIT && EDIT.mp_variantes.length ? EDIT.mp_variantes : [{ color: '', talla: '', stock: 1 }]).map(filaVar).join('')
@@ -323,7 +344,7 @@ function abrirProd(id) {
 function cerrarProd() { $('ov-prod').classList.remove('on') }
 async function guardarProd(revision) {
   const variantes = [...$('pf-vars').querySelectorAll('tbody tr')].map(tr => ({ color: tr.querySelector('.vc').value.trim(), talla: tr.querySelector('.vt').value.trim(), stock: tr.querySelector('.vs').value })).filter(v => v.talla)
-  const datos = { nombre: $('pf-nombre').value, categoria: $('pf-cat').value, material: $('pf-material').value, precio: $('pf-precio').value, envio: $('pf-envio').value, descripcion: $('pf-desc').value, imagenes: FOTOS, variantes }
+  const datos = { nombre: $('pf-nombre').value, categoria: $('pf-cat').value, material: $('pf-material').value, precio: $('pf-precio').value, precio_mayoreo3: $('pf-precio3').value, envio: $('pf-envio').value, descripcion: $('pf-desc').value, imagenes: FOTOS, variantes }
   $('pf-guardar').disabled = $('pf-revision').disabled = true
   try {
     const p = EDIT ? await api('/vendedor/productos/' + EDIT.id, { method: 'PATCH', json: datos }) : await api('/vendedor/productos', { method: 'POST', json: datos })
@@ -338,12 +359,14 @@ const PAQ = ['DHL', 'Estafeta', 'FedEx', 'J&T Express', 'Paquetexpress', 'Redpac
 async function tabPedidos() {
   PEDS = await api('/vendedor/pedidos')
   $('contenido').innerHTML = PEDS.length ? PEDS.map(p => `<div class="ped">
-    <h3>Pedido #${esc(p.numero)} <span class="tag t-${esc(p.status)}">${esc({ pagado: 'Por enviar', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' }[p.status] || p.status)}</span>
+    <h3>Pedido #${esc(p.numero)} <span class="tag t-${esc(p.status)}">${esc({ pagado: p.modo_envio === 'consolidado' ? 'Por entregarnos' : 'Por enviar', recibido: 'Recibido por nosotros', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' }[p.status] || p.status)}</span>
       <span style="margin-left:auto;font-size:.85rem;color:var(--gray);font-weight:400">${new Date(p.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span></h3>
     <ul>${(p.mp_pedido_items || []).map(i => `<li>${esc(i.cantidad)} × ${esc(i.nombre)} · talla ${esc(i.talla)} ${esc(i.color || '')}</li>`).join('')}</ul>
-    <div class="dir"><b>${esc(p.cliente_nombre)}</b> · WhatsApp ${esc(p.cliente_telefono || '')}<br>${esc(p.direccion || '')}, ${esc(p.ciudad || '')}, ${esc(p.estado_region || '')} CP ${esc(p.cp || '')}${p.notas ? '<br><i>Nota: ' + esc(p.notas) + '</i>' : ''}</div>
-    <div style="font-size:.85rem;color:#4b3a2f">Cobrado a la clienta: ${$$(p.total)} · Comisión: ${$$(p.comision)} · <b>Te toca: ${$$(p.neto_vendedor)}</b></div>
-    ${p.status === 'pagado' ? `<div class="envio-f"><div><label>Paquetería</label><select id="pq-${esc(p.id)}">${PAQ.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+    ${p.modo_envio === 'consolidado'
+      ? `<div class="dir"><b>📦 Pedido cruzado: lo recibimos nosotros y lo enviamos junto con otros productos.</b><br>${p.status === 'pagado' ? 'Trae estos pares a: ' + esc(p.entregar_en || 'nuestra bodega') : 'Ya recibimos tus pares ✅'}</div>`
+      : `<div class="dir"><b>${esc(p.cliente_nombre)}</b> · WhatsApp ${esc(p.cliente_telefono || '')}<br>${esc(p.direccion || '')}, ${esc(p.ciudad || '')}, ${esc(p.estado_region || '')} CP ${esc(p.cp || '')}${p.notas ? '<br><i>Nota: ' + esc(p.notas) + '</i>' : ''}</div>`}
+    <div style="font-size:.85rem;color:#4b3a2f"><b>Te toca: ${$$(p.neto_vendedor)}</b>${p.modo_envio === 'directo' ? ' (ya considera el envío de este pedido)' : ''}</div>
+    ${p.status === 'pagado' && p.modo_envio === 'directo' ? `<div class="envio-f"><div><label>Paquetería</label><select id="pq-${esc(p.id)}">${PAQ.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
       <div><label>Número de guía</label><input type="text" id="gu-${esc(p.id)}" maxlength="60"></div><button class="btn mini" onclick="enviarPed('${esc(p.id)}')">Marcar enviado</button></div>` :
       (p.guia ? `<p style="font-size:.85rem;margin-top:6px">Guía: <b>${esc(p.paqueteria)} ${esc(p.guia)}</b>${p.liquidacion_id ? ' · ya liquidado ✅' : ''}</p>` : '')}
   </div>`).join('') : '<p class="vacio">Aún no tienes pedidos pagados. Cuando vendas, aparecen aquí.</p>'
@@ -360,8 +383,7 @@ async function tabSaldo() {
   $('contenido').innerHTML = `<div class="cards">
       <div class="card"><b>${$$(s.por_pagar)}</b><span>por pagarte (pedidos ya enviados)</span></div>
       <div class="card"><b>${$$(s.por_enviar)}</b><span>pedidos pagados por enviar</span></div>
-      <div class="card"><b>${$$(s.liquidado_total)}</b><span>depósitos recibidos</span></div>
-      <div class="card"><b>${$$(s.comision_total)}</b><span>comisión total de tus ventas</span></div></div>
+      <div class="card"><b>${$$(s.liquidado_total)}</b><span>depósitos recibidos</span></div></div>
     <h3 style="margin:8px 0">Depósitos</h3>` +
     (s.liquidaciones.length ? `<table class="t"><tr><th>Fecha</th><th>Monto</th><th>Referencia</th></tr>${s.liquidaciones.map(l => `<tr><td>${new Date(l.created_at).toLocaleDateString('es-MX')}</td><td><b>${$$(l.monto)}</b></td><td>${esc(l.referencia || '')}</td></tr>`).join('')}</table>` : '<p class="vacio">Todavía no te hemos depositado.</p>')
 }

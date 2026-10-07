@@ -867,6 +867,12 @@ async def webhook_mercadopago(request: Request):
                             if not reclamado:
                                 print(f"[webhook] Pedido {pedido_id} ya reclamado por otro webhook, ignorando.")
                                 return {"ok": True}
+                            # Si este pago incluía productos de vendedores del marketplace (carrito único), se confirman sus pedidos.
+                            try:
+                                from routers.marketplace import on_pedido_negocio_pagado
+                                on_pedido_negocio_pagado(pedido_id, payment_id, payment.get("transaction_amount"))
+                            except Exception as e_mp:
+                                print(f"[webhook] marketplace: {e_mp}")
                             try:
                                 monto_pagado = float(payment.get("transaction_amount") or 0)
                                 if monto_pagado + 1 < float(p.get("total") or 0):
@@ -964,6 +970,11 @@ async def webhook_mercadopago(request: Request):
                             f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
                             {"status": "cancelado", "forma_pago": _forma}
                         )
+                        try:
+                            from routers.marketplace import on_pedido_negocio_cancelado
+                            on_pedido_negocio_cancelado(pedido_id)
+                        except Exception as e_mp:
+                            print(f"[webhook] marketplace (cancelado): {e_mp}")
 
                     elif status in ["refunded", "charged_back"]:
                         # Antes ni se enteraba nadie: avisar al panel para revisar el pedido/stock.

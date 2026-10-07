@@ -46,6 +46,7 @@
     .lineas div { display:flex; justify-content:space-between; gap:8px; padding:3px 0; }
     .lineas button { background:none; border:0; color:var(--pink); cursor:pointer; font-size:.8rem; text-decoration:underline; }
     .tot { display:flex; justify-content:space-between; font-weight:600; margin-top:6px; padding-top:8px; border-top:1px solid var(--cd); }
+    .nota { margin-top:12px; font-size:.82rem; line-height:1.5; color:#5b4638; background:var(--cream); border-radius:12px; padding:10px 14px; }
     .desc { margin-top:22px; font-size:.93rem; color:#4b3a2f; white-space:pre-line; }
     .conf { margin-top:16px; font-size:.82rem; color:var(--gray); display:grid; gap:4px; }
     .overlay { position:fixed; inset:0; background:rgba(42,26,14,.55); z-index:50; display:none; align-items:flex-start; justify-content:center; padding:3vh 12px; overflow:auto; }
@@ -68,19 +69,6 @@
 </header>
 <div class="wrap" id="app"><p class="vacio">Cargando…</p></div>
 
-<div class="overlay" id="ov"><div class="modal">
-  <h2>Datos de envío</h2>
-  <p style="font-size:.82rem;color:var(--gray)">Pagas en zapatillasmay.mx con MercadoPago. La tienda te envía el pedido y te llega la guía por correo.</p>
-  <label>Nombre completo *</label><input type="text" id="c-nombre" maxlength="80" autocomplete="name">
-  <div class="g2"><div><label>Correo *</label><input type="email" id="c-email" maxlength="120" autocomplete="email"></div><div><label>WhatsApp (10 dígitos) *</label><input type="tel" id="c-tel" inputmode="numeric" maxlength="14" autocomplete="tel"></div></div>
-  <label>Calle y número *</label><input type="text" id="c-dir" maxlength="160" autocomplete="street-address">
-  <div class="g2"><div><label>Ciudad *</label><input type="text" id="c-ciudad" maxlength="60" autocomplete="address-level2"></div><div><label>Estado</label><input type="text" id="c-estado" maxlength="60" autocomplete="address-level1"></div></div>
-  <div class="g2"><div><label>Código postal *</label><input type="text" id="c-cp" inputmode="numeric" maxlength="5" autocomplete="postal-code"></div><div><label>Notas (opcional)</label><input type="text" id="c-notas" maxlength="300"></div></div>
-  <div class="msg" id="c-msg"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
-    <button class="btn sec" onclick="cerrar()">Volver</button><button class="btn" id="c-btn" onclick="pagar()">Ir a pagar</button>
-  </div>
-</div></div>
 <footer>Zapatillas May · León, Guanajuato · <a href="https://wa.me/5214792244560" style="color:#e8b4a0">¿Dudas? WhatsApp</a></footer>
 
 <script>
@@ -88,7 +76,7 @@
   const $ = (id) => document.getElementById(id)
   const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
   const $$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
-  let P = null, color = '', talla = '', cant = 1, lineas = []   // lineas: [{variante_id, color, talla, cantidad}]
+  let P = null, color = '', talla = '', cant = 1
 
   async function iniciar() {
     const slug = decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop())
@@ -98,36 +86,40 @@
       P = await r.json()
     } catch (e) { $('app').innerHTML = '<p class="vacio">Este producto ya no está disponible. <a href="/marketplace" style="color:var(--pink)">Ver el marketplace →</a></p>'; return }
     document.title = `${P.nombre} — ${P.vendedor.nombre_tienda} | Zapatillas May`
-    const colores = [...new Set(P.mp_variantes.map(v => v.color))]
-    color = colores[0] || ''
+    color = [...new Set(P.mp_variantes.map(v => v.color))][0] || ''
     pintar()
   }
-  function stockDe(vid) { const v = P.mp_variantes.find(x => x.id === vid); return v ? v.stock : 0 }
+  function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch (e) { return [] } }
   function pintar() {
     const colores = [...new Set(P.mp_variantes.map(v => v.color))]
     const tallas = P.mp_variantes.filter(v => v.color === color)
     const imgs = P.imagenes || []
+    const hayDesc = P.precio_mayoreo3 && P.precio_mayoreo3 < P.precio
     $('app').innerHTML = `<div class="mig"><a href="/marketplace">Marketplace</a> › ${esc(P.categoria || '')}</div>
     <div class="prod">
       <div class="gal"><div class="main"><img id="im" src="${esc(imgs[0] || '')}" alt="${esc(P.nombre)}"></div>
         <div class="th">${imgs.map((u, i) => `<img src="${esc(u)}" class="${i === 0 ? 'on' : ''}" onclick="foto(${i})" alt="">`).join('')}</div></div>
       <div>
         <h1>${esc(P.nombre)}</h1>
-        <span class="vend">Vendido y enviado por <b>${esc(P.vendedor.nombre_tienda)}</b>${P.vendedor.ciudad ? ' · ' + esc(P.vendedor.ciudad) : ''}</span>
+        <span class="vend">Vendido por <b>${esc(P.vendedor.nombre_tienda)}</b>${P.vendedor.ciudad ? ' · ' + esc(P.vendedor.ciudad) : ''}</span>
         <div class="precio">${$$(P.precio)}</div>
-        <div class="env">Envío ${Number(P.envio) ? $$(P.envio) : 'gratis'} por pedido · Pago seguro con MercadoPago</div>
+        ${hayDesc ? `<div class="env" style="color:#2e7d32;font-weight:600">🛍️ ${$$(P.precio_mayoreo3)} por par si llevas 3 o más pares en tu carrito</div>` : ''}
+        <div class="nota">🤝 <b>Todo se suma en un solo carrito</b>, también con productos de otras tiendas y de Zapatillas May: los pares se juntan para el <b>descuento de 3+ pares</b> y el total se junta para el <b>envío gratis desde $1,299</b>. Con 3+ pares de varias tiendas te lo enviamos todo junto en un solo paquete.</div>
         ${colores.length > 1 || colores[0] ? `<h4>Color</h4><div class="opts">${colores.map(c => `<button class="${c === color ? 'on' : ''}" data-c="${esc(c)}" onclick="elegirColor(this.dataset.c)">${esc(c || 'Único')}</button>`).join('')}</div>` : ''}
         <h4>Talla</h4>
         <div class="opts">${tallas.map(v => `<button class="${v.talla === talla ? 'on' : ''}" data-t="${esc(v.talla)}" onclick="elegirTalla(this.dataset.t)">${esc(v.talla)}${v.stock <= 2 ? '<small>¡últimos!</small>' : ''}</button>`).join('')}</div>
         <h4>Cantidad</h4>
         <div class="cant"><button onclick="cambiar(-1)">−</button><span id="cn">${cant}</span><button onclick="cambiar(1)">+</button></div>
-        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn sec" onclick="agregar()" ${talla ? '' : 'disabled'}>Agregar al pedido</button></div>
-        <div id="lineas"></div>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" onclick="agregar(true)" ${talla ? '' : 'disabled'}>Comprar ahora</button>
+          <button class="btn sec" onclick="agregar(false)" ${talla ? '' : 'disabled'}>Agregar al carrito</button>
+        </div>
+        <div id="aviso" style="margin-top:12px;font-size:.88rem"></div>
         <div class="desc">${esc(P.descripcion || '')}</div>
         <div class="conf">${P.material ? `<span>Material: ${esc(P.material)}</span>` : ''}<span>Tienda aliada: ${esc(P.vendedor.nombre_tienda)}${P.vendedor.descripcion ? ' — ' + esc(P.vendedor.descripcion) : ''}</span>
+          <span>Envío de esta tienda: ${Number(P.envio) ? $$(P.envio) : 'gratis'} (gratis en pedidos desde $1,299)</span>
           <span>¿Dudas? <a href="https://wa.me/5214792244560" style="color:var(--pink)">Escríbenos por WhatsApp</a></span></div>
       </div></div>`
-    pintarLineas()
   }
   function foto(i) { $('im').src = P.imagenes[i]; document.querySelectorAll('.th img').forEach((e, k) => e.classList.toggle('on', k === i)) }
   function elegirColor(c) { color = c; talla = ''; cant = 1; pintar() }
@@ -136,39 +128,22 @@
     const v = P.mp_variantes.find(x => x.color === color && x.talla === talla); if (!v) return
     cant = Math.max(1, Math.min(v.stock, cant + d)); $('cn').textContent = cant
   }
-  function agregar() {
+  // El producto entra al MISMO carrito del sitio (zm_carrito), con precios de menudeo y de 3+ pares: el carrito calcula descuento y envío cruzados.
+  function agregar(irAPagar) {
     const v = P.mp_variantes.find(x => x.color === color && x.talla === talla); if (!v) return
-    const ya = lineas.find(l => l.variante_id === v.id)
+    const c = leerCarrito()
+    const ya = c.find(i => i.mp && i.variante_id === v.id)
     const nueva = (ya ? ya.cantidad : 0) + cant
-    if (nueva > v.stock) { alert(`De esa talla solo quedan ${v.stock}.`); return }
-    if (ya) ya.cantidad = nueva; else lineas.push({ variante_id: v.id, color, talla, cantidad: cant })
-    talla = ''; cant = 1; pintar()
-  }
-  function quitar(i) { lineas.splice(i, 1); pintar() }
-  function totales() { const sub = lineas.reduce((s, l) => s + l.cantidad * Number(P.precio), 0); return { sub, env: lineas.length ? Number(P.envio) : 0 } }
-  function pintarLineas() {
-    const el = $('lineas'); if (!el) return
-    if (!lineas.length) { el.innerHTML = ''; return }
-    const t = totales()
-    el.innerHTML = `<div class="lineas">${lineas.map((l, i) => `<div><span>${l.cantidad} × talla ${esc(l.talla)} ${esc(l.color)}</span><span>${$$(l.cantidad * Number(P.precio))} <button onclick="quitar(${i})">quitar</button></span></div>`).join('')}
-      <div><span>Envío</span><span>${t.env ? $$(t.env) : 'Gratis'}</span></div>
-      <div class="tot"><span>Total</span><span>${$$(t.sub + t.env)}</span></div></div>
-      <button class="btn" style="margin-top:12px;width:100%" onclick="abrir()">Comprar</button>`
-  }
-  function abrir() { $('c-msg').style.display = 'none'; $('ov').classList.add('on') }
-  function cerrar() { $('ov').classList.remove('on') }
-  async function pagar() {
-    const v = (id) => $(id).value.trim()
-    const btn = $('c-btn'), m = $('c-msg')
-    btn.disabled = true; btn.textContent = 'Un momento…'; m.style.display = 'none'
-    try {
-      const r = await fetch(API + '/marketplace/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        items: lineas.map(l => ({ variante_id: l.variante_id, cantidad: l.cantidad })),
-        cliente: { nombre: v('c-nombre'), email: v('c-email'), telefono: v('c-tel'), direccion: v('c-dir'), ciudad: v('c-ciudad'), estado: v('c-estado'), cp: v('c-cp'), notas: v('c-notas') } }) })
-      const d = await r.json().catch(() => ({}))
-      if (!r.ok || !d.init_point) throw new Error(d.error || 'No se pudo generar el pago. Intenta de nuevo.')
-      location.href = d.init_point
-    } catch (e) { m.textContent = e.message; m.style.display = 'block'; btn.disabled = false; btn.textContent = 'Ir a pagar' }
+    if (nueva > v.stock) { $('aviso').innerHTML = `<span style="color:#b3261e">De esa talla solo quedan ${v.stock}${ya ? ` (ya tienes ${ya.cantidad} en tu carrito)` : ''}.</span>`; return }
+    if (ya) { ya.cantidad = nueva; ya.stock_mp = v.stock } else c.push({
+      variante_id: v.id, producto_id: P.id, nombre: P.nombre, color, talla, cantidad: cant, imagen: (P.imagenes || [])[0] || null,
+      precio_menudeo: P.precio, precio_mayoreo3: P.precio_mayoreo3 || P.precio, precio_corrida: P.precio, es_oferta: false, precio_unitario: P.precio,
+      mp: true, mp_slug: P.slug, vendedor: P.vendedor.nombre_tienda, vendedor_id: P.vendedor.id, envio_mp: P.envio, stock_mp: v.stock, sku_interno: ''
+    })
+    try { localStorage.setItem('zm_carrito', JSON.stringify(c)) } catch (e) { $('aviso').textContent = 'No se pudo guardar tu carrito en este navegador.'; return }
+    if (irAPagar) { location.href = '/checkout'; return }
+    $('aviso').innerHTML = `<span style="color:#2e7d32;font-weight:600">✓ Agregado a tu carrito.</span> <a href="/carrito" style="color:var(--pink);font-weight:600">Ver carrito</a> · <a href="/marketplace" style="color:var(--pink)">Seguir viendo</a>`
+    talla = ''; cant = 1; setTimeout(pintar, 1200)
   }
   iniciar()
 </script>

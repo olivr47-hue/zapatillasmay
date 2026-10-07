@@ -217,6 +217,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="/assets/mpcarrito.f3cb3abf.js"></script>
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
@@ -239,6 +240,8 @@ let inventario = []  // { variante_id, cantidad }
 let inventarioCargado = false  // true solo cuando el inventario se descargó bien
 
 function stockDisponible(variante_id) {
+  const _mp = (leerCarrito().find(i => i.mp && i.variante_id === variante_id))
+  if (_mp) return Number(_mp.stock_mp) || 0     // producto de tienda aliada: su existencia viene en el carrito (se refresca al abrir)
   const inv = inventario.find(i => i.variante_id === variante_id)
   if (inv) return inv.cantidad ?? 0
   // Si el inventario SÍ cargó y la variante no aparece, está agotada/no rastreada → 0.
@@ -316,7 +319,7 @@ function render() {
     const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
     const precioUnit = calcularPrecioUnitario(item, total)
     const subtotal = precioUnit * pares
-    const hrefProducto = item.producto_id ? `/producto/${item.producto_id}` : null
+    const hrefProducto = item.mp ? `/marketplace/${encodeURIComponent(item.mp_slug || '')}` : (item.producto_id ? `/producto/${item.producto_id}` : null)
     const imgHTML = item.imagen
       ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" width="84" height="100" onerror="this.style.display='none'"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" style="cursor:pointer" title="Ver producto / agregar más pares"` : ''}>`
       : `<div class="item-img-placeholder"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" style="cursor:pointer" title="Ver producto / agregar más pares"` : ''}>👠</div>`
@@ -327,7 +330,7 @@ function render() {
         <div class="item-info">
           ${corridaBadge}
           <div class="item-name" title="${item.nombre}">${item.nombre}</div>
-          <div class="item-meta">${item.color || ''}${item.talla ? ' · Talla ' + item.talla : ''}${item.es_corrida ? ' · ' + pares + ' pares' : ''}</div>
+          <div class="item-meta">${item.color || ''}${item.talla ? ' · Talla ' + item.talla : ''}${item.es_corrida ? ' · ' + pares + ' pares' : ''}${item.mp ? `<br><span style="color:var(--mauve)">Vendido por ${String(item.vendedor || 'tienda aliada').replace(/[<>&"]/g, '')}</span>` : ''}</div>
           <div class="item-price">$${subtotal.toFixed(0)} MXN
             <span class="item-price-each">(${precioUnit < item.precio_menudeo ? `<span class="precio-tachado">$${item.precio_menudeo.toFixed(0)}</span>` : ''}$${precioUnit.toFixed(0)}/par)</span>
           </div>
@@ -361,13 +364,15 @@ function render() {
     if (pares >= 2) return cfgEnvio.tier2
     return cfgEnvio.tier1
   }
-  const costoEnvio = calcularEnvio(total, subtotalProductos)
+  const _envMp = zmEnvioCarrito(carrito, total, subtotalProductos, cfgEnvio, calcularPrecioUnitario)
+  const costoEnvio = _envMp !== null ? _envMp : calcularEnvio(total, subtotalProductos)
   const totalFinal = subtotalProductos + costoEnvio
 
   const tieneCorridaResumen = carrito.some(i => i.es_corrida)
   const tipoDesc = tieneCorridaResumen ? 'Descuento corrida completa' : total >= 3 ? 'Precio mayoreo (3+ pares)' : ''
 
-  let resumenHTML = `
+  let resumenHTML = zmCarritoTieneMp(carrito) ? `<div style="font-size:0.72rem;line-height:1.5;color:var(--gray);background:rgba(200,150,122,0.08);border-radius:10px;padding:9px 12px;margin-bottom:10px">${zmNotaCruzada(cfgEnvio)}</div>` : ''
+  resumenHTML += `
     <div class="resumen-row"><span>Subtotal (${total} ${total === 1 ? 'par' : 'pares'})</span><span>$${subtotalSinDesc.toFixed(0)} MXN</span></div>`
   if (ahorro > 0) {
     resumenHTML += `<div class="resumen-row" style="color:var(--tan)"><span>${tipoDesc}</span><span>−$${ahorro.toFixed(0)} MXN</span></div>`
@@ -607,6 +612,8 @@ async function init() {
     }
   } catch(e) { /* usa defaults */ }
   await refrescarPreciosCarrito()
+  await zmRefrescarMp()
+  carrito = leerCarrito()
   render()
   combinarCon()
 
