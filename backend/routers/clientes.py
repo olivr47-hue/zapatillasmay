@@ -543,3 +543,66 @@ def unir_clientes(datos: dict, _staff=Depends(require_staff)):
         return {"ok": True, "principal": principal.get("nombre"), "unidos": resultado, "datos_completados": sorted(cambios.keys()), "avisos": avisos}
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+# ───────────────────────── Ritmo de compra de los mayoristas ─────────────────────────
+_CACHE_RITMO = {"t": 0, "data": None}
+_RITMO_MIN_COMPRAS = 3   # compras en días distintos para poder hablar de un «ritmo» (2 intervalos)
+
+
+def calcular_ritmo_mayoristas() -> list:
+    """Mayoristas/zapaterías que ya pasaron su tiempo promedio entre pedidos.
+    Promedio = días entre sus compras (varias compras el mismo día cuentan como una). Atrasado = días sin pedir >= su promedio.
+    nivel: 'pasado' (1 a 1.5 veces su promedio), 'atrasado' (1.5 a 3) y 'posible_perdido' (3 o más: quizá ya no compra)."""
+    import time as _t
+    from datetime import datetime, timezone, timedelta
+    if _CACHE_RITMO["data"] is not None and _t.time() - _CACHE_RITMO["t"] < 600:
+        return _CACHE_RITMO["data"]
+    cs = supabase_get_all("clientes?activo=eq.true&tipo=in.(mayoreo,zapateria)&select=id,nombre,telefono,tipo")
+    por_id = {c["id"]: c for c in cs}
+    pedidos = supabase_get_all("pedidos?status=in.(confirmado,pagado,enviado,entregado)&cliente_id=not.is.null&select=cliente_id,confirmado_at,created_at")
+    tz = timezone(timedelta(hours=-6))
+    dias = {}
+    for p in pedidos:
+        cid = p.get("cliente_id")
+        if cid not in por_id:
+            continue
+        ts = p.get("confirmado_at") or p.get("created_at")
+        try:
+            d = datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(tz).date()
+        except Exception:
+            continue
+        dias.setdefault(cid, set()).add(d)
+    hoy = datetime.now(tz).date()
+    salida = []
+    for cid, ds in dias.items():
+        ds = sorted(ds)
+        if len(ds) < _RITMO_MIN_COMPRAS:
+            continue
+        intervalos = [(b - a).days for a, b in zip(ds, ds[1:])]
+        prom = sum(intervalos) / len(intervalos)
+        if prom <= 0:
+            continue
+        sin_pedir = (hoy - ds[-1]).days
+        razon = sin_pedir / prom
+        if razon < 1:
+            continue
+        nivel = "pasado" if razon < 1.5 else ("atrasado" if razon < 3 else "posible_perdido")
+        cl = por_id[cid]
+        salida.append({"id": cid, "nombre": (cl.get("nombre") or "").strip(), "telefono": cl.get("telefono"), "tipo": cl.get("tipo"),
+                       "compras": len(ds), "promedio_dias": round(prom, 1), "ultimo_pedido": ds[-1].isoformat(),
+                       "dias_sin_pedir": sin_pedir, "veces_su_promedio": round(razon, 1), "nivel": nivel,
+                       "cruzo_hoy": prom <= sin_pedir < prom + 1})
+    orden = {"pasado": 0, "atrasado": 1, "posible_perdido": 2}
+    salida.sort(key=lambda x: (orden[x["nivel"]], -x["veces_su_promedio"]))
+    _CACHE_RITMO.update({"t": _t.time(), "data": salida})
+    return salida
+
+
+@router.get("/ritmo-compra")
+def ritmo_mayoristas(_staff=Depends(require_staff)):
+    """Mayoristas que ya pasaron su tiempo promedio de pedido (ver calcular_ritmo_mayoristas)."""
+    try:
+        return {"clientes": calcular_ritmo_mayoristas()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:300]})

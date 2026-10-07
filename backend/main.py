@@ -546,6 +546,30 @@ def _loop_apartados_vencidos():
         _time.sleep(30 * 60)
 
 
+def _loop_ritmo_mayoristas():
+    """Cada mañana (~9am México) avisa por push qué mayoristas acaban de pasar su tiempo promedio entre pedidos (cada uno se avisa
+    una sola vez, el día que cruza su promedio). La lista completa de atrasados está en Clientes → ⏰ Mayoristas."""
+    _time.sleep(300)
+    ultimo_aviso = None
+    while True:
+        try:
+            ahora_mx = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if 9 <= ahora_mx.hour < 10 and ultimo_aviso != ahora_mx.date():
+                ultimo_aviso = ahora_mx.date()
+                nuevos = [x for x in clientes.calcular_ritmo_mayoristas() if x.get("cruzo_hoy")]
+                if nuevos:
+                    nombres = ", ".join((x["nombre"] or "").title() for x in nuevos[:3]) + (f" y {len(nuevos) - 3} más" if len(nuevos) > 3 else "")
+                    push.enviar_push(
+                        "⏰ Mayoristas que ya tocan pedido",
+                        f"{nombres} ya pasaron su tiempo promedio sin pedir.",
+                        url="/?modulo=clientes", sitio="panel",
+                    )
+                    print(f"[ritmo-mayoristas] aviso: {len(nuevos)}")
+        except Exception as e:
+            print(f"[ritmo-mayoristas] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
+
 def _loop_chats_sin_responder():
     """Cada mañana (~9am México) avisa por push cuántas clientas llevan más de 24 h sin que nadie (ni Maya) les
     conteste. Hoy hay chats donde la clienta esperó días sin que nadie se enterara."""
@@ -642,6 +666,9 @@ def _iniciar_hilos():
     # Aviso diario de apartados vencidos
     t8 = threading.Thread(target=_loop_apartados_vencidos, daemon=True)
     t8.start()
+    # Aviso diario de mayoristas que pasaron su tiempo promedio de pedido
+    t10 = threading.Thread(target=_loop_ritmo_mayoristas, daemon=True)
+    t10.start()
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()

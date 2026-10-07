@@ -6887,6 +6887,7 @@ async function cargarClientes() {
           <button class="pill-filter" data-flag="frecuentes" onclick="_cliFlag('frecuentes')">⭐ Frecuentes</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="sugerirFrecuentes()" title="Marca de una vez a las que más te han comprado">✨ Sugerir frecuentes</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;color:#7c3aed;border-color:#c4b5fd" id="btn-unir-clientes" onclick="abrirUnirClientes()" title="Encuentra clientes repetidos (mismo teléfono, correo o nombre) y los junta en uno">🔗 Unir clientes</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;color:#b45309;border-color:#fcd34d" id="btn-ritmo-mayoristas" onclick="abrirRitmoMayoristas()" title="Mayoristas que ya pasaron su tiempo promedio entre pedidos">⏰ Mayoristas que ya tocan pedido</button>
           <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliSelVisibles()">☑ Seleccionar los que se ven</button>
           <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="_cliLimpiar()">Limpiar filtros</button>
@@ -6899,7 +6900,7 @@ async function cargarClientes() {
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="marcarFrecuentesSel(false)">Quitar ⭐</button>
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="_cliSelNinguno()">Quitar selección</button>
         </div>
-        <div id="cli-lista" ${(setTimeout(() => window._contarRepetidosClientes && window._contarRepetidosClientes(), 600), '')}>
+        <div id="cli-lista" ${(setTimeout(() => { window._contarRepetidosClientes && window._contarRepetidosClientes(); window._contarRitmoMayoristas && window._contarRitmoMayoristas() }, 600), '')}>
           ${clientesEnriquecidos.map(c => `
             <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${_e(c.nombre.toLowerCase())}" data-tel="${_e(c.telefono || '')}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}" data-frec="${c.frecuente_wa ? 1 : 0}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
@@ -30826,6 +30827,57 @@ window._contarRepetidosClientes = async () => {
     const b = document.getElementById('btn-unir-clientes')
     if (b && d.grupos > 0) { b.textContent = `🔗 Unir clientes (${d.grupos})`; b.style.background = '#f5f3ff' }
   } catch (e) {}
+}
+
+// ── Ritmo de compra de los mayoristas: quién ya pasó su tiempo promedio entre pedidos ──
+window._contarRitmoMayoristas = async () => {
+  try {
+    const r = await fetch(API + '/clientes/ritmo-compra')
+    if (!r.ok) return
+    const d = await r.json()
+    window._ritmoMay = d.clientes || []
+    const b = document.getElementById('btn-ritmo-mayoristas')
+    if (b && window._ritmoMay.length) b.textContent = `⏰ Mayoristas que ya tocan pedido (${window._ritmoMay.length})`
+  } catch (e) {}
+}
+
+window.abrirRitmoMayoristas = async () => {
+  document.getElementById('ritmo-may-overlay')?.remove()
+  const ov = document.createElement('div')
+  ov.id = 'ritmo-may-overlay'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto'
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:820px;width:100%;padding:1.25rem 1.5rem;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <h3 style="margin:0;font-size:1.05rem;flex:1">⏰ Mayoristas que ya pasaron su tiempo de pedido</h3>
+      <button class="btn btn-secondary" style="padding:3px 10px" onclick="document.getElementById('ritmo-may-overlay').remove()">Cerrar</button>
+    </div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Se calcula con los días que pasan entre las compras de cada mayorista (mínimo 3 compras en días distintos; varias el mismo día cuentan como una). «Su promedio» es cada cuántos días suele pedir.</p>
+    <div id="ritmo-may-cuerpo"><p style="padding:1rem;color:#94a3b8">Calculando…</p></div></div>`
+  document.body.appendChild(ov)
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
+  const cuerpo = document.getElementById('ritmo-may-cuerpo')
+  try {
+    const r = await fetch(API + '/clientes/ritmo-compra')
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error || d.detail || 'Error')
+    const lista = d.clientes || []
+    window._ritmoMay = lista
+    if (!lista.length) { cuerpo.innerHTML = '<p style="padding:1.2rem;color:#16a34a;font-weight:600">✅ Ningún mayorista ha pasado su tiempo promedio de pedido.</p>'; return }
+    const niv = { pasado: ['#fef9c3', '#a16207', 'Ya le toca'], atrasado: ['#ffedd5', '#c2410c', 'Atrasado'], posible_perdido: ['#fee2e2', '#b91c1c', 'Quizá ya no compra'] }
+    const fecha = f => new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' })
+    const tel = t => { const d = String(t || '').replace(/\D/g, '').slice(-10); return d.length === 10 ? '52' + d : '' }
+    cuerpo.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+      <thead><tr style="background:#f8fafc;text-align:left"><th style="padding:7px 8px">Mayorista</th><th style="padding:7px 8px;text-align:center">Su promedio</th><th style="padding:7px 8px">Último pedido</th><th style="padding:7px 8px;text-align:center">Sin pedir</th><th style="padding:7px 8px">Estado</th><th></th></tr></thead><tbody>
+      ${lista.map(x => { const n = niv[x.nivel] || niv.pasado; const t = tel(x.telefono)
+        return `<tr style="border-top:1px solid #f1f5f9"><td style="padding:7px 8px"><strong>${_e(x.nombre)}</strong><br><span style="color:#94a3b8;font-size:0.7rem">${x.compras} compras · ${_e(x.telefono || 'sin teléfono')}</span></td>
+          <td style="padding:7px 8px;text-align:center">cada ${x.promedio_dias} días</td><td style="padding:7px 8px">${fecha(x.ultimo_pedido)}</td>
+          <td style="padding:7px 8px;text-align:center;font-weight:700">${x.dias_sin_pedir} días<br><span style="font-weight:400;color:#94a3b8;font-size:0.68rem">${x.veces_su_promedio}× su promedio</span></td>
+          <td style="padding:7px 8px"><span style="background:${n[0]};color:${n[1]};padding:2px 8px;border-radius:100px;font-size:0.7rem;font-weight:700">${n[2]}</span></td>
+          <td style="padding:7px 8px;text-align:right">${t ? `<a class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/${t}">💬 Escribir</a>` : ''}</td></tr>` }).join('')}
+      </tbody></table></div>`
+  } catch (e) {
+    cuerpo.innerHTML = `<p style="padding:1rem;color:#dc2626">No se pudo calcular: ${_e(e.message || e)}</p>`
+  }
 }
 
 window.abrirUnirClientes = async () => {
