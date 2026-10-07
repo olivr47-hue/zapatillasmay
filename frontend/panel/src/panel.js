@@ -5041,6 +5041,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
             ${filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-bulk-prod" onclick="window.toggleModoBulkEdit()" style="display:flex;align-items:center;gap:6px;font-weight:700">✏️ Edición masiva</button>` : ''}
             ${!mostrarInactivos && filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>` : ''}
             <button class="btn btn-secondary" onclick="abrirFotosLimpias()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Elegir la foto donde se ve el zapato solo">📸 Fotos limpias</button>
+            ${!mostrarInactivos ? `<button class="btn btn-secondary" onclick="abrirModelosSinFoto()" style="display:flex;align-items:center;gap:6px;font-weight:700;${activos.some(p => !(p.imagen_principal || '').trim()) ? 'color:#b45309;border-color:#fcd34d' : ''}" title="Modelos activos que no tienen foto principal (no se ven en el sitio)">🖼️ Sin foto (${activos.filter(p => !(p.imagen_principal || '').trim()).length})</button>` : ''}
              <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
           </div>
         </div>
@@ -30941,6 +30942,46 @@ window.unirGrupoClientes = async (gi, btn) => {
   } catch (e) {
     alert('No se pudo unir: ' + (e.message || e))
     if (btn) { btn.disabled = false; btn.textContent = 'Unir este grupo' }
+  }
+}
+
+// ── Modelos activos sin foto principal (en el sitio no se muestran) ──
+window.abrirModelosSinFoto = async () => {
+  document.getElementById('sinfoto-overlay')?.remove()
+  const ov = document.createElement('div')
+  ov.id = 'sinfoto-overlay'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto'
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:760px;width:100%;padding:1.25rem 1.5rem;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <h3 style="margin:0;font-size:1.05rem;flex:1">🖼️ Modelos sin foto</h3>
+      <button class="btn btn-secondary" style="padding:3px 10px" onclick="document.getElementById('sinfoto-overlay').remove()">Cerrar</button>
+    </div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Modelos activos que no tienen foto principal: no salen en el catálogo del sitio. Primero van los que tienen pares en inventario. Toca «Editar» para subirles la foto (o desactivarlos).</p>
+    <div id="sinfoto-cuerpo"><p style="padding:1rem;color:#94a3b8">Buscando…</p></div></div>`
+  document.body.appendChild(ov)
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
+  const cuerpo = document.getElementById('sinfoto-cuerpo')
+  try {
+    const [rp, rv, ri] = await Promise.all([fetch(API + '/productos/'), fetch(API + '/variantes/?ligero=true'), fetch(API + '/inventario/slim')])
+    const prods = await rp.json(), vars = await rv.json(), inv = await ri.json()
+    const stockVar = {}
+    ;(Array.isArray(inv) ? inv : []).forEach(i => { stockVar[i.variante_id] = (stockVar[i.variante_id] || 0) + (i.cantidad || 0) })
+    const stockProd = {}
+    ;(Array.isArray(vars) ? vars : []).forEach(v => { stockProd[v.producto_id] = (stockProd[v.producto_id] || 0) + (stockVar[v.id] || 0) })
+    const lista = (Array.isArray(prods) ? prods : []).filter(p => p.activo && !(p.imagen_principal || '').trim())
+      .map(p => ({ ...p, pares: stockProd[p.id] || 0 })).sort((a, b) => b.pares - a.pares || String(a.categoria).localeCompare(String(b.categoria)))
+    if (!lista.length) { cuerpo.innerHTML = '<p style="padding:1.2rem;color:#16a34a;font-weight:600">✅ Todos los modelos activos tienen foto.</p>'; return }
+    const conPares = lista.filter(p => p.pares > 0).length
+    cuerpo.innerHTML = `<p style="font-size:0.8rem;color:#475569;margin:0 0 8px"><strong>${lista.length}</strong> modelo(s) sin foto, <strong>${conPares}</strong> con pares en inventario.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+      <thead><tr style="background:#f8fafc;text-align:left"><th style="padding:7px 8px">Modelo</th><th style="padding:7px 8px">Categoría</th><th style="padding:7px 8px;text-align:center">Pares</th><th></th></tr></thead><tbody>
+      ${lista.map(p => `<tr style="border-top:1px solid #f1f5f9"><td style="padding:7px 8px"><strong>${_e(p.nombre)}</strong><br><span style="color:#94a3b8;font-size:0.7rem">${_e(p.sku_interno || '')}</span></td>
+        <td style="padding:7px 8px;text-transform:capitalize">${_e(p.categoria || '')}</td>
+        <td style="padding:7px 8px;text-align:center;font-weight:700;color:${p.pares > 0 ? '#b45309' : '#94a3b8'}">${p.pares}</td>
+        <td style="padding:7px 8px;text-align:right"><button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 10px" onclick="document.getElementById('sinfoto-overlay').remove();editarProducto('${p.id}')">Editar</button></td></tr>`).join('')}
+      </tbody></table></div>`
+  } catch (e) {
+    cuerpo.innerHTML = `<p style="padding:1rem;color:#dc2626">No se pudo cargar: ${_e(e.message || e)}</p>`
   }
 }
 
