@@ -80,11 +80,21 @@ export function registrarRutasExtra({ db, ruta, q, num, mes, cerrado, nuevoId })
   // Conversaciones (mensaje = lo que escribe la clienta, respuesta = lo que contesta Maya)
   ruta('GET', /^\/chatbot\/chats\/?$/, () => db.chats.map(c => ({ telefono: c.telefono, nombre: c.nombre, canal: 'whatsapp', mensajes: c.mensajes, ultimo_mensaje: c.ultimo_mensaje, no_leidos: c.no_leidos, ult_entrante: c.ultimo_at, ult_saliente: c.ultimo_at,
     en_control: false, agente: null, etiqueta: c.etapa === 'negociando' ? 'comprador' : 'pregunta', estado: 'abierto', mayorista: c.etiquetas.includes('mayoreo'), archivado: false, pendiente_revision: false })))
+  ruta('POST', /^\/chatbot\/pedido-manual-whatsapp$/, ({ body }) => {
+    const sub = (body.items || []).reduce((t, i) => t + num(i.precio_unitario) * (i.cantidad || 1), 0), pares = (body.items || []).reduce((t, i) => t + (i.cantidad || 1), 0)
+    const envio = sub >= 1299 ? 0 : (pares >= 3 ? 199 : pares >= 2 ? 150 : 99)
+    return { ok: true, pedido_id: nuevoId(), total: sub + envio, envio }
+  })
   ruta('POST', /^\/chatbot\/link-pago-manual$/, ({ body }) => {
     const sub = (body.items || []).reduce((t, i) => t + num(i.precio_unitario) * (i.cantidad || 1), 0), pares = (body.items || []).reduce((t, i) => t + (i.cantidad || 1), 0)
     const envio = sub >= 1299 ? 0 : (pares >= 3 ? 199 : pares >= 2 ? 150 : 99)
     return { ok: true, link: 'https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=DEMO-123456', total: sub + envio }
   })
+  ruta('GET', /^\/chatbot\/respuestas-rapidas$/, () => [
+    { id: 'rr1', titulo: 'Bienvenida', mensaje: 'Hola! Gracias por contactarnos 👠 ¿En qué te puedo ayudar?', orden: 1 },
+    { id: 'rr2', titulo: 'Pago: BBVA', mensaje: '💳 *BBVA*\nTitular: Nombre de Ejemplo\nNúmero de cuenta: 0000000000', orden: 6 },
+    { id: 'rr3', titulo: 'Pago: SPEI', mensaje: '💳 *Transferencia SPEI*\nCLABE: 000000000000000000\nTitular: Nombre de Ejemplo\nBanco: Banco Ejemplo', orden: 7 },
+  ])
   ruta('GET', /^\/chatbot\/(tareas-hoy|plantillas)$/, () => ({ tareas: [], total: 0 }))
   ruta('GET', /^\/marketplace\/admin\/resumen$/, () => ({ vendedores_pendientes: 2, productos_pendientes: 3, pedidos_por_recibir: 1, por_liquidar: 1840 }))
   ruta('GET', /^\/(ml|shein|walmart|amazon)\/ping$/, () => ({ ok: true, conectado: true, demo: true }))

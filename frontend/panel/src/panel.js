@@ -16432,17 +16432,33 @@ window.mostrarFormLinkPago = async (prefill) => {
     }
     window._lpItems = []
     window._lpModo = 'sitio'
+    window._lpForma = 'mp'
 
     content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:560px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
         <button class="btn btn-secondary" onclick="${_volver}">← Volver</button>
-        <h3 style="margin:0">💳 Crear link de pago</h3>
+        <h3 style="margin:0" id="lp-titulo">💳 Crear link de pago</h3>
       </div>
       <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Elige el/los modelo(s) reales del inventario: al pagar, el stock se descuenta solo.</p>
 
+      <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:10px 12px;margin-bottom:1rem">
+        <label class="form-label" style="margin:0 0 4px;display:block">¿Cómo va a pagar la clienta?</label>
+        <select class="form-input" id="lp-forma" onchange="cambiarFormaLinkPago(this.value)">
+          <option value="mp">💳 Link de MercadoPago (tarjeta, transferencia u OXXO por el link)</option>
+          <option value="transferencia">🏦 Depósito / transferencia a BBVA</option>
+          <option value="spei">🏦 SPEI (CLABE)</option>
+          <option value="oxxo">🏪 Depósito en OXXO (tarjeta Spin)</option>
+          <option value="efectivo">💵 Efectivo / otro (sin link)</option>
+        </select>
+        <p id="lp-forma-ayuda" style="font-size:0.72rem;color:#1565c0;margin:5px 0 0">Se genera el link de pago y se manda por WhatsApp.</p>
+        <label id="lp-yapago-box" style="display:none;align-items:center;gap:8px;margin-top:8px;font-size:0.84rem;font-weight:600;color:#1b5e20;background:#e8f5e9;border-radius:8px;padding:7px 10px;cursor:pointer">
+          <input type="checkbox" id="lp-yapago"> ✅ Ya depositó (marcar pagado y descontar inventario)
+        </label>
+      </div>
+
       <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:1rem">
-        <label class="form-label" style="margin:0 0 4px;display:block">Precio con el que se arma el link</label>
+        <label class="form-label" style="margin:0 0 4px;display:block">Precio con el que se arma el pedido o link</label>
         <select class="form-input" id="lp-modo-precio" onchange="cambiarModoPrecioLinkPago(this.value)">
           <option value="sitio" ${(window._lpModo || 'sitio') === 'sitio' ? 'selected' : ''}>Precio del sitio web (panel +$80, ofertas sin extra)</option>
           <option value="panel" ${window._lpModo === 'panel' ? 'selected' : ''}>Precio del panel (menudeo, sin el +$80)</option>
@@ -16582,7 +16598,90 @@ window.recalcularTotalLinkPago = () => {
   if (el) el.innerHTML = items.length ? `Subtotal $${subtotal.toFixed(2)} + envío $${envio.toFixed(2)} = <strong style="color:#E91E8C">$${total.toFixed(2)}</strong>` : ''
 }
 
+window.cambiarFormaLinkPago = (forma) => {
+  window._lpForma = forma
+  const sinLink = forma !== 'mp'
+  const el = (id) => document.getElementById(id)
+  if (el('lp-yapago-box')) el('lp-yapago-box').style.display = (sinLink && forma !== 'efectivo') ? 'flex' : 'none'
+  if (el('lp-yapago') && !sinLink) el('lp-yapago').checked = false
+  if (el('lp-btn')) el('lp-btn').textContent = sinLink ? 'Crear pedido' : 'Generar link de pago'
+  if (el('lp-titulo')) el('lp-titulo').textContent = sinLink ? '🛍️ Crear pedido de WhatsApp' : '💳 Crear link de pago'
+  if (el('lp-forma-ayuda')) el('lp-forma-ayuda').textContent = sinLink
+    ? (forma === 'efectivo' ? 'Se crea el pedido pendiente; lo confirmas cuando cobres.' : 'No lleva link. Se crea el pedido y, si ya depositó, se marca pagado y se descuenta el inventario; si no, queda pendiente y lo confirmas cuando llegue el pago.')
+    : 'Se genera el link de pago y se manda por WhatsApp.'
+}
+
+// Pedido de una clienta de WhatsApp SIN link de MercadoPago (depósito BBVA, SPEI, OXXO o efectivo)
+window.generarPedidoSinLink = async () => {
+  const v = id => (document.getElementById(id).value || '').trim()
+  const nombre = v('lp-nombre'), tel = v('lp-tel'), forma = window._lpForma
+  const items = window._lpItems || []
+  if (!nombre || !tel) { alert('Completa nombre y WhatsApp del cliente'); return }
+  if (items.length === 0) { alert('Agrega al menos un modelo que esté comprando el cliente'); return }
+  const yaPago = !!(document.getElementById('lp-yapago') && document.getElementById('lp-yapago').checked) && forma !== 'efectivo'
+  const btn = document.getElementById('lp-btn'); btn.textContent = 'Creando pedido...'; btn.disabled = true
+  const out = document.getElementById('lp-resultado'); out.innerHTML = ''
+  const fmt = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+  try {
+    const cuerpo = { telefono: tel, nombre, direccion: v('lp-dir'), forma_pago: forma, empleado: (window._empleadoActual && window._empleadoActual.nombre) || '',
+      items: items.map(i => ({ variante_id: i.variante_id, nombre: i.nombre, cantidad: i.cantidad, precio_unitario: i.precio_unitario })) }
+    let res = await fetch(API + '/chatbot/pedido-manual-whatsapp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
+    let data = await res.json().catch(() => ({}))
+    if (res.status === 409 && data.faltantes) {
+      if (!confirm('El inventario dice que no alcanza:\n• ' + data.faltantes.join('\n• ') + '\n\n¿Crear el pedido de todos modos?')) return
+      res = await fetch(API + '/chatbot/pedido-manual-whatsapp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...cuerpo, forzar: true }) })
+      data = await res.json().catch(() => ({}))
+    }
+    if (!data.ok || !data.pedido_id) { out.innerHTML = `<p style="color:#c62828">Error: ${_e(data.error || 'no se pudo crear el pedido')}</p>`; return }
+    let estado = 'pendiente de pago'
+    if (yaPago) {
+      const rc = await fetch(API + '/pedidos/' + data.pedido_id + '/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forma_pago: forma === 'efectivo' ? 'efectivo' : 'spei' }) })
+      const dc = await rc.json().catch(() => ({}))
+      if (rc.ok && dc.ok !== false) estado = 'pagado'
+      else out.innerHTML = `<p style="color:#b26a00;margin-bottom:8px">El pedido se creó, pero no se pudo marcar como pagado (${_e(dc.error || 'error')}). Ábrelo en Pedidos y usa «Confirmar pago recibido».</p>`
+    }
+    // datos de pago (se toman de las respuestas rápidas «Pago: …»)
+    let datosPago = ''
+    if (!yaPago && forma !== 'efectivo') {
+      try {
+        const rr = await fetch(API + '/chatbot/respuestas-rapidas').then(r => r.json())
+        const titulo = { transferencia: 'Pago: BBVA', spei: 'Pago: SPEI', oxxo: 'Pago: depósito en OXXO' }[forma]
+        const fila = (Array.isArray(rr) ? rr : []).find(x => (x.titulo || '').trim() === titulo)
+        datosPago = fila ? fila.mensaje : ''
+      } catch (e) {}
+    }
+    const pares = items.reduce((t, i) => t + i.cantidad, 0)
+    const subtotal = items.reduce((t, i) => t + i.cantidad * i.precio_unitario, 0)
+    const total = parseFloat(data.total) || subtotal
+    const envio = Math.max(0, Math.round((total - subtotal) * 100) / 100)
+    const lineas = items.map(i => `• ${i.cantidad} × ${String(i.nombre).replace(/\s+-\s+/g, ' · ')} — ${fmt(i.precio_unitario * i.cantidad)}`).join('\n')
+    const resumen = `🛍️ Tu pedido (${pares} ${pares === 1 ? 'par' : 'pares'}):\n${lineas}\n\nSubtotal: ${fmt(subtotal)}\nEnvío: ${envio > 0 ? fmt(envio) : '¡GRATIS! 🚚'}\n💳 Total: ${fmt(total)} MXN`
+    const msg = yaPago
+      ? `¡Hola ${nombre.split(' ')[0]}! 🥰 ¡Recibimos tu pago, gracias!\n\n${resumen}\n\nYa estamos preparando tu envío 📦✨ En cuanto salga te pasamos tu guía.`
+      : `¡Hola ${nombre.split(' ')[0]}! 🥰 Este es el resumen de tu pedido:\n\n${resumen}\n\n${datosPago ? datosPago + '\n\n' : ''}En cuanto hagas tu pago mándanos tu comprobante por aquí 📸 y preparamos tu envío 📦✨`
+    window._lpUltimoLink = ''
+    let telWa = tel.replace(/\D/g, ''); if (telWa.length === 10) telWa = '52' + telWa
+    window._lpUltimoTel = telWa
+    out.innerHTML += `
+      <div style="background:${estado === 'pagado' ? '#f0fdf4' : '#fff8e1'};border:1px solid ${estado === 'pagado' ? '#86efac' : '#ffe082'};border-radius:10px;padding:1rem">
+        <p style="font-weight:700;color:${estado === 'pagado' ? '#16a34a' : '#b26a00'};margin:0 0 4px">${estado === 'pagado' ? '✅ Pedido creado y marcado como pagado' : '🕒 Pedido creado, pendiente de pago'} — Total ${fmt(total)} MXN</p>
+        <p style="font-size:0.76rem;color:#666;margin:0 0 8px">${estado === 'pagado' ? 'El inventario ya se descontó.' : 'Cuando llegue el pago, ábrelo en Pedidos → «Confirmar pago recibido».'} Cuenta como venta de WhatsApp.</p>
+        <label class="form-label" style="margin:0 0 4px;display:block">Mensaje para la clienta (puedes editarlo antes de copiarlo)</label>
+        <textarea id="lp-msg" class="form-input" rows="12" style="font-size:0.8rem;margin-bottom:8px;white-space:pre-wrap">${_e(msg)}</textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="lpCopiar('msg', this)">📋 Copiar mensaje</button>
+          <a class="btn btn-primary" href="#" onclick="lpEnviarWA(event)" style="background:#25D366;border-color:#25D366">💬 Enviar por WhatsApp</a>
+        </div>
+      </div>`
+    window._lpItems = []
+    renderItemsLinkPago()
+  } catch (e) {
+    out.innerHTML = `<p style="color:#c62828">Error de conexión</p>`
+  } finally { btn.textContent = 'Crear pedido'; btn.disabled = false }
+}
+
 window.generarLinkPago = async () => {
+  if ((window._lpForma || 'mp') !== 'mp') return window.generarPedidoSinLink()
   const v = id => (document.getElementById(id).value || '').trim()
   const nombre = v('lp-nombre'), tel = v('lp-tel')
   const items = window._lpItems || []

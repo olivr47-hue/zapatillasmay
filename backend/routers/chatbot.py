@@ -1339,6 +1339,111 @@ def link_pago_manual(datos: dict):
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
+_ETQ_FORMA_WA = {'transferencia': 'depósito/transferencia BBVA', 'spei': 'SPEI', 'oxxo': 'depósito en OXXO (Spin)', 'efectivo': 'efectivo'}
+
+
+def _sucursal_con_stock(items: list):
+    """Sucursal desde la que se surte el pedido: la primera (tiendas antes que bodegas) que tiene TODOS los pares. Si ninguna alcanza, la de más existencia
+    y la lista de lo que falta. Devuelve (sucursal_id, faltantes)."""
+    necesita = {}
+    for i in items:
+        necesita[i["variante_id"]] = necesita.get(i["variante_id"], 0) + int(i["cantidad"])
+    inv = supabase_get(f"inventario?variante_id=in.({','.join(necesita)})&select=variante_id,sucursal_id,cantidad") or []
+    por = {}
+    for r in inv:
+        por.setdefault(r["sucursal_id"], {})[r["variante_id"]] = int(r.get("cantidad") or 0)
+    sucs = supabase_get("sucursales?activa=eq.true&select=id,tipo,nombre&order=created_at.asc") or []
+    sucs.sort(key=lambda x: 0 if (x.get("tipo") or "") == "tienda" else 1)
+    mejor, mejor_pares, mejor_falta = None, -1, []
+    for sc in sucs:
+        d = por.get(sc["id"], {})
+        falta = [(v, n - d.get(v, 0)) for v, n in necesita.items() if d.get(v, 0) < n]
+        if not falta:
+            return sc["id"], []
+        cubre = sum(min(d.get(v, 0), n) for v, n in necesita.items())
+        if cubre > mejor_pares:
+            mejor, mejor_pares, mejor_falta = sc["id"], cubre, falta
+    nombres = {i["variante_id"]: i.get("nombre") or "Producto" for i in items}
+    return mejor, [f"{nombres.get(v, 'Producto')} (faltan {n})" for v, n in mejor_falta]
+
+
+@router.post("/pedido-manual-whatsapp")
+def pedido_manual_whatsapp(datos: dict):
+    """Pedido de una clienta de WhatsApp SIN link de MercadoPago: paga por depósito/transferencia BBVA, SPEI, OXXO o efectivo. Canal «whatsapp» (cuenta como venta
+    que llega sola). Queda «pendiente de pago»; el panel lo confirma de inmediato si ya depositó (eso descuenta el inventario) o más tarde con
+    «Confirmar pago recibido». {telefono, nombre, direccion, forma_pago, items:[{variante_id, nombre, cantidad, precio_unitario}], envio?, empleado?, forzar?}"""
+    try:
+        telefono = (datos.get("telefono") or "").strip()
+        if not telefono:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Falta el teléfono de la clienta"})
+        forma = str(datos.get("forma_pago") or "")
+        if forma not in ("transferencia", "spei", "oxxo", "efectivo"):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Forma de pago no válida"})
+        items = []
+        for it in (datos.get("items") or [])[:40]:
+            try:
+                cant, precio = int(it.get("cantidad") or 0), float(it.get("precio_unitario") or 0)
+            except (TypeError, ValueError):
+                continue
+            if it.get("variante_id") and cant > 0 and precio >= 0:
+                items.append({"variante_id": it["variante_id"], "cantidad": cant, "precio_unitario": precio, "subtotal": cant * precio, "nombre": (it.get("nombre") or "Producto")[:200]})
+        if not items:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Agrega al menos un modelo"})
+        pares = sum(i["cantidad"] for i in items)
+        subtotal = sum(i["subtotal"] for i in items)
+        envio_auto = 0.0 if subtotal >= 1299 else (199.0 if pares >= 3 else (150.0 if pares >= 2 else 99.0))
+        try:
+            envio = float(datos.get("envio")) if datos.get("envio") not in (None, "") else envio_auto
+        except (TypeError, ValueError):
+            envio = envio_auto
+        envio = max(0.0, envio)
+        total = subtotal + envio
+        suc_id, faltantes = _sucursal_con_stock(items)
+        if faltantes and not datos.get("forzar"):
+            return JSONResponse(status_code=409, content={"ok": False, "error": "Sin existencia suficiente", "faltantes": faltantes})
+        t10 = _tel10(telefono)
+        # Idempotencia: el mismo número y total en los últimos 30 min, sin pagar y sin link, es el mismo pedido (evita pedidos repetidos por doble clic)
+        try:
+            import datetime as _dt
+            desde = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            previo = supabase_get(f"pedidos?canal=eq.whatsapp&status=eq.pendiente_pago&total=eq.{total:.2f}&created_at=gte.{desde}&mp_preference_id=is.null"
+                                  f"&telefono_cliente=like.*{t10}&order=created_at.desc&limit=1&select=id") if t10 else []
+            if previo:
+                return {"ok": True, "pedido_id": previo[0]["id"], "total": total, "envio": envio, "repetido": True}
+        except Exception as e_i:
+            print(f"[pedido-manual-wa] idempotencia: {e_i}")
+        cliente_id = None
+        try:
+            cli = supabase_get(f"clientes?telefono=like.*{t10}&select=id&limit=1") if t10 else []
+            cliente_id = cli[0]["id"] if cli else None
+        except Exception:
+            cliente_id = None
+        nombre = (datos.get("nombre") or "Cliente").strip()[:120]
+        direccion = (datos.get("direccion") or "").strip()[:400]
+        descripcion = ", ".join(f"{i['nombre']} x{i['cantidad']}" for i in items)
+        fila = {
+            "nombre_cliente": nombre, "telefono_cliente": telefono, "total": total, "costo_envio": envio, "status": "pendiente_pago", "canal": "whatsapp",
+            # depósito BBVA, SPEI y depósito en OXXO se guardan como «spei» (así caen en el mismo renglón de Caja/Finanzas); el método exacto queda en las notas
+            "forma_pago": "efectivo" if forma == "efectivo" else "spei", "sucursal_id": suc_id, "notas": f"Pedido WhatsApp ({_ETQ_FORMA_WA[forma]}) | {descripcion} | Envío a: {direccion}"[:1000], "direccion_envio": direccion,
+            "empleado": (datos.get("empleado") or "")[:80] or None,
+        }
+        if cliente_id:
+            fila["cliente_id"] = cliente_id
+        r = supabase_post("pedidos", fila)
+        pedido_id = (r[0] if isinstance(r, list) else r).get("id")
+        for it in items:
+            supabase_post("pedido_items", dict(it, pedido_id=pedido_id))
+        try:
+            supabase_post("pedido_historial", {"pedido_id": pedido_id, "accion": "creado", "detalle": f"Pedido de WhatsApp sin link ({forma})", "usuario": (datos.get("empleado") or None)})
+        except Exception:
+            pass
+        return {"ok": True, "pedido_id": pedido_id, "total": total, "envio": envio, "sucursal_id": suc_id, "faltantes": faltantes}
+    except Exception as e:
+        import traceback
+        print(f"[pedido-manual-wa] {e}\n{traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": "No se pudo crear el pedido: " + str(e)[:160]})
+
+
 def _verificar_firma_meta(body: bytes, signature_header: str) -> bool:
     """Valida `X-Hub-Signature-256` del webhook de Meta con el App Secret.
 
