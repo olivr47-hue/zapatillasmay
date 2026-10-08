@@ -239,9 +239,9 @@ export function renderPanel() {
           // texto (para copiar) y movía el scroll.
           const _ms = chat.mensajes || []
           const sig = _ms.length + '|' + ((_ms[0] && (_ms[0].created_at || _ms[0].mensaje)) || '') + '|' + (chat.cliente_leyo_at || '') + '|' + (chat.cliente_entrego_at || '')
-          if (mensajesArea.dataset.sig !== sig) {
+          if (mensajesArea.dataset.sig !== sig && !window._audioSonando()) {
             const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 60
-            mensajesArea.innerHTML = window._renderBurbujas(chat)
+            window._pintarBurbujas(mensajesArea, chat)
             mensajesArea.dataset.sig = sig
             if (estaAbajo) mensajesArea.scrollTop = mensajesArea.scrollHeight
           }
@@ -18252,12 +18252,12 @@ window._renderBurbujas = (chat) => {
   const mensajesOrden = [...(chat.mensajes || [])].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
-    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente'
+    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente' || m.tipo === 'audio_saliente'
     return esSal ? i : acc
   }, -1)
 
   return mensajesOrden.map((m, idx) => {
-    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente'
+    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente' || m.tipo === 'audio_saliente'
     const senderName = esc(esSaliente ? ((m.mensaje || '').match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono))
     const _parsedAt = parseUTC(m.created_at)
     const ts = _parsedAt ? _parsedAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : ''
@@ -18282,6 +18282,9 @@ window._renderBurbujas = (chat) => {
       msgBody = `<a href="${viewUrl}" target="_blank" class="wa-doc-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         ${fname}</a>`
+    } else if (m.tipo === 'audio_saliente') {
+      const aUrl = urlOk(((m.mensaje || '').match(/https?:\/\/\S+/) || [''])[0])
+      msgBody = aUrl ? window.waAudioHTML(aUrl, '0') : '<p style="color:#64748b;font-size:0.8rem">🎤 Audio enviado</p>'
     } else if (m.tipo === 'video_saliente') {
       const vurl = urlOk(textoLimpio.replace('[Video] ', '').replace(/&amp;/g, '&'))
       msgBody = `<video src="${vurl}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
@@ -18325,7 +18328,7 @@ window._renderBurbujas = (chat) => {
       msgBody = stUrl
         ? `<img src="${stUrl}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
         : `<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>`
-    } else if (m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente') {
+    } else if (m.tipo === 'template_saliente' || m.tipo === 'plantilla_saliente' || m.tipo === 'audio_saliente') {
       msgBody = `<p style="margin:0;font-size:0.85rem;word-break:break-word">${window._linkifyWA(textoLimpio.replace('[Template] ',''))}</p>
         <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`
     } else if (m.tipo === 'button_reply') {
@@ -18585,6 +18588,9 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>` : ''}
+        <button class="wa-tool-btn" title="Grabar y enviar un audio" style="color:#00a884" onclick="grabarAudioWA('${_ja(telefono)}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+        </button>
         <button class="wa-tool-btn" title="Catálogo en PDF por categoría (descargar o enviar)" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         </button>
@@ -18664,7 +18670,7 @@ area.style.minHeight = '0'
         // Re-renderizar burbujas con historial completo
         const ma = document.getElementById('mensajes-area')
         if (ma) {
-          ma.innerHTML = window._renderBurbujas(chat)
+          window._pintarBurbujas(ma, chat)
           setTimeout(() => { ma.scrollTop = ma.scrollHeight }, 50)
         }
       }
@@ -18960,7 +18966,7 @@ window._refrescarChatAbierto = async (telefono, enfocar = true) => {
   const ma = document.getElementById('mensajes-area')
   const chat = window._chatsData[telefono]
   if (!ma || !chat || window._chatActivo !== telefono) return window.abrirChat(telefono)
-  ma.innerHTML = window._renderBurbujas(chat)
+  window._pintarBurbujas(ma, chat)
   ma.scrollTop = ma.scrollHeight
   const sub = document.querySelector('#chat-area .wa-header-sub')
   if (sub && chat.mensajes) sub.textContent = `${chat.telefono} · ${chat.mensajes.length} msg`
@@ -18989,13 +18995,13 @@ window.enviarMensajeWA = async (telefono) => {
   const ma = document.getElementById('mensajes-area')
   if (chat && ma) {
     chat.mensajes = [temporal, ...(chat.mensajes || [])]
-    ma.innerHTML = window._renderBurbujas(chat)
+    window._pintarBurbujas(ma, chat)
     ma.scrollTop = ma.scrollHeight
   }
   const quitarTemporal = () => {
     if (chat) chat.mensajes = (chat.mensajes || []).filter(m => m !== temporal)
     const ma2 = document.getElementById('mensajes-area')
-    if (chat && ma2 && window._chatActivo === telefono) ma2.innerHTML = window._renderBurbujas(chat)
+    if (chat && ma2 && window._chatActivo === telefono) window._pintarBurbujas(ma2, chat)
   }
   try {
     const res = await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
@@ -19148,6 +19154,105 @@ window.waAudVelocidad = (btn) => {
   const a = btn.closest('.wa-aud').querySelector('audio')
   const orden = [1, 1.5, 2], sig = orden[(orden.indexOf(a.playbackRate) + 1) % orden.length] || 1
   a.playbackRate = sig; btn.textContent = (sig === 1 ? '1' : String(sig)) + 'x'
+}
+
+// Repintar la conversación sin cortar un audio que está sonando: se conserva su posición, velocidad y reproducción
+window._audioSonando = () => [...document.querySelectorAll('.wa-aud audio')].some(a => !a.paused && !a.ended)
+window._pintarBurbujas = (el, chat) => {
+  let est = null
+  document.querySelectorAll('.wa-aud audio').forEach(a => { if (!a.paused || a.currentTime > 0.2) est = { src: a.getAttribute('src'), t: a.currentTime, rate: a.playbackRate, play: !a.paused } })
+  el.innerHTML = window._renderBurbujas(chat)
+  if (!est) return
+  const n = [...el.querySelectorAll('.wa-aud audio')].find(a => a.getAttribute('src') === est.src)
+  if (!n) return
+  n.playbackRate = est.rate
+  const vel = n.closest('.wa-aud').querySelector('.wa-aud-vel'); if (vel) vel.textContent = (est.rate === 1 ? '1' : String(est.rate)) + 'x'
+  const seguir = () => { n.currentTime = est.t; if (est.play) n.play().catch(() => {}) }
+  if (n.readyState >= 1) seguir(); else n.addEventListener('loadedmetadata', seguir, { once: true })
+}
+
+// ── Grabar un audio y mandarlo por WhatsApp ──
+// El navegador graba en webm/opus (Chrome) y WhatsApp no lo acepta: se convierte a MP3 aquí mismo (mono, 16 kHz) antes de enviarlo.
+window.audioParaWhatsApp = async (blob) => {
+  const t = (blob.type || '').toLowerCase()
+  if (/ogg/.test(t)) return new File([blob], 'audio.ogg', { type: 'audio/ogg' })
+  if (/mp4|aac/.test(t)) return new File([blob], 'audio.m4a', { type: 'audio/mp4' })
+  if (!window.lamejs) {
+    await new Promise((ok, no) => {
+      const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js'
+      sc.onload = ok; sc.onerror = () => no(new Error('No se pudo cargar el convertidor de audio')); document.head.appendChild(sc)
+    })
+  }
+  const ctx = new (window.AudioContext || window.webkitAudioContext)()
+  const audio = await ctx.decodeAudioData(await blob.arrayBuffer()); ctx.close()
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(audio.duration * 16000)), 16000)
+  const fuente = off.createBufferSource(); fuente.buffer = audio; fuente.connect(off.destination); fuente.start()
+  const pcm = (await off.startRendering()).getChannelData(0)
+  const i16 = new Int16Array(pcm.length)
+  for (let i = 0; i < pcm.length; i++) i16[i] = Math.max(-1, Math.min(1, pcm[i])) * 0x7fff
+  const enc = new window.lamejs.Mp3Encoder(1, 16000, 64), partes = []
+  for (let i = 0; i < i16.length; i += 1152) { const b = enc.encodeBuffer(i16.subarray(i, i + 1152)); if (b.length) partes.push(b) }
+  const fin = enc.flush(); if (fin.length) partes.push(fin)
+  return new File(partes, 'audio.mp3', { type: 'audio/mpeg' })
+}
+
+window.grabarAudioWA = async (telefono) => {
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alert('Este navegador no puede grabar audio. Usa Chrome o Safari actualizado.'); return }
+  let stream
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
+  catch (e) { alert('Para grabar audios permite el micrófono: toca el candado junto a la dirección → Permisos → Micrófono → Permitir.'); return }
+  document.getElementById('modal-grabar-audio')?.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-grabar-audio'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:1rem'
+  modal.innerHTML = `<div id="ga-caja" style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:1.25rem 1.5rem"></div>`
+  document.body.appendChild(modal)
+  const caja = modal.querySelector('#ga-caja')
+  const fmt = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0')
+  const trozos = []; let rec, timer, cancelado = false, t0 = Date.now(), archivo = null
+  const cerrar = () => { cancelado = true; clearInterval(timer); try { if (rec && rec.state !== 'inactive') rec.stop() } catch (e) {} stream.getTracks().forEach(x => x.stop()); modal.remove() }
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar() })
+  const pintarGrabando = () => {
+    caja.innerHTML = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="width:12px;height:12px;border-radius:50%;background:#e53935;animation:parpadeo 1s infinite"></span>
+      <b style="font-size:1rem">Grabando…</b><span id="ga-t" style="font-variant-numeric:tabular-nums;color:#666">0:00</span></div>
+      <style>@keyframes parpadeo{50%{opacity:.25}}</style>
+      <div style="display:flex;gap:8px"><button class="btn btn-secondary" id="ga-cancelar">✕ Cancelar</button><button class="btn btn-primary" id="ga-detener" style="background:#00a884;border-color:#00a884">⏹ Detener</button></div>`
+    caja.querySelector('#ga-cancelar').onclick = cerrar
+    caja.querySelector('#ga-detener').onclick = () => { try { rec.stop() } catch (e) {} }
+    timer = setInterval(() => { const el = document.getElementById('ga-t'); if (el) el.textContent = fmt((Date.now() - t0) / 1000) }, 250)
+  }
+  const pintarListo = (url, seg) => {
+    caja.innerHTML = `<p style="font-weight:700;margin:0 0 8px">🎤 Tu audio (${fmt(seg)})</p>
+      <div style="background:#f5f5f5;border-radius:10px;padding:8px 10px;margin-bottom:12px;display:inline-block">${window.waAudioHTML(url, '0')}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" id="ga-cancelar">✕ Descartar</button><button class="btn btn-secondary" id="ga-regrabar">🎙️ Volver a grabar</button>
+      <button class="btn btn-primary" id="ga-enviar" style="background:#00a884;border-color:#00a884">📤 Enviar</button></div><p id="ga-msg" style="font-size:0.78rem;color:#c62828;margin:8px 0 0"></p>`
+    caja.querySelector('#ga-cancelar').onclick = () => { URL.revokeObjectURL(url); cerrar() }
+    caja.querySelector('#ga-regrabar').onclick = () => { URL.revokeObjectURL(url); modal.remove(); window.grabarAudioWA(telefono) }
+    caja.querySelector('#ga-enviar').onclick = async () => {
+      const b = caja.querySelector('#ga-enviar'); b.disabled = true; b.textContent = 'Enviando...'
+      try {
+        const fd = new FormData(); fd.append('archivo', archivo); fd.append('agente', window._empleadoActual?.nombre || 'Admin')
+        const r = await fetch(API + '/chatbot/chats/' + telefono + '/audio', { method: 'POST', body: fd })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error(d.error || ('WhatsApp rechazó el audio (' + r.status + ')'))
+        URL.revokeObjectURL(url); modal.remove(); await window._refrescarChatAbierto(telefono, false)
+      } catch (e) { caja.querySelector('#ga-msg').textContent = 'No se pudo enviar: ' + e.message; b.disabled = false; b.textContent = '📤 Enviar' }
+    }
+  }
+  try { rec = new MediaRecorder(stream) } catch (e) { cerrar(); alert('No se pudo iniciar la grabación en este navegador.'); return }
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) trozos.push(e.data) }
+  rec.onstop = async () => {
+    clearInterval(timer); stream.getTracks().forEach(x => x.stop())
+    if (cancelado) return
+    const seg = (Date.now() - t0) / 1000
+    if (seg < 0.8 || !trozos.length) { modal.remove(); alert('El audio quedó muy corto. Mantén la grabación al menos un segundo.'); return }
+    caja.innerHTML = '<p style="margin:0;color:#555">⏳ Preparando el audio...</p>'
+    try {
+      archivo = await window.audioParaWhatsApp(new Blob(trozos, { type: rec.mimeType || trozos[0].type }))
+      pintarListo(URL.createObjectURL(archivo), seg)
+    } catch (e) { caja.innerHTML = `<p style="color:#c62828">No se pudo preparar el audio: ${_e(e.message)}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-grabar-audio').remove()">Cerrar</button>` }
+  }
+  rec.start(); t0 = Date.now(); pintarGrabando()
 }
 
 window.subirDocumentoWA = async (telefono, input) => {

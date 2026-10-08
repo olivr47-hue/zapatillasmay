@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from telefonos import a_e164_mx
@@ -4065,6 +4065,39 @@ def enviar_documento_manual(telefono: str, datos: dict):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/audio")
+def enviar_audio_manual(telefono: str, archivo: UploadFile = File(...), agente: str = Form("Admin")):
+    """Audio grabado en el panel: se guarda en Storage y se manda por WhatsApp (mp3, ogg/opus, m4a, aac o amr; máx. 16 MB)."""
+    try:
+        tipo = (archivo.content_type or "").split(";")[0].strip().lower()
+        ext = {"audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/aac": "aac", "audio/amr": "amr"}.get(tipo)
+        if not ext:
+            return JSONResponse(status_code=400, content={"error": "Formato de audio no permitido por WhatsApp (" + (tipo or "desconocido") + ")"})
+        datos = archivo.file.read(16 * 1024 * 1024 + 1)
+        if len(datos) > 16 * 1024 * 1024:
+            return JSONResponse(status_code=400, content={"error": "El audio pesa más de 16 MB"})
+        if len(datos) < 500:
+            return JSONResponse(status_code=400, content={"error": "El audio está vacío"})
+        solo_digitos = re.sub(r"\D", "", telefono)
+        nombre = f"salida_{solo_digitos}_{int(time.time())}.{ext}"
+        url = subir_imagen_storage(datos, nombre, content_type="audio/mpeg" if ext == "mp3" else tipo)
+        if not url:
+            return JSONResponse(status_code=500, content={"error": "No se pudo guardar el audio"})
+        wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "audio", "audio": {"link": url}})
+        if not wamid:
+            err = (_WA_ULTIMO_ERROR or {}).get("mensaje") or "WhatsApp no aceptó el audio (puede que ya pasaron más de 24 h desde su último mensaje)"
+            return JSONResponse(status_code=502, content={"error": err})
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono, "mensaje": f"[{agente}]: [Audio] {url}", "respuesta": None,
+            "tipo": "audio_saliente", "leido": True, "wa_message_id": wamid,
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True, "url": url}
+    except Exception as e:
+        print(f"[audio-manual] {e}")
+        return JSONResponse(status_code=500, content={"error": "No se pudo enviar el audio: " + str(e)[:160]})
 
 
 @router.post("/chats/{telefono}/video")
