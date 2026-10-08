@@ -60,7 +60,8 @@ def _origenes_clientes(cids):
 def _cuenta_en_tu_utilidad(canal, origen_cliente):
     """«Tu utilidad» solo cuenta lo que llega solo: tienda en línea, MercadoLibre, WhatsApp, portal de clientas que se registraron solas y las
     ventas de TikTok (las que se capturan en el sistema con el cliente «TikTok», origen 'tiktok', sea cual sea el canal).
-    NO cuenta mostrador, lo que captura el dueño ni las clientas que registró él, ni SHEIN y demás."""
+    NO cuenta mostrador, lo que captura el dueño ni las clientas que registró él, ni SHEIN y demás.
+    EXCEPCIÓN: una venta de mostrador cobrada al precio del sitio (panel +$80) sí cuenta; eso se decide aparte con _pedidos_a_precio_sitio()."""
     canal = (canal or '').lower()
     if origen_cliente == 'tiktok':
         return True
@@ -69,6 +70,42 @@ def _cuenta_en_tu_utilidad(canal, origen_cliente):
     if canal == 'portal_mayoreo':
         return origen_cliente in _ORIGEN_PROPIO
     return False
+
+
+def _pedidos_a_precio_sitio(pedidos) -> set:
+    """Ventas de mostrador (Punto de venta) cuyos pares se cobraron AL PRECIO DEL SITIO: precio de menudeo del panel + $80 (o más).
+    Es la señal para saber que esa venta es de las que llegan solas (la clienta la cotizó por WhatsApp o por el sitio) y debe contar en «Tu utilidad»,
+    aunque quien la capturó la haya metido en el Punto de venta en vez de usar el link de pago.
+    Reglas: la venta cuenta si TODOS sus pares de menudeo (sin ofertas, que no llevan el +$80) se cobraron a panel+$80 o más y hay al menos uno así.
+    Los renglones en $0 (cambios) y las ofertas no cuentan para decidir; si algún par se cobró al precio del panel o menos, la venta es de mostrador y no cuenta."""
+    cand = [p['id'] for p in (pedidos or []) if (p.get('canal') or '').lower() == 'sucursal']
+    if not cand:
+        return set()
+    items = []
+    for k in range(0, len(cand), 150):
+        items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(cand[k:k + 150])})&select=pedido_id,cantidad,variante_id,precio_unitario") or []
+    items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0 and float(i.get('precio_unitario') or 0) > 0]
+    vids = list({i['variante_id'] for i in items})
+    vmap = {}
+    for k in range(0, len(vids), 150):
+        for v in supabase_get(f"variantes?id=in.({','.join(vids[k:k + 150])})&select=id,producto_id") or []:
+            vmap[v['id']] = v.get('producto_id')
+    pids = list({x for x in vmap.values() if x})
+    pmap = {}
+    for k in range(0, len(pids), 150):
+        for pr in supabase_get(f"productos?id=in.({','.join(pids[k:k + 150])})&select=id,precio_menudeo,es_oferta") or []:
+            pmap[pr['id']] = pr
+    a_sitio, otro = set(), set()
+    for i in items:
+        pr = pmap.get(vmap.get(i['variante_id']))
+        base = float((pr or {}).get('precio_menudeo') or 0)
+        if not pr or base <= 0 or pr.get('es_oferta'):
+            continue
+        if float(i.get('precio_unitario') or 0) + 0.5 >= base + 80:
+            a_sitio.add(i['pedido_id'])
+        else:
+            otro.add(i['pedido_id'])
+    return a_sitio - otro
 
 
 def _externas_rango(ini, fin) -> dict:
@@ -545,6 +582,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         tu_ventas = 0.0
         origenes = _origenes_clientes([p.get('cliente_id') for p in pedidos])
         cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), origenes.get(p.get('cliente_id'))) for p in pedidos}
+        for _pid in _pedidos_a_precio_sitio([p for p in pedidos if not cuenta.get(p['id'])]):
+            cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80): cuenta como venta que llega sola
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
             # En bloques y paginado: antes era UNA consulta con todos los ids en la URL (se
@@ -670,6 +709,7 @@ _GRUPOS_TU_UTILIDAD = [
     ("whatsapp", "WhatsApp (Maya y links)"),
     ("portal_solas", "Portal: clientas que se registraron solas"),
     ("tiktok", "TikTok (ventas capturadas con el cliente TikTok)"),
+    ("mostrador_sitio", "Punto de venta cobrado al precio del sitio (+$80)"),
 ]
 
 
@@ -683,6 +723,7 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
             f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)"
             f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id,total,canal,cliente_id") or []
         origen = _origenes_clientes([p.get('cliente_id') for p in pedidos])
+        _sitio = _pedidos_a_precio_sitio(pedidos)   # mostrador cobrado a panel+$80
 
         def grupo(p):
             canal = (p.get('canal') or '').lower()
@@ -696,6 +737,8 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
                 return "whatsapp"
             if canal == 'portal_mayoreo' and origen.get(p.get('cliente_id')) in _ORIGEN_PROPIO:
                 return "portal_solas"
+            if p['id'] in _sitio:
+                return "mostrador_sitio"
             return None
         pedidos = [p for p in pedidos if grupo(p)]
         ids = [p['id'] for p in pedidos]
@@ -782,6 +825,8 @@ def estado_resultados(sucursal_id: str):
             ids = [p['id'] for p in pedidos]
             _orig = _origenes_clientes([p.get('cliente_id') for p in pedidos])
             _cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), _orig.get(p.get('cliente_id'))) for p in pedidos}
+            for _pid in _pedidos_a_precio_sitio([p for p in pedidos if not _cuenta.get(p['id'])]):
+                _cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80)
             ventas_prod = cmv = 0.0
             if ids:
                 items = []

@@ -5526,6 +5526,7 @@ Contraseña: ${o.password}
       <div style="flex:1">
         <p style="font-size:0.9rem;font-weight:600">${u.nombre}</p>
         <p style="font-size:0.78rem;color:#888">${u.color} · T${u.talla}</p>
+        ${!u.es_oferta&&!u.es_cambio&&u.precio_menudeo>0&&u.precio_unitario>=u.precio_menudeo+80?'<p style="font-size:0.68rem;font-weight:700;color:#2e7d32;background:#e8f5e9;display:inline-block;padding:1px 8px;border-radius:100px;margin-top:3px" title="Cobrado al precio del sitio (panel +$80): esta venta cuenta en Tu utilidad">🌐 Precio del sitio · cuenta en tu utilidad</p>':""}
       </div>
       <button onclick="eliminarItemPOS(${e.indexOf(u)})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
     </div>
