@@ -13,6 +13,13 @@ export function registrarRutasOtros({ db, ruta }) {
   ruta('GET', /^\/analytics\/ia-referrals$/, () => ({ total_sesiones: 0, referencias: [], por_dia: [] }))
   ruta('GET', /^\/analytics\/portal-visitas$/, () => ({ total_sesiones: 214, dias: Array.from({ length: 30 }, (_, i) => ({ fecha: dia(29 - i).replace(/-/g, ''), sesiones: 4 + (i * 7) % 11 })) }))
 
+  // Carritos con pares sin existencia (ejemplo: toma el primer carrito apartado o en borrador)
+  ruta('GET', /^\/pedidos\/carritos-sin-existencia$/, () => {
+    const p = (db.pedidos || []).find(x => x.status === 'apartado' || x.status === 'borrador'); if (!p) return []
+    const cl = (db.clientes || []).find(c => c.id === p.cliente_id)
+    return [{ id: p.id, estado: p.status, cliente: (cl && cl.nombre) || 'Clienta de ejemplo', faltan: [{ nombre: 'Tacón Aurora', color: 'Negro', talla: '25', pide: 2, hay: 1 }] }]
+  })
+
   // Tareas del equipo (ejemplos inventados)
   const hoyD = dia(0), manD = dia(-1)
   const TAREAS = [

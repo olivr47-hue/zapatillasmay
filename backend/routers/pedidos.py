@@ -424,6 +424,42 @@ def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/carritos-sin-existencia")
+def carritos_sin_existencia(_staff=Depends(require_staff)):
+    """Carritos (borrador o apartado) con pares SIN apartar que ya no hay en existencia, diciendo cuáles pares son:
+    modelo, color, talla, cuántos piden y cuántos hay (suma de todas las sucursales, igual que la pantalla de Carritos)."""
+    try:
+        pedidos = supabase_get(
+            "pedidos?status=in.(borrador,apartado)&order=created_at.desc&limit=400"
+            "&select=id,status,clientes(nombre),nombre_cliente,pedido_items(variante_id,cantidad,reservado,variantes(color,talla,productos(nombre,sku_interno)))"
+        ) or []
+        vids = sorted({i["variante_id"] for p in pedidos for i in (p.get("pedido_items") or [])
+                       if i.get("variante_id") and not i.get("reservado") and int(i.get("cantidad") or 0) > 0})
+        stock = {}
+        for k in range(0, len(vids), 100):
+            for r in supabase_get(f"inventario?variante_id=in.({','.join(vids[k:k + 100])})&select=variante_id,cantidad&limit=5000") or []:
+                stock[r["variante_id"]] = stock.get(r["variante_id"], 0) + int(r.get("cantidad") or 0)
+        salida = []
+        for p in pedidos:
+            faltan = []
+            for i in (p.get("pedido_items") or []):
+                pide = int(i.get("cantidad") or 0)
+                vid = i.get("variante_id")
+                if not vid or i.get("reservado") or pide <= 0:
+                    continue
+                hay = stock.get(vid, 0)
+                if hay < pide:
+                    v = i.get("variantes") or {}
+                    pr = v.get("productos") or {}
+                    faltan.append({"nombre": pr.get("nombre") or "Producto", "sku": pr.get("sku_interno"), "color": v.get("color"),
+                                   "talla": v.get("talla"), "pide": pide, "hay": hay})
+            if faltan:
+                salida.append({"id": p["id"], "estado": p.get("status"), "cliente": (p.get("clientes") or {}).get("nombre") or p.get("nombre_cliente") or "Sin cliente", "faltan": faltan})
+        return salida
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/solicitudes-total")
 def solicitudes_total(_staff=Depends(require_staff)):
     """Conteo liviano de solicitudes pendientes (apartar + liberar) para el

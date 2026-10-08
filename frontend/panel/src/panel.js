@@ -27552,13 +27552,14 @@ async function cargarCarritos() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
-    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig] = await Promise.all([
+    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig, resSinEx] = await Promise.all([
       fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/apartados').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/solicitudes-liberacion').then(r => r.json()).catch(() => ({ total: 0 })),
       fetch(API + '/clientes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json()),
-      fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => [])
+      fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => []),
+      fetch(API + '/pedidos/carritos-sin-existencia').then(r => r.json()).catch(() => [])
     ])
     // Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
     // en su portal (canal portal_mayoreo con la marca [carrito-respaldo]). Estos
@@ -27647,6 +27648,23 @@ async function cargarCarritos() {
             </div>
           </div>
 
+          ${(() => {
+            const sinEx = (Array.isArray(resSinEx) ? resSinEx : []).filter(c => window._carrPedidos[c.id])
+            window._carrSinEx = {}; sinEx.forEach(c => { window._carrSinEx[c.id] = c })
+            return sinEx.length ? `
+          <div style="background:#fff;border:1px solid #fed7aa;border-radius:14px;padding:12px 14px;margin-bottom:14px">
+            <strong style="font-size:0.9rem;color:#c2410c">📉 Carritos con pares sin existencia</strong>
+            ${sinEx.map(c => `
+              <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;padding:8px 0;border-top:1px solid #f1f5f9">
+                <div style="flex:1;min-width:200px">
+                  <strong style="font-size:0.85rem">${window._escWA(c.cliente)}</strong> <span style="font-size:0.7rem;color:#64748b">· ${c.estado === 'apartado' ? 'apartado' : 'borrador'}</span>
+                  ${c.faltan.map(f => `<div style="font-size:0.76rem;color:#9a3412">• ${window._escWA(f.nombre)}${f.color ? ' · ' + window._escWA(f.color) : ''} · talla ${window._escWA(f.talla)} — piden ${f.pide}, hay ${f.hay}</div>`).join('')}
+                </div>
+                <button class="btn btn-secondary" style="font-size:0.74rem;padding:5px 10px" onclick="abrirCarrito('${c.id}')">Abrir carrito</button>
+              </div>`).join('')}
+          </div>` : ''
+          })()}
+
           ${(vencidos.length + porVencer.length) > 0 ? `
           <div style="background:#fff;border:1px solid #fecaca;border-radius:14px;padding:12px 14px;margin-bottom:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
@@ -27712,7 +27730,7 @@ async function cargarCarritos() {
                       ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
                     </span>
                   </div>
-                  ${p._agotados > 0 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⚠️ ${p._agotados} par${p._agotados === 1 ? '' : 'es'} ya sin existencia</div>` : ''}
+                  ${p._agotados > 0 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⚠️ ${p._agotados} par${p._agotados === 1 ? '' : 'es'} ya sin existencia${window._carrSinEx && window._carrSinEx[p.id] ? `<div style="font-weight:600;margin-top:3px">${window._carrSinEx[p.id].faltan.map(f => window._escWA(f.nombre) + (f.color ? ' · ' + window._escWA(f.color) : '') + ' · talla ' + window._escWA(f.talla)).join('<br>')}</div>` : ''}</div>` : ''}
                   ${p._vencido ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⏰ Apartado vencido hace ${-p._vence} día${-p._vence === 1 ? '' : 's'}</div>` : (p._porVencer ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⏳ ${p._vence === 0 ? 'Vence hoy' : 'Vence en ' + p._vence + ' día' + (p._vence === 1 ? '' : 's')}</div>` : '')}
                   <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
                     <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
