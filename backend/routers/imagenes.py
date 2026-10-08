@@ -65,14 +65,27 @@ def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None),
         archivo = upload
 
         if content_type.startswith("video/"):
+            # WhatsApp solo acepta mp4 H.264 + AAC "normal": los celulares graban HEVC (H.265) y el grabador del navegador saca mp4 fragmentado,
+            # y ambos los rechaza (códigos 131053). Cloudinary lo reconvierte al subirlo (síncrono) y se manda esa versión.
             resultado = cloudinary.uploader.upload(
                 contenido,
                 folder="wa_media",
-                resource_type="video"
+                resource_type="video",
+                eager=[{"format": "mp4", "video_codec": "h264:main:3.1", "audio_codec": "aac",
+                        "width": 720, "crop": "limit", "quality": "auto:good"}],
+                eager_async=False,
             )
             url = resultado.get("secure_url", "")
             if not url:
                 return JSONResponse(status_code=500, content={"error": "Cloudinary no devolvió URL"})
+            try:
+                eager_url = ((resultado.get("eager") or [{}])[0]).get("secure_url", "")
+                if eager_url:
+                    url = eager_url
+                else:
+                    print("[upload-temp] Cloudinary no devolvió la versión convertida del video; se manda el original")
+            except Exception as e_eager:
+                print(f"[upload-temp] eager video: {e_eager}")
             return {"url": url, "public_url": url, "public_id": resultado.get("public_id", "")}
 
         elif content_type == "application/pdf" or archivo.filename.lower().endswith(".pdf"):

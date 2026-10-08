@@ -19548,8 +19548,8 @@ window.subirVideoWA = async (telefono, input) => {
   if (!file) return
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
-  if (file.size > 16 * 1024 * 1024) { alert('El video pesa ' + (file.size / 1048576).toFixed(1) + ' MB y WhatsApp acepta máximo 16 MB. Graba uno más corto.'); return }
-  _waAviso('📤 Enviando video...')
+  if (file.size > 80 * 1024 * 1024) { alert('El video pesa ' + (file.size / 1048576).toFixed(1) + ' MB: es demasiado. Graba uno más corto.'); return }
+  _waAviso('📤 Preparando y enviando video (puede tardar unos segundos)...')
   try {
     const formData = new FormData()
     formData.append('file', file)
