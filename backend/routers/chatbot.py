@@ -3168,6 +3168,23 @@ def crear_tarea_equipo(datos: dict, _staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/chats/{telefono}/cliente")
+def cliente_del_chat(telefono: str, _staff=Depends(require_staff)):
+    """¿Este teléfono ya tiene ficha de cliente? (el chat lo muestra como «ya registrada» o «aún no registrada»). Se compara por los últimos 10 dígitos."""
+    try:
+        d10 = re.sub(r"\D", "", telefono or "")[-10:]
+        if len(d10) < 10:
+            return {"registrado": False}
+        cola = urllib.parse.quote(f"*{d10[-4:]}", safe="*")
+        filas = supabase_get(f"clientes?telefono=ilike.{cola}&select=id,nombre,telefono,activo&limit=25") or []
+        for c in filas:
+            if re.sub(r"\D", "", c.get("telefono") or "")[-10:] == d10:
+                return {"registrado": True, "id": c["id"], "nombre": c.get("nombre") or "", "activo": c.get("activo") is not False}
+        return {"registrado": False}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/tareas-equipo")
 def tareas_equipo(hechas: int = 0, _staff=Depends(require_staff)):
     """Todas las tareas pendientes del equipo (más las hechas en los últimos 14 días si hechas=1)."""

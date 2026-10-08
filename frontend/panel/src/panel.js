@@ -18660,7 +18660,8 @@ area.style.minHeight = '0'
       <span class="wa-bot-badge ${chat.en_control ? 'manual' : 'auto'}">
         ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
-      ${chat.origen ? `<span title="De dónde llegó esta conversación (página del sitio · fuente de la visita)" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis">📍 ${_e(String(chat.origen).replace(/\s*\|\s*/g, ' · '))}</span>` : ''}
+      ${chat.origen ? `<span title="De dónde llegó esta conversación (página del sitio · fuente de la visita)" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis">📍 Viene de: ${_e(String(chat.origen).replace(/\s*\|\s*/g, ' · '))}</span>` : ''}
+      ${_esWhatsappChat ? `<span id="wa-reg-${telefono}" style="font-size:0.72rem;color:#94a3b8">Revisando si ya es clienta…</span>` : ''}
       <select onchange="cambiarEtiqueta('${_ja(telefono)}', this.value)" class="wa-label-select-sm">
         <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>Sin etiqueta</option>
         <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>Pregunta</option>
@@ -18762,6 +18763,7 @@ area.style.minHeight = '0'
   `
 
   window._ajustarAlturaChat()
+  if (_esWhatsappChat) window.waCargarRegistro(telefono, chat)
   // Si se está repintando la conversación que ya estaba abierta, no perder lo escrito ni el foco
   if (_borradorPrevio != null) {
     const ti = document.getElementById('msg-input-' + telefono)
@@ -18827,6 +18829,30 @@ window._ajustarAlturaChat = () => {
   c.style.setProperty('height', Math.max(320, window.innerHeight - top - 6) + 'px', 'important')
 }
 window.addEventListener('resize', () => { if (document.getElementById('chat-area')) window._ajustarAlturaChat() })
+// «Ya registrada» / «Aún no registrada»: si el teléfono de la conversación ya tiene ficha de cliente
+window.waCargarRegistro = async (tel, chat) => {
+  const el = document.getElementById('wa-reg-' + tel); if (!el) return
+  try {
+    const r = await fetch(API + '/chatbot/chats/' + encodeURIComponent(tel) + '/cliente'); const d = await r.json()
+    const el2 = document.getElementById('wa-reg-' + tel); if (!el2) return
+    if (!r.ok) { el2.textContent = ''; return }
+    if (d.registrado) {
+      el2.innerHTML = `<button type="button" onclick="verHistorialCliente('${_ja(d.id)}')" title="Abrir su ficha y su historial" style="border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;cursor:pointer">✔ Ya registrada: ${_e(d.nombre || 'cliente')} →</button>`
+    } else {
+      el2.innerHTML = `<button type="button" onclick="waCrearFichaDesdeChat('${_ja(tel)}')" title="Crear su ficha de cliente con el teléfono y el nombre de esta conversación" style="border:1px solid #fde68a;background:#fffbeb;color:#92400e;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;cursor:pointer">Aún no registrada · + Crear ficha</button>`
+    }
+  } catch (e) { el.textContent = '' }
+}
+window.waCrearFichaDesdeChat = async (tel) => {
+  const ch = (window._chatsData && window._chatsData[tel]) || {}
+  const d10 = String(tel).replace(/\D/g, '').slice(-10)
+  window.navegarA('clientes'); await new Promise(r => setTimeout(r, 500))
+  await window.mostrarFormCliente()
+  const set = (id, v) => { const e = document.getElementById(id); if (e && v) e.value = v }
+  const nom = ch.nombre && String(ch.nombre).replace(/\D/g, '') !== d10 ? ch.nombre : ''
+  set('cli-nombre', nom); set('cli-telefono', d10)
+  document.querySelector('.cli-canal[value="conversaciones"]')?.click()   // llegó por conversaciones
+}
 window.waToggleOpciones = () => {
   const area = document.getElementById('chat-area'); if (!area) return
   const abierto = area.classList.toggle('wa-opc-open')
