@@ -18663,6 +18663,7 @@ area.style.minHeight = '0'
     </div>
   `
 
+  window._ajustarAlturaChat()
   // Si se está repintando la conversación que ya estaba abierta, no perder lo escrito ni el foco
   if (_borradorPrevio != null) {
     const ti = document.getElementById('msg-input-' + telefono)
@@ -18704,6 +18705,15 @@ area.style.minHeight = '0'
 
 
 
+// En celular el chat llena la pantalla hasta abajo (antes quedaba un hueco debajo de la barra de escribir)
+window._ajustarAlturaChat = () => {
+  const c = document.getElementById('wa-container')
+  if (!c || !window.matchMedia('(max-width: 900px)').matches) return
+  c.style.removeProperty('height')
+  const top = c.getBoundingClientRect().top + (window.scrollY || 0)
+  c.style.setProperty('height', Math.max(320, window.innerHeight - top - 6) + 'px', 'important')
+}
+window.addEventListener('resize', () => { if (document.getElementById('chat-area')) window._ajustarAlturaChat() })
 window.waToggleOpciones = () => {
   const area = document.getElementById('chat-area'); if (!area) return
   const abierto = area.classList.toggle('wa-opc-open')
