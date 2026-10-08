@@ -4082,10 +4082,16 @@ def enviar_audio_manual(telefono: str, archivo: UploadFile = File(...), agente: 
             return JSONResponse(status_code=400, content={"error": "El audio está vacío"})
         solo_digitos = re.sub(r"\D", "", telefono)
         nombre = f"salida_{solo_digitos}_{int(time.time())}.{ext}"
-        url = subir_imagen_storage(datos, nombre, content_type="audio/mpeg" if ext == "mp3" else tipo)
+        if ext == "ogg" and not datos.startswith(b"OggS"):
+            return JSONResponse(status_code=400, content={"error": "El archivo .ogg no es válido"})
+        voz = ext == "ogg"   # ogg con códec opus = NOTA DE VOZ (voice: true); los demás formatos van como audio normal
+        url = subir_imagen_storage(datos, nombre, content_type="audio/mpeg" if ext == "mp3" else ("audio/ogg; codecs=opus" if voz else tipo))
         if not url:
             return JSONResponse(status_code=500, content={"error": "No se pudo guardar el audio"})
-        wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "audio", "audio": {"link": url}})
+        carga_audio = {"link": url}
+        if voz:
+            carga_audio["voice"] = True
+        wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "audio", "audio": carga_audio})
         if not wamid:
             err = (_WA_ULTIMO_ERROR or {}).get("mensaje") or "WhatsApp no aceptó el audio (puede que ya pasaron más de 24 h desde su último mensaje)"
             return JSONResponse(status_code=502, content={"error": err})
@@ -4094,7 +4100,7 @@ def enviar_audio_manual(telefono: str, archivo: UploadFile = File(...), agente: 
             "tipo": "audio_saliente", "leido": True, "wa_message_id": wamid,
         })
         cache_invalidate("chats_lista")
-        return {"ok": True, "url": url}
+        return {"ok": True, "url": url, "nota_de_voz": voz}
     except Exception as e:
         print(f"[audio-manual] {e}")
         return JSONResponse(status_code=500, content={"error": "No se pudo enviar el audio: " + str(e)[:160]})

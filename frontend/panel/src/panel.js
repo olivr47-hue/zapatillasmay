@@ -7,6 +7,7 @@ import './marketplace-admin.js'
 import './renta-admin.js'
 import './conexiones.js'
 import './catalogo-pdf.js'
+import './webm-a-ogg.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -19172,11 +19173,15 @@ window._pintarBurbujas = (el, chat) => {
 }
 
 // ── Grabar un audio y mandarlo por WhatsApp ──
-// El navegador graba en webm/opus (Chrome) y WhatsApp no lo acepta: se convierte a MP3 aquí mismo (mono, 16 kHz) antes de enviarlo.
+// Chrome graba en webm/opus y WhatsApp no lo acepta tal cual: se reempaqueta a OGG/opus (nota de voz) y, si no se puede, se convierte a MP3 (mono, 16 kHz).
 window.audioParaWhatsApp = async (blob) => {
   const t = (blob.type || '').toLowerCase()
   if (/ogg/.test(t)) return new File([blob], 'audio.ogg', { type: 'audio/ogg' })
   if (/mp4|aac/.test(t)) return new File([blob], 'audio.m4a', { type: 'audio/mp4' })
+  // Chrome: webm/opus -> OGG/opus (sin recomprimir) para que WhatsApp lo muestre como NOTA DE VOZ; si algo falla, se manda como MP3 normal
+  if (/webm/.test(t) && /opus/.test(t + 'opus')) {
+    try { return await window.webmOpusAOgg(blob) } catch (e) { console.warn('[audio] no se pudo pasar a OGG, se usa MP3:', e) }
+  }
   if (!window.lamejs) {
     await new Promise((ok, no) => {
       const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js'
