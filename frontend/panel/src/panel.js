@@ -8,6 +8,7 @@ import './renta-admin.js'
 import './conexiones.js'
 import './catalogo-pdf.js'
 import './webm-a-ogg.js'
+import './tareas-equipo.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -16193,36 +16194,8 @@ async function cargarDashboard() {
       }
     }
 
-    // Tareas pendientes hoy
-    try {
-    const resTareas = await fetch(API + '/chatbot/tareas-hoy')
-    const tareas = await resTareas.json()
-    
-    const tareasDiv = document.createElement('div')
-    tareasDiv.style.cssText = 'background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-top:1.5rem'
-    tareasDiv.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <h3 style="font-size:1rem;font-weight:700;margin:0">✅ Tareas pendientes hoy</h3>
-        <span style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${tareas.filter(t=>!t.completada).length} pendientes</span>
-      </div>
-      ${tareas.length === 0
-        ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:1rem">Sin tareas pendientes</p>'
-        : tareas.map(t => `
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5">
-            <input type="checkbox" ${t.completada ? 'checked' : ''}
-                   onchange="completarTareaDashboard('${t.id}', this.checked)"
-                   style="width:16px;height:16px;cursor:pointer;accent-color:#25D366">
-            <div style="flex:1">
-              <p style="font-size:0.85rem;font-weight:600;margin:0;${t.completada ? 'text-decoration:line-through;color:#aaa' : ''}">${t.titulo}</p>
-              <p style="font-size:0.72rem;color:#888;margin:0">${t.nombre_contacto || t.telefono} · ${t.agente || 'Sin asignar'}</p>
-            </div>
-            <button onclick="navegarA('conversaciones');setTimeout(()=>abrirChat('${_ja(t.telefono)}'),800)"
-                    style="background:#e3f2fd;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#1565c0;cursor:pointer">Ver chat</button>
-          </div>
-        `).join('')}
-    `
-    document.getElementById('dashboard-contenido').appendChild(tareasDiv)
-    } catch(e) { console.error('tareas:', e) }
+    // Tareas del equipo (con instrucciones, pasos, responsable y vínculo con el ERP)
+    try { window.pintarTareasEquipo(document.getElementById('dashboard-contenido')) } catch(e) { console.error('tareas:', e) }
 
   } catch(e) {
     console.error('Error dashboard:', e)
@@ -18950,7 +18923,8 @@ window.cargarNotasTareas = async (telefono) => {
                      onchange="completarTarea('${t.id}', this.checked, '${_ja(telefono)}')"
                      style="width:14px;height:14px;cursor:pointer;accent-color:#25D366;flex-shrink:0">
               <div style="flex:1;min-width:0">
-                <p class="wa-tarea-title ${t.completada ? 'done' : ''}">${t.titulo}</p>
+                <p class="wa-tarea-title ${t.completada ? 'done' : ''}">${_e(t.titulo)}</p>
+                ${t.asignada_a ? `<p class="wa-tarea-due">👤 ${_e(t.asignada_a)}${t.descripcion || (t.pasos && t.pasos.length) ? ' · con instrucciones (ver en Dashboard)' : ''}</p>` : ''}
                 ${t.fecha_vence ? `<p class="wa-tarea-due" style="color:${vencida ? '#c62828' : venceHoy ? '#f57f17' : 'var(--text-3)'}">${vencida ? '⚠️ Vencida' : venceHoy ? '🔔 Vence hoy' : t.fecha_vence}</p>` : ''}
               </div>
               <button onclick="eliminarTarea('${t.id}','${_ja(telefono)}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
@@ -18981,17 +18955,9 @@ window.eliminarNota = async (id, telefono) => {
 }
 
 
-window.agregarTarea = async (telefono) => {
-  const titulo = prompt('Título de la tarea:')
-  if (!titulo) return
-  const fecha = prompt('Fecha límite (YYYY-MM-DD) o déjala vacía:')
-  const agente = window._empleadoActual?.nombre || 'Admin'
-  await fetch(API + '/chatbot/tareas/' + telefono, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ titulo, fecha_vence: fecha || null, agente })
-  })
-  cargarNotasTareas(telefono)
+window.agregarTarea = (telefono) => {
+  const ch = (window._chatsData && window._chatsData[telefono]) || {}
+  window.tareaNueva({ telefono, vinculo_tipo: 'chat', vinculo_id: telefono, vinculo_texto: ch.nombre || telefono, asignada_a: window._empleadoActual?.nombre || '', alGuardar: () => cargarNotasTareas(telefono) })
 }
 
 

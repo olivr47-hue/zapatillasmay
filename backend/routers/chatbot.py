@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi import APIRouter, Request, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from telefonos import a_e164_mx
 from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
-from security import limpiar_texto
+from security import limpiar_texto, require_staff
 import urllib.request
 import urllib.parse
 import contextvars
@@ -3106,12 +3106,116 @@ def crear_tarea(telefono: str, datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+_CAMPOS_TAREA = ("titulo", "descripcion", "prioridad", "asignada_a", "fecha_vence", "pasos", "vinculo_tipo", "vinculo_id", "vinculo_texto", "telefono", "completada")
+_PRIORIDADES_TAREA = ("alta", "normal", "baja")
+_VINCULOS_TAREA = ("cliente", "pedido", "producto", "chat")
+
+
+def _limpiar_tarea(datos: dict) -> dict:
+    """Solo los campos permitidos, con tipos válidos (los pasos son [{t: texto, ok: bool}])."""
+    out = {k: datos[k] for k in _CAMPOS_TAREA if k in datos}
+    for k in ("titulo", "descripcion", "asignada_a", "vinculo_id", "vinculo_texto", "telefono"):
+        if k in out:
+            out[k] = (str(out[k]).strip() or None) if out[k] is not None else None
+    if "titulo" in out and not out["titulo"]:
+        raise ValueError("La tarea necesita un título")
+    if "prioridad" in out and out["prioridad"] not in _PRIORIDADES_TAREA:
+        out["prioridad"] = "normal"
+    if "vinculo_tipo" in out and out["vinculo_tipo"] not in _VINCULOS_TAREA:
+        out["vinculo_tipo"] = None
+    if "fecha_vence" in out and not out["fecha_vence"]:
+        out["fecha_vence"] = None
+    if "pasos" in out:
+        pasos = out["pasos"] if isinstance(out["pasos"], list) else []
+        out["pasos"] = [{"t": str(p.get("t", "")).strip()[:300], "ok": bool(p.get("ok"))} for p in pasos[:40] if isinstance(p, dict) and str(p.get("t", "")).strip()]
+    return out
+
+
 @router.patch("/tareas/{id}")
-def actualizar_tarea(id: str, datos: dict):
+def actualizar_tarea(id: str, datos: dict, _staff=Depends(require_staff)):
     try:
         from database import supabase_patch
-        supabase_patch(f"tareas_contacto?id=eq.{id}", datos)
+        quien = str(datos.get("agente") or "")[:60] or None
+        campos = _limpiar_tarea(datos)
+        if "completada" in campos:
+            campos["completada"] = bool(campos["completada"])
+            campos["completada_por"] = quien if campos["completada"] else None
+            campos["completada_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()) if campos["completada"] else None
+        campos["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        supabase_patch(f"tareas_contacto?id=eq.{urllib.parse.quote(id, safe='')}", campos)
         return {"ok": True}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/tareas")
+def crear_tarea_equipo(datos: dict, _staff=Depends(require_staff)):
+    """Tarea completa del equipo: instrucciones, pasos, responsable, fecha, prioridad y vínculo con cliente / pedido / producto / chat."""
+    try:
+        from database import supabase_post
+        campos = _limpiar_tarea(datos)
+        if not campos.get("titulo"):
+            return JSONResponse(status_code=400, content={"error": "La tarea necesita un título"})
+        campos["agente"] = str(datos.get("agente") or "Admin")[:60]
+        campos.pop("completada", None)
+        r = supabase_post("tareas_contacto", campos)
+        return r[0] if isinstance(r, list) and r else r
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/tareas-equipo")
+def tareas_equipo(hechas: int = 0, _staff=Depends(require_staff)):
+    """Todas las tareas pendientes del equipo (más las hechas en los últimos 14 días si hechas=1)."""
+    try:
+        filtro = "" if hechas else "&completada=eq.false"
+        tareas = supabase_get("tareas_contacto?order=fecha_vence.asc.nullslast,created_at.desc&limit=500" + filtro) or []
+        if hechas:
+            corte = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 14 * 86400))
+            tareas = [t for t in tareas if not t.get("completada") or (t.get("completada_at") or t.get("created_at") or "") >= corte]
+        tels = sorted({t["telefono"] for t in tareas if t.get("telefono")})
+        nombres = {}
+        for k in range(0, len(tels), 100):
+            lote = ",".join(urllib.parse.quote(x, safe="") for x in tels[k:k + 100])
+            for c in supabase_get(f"clientes?telefono=in.({lote})&select=telefono,nombre") or []:
+                nombres[c["telefono"]] = c["nombre"]
+        for t in tareas:
+            t["nombre_contacto"] = nombres.get(t.get("telefono"))
+        return tareas
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/tareas-buscar")
+def tareas_buscar(tipo: str, q: str = "", _staff=Depends(require_staff)):
+    """Buscador para vincular una tarea con un cliente, pedido o producto del ERP."""
+    try:
+        q = re.sub(r"[^\w\s.\-áéíóúñÁÉÍÓÚÑ@]", "", q or "").strip()[:60]
+        if len(q) < 2:
+            return []
+        like = urllib.parse.quote(f"*{q}*", safe="*")
+        if tipo == "cliente":
+            rows = supabase_get(f"clientes?or=(nombre.ilike.{like},telefono.ilike.{like})&select=id,nombre,telefono&order=nombre.asc&limit=8") or []
+            return [{"id": r["id"], "texto": f"{r.get('nombre') or ''} · {r.get('telefono') or 'sin teléfono'}".strip(), "telefono": r.get("telefono")} for r in rows]
+        if tipo == "producto":
+            rows = supabase_get(f"productos?or=(nombre.ilike.{like},sku_interno.ilike.{like})&select=id,nombre,sku_interno&order=nombre.asc&limit=8") or []
+            return [{"id": r["id"], "texto": f"{r.get('sku_interno') or ''} {r.get('nombre') or ''}".strip()} for r in rows]
+        if tipo == "pedido":
+            rows = supabase_get(f"pedidos?or=(nombre_cliente.ilike.{like},telefono_cliente.ilike.{like},numero_guia.ilike.{like})"
+                                "&select=id,total,status,created_at,nombre_cliente&order=created_at.desc&limit=8") or []
+            cl = supabase_get(f"clientes?or=(nombre.ilike.{like},telefono.ilike.{like})&select=id,nombre&limit=10") or []
+            if cl:
+                ids = ",".join(c["id"] for c in cl)
+                extra = supabase_get(f"pedidos?cliente_id=in.({ids})&select=id,total,status,created_at,nombre_cliente&order=created_at.desc&limit=8") or []
+                nom = {c["id"]: c["nombre"] for c in cl}
+                vistos = {r["id"] for r in rows}
+                for r in extra:
+                    if r["id"] not in vistos:
+                        rows.append(r)
+            return [{"id": r["id"], "texto": f"Pedido {str(r['id'])[:8]} · {r.get('nombre_cliente') or 'cliente'} · ${float(r.get('total') or 0):,.0f} · {r.get('status') or ''} · {(r.get('created_at') or '')[:10]}"} for r in rows[:10]]
+        return []
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

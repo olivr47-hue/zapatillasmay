@@ -13,6 +13,19 @@ export function registrarRutasOtros({ db, ruta }) {
   ruta('GET', /^\/analytics\/ia-referrals$/, () => ({ total_sesiones: 0, referencias: [], por_dia: [] }))
   ruta('GET', /^\/analytics\/portal-visitas$/, () => ({ total_sesiones: 214, dias: Array.from({ length: 30 }, (_, i) => ({ fecha: dia(29 - i).replace(/-/g, ''), sesiones: 4 + (i * 7) % 11 })) }))
 
+  // Tareas del equipo (ejemplos inventados)
+  const hoyD = dia(0), manD = dia(-1)
+  const TAREAS = [
+    { id: 't1', titulo: 'Dar seguimiento al pedido de Carolina Méndez', descripcion: '1) Revisar en Pedidos si ya pagó.\n2) Si pagó, capturar la guía y mandarle el número por WhatsApp.\n3) Si no ha pagado el viernes, mandarle el recordatorio de pago.', prioridad: 'alta', asignada_a: 'Vero', fecha_vence: dia(1), pasos: [{ t: 'Revisar pago', ok: true }, { t: 'Capturar guía', ok: false }, { t: 'Avisar por WhatsApp', ok: false }], vinculo_tipo: 'cliente', vinculo_id: 'demo', vinculo_texto: 'Carolina Méndez', completada: false, agente: 'Administrador', created_at: dia(2) },
+    { id: 't2', titulo: 'Resurtir tacón Aurora negro en tallas 25 y 26', descripcion: 'Pedirlo al proveedor antes del miércoles y avisar a la dueña cuándo llega.', prioridad: 'normal', asignada_a: 'Vero', fecha_vence: hoyD, pasos: [], vinculo_tipo: 'producto', vinculo_id: 'demo', vinculo_texto: 'Tacón Aurora', completada: false, agente: 'Administrador', created_at: dia(1) },
+    { id: 't3', titulo: 'Contestar mensajes de mayoreo pendientes', descripcion: null, prioridad: 'baja', asignada_a: null, fecha_vence: null, pasos: [], completada: false, agente: 'Administrador', created_at: dia(0) },
+  ]
+  ruta('GET', /^\/chatbot\/tareas-equipo(\?.*)?$/, () => TAREAS.map(t => ({ ...t })))
+  ruta('POST', /^\/chatbot\/tareas$/, ({ body }) => { const t = { id: 't' + Date.now(), completada: false, created_at: dia(0), pasos: [], ...body }; TAREAS.unshift(t); return t })
+  ruta('PATCH', /^\/chatbot\/tareas\/([^/]+)$/, ({ m, body }) => { const t = TAREAS.find(x => x.id === m[1]); if (t) { Object.assign(t, body); if (body && 'completada' in body) t.completada_por = body.completada ? body.agente : null } return { ok: true } })
+  ruta('DELETE', /^\/chatbot\/tareas\/([^/]+)$/, ({ m }) => { const i = TAREAS.findIndex(x => x.id === m[1]); if (i >= 0) TAREAS.splice(i, 1); return { ok: true } })
+  ruta('GET', /^\/chatbot\/tareas-buscar(\?.*)?$/, () => [{ id: 'demo', texto: 'Carolina Méndez · 524771100000', telefono: '524771100000' }])
+
   // Conexiones (datos de ejemplo: ninguna clave real)
   const G = (id, nombre, icono, descripcion, probar, campos) => ({ id, nombre, icono, descripcion, probar, campos: campos.map(([clave, etiqueta, secreto, conf]) => ({ clave, etiqueta, secreto, ayuda: '', configurado: conf, origen: conf ? 'servidor' : 'vacio', vista: conf ? (secreto ? '••••a1b2' : 'EJEMPLO-123') : '' })) })
   const CON = [
