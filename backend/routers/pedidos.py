@@ -1030,10 +1030,9 @@ def actualizar_pedido(id: str, pedido: dict, credentials: HTTPAuthorizationCrede
             suma = sum(float(i.get("cantidad") or 0) * float(i.get("precio_unitario") or 0) for i in items)
             envio = float(permitido.get("costo_envio", actual[0].get("costo_envio")) or 0)
             piso = round(suma + envio - _credito_aplicado_a_pedido(id), 2)
-            try:
-                permitido["total"] = round(max(float(permitido["total"] or 0), piso), 2)
-            except (TypeError, ValueError):
-                permitido["total"] = piso
+            # El total lo manda el servidor: pares + envío − crédito. Antes aceptaba el que mandara el navegador del portal si era MAYOR,
+            # y un carrito viejo abierto en el celular de la clienta inflaba el total (ticket de $5,700 con pares que suman $4,560).
+            permitido["total"] = piso
         permitido = limpiar_dict(permitido)
         if not permitido:
             return {"ok": True}
@@ -1457,8 +1456,18 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
         # real (no debe pasar por el descuento de inventario de arriba).
         cargo_extra = float(datos.get("cargo_extra", 0) or 0)
         cargo_extra_concepto = (datos.get("cargo_extra_concepto") or "").strip()
+        total_guardado = float(pedido[0].get("total") or 0)
+        try:
+            _suma_pares = sum(float(i.get("cantidad") or 0) * float(i.get("precio_unitario") or 0) for i in items)
+            _esperado = round(_suma_pares + float(pedido[0].get("costo_envio") or 0) - _credito_aplicado_a_pedido(id), 2)
+            if total_guardado > _esperado + 0.5:
+                _historial(id, "total_corregido", f"El total guardado (${total_guardado:,.2f}) no coincidía con la suma de los pares; se ajustó a ${_esperado:,.2f}", _quien(_staff))
+                patch_data["total"] = _esperado
+                total_guardado = _esperado
+        except Exception as _e_tot:
+            print(f"[confirmar] no se pudo verificar el total del pedido {id}: {_e_tot}")
         if envio > 0 or cargo_extra > 0:
-            total_actual = float(pedido[0].get("total") or 0)
+            total_actual = total_guardado
             if envio > 0:
                 patch_data["costo_envio"] = envio
             if cargo_extra > 0:
