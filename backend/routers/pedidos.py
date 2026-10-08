@@ -430,9 +430,13 @@ def solicitudes_total(_staff=Depends(require_staff)):
     badge de "Carritos" en el menú del panel -- se sondea cada rato desde
     cualquier pantalla, así que no trae el detalle completo."""
     try:
-        apartar = supabase_get("pedido_items?solicitud_apartar=eq.true&reservado=eq.false&select=id") or []
-        liberar = supabase_get("pedido_items?solicitud_liberar=eq.true&reservado=eq.true&select=id") or []
-        return {"total": len(apartar) + len(liberar)}
+        # Solo cuentan las solicitudes de carritos que siguen vivos (borrador o apartado): la pantalla de Carritos no muestra
+        # los pedidos cancelados/enviados, y una solicitud huérfana de uno de ellos dejaba el aviso encendido sin nada que atender.
+        _vivos = ("borrador", "apartado")
+        apartar = supabase_get("pedido_items?solicitud_apartar=eq.true&reservado=eq.false&select=id,pedidos(status)") or []
+        liberar = supabase_get("pedido_items?solicitud_liberar=eq.true&reservado=eq.true&select=id,pedidos(status)") or []
+        vivas = [r for r in (apartar + liberar) if ((r.get("pedidos") or {}).get("status") in _vivos)]
+        return {"total": len(vivas)}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
