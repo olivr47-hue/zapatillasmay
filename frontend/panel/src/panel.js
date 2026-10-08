@@ -15254,6 +15254,10 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   // El total y los pares salen del pedido tal como está AHORA en el servidor, no de los números que le pasó la pantalla
   // (una lista de Pedidos abierta desde antes imprimía un total viejo: $11,980 en vez de $14,440 con las mismas líneas).
   if (Number(pedido.total) > 0) total = Number(pedido.total)
+  // Seguro extra: el ticket nunca cobra más de lo que suman los pares + envío + cargo adicional (un total guardado inflado
+  // —caso de un pedido con 24 pares que sumaban $4,560 y salió en $5,700— se imprime con la suma real). Un total MENOR sí se respeta (crédito o descuento).
+  const _esperado = items.reduce((t, i) => t + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0) + (Number(pedido.costo_envio) || 0) + (Number(pedido.cargo_extra) || 0)
+  if (_esperado > 0 && total > _esperado + 0.5) total = Math.round(_esperado * 100) / 100
   totalPares = items.reduce((s, i) => s + ((i.cantidad || 0) > 0 ? i.cantidad : 0), 0) || totalPares
   ticket.document.write(`
     <!DOCTYPE html>
