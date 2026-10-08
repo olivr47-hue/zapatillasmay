@@ -160,13 +160,26 @@ async function onChange(ev) {
     catch (e) { el.checked = !el.checked; alert('No se pudo guardar el paso: ' + e.message) }
   }
 }
+// El teléfono de la tarea suele venir de la ficha del cliente (10 dígitos) y los chats se guardan como 521 + 10 dígitos:
+// se espera a que cargue la lista de conversaciones y se busca el chat por los últimos 10 dígitos.
+async function abrirConversacion(tel) {
+  const d10 = String(tel || '').replace(/\D/g, '').slice(-10)
+  if (d10.length < 10) { alert('Esta tarea no tiene un teléfono válido para abrir la conversación.'); return }
+  window.navegarA('conversaciones')
+  // la lista tiene que estar pintada (si se abre antes, la pantalla termina de cargar y borra el chat recién abierto)
+  for (let i = 0; i < 50 && !document.querySelector('.wa-chat-item'); i++) await new Promise(r => setTimeout(r, 200))
+  await new Promise(r => setTimeout(r, 300))
+  const clave = Object.keys(window._chatsData || {}).find(k => k.replace(/\D/g, '').slice(-10) === d10) || '521' + d10
+  await window.abrirChat(clave)
+  if (window._chatActivo !== clave) { await new Promise(r => setTimeout(r, 600)); await window.abrirChat(clave) }
+}
 function abrirVinculo(t) {
   const tipo = t.vinculo_tipo || (t.telefono ? 'chat' : ''), vid = t.vinculo_id || t.telefono
   const ir = (modulo, fn, ms = 700) => { window.navegarA(modulo); setTimeout(fn, ms) }
   if (tipo === 'cliente') return window.verHistorialCliente(vid)
   if (tipo === 'pedido') return window.verPedido(vid)
   if (tipo === 'producto') return ir('productos', () => window.editarProducto(vid))
-  if (tipo === 'chat') return ir('conversaciones', () => window.abrirChat(t.telefono || vid), 800)
+  if (tipo === 'chat') return abrirConversacion(t.telefono || vid)
 }
 
 // ───────── Formulario de tarea (nueva / editar) ─────────
