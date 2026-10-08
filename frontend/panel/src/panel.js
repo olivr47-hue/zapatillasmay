@@ -18363,7 +18363,7 @@ window._renderBurbujas = (chat) => {
       const transcripcion = textoLimpio.replace('[Audio de voz recibido]','').replace('[Audio sin contenido]','').replace('[Audio no procesable]','').trim()
       msgBody = audioSrc
         ? `<div>
-            <audio src="${audioSrc}" controls style="max-width:220px;width:100%;margin-bottom:${transcripcion?'4px':'0'}"></audio>
+            ${window.waAudioHTML(audioSrc, transcripcion ? '4px' : '0')}
             ${transcripcion ? `<p style="font-size:0.8rem;color:#475569;margin:0;font-style:italic">${transcripcion}</p>` : ''}
            </div>`
         : `<p style="color:#64748b;font-size:0.8rem">🎵 ${transcripcion || 'Audio de voz'}</p>`
@@ -19080,6 +19080,67 @@ window.subirImagenWA = async (telefono, input) => {
   } finally {
     if (btn) { btn.disabled = false; btn.style.opacity = '1' }
   }
+}
+
+// ── Reproductor de audios de clientas, al estilo WhatsApp: play, ondas con avance, duración y velocidad, todo dentro de la burbuja ──
+window.waAudioHTML = (src, margenInf) => {
+  let h = 0; for (const c of String(src)) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  const barras = Array.from({ length: 34 }, () => { h = (h * 1664525 + 1013904223) >>> 0; return 22 + Math.round((h / 4294967296) * 78) })
+  return `<div class="wa-aud" style="display:flex;align-items:center;gap:9px;min-width:236px;max-width:270px;margin-bottom:${margenInf}">
+    <button type="button" class="wa-aud-play" onclick="waAudPlay(this)" aria-label="Reproducir" style="flex:0 0 36px;width:36px;height:36px;border-radius:50%;border:none;background:#00a884;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0">
+      <svg class="ic-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="ic-pausa" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <div style="flex:1;min-width:0">
+      <div class="wa-aud-barras" onclick="waAudBuscar(event, this)" style="display:flex;align-items:center;gap:2px;height:26px;cursor:pointer">${barras.map(b => `<i style="flex:1;border-radius:2px;height:${b}%;background:#b9c3c9"></i>`).join('')}</div>
+      <span class="wa-aud-tiempo" style="display:block;font-size:0.68rem;color:#667781;margin-top:1px">0:00</span>
+    </div>
+    <button type="button" class="wa-aud-vel" onclick="waAudVelocidad(this)" title="Velocidad" style="flex:0 0 auto;border:none;background:rgba(0,0,0,0.08);color:#54656f;font-size:0.7rem;font-weight:700;border-radius:100px;padding:3px 8px;cursor:pointer">1x</button>
+    <audio preload="metadata" src="${src}" onloadedmetadata="waAudMeta(this)" ondurationchange="waAudMeta(this)" ontimeupdate="waAudAvance(this)" onended="waAudFin(this)" onpause="waAudIcono(this)" onplay="waAudIcono(this)" style="display:none"></audio>
+  </div>`
+}
+const _waFmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') }
+window.waAudMeta = (a) => {
+  if (a.duration === Infinity) {   // algunos .ogg no traen la duración hasta recorrerlos una vez
+    a.currentTime = 1e101
+    const f = () => { a.removeEventListener('timeupdate', f); a.currentTime = 0 }
+    a.addEventListener('timeupdate', f); return
+  }
+  const t = a.closest('.wa-aud').querySelector('.wa-aud-tiempo')
+  if (t && a.paused && !a.currentTime) t.textContent = _waFmt(a.duration)
+}
+window.waAudIcono = (a) => {
+  const r = a.closest('.wa-aud'); const play = r.querySelector('.ic-play'), pausa = r.querySelector('.ic-pausa')
+  play.style.display = a.paused ? '' : 'none'; pausa.style.display = a.paused ? 'none' : ''
+}
+window.waAudAvance = (a) => {
+  const r = a.closest('.wa-aud'); const d = a.duration
+  if (!isFinite(d) || !d) return
+  const barras = r.querySelectorAll('.wa-aud-barras i'), hechas = Math.round((a.currentTime / d) * barras.length)
+  barras.forEach((b, i) => { b.style.background = i < hechas ? '#00a884' : '#b9c3c9' })
+  r.querySelector('.wa-aud-tiempo').textContent = _waFmt(a.currentTime)
+}
+window.waAudFin = (a) => {
+  a.currentTime = 0; window.waAudIcono(a)
+  a.closest('.wa-aud').querySelectorAll('.wa-aud-barras i').forEach(b => { b.style.background = '#b9c3c9' })
+  const t = a.closest('.wa-aud').querySelector('.wa-aud-tiempo'); if (t && isFinite(a.duration)) t.textContent = _waFmt(a.duration)
+}
+window.waAudPlay = (btn) => {
+  const a = btn.closest('.wa-aud').querySelector('audio')
+  document.querySelectorAll('.wa-aud audio').forEach(o => { if (o !== a && !o.paused) o.pause() })   // uno a la vez
+  if (a.paused) a.play().catch(() => alert('No se pudo reproducir este audio en tu navegador.')); else a.pause()
+}
+window.waAudBuscar = (ev, el) => {
+  const a = el.closest('.wa-aud').querySelector('audio')
+  if (!isFinite(a.duration)) return
+  const r = el.getBoundingClientRect()
+  a.currentTime = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * a.duration
+  window.waAudAvance(a)
+}
+window.waAudVelocidad = (btn) => {
+  const a = btn.closest('.wa-aud').querySelector('audio')
+  const orden = [1, 1.5, 2], sig = orden[(orden.indexOf(a.playbackRate) + 1) % orden.length] || 1
+  a.playbackRate = sig; btn.textContent = (sig === 1 ? '1' : String(sig)) + 'x'
 }
 
 window.subirDocumentoWA = async (telefono, input) => {
