@@ -19100,22 +19100,29 @@ window.waAudioHTML = (src, margenInf) => {
   </div>`
 }
 const _waFmt = (t) => { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') }
+// Duración del audio. Algunos .ogg no la traen hasta recorrerlos: eso se averigua con un audio APARTE (nunca se mueve el que se va a reproducir,
+// porque mandarlo al final lo daba por terminado y cortaba la reproducción).
+const _waDur = (a) => (isFinite(a.duration) && a.duration > 0) ? a.duration : (Number(a.closest('.wa-aud').dataset.dur) || 0)
 window.waAudMeta = (a) => {
-  if (a.duration === Infinity) {   // algunos .ogg no traen la duración hasta recorrerlos una vez
-    a.currentTime = 1e101
-    const f = () => { a.removeEventListener('timeupdate', f); a.currentTime = 0 }
-    a.addEventListener('timeupdate', f); return
-  }
-  const t = a.closest('.wa-aud').querySelector('.wa-aud-tiempo')
-  if (t && a.paused && !a.currentTime) t.textContent = _waFmt(a.duration)
+  const r = a.closest('.wa-aud'); if (!r) return
+  const t = r.querySelector('.wa-aud-tiempo')
+  const poner = (d) => { r.dataset.dur = d; if (a.paused && !a.currentTime) t.textContent = _waFmt(d) }
+  if (isFinite(a.duration) && a.duration > 0) { poner(a.duration); return }
+  if (r._midiendo) return
+  r._midiendo = true
+  const tmp = new Audio(); tmp.preload = 'metadata'
+  const listo = () => { if (isFinite(tmp.duration) && tmp.duration > 0) { poner(tmp.duration); tmp.removeAttribute('src') } }
+  tmp.addEventListener('loadedmetadata', () => { if (isFinite(tmp.duration) && tmp.duration > 0) listo(); else tmp.currentTime = 1e101 })
+  tmp.addEventListener('timeupdate', listo)
+  tmp.src = a.currentSrc || a.src
 }
 window.waAudIcono = (a) => {
   const r = a.closest('.wa-aud'); const play = r.querySelector('.ic-play'), pausa = r.querySelector('.ic-pausa')
   play.style.display = a.paused ? '' : 'none'; pausa.style.display = a.paused ? 'none' : ''
 }
 window.waAudAvance = (a) => {
-  const r = a.closest('.wa-aud'); const d = a.duration
-  if (!isFinite(d) || !d) return
+  const r = a.closest('.wa-aud'); const d = _waDur(a)
+  if (!d) { r.querySelector('.wa-aud-tiempo').textContent = _waFmt(a.currentTime); return }
   const barras = r.querySelectorAll('.wa-aud-barras i'), hechas = Math.round((a.currentTime / d) * barras.length)
   barras.forEach((b, i) => { b.style.background = i < hechas ? '#00a884' : '#b9c3c9' })
   r.querySelector('.wa-aud-tiempo').textContent = _waFmt(a.currentTime)
@@ -19123,7 +19130,7 @@ window.waAudAvance = (a) => {
 window.waAudFin = (a) => {
   a.currentTime = 0; window.waAudIcono(a)
   a.closest('.wa-aud').querySelectorAll('.wa-aud-barras i').forEach(b => { b.style.background = '#b9c3c9' })
-  const t = a.closest('.wa-aud').querySelector('.wa-aud-tiempo'); if (t && isFinite(a.duration)) t.textContent = _waFmt(a.duration)
+  const t = a.closest('.wa-aud').querySelector('.wa-aud-tiempo'); if (t && _waDur(a)) t.textContent = _waFmt(_waDur(a))
 }
 window.waAudPlay = (btn) => {
   const a = btn.closest('.wa-aud').querySelector('audio')
@@ -19132,9 +19139,9 @@ window.waAudPlay = (btn) => {
 }
 window.waAudBuscar = (ev, el) => {
   const a = el.closest('.wa-aud').querySelector('audio')
-  if (!isFinite(a.duration)) return
+  const d = _waDur(a); if (!d) return
   const r = el.getBoundingClientRect()
-  a.currentTime = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * a.duration
+  a.currentTime = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * d
   window.waAudAvance(a)
 }
 window.waAudVelocidad = (btn) => {
