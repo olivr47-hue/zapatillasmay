@@ -18731,7 +18731,7 @@ area.style.minHeight = '0'
       </div>
       <div class="wa-input-row">
         <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1" enterkeyhint="enter"
-                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';waRefrescarBoton('${_ja(telefono)}')"
+                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/4096':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';waRefrescarBoton('${_ja(telefono)}')"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!window.matchMedia('(pointer: coarse)').matches){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
         <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" id="wa-send-${telefono}" title="Escribe y envía (Enter) · o mantén presionado para grabar un audio"
                 style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"
