@@ -1750,6 +1750,27 @@ def _expirar_link_mp(pref_id: str) -> bool:
         return False
 
 
+_LINKS_VENCIDOS = set()   # pedidos cuyo link ya se venció en esta ejecución (el vencimiento es repetible sin daño; esto solo evita repetir llamadas)
+
+
+def vencer_links_de_pedidos_cancelados_a_mano() -> int:
+    """Vence el link de MercadoPago de los pedidos que el PERSONAL canceló (queda su renglón «cancelado» en el historial del pedido) y que no se pagaron.
+    Solo esos: un pedido «cancelado» por un pago rechazado o vencido NO se toca, para que la clienta pueda reintentar con el mismo link."""
+    import datetime as _dtx
+    desde = (_dtx.datetime.now(_dtx.timezone.utc) - _dtx.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    hist = supabase_get(f"pedido_historial?accion=eq.cancelado&usuario=not.is.null&created_at=gte.{desde}&select=pedido_id&limit=200") or []
+    ids = sorted({h["pedido_id"] for h in hist if h.get("pedido_id")} - _LINKS_VENCIDOS)
+    if not ids:
+        return 0
+    filas = supabase_get(f"pedidos?id=in.({','.join(ids)})&status=eq.cancelado&mp_preference_id=not.is.null&mp_payment_id=is.null&select=id,mp_preference_id") or []
+    n = 0
+    for f in filas:
+        if _expirar_link_mp(f["mp_preference_id"]):
+            _LINKS_VENCIDOS.add(f["id"])
+            n += 1
+    return n
+
+
 @router.post("/{id}/cancelar")
 def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional), datos: dict = Body(default=None)):
     _exigir_dueno_pedido(id, credentials)

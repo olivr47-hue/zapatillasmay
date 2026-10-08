@@ -263,6 +263,18 @@ def _loop_carritos_abandonados():
             print(f"[carrito-abandonado] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_links_cancelados():
+    """Cada 5 minutos: vence los links de pago de los pedidos que el personal canceló y no se pagaron (así la clienta ya no puede pagar con un link retirado)."""
+    _time.sleep(90)
+    while True:
+        try:
+            n = pedidos.vencer_links_de_pedidos_cancelados_a_mano()
+            if n:
+                print(f"[links-cancelados] Links de pago vencidos: {n}")
+        except Exception as e:
+            print(f"[links-cancelados] Error en loop: {e}")
+        _time.sleep(5 * 60)
+
 def _loop_novedades_wa():
     """Manda el siguiente lote (pocas clientas) de las campañas de novedades por WhatsApp que están en modo automático.
     Se revisa cada 5 min; el envío en sí respeta el horario de 9:00 a 21:00 y el intervalo de cada campaña."""
@@ -618,6 +630,10 @@ def _iniciar_hilos():
     t1 = threading.Thread(target=_loop_carritos_abandonados, daemon=True)
     t1.start()
     print("[carrito-abandonado] Hilo de recordatorios iniciado (cada 15 min)")
+    # Links de pago de pedidos cancelados a mano
+    t1b = threading.Thread(target=_loop_links_cancelados, daemon=True)
+    t1b.start()
+    print("[links-cancelados] Hilo que vence links de pedidos cancelados iniciado (cada 5 min)")
     # TikTok Shop sync
     t2 = threading.Thread(target=_loop_tiktok_sync, daemon=True)
     t2.start()
