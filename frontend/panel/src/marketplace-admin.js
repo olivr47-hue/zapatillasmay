@@ -2,6 +2,7 @@
 // Aprobar vendedores y productos, ver los pedidos de otras tiendas y liquidarles lo suyo. El negocio cobra todo con su MercadoPago y gana
 // una comisión por par (por defecto $20; se cambia por vendedor). Todo vive en tablas mp_* y rutas /marketplace/admin/*.
 const API = '/api'
+const _esAdmin = () => { try { return !!localStorage.getItem('erp_token') && window._empleadoActual && window._empleadoActual.rol === 'admin' } catch (e) { return false } }
 const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const $$ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
 const MP = { tab: 'resumen', filtroProd: 'pendiente', filtroPed: '', datos: {} }
@@ -188,6 +189,7 @@ window.mpGuardarAjustes = async () => {
 
 // número de pendientes en el menú (vendedores + productos por aprobar + pedidos por enviar)
 async function mpBadge() {
+  if (!_esAdmin()) return   // solo con sesión de administrador (sin sesión el servidor responde 401 y el panel muestra «sesión expirada» en la pantalla de entrada)
   try {
     const r = await mpApi('/marketplace/admin/resumen')
     const n = (r.vendedores_pendientes || 0) + (r.productos_por_aprobar || 0)

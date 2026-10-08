@@ -1,5 +1,6 @@
 // ═══ Renta del sistema: interesados que pidieron la demo (formulario de zapatillasmay.mx/vender) ═══════════════════════
 const API = '/api'
+const _esAdmin = () => { try { return !!localStorage.getItem('erp_token') && window._empleadoActual && window._empleadoActual.rol === 'admin' } catch (e) { return false } }
 const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const ETQ = { nuevo: ['#fff4e5', '#b26a00', 'Nuevo'], contactado: ['#e3f2fd', '#1565c0', 'Contactado'], demo: ['#f3e8ff', '#6d28d9', 'Vio la demo'], cliente: ['#e8f5e9', '#2e7d32', 'Cliente'], descartado: ['#eee', '#666', 'Descartado'] }
 let _pros = []
@@ -38,6 +39,7 @@ window.prosEstado = async (id, estado) => { try { await api('/demo/admin/prospec
 window.prosNota = async (id, notas_admin) => { try { await api('/demo/admin/prospectos/' + id, { method: 'PATCH', json: { notas_admin } }) } catch (e) { alert(e.message) } }
 
 async function badge() {
+  if (!_esAdmin()) return   // solo con sesión de administrador: sin sesión el servidor responde 401 y el panel lo toma como «sesión expirada»
   try {
     const l = await api('/demo/admin/prospectos')
     const n = l.filter(p => p.estado === 'nuevo').length
