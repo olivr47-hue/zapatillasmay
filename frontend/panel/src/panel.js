@@ -18562,11 +18562,15 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" id="wa-clip-${telefono}" title="Adjuntar: cámara, fotos, video, documento y más" onclick="waClipAbrir(event,'${_ja(telefono)}')">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         </button>
+        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </button>
+        <input type="file" id="vidcam-file-${telefono}" accept="video/*" capture="environment" style="display:none" onchange="subirVideoWA('${_ja(telefono)}',this)">
         <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">
         <input type="file" id="cam-file-${telefono}" accept="image/*" capture="environment" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">
         <input type="file" id="doc-file-${telefono}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${_ja(telefono)}',this)">
         <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${_ja(telefono)}',this)">
-        <div id="wa-clip-menu-${telefono}" class="wa-clip-menu" style="display:none;position:fixed;background:#fff;border-radius:14px;box-shadow:0 10px 32px rgba(0,0,0,0.28);padding:6px;min-width:250px;z-index:1200"><button type="button" onclick="waClipItem('${_ja(telefono)}','camara')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#e91e8c;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>Cámara</button><button type="button" onclick="waClipItem('${_ja(telefono)}','foto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#7c3aed;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>Fotos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','video')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#dc2626;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>Video</button><button type="button" onclick="waClipItem('${_ja(telefono)}','doc')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#2563eb;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span>Documento o PDF</button><button type="button" onclick="waClipItem('${_ja(telefono)}','catalogo')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#b45309;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>Catálogo en PDF por categoría</button><button type="button" onclick="waClipItem('${_ja(telefono)}','carrusel')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#0891b2;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg></span>Carrusel de productos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','ubicacion')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#16a34a;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>Ubicación de la tienda</button><button type="button" onclick="waClipItem('${_ja(telefono)}','contacto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#475569;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Tarjeta de contacto</button><button type="button" onclick="waClipItem('${_ja(telefono)}','pago')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#16a34a;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>Crear link de pago o pedido</button></div>` : ''}
+        <div id="wa-clip-menu-${telefono}" class="wa-clip-menu" style="display:none;position:fixed;background:#fff;border-radius:14px;box-shadow:0 10px 32px rgba(0,0,0,0.28);padding:6px;min-width:250px;z-index:1200"><button type="button" onclick="waClipItem('${_ja(telefono)}','camara')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#e91e8c;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>Cámara</button><button type="button" onclick="waClipItem('${_ja(telefono)}','grabar')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#dc2626;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg></span>Grabar video</button><button type="button" onclick="waClipItem('${_ja(telefono)}','foto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#7c3aed;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>Fotos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','video')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#dc2626;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>Video</button><button type="button" onclick="waClipItem('${_ja(telefono)}','doc')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#2563eb;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span>Documento o PDF</button><button type="button" onclick="waClipItem('${_ja(telefono)}','catalogo')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#b45309;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>Catálogo en PDF por categoría</button><button type="button" onclick="waClipItem('${_ja(telefono)}','carrusel')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#0891b2;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg></span>Carrusel de productos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','ubicacion')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#16a34a;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>Ubicación de la tienda</button><button type="button" onclick="waClipItem('${_ja(telefono)}','contacto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#475569;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Tarjeta de contacto</button></div>` : ''}
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
@@ -19036,14 +19040,28 @@ window.marcarNoLeido = async (telefono) => {
   } catch(e) {}
 }
 
+// Las fotos del celular pesan 4-12 MB: se reducen a 1600 px (calidad 85) antes de subirlas, así se envían en 1-2 segundos
+window.reducirImagenWA = async (file) => {
+  try {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 400 * 1024) return file
+    const bmp = await createImageBitmap(file)
+    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height)
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85))
+    return blob && blob.size < file.size ? new File([blob], (file.name || 'foto').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file
+  } catch (e) { return file }
+}
 window.subirImagenWA = async (telefono, input) => {
-  const file = input.files[0]
-  if (!file) return
+  const original = input.files[0]
+  if (!original) return
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
   const btn = document.querySelector('.wa-send-btn')
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5' }
+  _waAviso('📤 Enviando foto...')
   try {
+    const file = await window.reducirImagenWA(original)
     // Subir a Supabase storage via endpoint existente
     const formData = new FormData()
     formData.append('file', file)
@@ -19277,7 +19295,6 @@ window.waClipAbrir = (ev, tel) => {
 }
 window.waClipItem = (tel, accion) => {
   window.waClipCerrar()
-  const nombre = (window._chatsData && window._chatsData[tel] && window._chatsData[tel].nombre) || ''
   const clic = (id) => document.getElementById(id + tel)?.click()
   switch (accion) {
     case 'camara': return window.waCamara(tel)
@@ -19288,7 +19305,7 @@ window.waClipItem = (tel, accion) => {
     case 'carrusel': return window.mostrarModalCarrusel(tel)
     case 'ubicacion': return window.enviarUbicacionWA(tel)
     case 'contacto': return window.mostrarEnviarContactoWA(tel)
-    case 'pago': return window.linkPagoDesdeChat(tel, nombre)
+    case 'grabar': return window.waGrabarVideo(tel)
   }
 }
 
@@ -19333,6 +19350,52 @@ window.waCamara = async (tel) => {
   verVista()
 }
 
+// Grabar video en vivo: en el celular abre la cámara de video del teléfono (sale en mp4, que WhatsApp acepta); en la computadora graba con la cámara web
+window.waGrabarVideo = async (tel) => {
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) { document.getElementById('vidcam-file-' + tel)?.click(); return }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alert('Este navegador no puede grabar video. Usa «Video» para elegir uno ya grabado.'); return }
+  const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t))
+  if (!mime) { alert('Este navegador graba video en un formato que WhatsApp no acepta. Graba desde el celular o actualiza Chrome.'); return }
+  let stream
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }) }
+  catch (e) { alert('Para grabar video permite la cámara y el micrófono: toca el candado junto a la dirección → Permisos.'); return }
+  document.getElementById('modal-camara')?.remove()
+  const modal = document.createElement('div'); modal.id = 'modal-camara'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1300;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `<div style="background:#111;border-radius:16px;max-width:640px;width:100%;padding:12px;color:#fff">
+    <video id="vg-video" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;max-height:60vh"></video>
+    <div id="vg-t" style="text-align:center;margin-top:8px;font-variant-numeric:tabular-nums;color:#bbb">Listo para grabar</div>
+    <div id="vg-botones" style="display:flex;gap:8px;justify-content:center;margin-top:10px"></div></div>`
+  document.body.appendChild(modal)
+  const video = modal.querySelector('#vg-video'), t = modal.querySelector('#vg-t'), botones = modal.querySelector('#vg-botones')
+  video.srcObject = stream
+  let rec = null, timer = null, inicio = 0, enviar = false
+  const cerrar = () => { clearInterval(timer); stream.getTracks().forEach(x => x.stop()); modal.remove() }
+  const parar = () => { if (rec && rec.state !== 'inactive') rec.stop() }
+  botones.innerHTML = '<button class="btn btn-secondary" id="vg-cancel">Cancelar</button><button class="btn btn-primary" id="vg-rec" style="background:#e53935;border-color:#e53935">● Grabar</button>'
+  botones.querySelector('#vg-cancel').onclick = () => { enviar = false; rec ? parar() : cerrar() }
+  botones.querySelector('#vg-rec').onclick = () => {
+    const trozos = []
+    rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1000000 })
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) trozos.push(e.data) }
+    rec.onstop = async () => {
+      const ok = enviar; cerrar()
+      if (!ok || !trozos.length) return
+      const file = new File(trozos, 'video_' + Date.now() + '.mp4', { type: 'video/mp4' })
+      await window.subirVideoWA(tel, { files: [file], set value(v) {}, get value() { return '' } })
+    }
+    rec.start(); inicio = Date.now(); enviar = true
+    botones.innerHTML = '<button class="btn btn-secondary" id="vg-cancel2">Cancelar</button><button class="btn btn-primary" id="vg-stop" style="background:#00a884;border-color:#00a884">■ Detener y enviar</button>'
+    botones.querySelector('#vg-cancel2').onclick = () => { enviar = false; parar() }
+    botones.querySelector('#vg-stop').onclick = parar
+    timer = setInterval(() => {
+      const seg = (Date.now() - inicio) / 1000
+      t.textContent = '🔴 ' + Math.floor(seg / 60) + ':' + String(Math.floor(seg % 60)).padStart(2, '0') + ' (máx. 1:30)'
+      if (seg >= 90) parar()                                   // 1 Mbps · 90 s ≈ 12 MB: dentro del tope de 16 MB de WhatsApp
+    }, 250)
+  }
+}
+
 window.subirDocumentoWA = async (telefono, input) => {
   const file = input.files[0]
   if (!file) return
@@ -19362,6 +19425,8 @@ window.subirVideoWA = async (telefono, input) => {
   if (!file) return
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
+  if (file.size > 16 * 1024 * 1024) { alert('El video pesa ' + (file.size / 1048576).toFixed(1) + ' MB y WhatsApp acepta máximo 16 MB. Graba uno más corto.'); return }
+  _waAviso('📤 Enviando video...')
   try {
     const formData = new FormData()
     formData.append('file', file)
