@@ -6,6 +6,7 @@ import './fotos-limpias.js'
 import './marketplace-admin.js'
 import './renta-admin.js'
 import './conexiones.js'
+import './catalogo-pdf.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -18584,7 +18585,7 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>` : ''}
-        <button class="wa-tool-btn" title="Enviar catálogos para descargar" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
+        <button class="wa-tool-btn" title="Catálogo en PDF por categoría (descargar o enviar)" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         </button>
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
@@ -18716,51 +18717,104 @@ window.volverChats = () => {
   `
 }
 
-// Catálogos para descargar: manda por WhatsApp el enlace de la página de descargas (todos) o el de cada catálogo elegido.
-// En la tienda cada catálogo tiene su botón «📥 Descargar PDF» (el PDF se arma en el teléfono de quien lo abre).
+// Catálogo en PDF por categoría: se arma al momento con los productos y fotos de hoy (siempre al día), con la marca del negocio y, si se quiere, precios.
+// Después se puede descargar o enviar directo al chat como documento.
 window.mostrarCatalogosChat = async (telefono) => {
-  let cats = []
-  try { cats = await fetch(API + '/catalogos/').then(r => r.json()) } catch (e) {}
-  cats = (Array.isArray(cats) ? cats : []).filter(c => c && c.id && c.activo !== false)
-  window._catChat = cats
   const modal = document.createElement('div')
   modal.id = 'modal-catalogos-chat'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:1rem'
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:75vh;overflow-y:auto;padding:1.25rem 1.5rem">
+    <div style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;padding:1.25rem 1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <p style="font-weight:700;margin:0">📚 Enviar catálogos para descargar</p>
+        <p style="font-weight:700;margin:0">📚 Catálogo en PDF por categoría</p>
         <button onclick="document.getElementById('modal-catalogos-chat').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
       </div>
-      ${cats.length === 0 ? '<p style="color:#888;font-size:0.85rem;padding:1rem 0">No hay catálogos activos. Se crean en Catálogos.</p>' : `
-        <p style="font-size:0.78rem;color:#888;margin:0 0 10px">Marca los catálogos que quieres mandar. Si mandas todos, le llega un solo enlace a la página de descargas.</p>
-        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fce4f3;border-radius:8px;margin-bottom:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
-          <input type="checkbox" id="cat-todos" onchange="document.querySelectorAll('.cat-chk').forEach(c => c.checked = this.checked)"> Todos los catálogos
-        </label>
-        ${cats.map(c => `
-          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;cursor:pointer">
-            <input type="checkbox" class="cat-chk" value="${_e(c.id)}" onchange="document.getElementById('cat-todos').checked = [...document.querySelectorAll('.cat-chk')].every(x => x.checked)">
-            ${c.portada_url ? `<img src="${_e(c.portada_url)}" style="width:34px;height:44px;object-fit:cover;border-radius:5px">` : '<span style="font-size:1.4rem">📖</span>'}
-            <span style="flex:1;font-size:0.88rem;font-weight:600">${_e(c.nombre)}${c.temporada ? ` <span style="font-weight:400;color:#888;font-size:0.76rem">· ${_e(c.temporada)}</span>` : ''}</span>
-          </label>`).join('')}
-        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="enviarCatalogosChat('${_ja(telefono)}')">📤 Enviar por WhatsApp</button>`}
+      <p style="font-size:0.78rem;color:#888;margin:0 0 10px">Elige la categoría: se arma el PDF con los modelos y fotos de hoy y después lo descargas o lo mandas a este chat.</p>
+      <label class="form-label" style="margin:0 0 4px;display:block">Precios en el PDF</label>
+      <select id="cp-precio" class="form-input" style="margin-bottom:10px">
+        <option value="ninguno">Sin precios</option>
+        <option value="sitio">Precio de menudeo del sitio web</option>
+        <option value="mayoreo3">Precio de mayoreo 3-5 pares</option>
+        <option value="mayoreo6">Precio de mayoreo 6+ pares</option>
+      </select>
+      <div id="cp-categorias"><p style="color:#888;font-size:0.85rem">Cargando categorías...</p></div>
+      <div id="cp-estado" style="margin-top:10px"></div>
     </div>`
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  try {
+    if (!window._variantesCache || !window._productosCache || Date.now() - (window._lpCacheT || 0) > 120000) {
+      const [rp, rv] = await Promise.all([fetch(API + '/productos/'), fetch(API + '/variantes/')])
+      window._productosCache = await rp.json(); window._variantesCache = await rv.json(); window._lpCacheT = Date.now()
+    }
+    const productos = window._productosCache || [], variantes = window._variantesCache || []
+    const cont = document.getElementById('cp-categorias'); if (!cont) return
+    const cats = CATEGORIAS.map(c => ({ ...c, n: window.catalogoItemsDeCategoria(c.value, productos, variantes, null).length })).filter(c => c.n > 0)
+    cont.innerHTML = cats.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">${cats.map(c => `
+        <button class="btn btn-secondary" style="text-align:left;padding:10px 12px" onclick="generarCatalogoChat('${_ja(telefono)}','${c.value}','${_ja(c.label)}')">
+          <b style="font-size:0.88rem">${_e(c.label)}</b><br><span style="font-size:0.72rem;color:#888">${c.n} fotos</span></button>`).join('')}</div>`
+      : '<p style="color:#888;font-size:0.85rem">No hay productos activos con foto.</p>'
+  } catch (e) {
+    const cont = document.getElementById('cp-categorias'); if (cont) cont.innerHTML = '<p style="color:#c62828;font-size:0.85rem">No se pudieron cargar los productos. Intenta de nuevo.</p>'
+  }
 }
-window.enviarCatalogosChat = (telefono) => {
-  const todas = window._catChat || []
-  const ids = [...document.querySelectorAll('.cat-chk:checked')].map(c => c.value)
-  if (!ids.length) { alert('Marca al menos un catálogo'); return }
-  const elegidas = todas.filter(c => ids.includes(c.id))
-  const base = 'https://zapatillasmay.mx'
-  const nom = (n) => String(n || '').toLowerCase().replace(/^./, m => m.toUpperCase())
-  const mensaje = (elegidas.length === todas.length || elegidas.length > 4)
-    ? `📚 Aquí están nuestros catálogos para que los descargues en PDF:\n👉 ${base}/catalogo?descargar\n\nElige el catálogo (${todas.map(c => nom(c.nombre)).join(', ')}) y toca "📥 Descargar PDF". ¡Cualquier duda aquí estoy! 🥰`
-    : `📚 Te comparto ${elegidas.length === 1 ? 'nuestro catálogo' : 'nuestros catálogos'}:\n\n${elegidas.map(c => `• ${nom(c.nombre)}${c.temporada ? ' (' + c.temporada + ')' : ''}: ${base}/catalogo/${c.id}`).join('\n')}\n\nÁbrelo y toca "📥 PDF" para descargarlo en tu teléfono. ¡Cualquier duda aquí estoy! 🥰`
-  document.getElementById('modal-catalogos-chat')?.remove()
-  const input = document.getElementById('msg-input-' + telefono)
-  if (input) { input.value = mensaje; input.focus(); enviarMensajeWA(telefono) }
+
+window.generarCatalogoChat = async (telefono, cat, label) => {
+  const est = document.getElementById('cp-estado'); if (!est) return
+  const modo = (document.getElementById('cp-precio') || {}).value || 'ninguno'
+  const productos = window._productosCache || [], variantes = window._variantesCache || []
+  const precioFn = modo === 'ninguno' ? null : (p) => {
+    const base = parseFloat(p.precio_menudeo) || 0
+    if (modo === 'sitio') return base > 0 ? (p.es_oferta ? base : base + 80) : 0
+    if (modo === 'mayoreo3') return parseFloat(p.precio_mayoreo3) || Math.max(0, base - 30)
+    return parseFloat(p.precio_mayoreo6) || Math.max(0, base - 70)
+  }
+  const items = window.catalogoItemsDeCategoria(cat, productos, variantes, precioFn)
+  if (!items.length) { est.innerHTML = '<p style="color:#c62828;font-size:0.85rem">Esa categoría no tiene fotos.</p>'; return }
+  document.querySelectorAll('#cp-categorias button').forEach(b => { b.disabled = true })
+  est.innerHTML = `<p style="font-size:0.85rem;color:#555">⏳ Armando el catálogo (${items.length} fotos)... No cierres esta ventana.</p>`
+  try {
+    const blob = await window.generarCatalogoPDFBlob({
+      items, titulo: label, negocio: 'Zapatillas May', tel: '4792244560', conPrecio: !!precioFn,
+      progreso: (n, t) => { est.innerHTML = `<p style="font-size:0.85rem;color:#555">⏳ Armando el catálogo: página ${n} de ${t}...</p>` },
+    })
+    const nombre = `Catalogo_${label.replace(/[^A-Za-z0-9]+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`
+    const url = URL.createObjectURL(blob)
+    window._cpArchivo = new File([blob], nombre, { type: 'application/pdf' })
+    est.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px">
+        <p style="margin:0 0 8px;font-weight:700;color:#16a34a;font-size:0.9rem">✅ Catálogo de ${_e(label)} listo — ${(blob.size / 1048576).toFixed(1)} MB</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn btn-secondary" href="${url}" download="${_e(nombre)}">⬇ Descargar</a>
+          <button class="btn btn-primary" id="cp-enviar" onclick="enviarCatalogoAlChat('${_ja(telefono)}','${_ja(label)}')">📤 Enviar a este chat</button>
+        </div>
+      </div>`
+  } catch (e) {
+    est.innerHTML = `<p style="color:#c62828;font-size:0.85rem">No se pudo armar el PDF: ${_e(e.message)}</p>`
+  } finally {
+    document.querySelectorAll('#cp-categorias button').forEach(b => { b.disabled = false })
+  }
+}
+
+window.enviarCatalogoAlChat = async (telefono, label) => {
+  const file = window._cpArchivo; if (!file) return
+  const btn = document.getElementById('cp-enviar'); if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  try {
+    const fd = new FormData(); fd.append('file', file)
+    const up = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: fd })
+    const ud = await up.json().catch(() => ({}))
+    const doc_url = ud.url || ud.public_url
+    if (!up.ok || !doc_url) throw new Error(ud.error || 'No se pudo subir el archivo')
+    const r = await fetch(API + '/chatbot/chats/' + telefono + '/documento', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doc_url, filename: file.name, caption: `📚 Catálogo de ${label}`, agente }) })
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || ('WhatsApp rechazó el envío (' + r.status + ')')) }
+    document.getElementById('modal-catalogos-chat')?.remove()
+    await window._refrescarChatAbierto(telefono, false)
+  } catch (e) {
+    alert('Error enviando el catálogo: ' + e.message)
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar a este chat' }
+  }
 }
 
 window.mostrarRespuestasRapidas = async (telefono) => {

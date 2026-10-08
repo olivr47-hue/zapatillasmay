@@ -790,18 +790,20 @@ if (!window.fbq){
   }
 
   // ── INIT ─────────────────────────────────────────────────
-  cargarCatalogos().then(async () => {
+  // Se abre directo el catálogo que pide la dirección: /catalogo/<id> (los enlaces que se mandan por WhatsApp) o ?abrir=<id>
+  async function abrirDesdeUrl() {
     const params = new URLSearchParams(window.location.search)
-    const abrirId = params.get('abrir')
-    if (abrirId) {
-      try {
-        const res = await fetch(`${API}/catalogos/${abrirId}`)
-        const data = await res.json()
-        const c = Array.isArray(data) ? data[0] : data
-        if (c) abrirCatalogo(c.id, c.nombre || 'Catálogo')
-      } catch(e) { /* ignora */ }
-    }
-  })
+    const m = window.location.pathname.match(/^\/catalogo\/([0-9a-fA-F-]{8,})\/?$/)
+    const abrirId = params.get('abrir') || (m && m[1])
+    if (!abrirId) return
+    try {
+      const res = await fetch(`${API}/catalogos/${encodeURIComponent(abrirId)}`)
+      const data = await res.json()
+      const c = Array.isArray(data) ? data[0] : data
+      if (c && c.id) abrirCatalogo(c.id, c.nombre || 'Catálogo', true)
+    } catch(e) { /* ignora */ }
+  }
+  cargarCatalogos().then(abrirDesdeUrl)
 </script>
 <script defer src="/animations.js?v=2"></script>
 </body>

@@ -1210,7 +1210,9 @@ def cargar_catalogo():
 
 def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
     """Descarga el audio de WhatsApp, lo sube a Storage y lo transcribe con Whisper.
-    Retorna (transcripcion, url_publica)."""
+    Retorna (transcripcion, url_publica). El audio guardado NUNCA se pierde: si falla la transcripción (OpenAI sin crédito, límite de uso, etc.)
+    igual se devuelve la URL para que se pueda escuchar en el panel."""
+    pub_url = ""
     try:
         audio_id = mensaje_data.get("audio", {}).get("id", "")
         if not audio_id:
@@ -1238,31 +1240,40 @@ def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
             print(f"[audio] sin OPENAI_API_KEY, audio de {from_number} no transcrito")
             return ("[Audio de voz recibido]", pub_url)
 
-        boundary = "----WhisperBoundary"
-        body_parts = [
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1".encode(),
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nes".encode(),
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.ogg\"\r\nContent-Type: audio/ogg\r\n\r\n".encode() + audio_bytes,
-            f"--{boundary}--".encode(),
-        ]
-        body = b"\r\n".join(body_parts)
-        whisper_req = urllib.request.Request(
-            "https://api.openai.com/v1/audio/transcriptions",
-            data=body,
-            headers={
-                "Authorization": f"Bearer {openai_key}",
-                "Content-Type": f"multipart/form-data; boundary={boundary}"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(whisper_req) as r:
-            result = json.loads(r.read())
-        texto = result.get("text", "").strip()
-        return (texto or "[Audio sin contenido]", pub_url)
+        try:
+            return _transcribir_whisper(audio_bytes, openai_key, pub_url)
+        except Exception as e_w:
+            print(f"[audio-wa] No se pudo transcribir (el audio sí se guardó y se puede escuchar): {e_w}")
+            return ("[Audio de voz recibido]", pub_url)
 
     except Exception as e:
         print(f"[audio-wa] Error: {e}")
-        return (f"[Audio ERROR-DEBUG-TEMPORAL: {e}]", "")
+        return ("[Audio de voz recibido]", pub_url)
+
+
+def _transcribir_whisper(audio_bytes: bytes, openai_key: str, pub_url: str) -> tuple:
+    """Transcribe con Whisper (un reintento si responde 429 o error del servidor). Lanza la excepción si no se logra."""
+    boundary = "----WhisperBoundary"
+    body_parts = [
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1".encode(),
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nes".encode(),
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.ogg\"\r\nContent-Type: audio/ogg\r\n\r\n".encode() + audio_bytes,
+        f"--{boundary}--".encode(),
+    ]
+    body = b"\r\n".join(body_parts)
+    for intento in range(2):
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/audio/transcriptions", data=body, method="POST",
+            headers={"Authorization": f"Bearer {openai_key}", "Content-Type": f"multipart/form-data; boundary={boundary}"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                texto = (json.loads(r.read()).get("text") or "").strip()
+            return (texto or "[Audio sin contenido]", pub_url)
+        except urllib.error.HTTPError as e:
+            if intento == 0 and (e.code == 429 or e.code >= 500):
+                time.sleep(2)
+                continue
+            raise
 
 
 def _procesar_documento_wa(mensaje_data: dict, from_number: str) -> tuple:

@@ -96,6 +96,7 @@ export function registrarRutasExtra({ db, ruta, q, num, mes, cerrado, nuevoId })
     { id: 'rr3', titulo: 'Pago: SPEI', mensaje: '💳 *Transferencia SPEI*\nCLABE: 000000000000000000\nTitular: Nombre de Ejemplo\nBanco: Banco Ejemplo', orden: 7 },
   ])
   ruta('GET', /^\/catalogos\/?$/, () => [{ id: 'cat-1', nombre: 'TACONES', temporada: 'PV26', activo: true, portada_url: '' }, { id: 'cat-2', nombre: 'Sandalias', temporada: 'PV26', activo: true, portada_url: '' }, { id: 'cat-3', nombre: 'FLATS', temporada: 'PV26', activo: true, portada_url: '' }])
+  ruta('POST', /^\/imagenes\/upload-temp$/, () => ({ url: 'https://demo.invalid/catalogo-demo.pdf' }))
   ruta('GET', /^\/chatbot\/(tareas-hoy|plantillas)$/, () => ({ tareas: [], total: 0 }))
   ruta('GET', /^\/marketplace\/admin\/resumen$/, () => ({ vendedores_pendientes: 2, productos_pendientes: 3, pedidos_por_recibir: 1, por_liquidar: 1840 }))
   ruta('GET', /^\/(ml|shein|walmart|amazon)\/ping$/, () => ({ ok: true, conectado: true, demo: true }))
