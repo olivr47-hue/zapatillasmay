@@ -609,6 +609,7 @@ window._pendientesWalmartInterval = setInterval(_pollPendientesWalmart, 90000)
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
     if (modulo && !_moduloPermitido(modulo)) {
+      window._alAbrirModulo = null
       alert('No tienes permisos para acceder a este módulo')
       return
     }
@@ -628,7 +629,9 @@ window._pendientesWalmartInterval = setInterval(_pollPendientesWalmart, 90000)
     document.querySelector('[data-modulo="' + id + '"]')?.classList.add('active')
     const _tt = document.getElementById('topbar-title')
     if (_tt) _tt.textContent = modulos.find(m => m.id === id)?.label || ''
-    cargarModulo(id)
+    // Quien navega para abrir algo concreto (un carrito, un pedido, un cliente) deja aquí qué abrir: así no se carga antes la lista del módulo
+    const _alAbrir = window._alAbrirModulo; window._alAbrirModulo = null
+    if (typeof _alAbrir === 'function') _alAbrir(); else cargarModulo(id)
   }
 }
 

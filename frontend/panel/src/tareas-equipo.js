@@ -177,10 +177,12 @@ async function abrirConversacion(tel) {
 function abrirVinculo(t) {
   const tipo = t.vinculo_tipo || (t.telefono ? 'chat' : ''), vid = t.vinculo_id || t.telefono
   const ir = (modulo, fn, ms = 700) => { window.navegarA(modulo); setTimeout(fn, ms) }
-  if (tipo === 'cliente') return window.verHistorialCliente(vid)
-  if (tipo === 'pedido') return window.verPedido(vid)
+  // Se marca el módulo en el menú y se abre directo lo que se pidió, sin pasar por la lista del módulo
+  const directo = (modulo, fn) => { window._alAbrirModulo = fn; window.navegarA(modulo) }
+  if (tipo === 'cliente') return directo('clientes', () => window.verHistorialCliente(vid))
+  if (tipo === 'pedido') return directo('pedidos', () => window.verPedido(vid))
   if (tipo === 'producto') return ir('productos', () => window.editarProducto(vid))
-  if (tipo === 'carrito') return ir('carritos', () => window.abrirCarrito(vid), 900)
+  if (tipo === 'carrito') return directo('carritos', () => window.abrirCarrito(vid))
   if (tipo === 'chat') return abrirConversacion(t.telefono || vid)
 }
 
