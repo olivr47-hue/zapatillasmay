@@ -457,6 +457,10 @@ function renderLogin() {
       const entry = Array.isArray(config) ? config.find(c => c.clave === 'google_client_id') : null
       const googleClientId = entry ? entry.valor : null
       if (!googleClientId) return
+      // Modo redirección: en vez de la ventana emergente de Google (que en algunos teléfonos se queda en blanco) se manda a la persona a Google y regresa al portal.
+      // Se activa con la configuración «google_modo_redirect = 1» o, para probar, con ?gredirect=1 en la dirección.
+      const modoRedirect = new URLSearchParams(location.search).get('gredirect') === '1'
+        || (Array.isArray(config) && config.some(c => c.clave === 'google_modo_redirect' && String(c.valor) === '1'))
 
       const cargarScript = () => new Promise((resolve, reject) => {
         if (window.google && window.google.accounts) return resolve()
@@ -468,7 +472,12 @@ function renderLogin() {
       })
       await cargarScript()
 
-      window.google.accounts.id.initialize({
+      window.google.accounts.id.initialize(modoRedirect ? {
+        client_id: googleClientId,
+        ux_mode: 'redirect',
+        login_uri: location.origin + '/api/auth/google/redirect',
+        auto_select: false
+      } : {
         client_id: googleClientId,
         callback: handleGoogleLoginPortal,
         auto_select: false,
@@ -590,6 +599,24 @@ window.authHeaders = () => {
 // ya renderizó su contenido arriba y no debe ser pisado ni interferido por esto.
 if (!_skuEstiloPublico) {
 
+// Regreso del inicio de sesión con Google en modo redirección: la sesión viene en el fragmento (#gsi=...) y se guarda como la del portal
+let _gsiError = ''
+try {
+  const h = location.hash || ''
+  if (h.startsWith('#gsi=')) {
+    const b64 = h.slice(5).replace(/-/g, '+').replace(/_/g, '/')
+    const d = JSON.parse(decodeURIComponent(escape(atob(b64 + '='.repeat((4 - b64.length % 4) % 4)))))
+    history.replaceState(null, '', location.pathname + location.search)
+    if (d && d.token && (d.tipo === 'zapateria' || d.tipo === 'mayoreo')) {
+      localStorage.setItem(PC_SESSION_KEY, JSON.stringify({ ...d, email: d.email }))
+      localStorage.setItem('erp_token', d.token)
+    } else { _gsiError = 'Esta cuenta no tiene acceso al portal mayoreo' }
+  } else if (h.startsWith('#gsi_error=')) {
+    _gsiError = decodeURIComponent(h.slice(11))
+    history.replaceState(null, '', location.pathname + location.search)
+  }
+} catch (e) { _gsiError = 'No se pudo completar el inicio de sesión con Google' }
+
 const sesion = localStorage.getItem(SESSION_KEY)
 const sesionCliente = localStorage.getItem(PC_SESSION_KEY)
 
@@ -610,6 +637,7 @@ if (sesion) {
   }
 } else {
   renderLogin()
+  if (_gsiError) setTimeout(() => { const e = document.getElementById('login-error'); if (e) { e.textContent = _gsiError; e.style.display = 'block' } }, 50)
 }
 
 // ── Banner "Instalar app" ────────────────────────────────────────────

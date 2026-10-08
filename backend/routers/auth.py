@@ -312,6 +312,35 @@ def google_login(request: Request, datos: dict):
         return JSONResponse(status_code=500, content={"error": "Error al verificar con Google"})
 
 
+@router.post("/google/redirect")
+async def google_redirect(request: Request):
+    """Modo redirección del botón de Google (cuando la ventana emergente no funciona en el teléfono): Google manda aquí, por POST, la credencial y el
+    token anti-falsificación (g_csrf_token en el cuerpo Y en la cookie, deben coincidir). Se verifica igual que /auth/google y se regresa al portal con la
+    sesión en el fragmento de la dirección (#gsi=...), que no viaja a ningún servidor."""
+    import base64
+    from fastapi.responses import RedirectResponse
+    destino = "https://portal.zapatillasmay.mx/"
+    try:
+        form = await request.form()
+        cred = str(form.get("credential") or "")
+        csrf_cuerpo = str(form.get("g_csrf_token") or "")
+        csrf_cookie = request.cookies.get("g_csrf_token") or ""
+        if not cred or not csrf_cookie or not secrets.compare_digest(csrf_cuerpo, csrf_cookie):
+            return RedirectResponse(destino + "#gsi_error=" + _up.quote("No se pudo verificar el inicio de sesión. Intenta de nuevo."), status_code=303)
+        r = google_login(request, {"id_token": cred, "tipo": "mayoreo"})
+        if isinstance(r, JSONResponse):
+            try:
+                msg = json.loads(r.body).get("error") or "No se pudo iniciar sesión con Google"
+            except Exception:
+                msg = "No se pudo iniciar sesión con Google"
+            return RedirectResponse(destino + "#gsi_error=" + _up.quote(msg), status_code=303)
+        carga = base64.urlsafe_b64encode(json.dumps(r).encode("utf-8")).decode().rstrip("=")
+        return RedirectResponse(destino + "#gsi=" + carga, status_code=303)
+    except Exception as e:
+        print(f"[auth/google/redirect] {e}")
+        return RedirectResponse(destino + "#gsi_error=" + _up.quote("Error al iniciar sesión con Google. Intenta de nuevo."), status_code=303)
+
+
 _RESET_EXP_MIN = 60
 
 
