@@ -9,6 +9,7 @@ import './conexiones.js'
 import './catalogo-pdf.js'
 import './webm-a-ogg.js'
 import './tareas-equipo.js'
+import './atencion-hoy.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -16283,6 +16284,8 @@ async function cargarDashboard() {
 
     // Tareas del equipo (con instrucciones, pasos, responsable y vínculo con el ERP)
     try { window.pintarTareasEquipo(document.getElementById('dashboard-contenido')) } catch(e) { console.error('tareas:', e) }
+    // Lo que requiere atención hoy (arriba del todo, con las tareas justo debajo)
+    try { window.pintarAtencionHoy(document.getElementById('dashboard-contenido')) } catch(e) { console.error('atención hoy:', e) }
 
   } catch(e) {
     console.error('Error dashboard:', e)

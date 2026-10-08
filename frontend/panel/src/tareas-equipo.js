@@ -40,6 +40,7 @@ window.pintarTareasEquipo = async function (contenedor) {
     card.addEventListener('change', onChange)
     _contenedor.appendChild(card)
   } else if (card.parentElement !== _contenedor) _contenedor.appendChild(card)
+  if (window._ordenarTarjetasDash) window._ordenarTarjetasDash()
   card.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;margin:0">Cargando tareas…</p>'
   try {
     await cargarEmpleados()
