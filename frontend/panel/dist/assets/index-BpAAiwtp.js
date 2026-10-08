@@ -7041,7 +7041,7 @@ Se borran todos sus mensajes y no se puede deshacer.`))try{const o=await fetch(w
         <span id="char-count-${e}" class="wa-char-count"></span>
       </div>
       <div class="wa-input-row">
-        <textarea id="msg-input-${e}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1"
+        <textarea id="msg-input-${e}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1" enterkeyhint="enter"
                   oninput="const c=document.getElementById('char-count-${e}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';waRefrescarBoton('${_ja(e)}')"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!window.matchMedia('(pointer: coarse)').matches){event.preventDefault();enviarMensajeWA('${_ja(e)}')}"></textarea>
         <button onclick="enviarMensajeWA('${_ja(e)}')" class="wa-send-btn" id="wa-send-${e}" title="Escribe y envía (Enter) · o mantén presionado para grabar un audio"
