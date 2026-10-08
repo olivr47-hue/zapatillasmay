@@ -127,3 +127,14 @@ export const CHATS = MSJ.map((m, i) => ({
   telefono: `52477110${i}00${i}`, nombre: ['Carolina', 'Beatriz', 'Zapatería El Sol'][i], ultimo_mensaje: m[1], ultimo_at: hace(0, 9 + i), no_leidos: i === 0 ? 2 : 0, bot_activo: true, etiquetas: i === 2 ? ['mayoreo'] : [], etapa: ['nuevo', 'interesado', 'negociando'][i],
   mensajes: [{ id: uid('m'), mensaje: m[0], respuesta: m[1], canal: 'whatsapp', created_at: hace(0, 8 + i) }],
 }))
+
+// Ejemplo: una clienta responde a las fotos de un carrusel que le mandaron
+const _f1 = FOTO('#111111', '👠'), _f2 = FOTO('#E8C4A0', '👡')
+CHATS.push({
+  telefono: '5213311500000', nombre: 'Karla (ejemplo)', ultimo_mensaje: 'Estos dos pares', ultimo_at: hace(0, 11), no_leidos: 1, bot_activo: true, etiquetas: [], etapa: 'interesado',
+  mensajes: [
+    { id: uid('m'), mensaje: 'Estos dos pares', respuesta: '', canal: 'whatsapp', tipo: 'texto', created_at: hace(0, 11) },
+    { id: uid('m'), mensaje: '.\n[El cliente está respondiendo sobre: Tacón Aurora · Negro\n|IMGS|' + _f1 + ']', respuesta: '', canal: 'whatsapp', tipo: 'texto', created_at: hace(0, 10) },
+    { id: uid('m'), mensaje: 'Hola, me interesan\n[El cliente está respondiendo sobre: [Carrusel] Mira estos modelos 👠 — Productos: Tacón Aurora · Negro, Sandalia Luna · Nude (2 fotos)\n|IMGS|' + _f1 + ',' + _f2 + ']', respuesta: '', canal: 'whatsapp', tipo: 'texto', created_at: hace(0, 9) },
+  ],
+})

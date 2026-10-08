@@ -1597,15 +1597,28 @@ async def _procesar_webhook_whatsapp(datos: dict):
                     # Buscar a qué mensaje se estaba respondiendo (carrusel, foto)
                     ref_rows = supabase_get(f"conversaciones_whatsapp?telefono=eq.{from_number}&order=created_at.desc&limit=20")
                     ctx_info = None
+                    respaldo_carrusel = None
                     for row in ref_rows:
                         if row.get("wa_message_id") == ctx_wamid:
                             ctx_info = row.get("mensaje", "")
                             break
-                        # Si no encontramos por wa_message_id, buscar en carrusel reciente
                         if row.get("tipo") == "carrusel_saliente":
-                            ctx_info = row.get("mensaje", "")
-                            break
+                            txt_row = row.get("mensaje", "") or ""
+                            # ¿a cuál foto del carrusel respondió? (cada foto guarda el id de su mensaje de WhatsApp)
+                            try:
+                                mapa = json.loads(txt_row.split("\n|MAP|", 1)[1]) if "\n|MAP|" in txt_row else []
+                            except Exception:
+                                mapa = []
+                            hit = next((x for x in mapa if x.get("w") == ctx_wamid), None)
+                            if hit:
+                                ctx_info = f"{hit.get('n', '')}\n|IMGS|{hit.get('u', '')}"
+                                break
+                            if respaldo_carrusel is None:
+                                respaldo_carrusel = txt_row   # carrusel completo si no se identifica la foto
+                    if ctx_info is None:
+                        ctx_info = respaldo_carrusel
                     if ctx_info:
+                        ctx_info = ctx_info.split("\n|MAP|")[0]
                         producto_ref = re.sub(r'\[.*?\]:\s*', '', ctx_info).strip()
                         mensaje = f"{mensaje}\n[El cliente está respondiendo sobre: {producto_ref}]"
                 except Exception:
@@ -4366,6 +4379,7 @@ def enviar_carrusel(telefono: str, datos: dict):
 
         # Solo imágenes con caption — sin mensajes de texto separados para evitar desorden
         enviadas = 0
+        mapa_fotos = []   # [{w: id del mensaje de WhatsApp, n: nombre del modelo, u: foto}] para saber a qué foto responde la clienta
         for i, t in enumerate(tarjetas_validas):
             img_url = t["imagen_url"]
             caption = t.get("texto", "")
@@ -4375,10 +4389,12 @@ def enviar_carrusel(telefono: str, datos: dict):
             # El CTA va en el caption de la última imagen
             if i == len(tarjetas_validas) - 1:
                 caption = f"{caption}\n\n¿Alguno te llama la atención? 👀" if caption else "¿Alguno te llama la atención? 👀"
-            _wa_send({
+            _wid = _wa_send({
                 "messaging_product": "whatsapp", "to": telefono, "type": "image",
                 "image": {"link": img_url, "caption": caption[:1024]}
             })
+            if _wid:
+                mapa_fotos.append({"w": _wid, "n": (t.get("texto", "").split("\n")[0] or "")[:160], "u": img_url})
             enviadas += 1
 
         # No poner en control manual automáticamente — Maya puede seguir respondiendo
@@ -4389,7 +4405,8 @@ def enviar_carrusel(telefono: str, datos: dict):
             _imgs_carrusel = ",".join([t["imagen_url"] for t in tarjetas_validas if t.get("imagen_url")])
             supabase_post("conversaciones_whatsapp", {
                 "telefono": telefono,
-                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} — Productos: {nombres_productos} ({enviadas} fotos)\n|IMGS|{_imgs_carrusel}",
+                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} — Productos: {nombres_productos} ({enviadas} fotos)\n|IMGS|{_imgs_carrusel}"
+                           + (("\n|MAP|" + json.dumps(mapa_fotos, ensure_ascii=False)) if mapa_fotos else ""),
                 "tipo": "carrusel_saliente",
                 "leido": True
             })

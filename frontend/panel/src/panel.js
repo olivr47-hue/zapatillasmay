@@ -18139,13 +18139,25 @@ window._renderBurbujas = (chat) => {
           ${ops.length < (partes[1]||'').split(', ').length ? '<div style="color:#94a3b8">…</div>' : ''}
         </div>`
     } else if (m.tipo === 'carrusel_saliente') {
-      const partesC = (m.mensaje || '').split('|IMGS|')
+      const partesC = ((m.mensaje || '').split('\n|MAP|')[0]).split('|IMGS|')
       const imgsC = partesC[1] ? partesC[1].split(',').filter(Boolean).map(u => urlOk(u)).filter(Boolean) : []
       const textoC = textoLimpio.split('|IMGS|')[0].replace('[Carrusel] ', '')
       msgBody = `<p style="margin:0;font-size:0.85rem">${textoC}</p>
         ${imgsC.length
           ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;max-width:250px;padding-bottom:2px">${imgsC.map(u => `<img src="${u}" alt="producto" style="width:62px;height:78px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer" onclick="window.open('${u}','_blank')">`).join('')}</div>`
           : '<p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>'}`
+    } else if (!esSaliente && /\[El cliente está respondiendo sobre: /.test(m.mensaje || '')) {
+      // La clienta respondió a una foto/carrusel que mandamos: se muestra su texto y, aparte, a qué modelo responde (con la foto), no el texto interno
+      const mRef = (m.mensaje || '').match(/^([\s\S]*?)\n?\[El cliente está respondiendo sobre: ([\s\S]*)\]\s*$/)
+      const textoCl = mRef ? mRef[1].trim() : ''
+      const [refTxtRaw, imgsRaw = ''] = (mRef ? mRef[2] : '').split('|IMGS|')
+      const refTxt = refTxtRaw.replace(/\n\|MAP\|[\s\S]*$/, '').replace(/^\[Carrusel\]\s*/, '').replace(/\s*\(\d+ fotos?\)\s*$/, '').trim()
+      const imgsRef = imgsRaw.split('\n')[0].split(',').map(u => urlOk(u.trim())).filter(Boolean)
+      msgBody = `<div style="border-left:3px solid #E91E8C;background:rgba(0,0,0,0.05);border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:0.74rem;color:#475569;max-width:260px">
+          <b>↩ Responde sobre:</b> ${esc(refTxt)}
+          ${imgsRef.length ? `<div style="display:flex;gap:5px;overflow-x:auto;margin-top:5px;padding-bottom:2px">${imgsRef.map(u => `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="foto" style="width:${imgsRef.length === 1 ? 90 : 54}px;height:${imgsRef.length === 1 ? 112 : 68}px;object-fit:cover;border-radius:6px;flex-shrink:0"></a>`).join('')}</div>` : ''}
+        </div>
+        <p style="margin:0;word-break:break-word">${window._linkifyWA(esc(textoCl && textoCl !== '.' ? textoCl : '👆 (eligió esta foto)'))}</p>`
     } else if (m.tipo === 'sticker') {
       const stUrl = urlOk(((m.mensaje || '').match(/https?:\/\/\S+/) || [''])[0])
       msgBody = stUrl
