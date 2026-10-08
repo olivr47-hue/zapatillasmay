@@ -284,6 +284,9 @@ window._linkifyWA = (textoEscapado) => String(textoEscapado == null ? '' : texto
     const href = /^www\./i.test(url) ? 'https://' + url : url
     return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#0b6bcb;text-decoration:underline;overflow-wrap:anywhere">${url}</a>${cola}`
   })
+  .replace(/(^|[\s(>])\*([^\s*](?:[^*\n]*[^\s*])?)\*(?=$|[\s.,;:!?)<])/g, '$1<b>$2</b>')
+  .replace(/(^|[\s(>])_([^\s_](?:[^_\n]*[^\s_])?)_(?=$|[\s.,;:!?)<])/g, '$1<i>$2</i>')
+  .replace(/(^|[\s(>])~([^\s~](?:[^~\n]*[^\s~])?)~(?=$|[\s.,;:!?)<])/g, '$1<s>$2</s>')
   .replace(/\n/g, '<br>')
 window._urlWA = (v) => { const u = String(v || '').trim(); return /^https?:\/\//i.test(u) ? window._escWA(u) : '' }
 
@@ -18353,9 +18356,12 @@ window._renderBurbujas = (chat) => {
     } else if (m.tipo === 'ubicacion_saliente') {
       const mapsUrl = textoLimpio.match(/https:\/\/maps\.google\.com\/\?q=[\d.,]+/)?.[0] || ''
       const locName = textoLimpio.replace('[Ubicación] ', '').replace(/ https:.*/,'')
-      msgBody = `<a href="${mapsUrl}" target="_blank" class="wa-doc-link" style="color:#0891b2;text-decoration:none">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        ${locName || 'Ubicación'}</a>`
+      msgBody = `<a href="${urlOk(mapsUrl) || '#'}" target="_blank" rel="noopener" style="display:block;width:230px;max-width:100%;text-decoration:none;color:inherit">
+        <div style="height:120px;border-radius:8px;background:#b5dba0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="#e53935" stroke="#fff" stroke-width="1.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="#fff"/></svg>
+        </div>
+        <div style="font-weight:700;margin-top:6px;font-size:0.88rem;color:#0f172a">${locName || 'Ubicación'}</div>
+        <div style="font-size:0.78rem;color:#667085">León, Guanajuato, México</div></a>`
     } else if (m.tipo === 'contacto_saliente') {
       const ctxt = textoLimpio.replace('[Contacto] ', '')
       msgBody = `<span class="wa-doc-link" style="color:#0f172a">
@@ -18519,6 +18525,7 @@ area.style.minHeight = '0'
         <div class="wa-header-name">${window._escWA(chat.nombre || chat.telefono)}</div>
         <div class="wa-header-sub">${window._CANAL_INFO_WA[chat.canal] ? window._CANAL_INFO_WA[chat.canal].emoji + ' ' + window._CANAL_INFO_WA[chat.canal].label + ' · ' : ''}${chat.mensajes.length} msg</div>
       </div>
+      <button type="button" class="wa-mas-btn wa-circ-btn" onclick="waToggleOpciones()" title="Opciones de la conversación" aria-label="Opciones">＋</button>
       <div class="wa-header-actions">
         ${chat.en_control
           ? `<button onclick="toggleControl('${_ja(telefono)}', false)" class="wa-btn wa-btn-on" title="Activar bot automático">Bot</button>`
@@ -18594,6 +18601,9 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
+        <button class="wa-tool-btn" title="Notas y tareas de esta conversación" onclick="toggleNotasTareas()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </button>
         <div style="flex:1"></div>
         <span id="reply-context-${telefono}" class="wa-reply-context" style="display:none"></span>
         <span id="char-count-${telefono}" class="wa-char-count"></span>
@@ -18611,14 +18621,6 @@ area.style.minHeight = '0'
       </div>
     </div>`}
 
-    <!-- Toggle notas/tareas -->
-    <button class="wa-nt-toggle" onclick="toggleNotasTareas()">
-      <span style="display:flex;align-items:center;gap:6px">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Notas y tareas
-      </span>
-      <span id="wa-nt-arrow" style="font-size:0.7rem">▲</span>
-    </button>
     <div id="notas-tareas-panel" class="nt-collapsed">
       <div class="wa-nt-grid">
         <div>
@@ -18684,6 +18686,11 @@ area.style.minHeight = '0'
 
 
 
+window.waToggleOpciones = () => {
+  const area = document.getElementById('chat-area'); if (!area) return
+  const abierto = area.classList.toggle('wa-opc-open')
+  const b = area.querySelector('.wa-mas-btn'); if (b) b.textContent = abierto ? '✕' : '＋'
+}
 window.toggleNotasTareas = () => {
   const panel = document.getElementById('notas-tareas-panel')
   const arrow = document.getElementById('wa-nt-arrow')

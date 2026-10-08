@@ -1780,6 +1780,15 @@ td:last-child,  th:last-child  { padding-right:18px; }
   .wa-input-toolbar .wa-tool-btn { flex-shrink: 0; }
 }
 
+/* Encabezado del chat en pantallas chicas: solo nombre + «＋»; las opciones se abren con el «＋» para dar todo el espacio a la conversación */
+.wa-mas-btn { display: none !important; }
+@media (max-width: 900px) {
+  .wa-mas-btn { display: inline-flex !important; margin-left: auto; }
+  #chat-area:not(.wa-opc-open) .wa-header-actions,
+  #chat-area:not(.wa-opc-open) .wa-subheader { display: none !important; }
+  .wa-header-info { flex: 1 1 0 !important; min-width: 0 !important; }
+}
+
 /* Pestañas de canal (Todos · WhatsApp · Messenger · Instagram · Comentarios): píldoras legibles que se deslizan de lado.
    Antes el estilo en línea las encogía hasta encimarse unas con otras. */
 #wa-canal-tabs { gap: 6px; padding: 4px; }
