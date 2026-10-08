@@ -6,6 +6,10 @@ from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
 from security import limpiar_texto
 import urllib.request
 import urllib.parse
+import contextvars
+
+# wamid del mensaje entrante que se está procesando: lo consume la primera fila que se guarda (para poder responderle citándolo)
+_WAMID_ENTRANTE = contextvars.ContextVar("wamid_entrante", default="")
 import json
 import os
 import time
@@ -1129,6 +1133,10 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
             data["media_url"] = media_url
         if canal and canal != "whatsapp":
             data["canal"] = canal
+        _w_ent = _WAMID_ENTRANTE.get()
+        if _w_ent:
+            data["wa_message_id"] = _w_ent
+            _WAMID_ENTRANTE.set("")   # solo la primera fila del webhook lleva el wamid
         try:
             supabase_post("conversaciones_whatsapp", data)
         except Exception as e_post:
@@ -1140,6 +1148,9 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
                 reintentado = True
             if "canal" in data:
                 data.pop("canal", None)
+                reintentado = True
+            if "wa_message_id" in data:
+                data.pop("wa_message_id", None)
                 reintentado = True
             if reintentado:
                 supabase_post("conversaciones_whatsapp", data)
@@ -1569,6 +1580,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
         tipo         = mensaje_data.get("type", "text")
         from_number  = mensaje_data.get("from", "")
         wa_msg_id    = mensaje_data.get("id", "")   # wamid del mensaje entrante
+        _WAMID_ENTRANTE.set(wa_msg_id or "")
         contacts     = value.get("contacts", [])
         nombre_contacto = contacts[0].get("profile", {}).get("name", "") if contacts else ""
 
@@ -2235,7 +2247,7 @@ def _chats_desde_mensajes_legado() -> dict:
             "conversaciones_whatsapp"
             "?order=created_at.desc"
             "&limit=400"
-            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,canal"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,canal,reply_to_wa_id"
         )
     except Exception:
         conversaciones = supabase_get(
@@ -2498,7 +2510,7 @@ def listar_mensajes_chat(telefono: str):
             f"?telefono=in.({','.join(_vars)})"
             f"&order=created_at.desc"
             f"&limit=150"
-            f"&select=id,telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url"
+            f"&select=id,telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,reply_to_wa_id"
         )
         return msgs or []
     except Exception as e:
@@ -2563,7 +2575,15 @@ def enviar_mensaje_manual(telefono: str, datos: dict):
                 row["wa_message_id"] = wa_id
             except Exception:
                 pass
-        supabase_post("conversaciones_whatsapp", row)
+        if reply_to:
+            row["reply_to_wa_id"] = reply_to
+        try:
+            supabase_post("conversaciones_whatsapp", row)
+        except Exception:
+            if "reply_to_wa_id" not in row:
+                raise
+            row.pop("reply_to_wa_id", None)   # por si el cache de columnas aún no la conoce: el mensaje ya salió, se guarda igual
+            supabase_post("conversaciones_whatsapp", row)
         cache_invalidate("chats_lista")
         return {"ok": True}
     except Exception as e:
@@ -2588,6 +2608,70 @@ def enviar_imagen_manual(telefono: str, datos: dict):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/stickers")
+def listar_stickers():
+    """Stickers guardados para mandar desde el panel."""
+    try:
+        return supabase_get("stickers?select=id,url&order=created_at.desc&limit=200") or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/stickers")
+def guardar_sticker(archivo: UploadFile = File(None), url: str = Form("")):
+    """Guarda un sticker: o se sube un .webp (el panel convierte la imagen a 512x512) o se guarda uno recibido (url de nuestro Storage)."""
+    try:
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        if archivo is not None:
+            datos = archivo.file.read(300 * 1024 + 1)
+            if len(datos) > 300 * 1024:
+                return JSONResponse(status_code=400, content={"error": "El sticker pesa demasiado (máx. 300 KB)"})
+            if not (datos[:4] == b"RIFF" and datos[8:12] == b"WEBP"):
+                return JSONResponse(status_code=400, content={"error": "El sticker debe ser .webp"})
+            url = subir_imagen_storage(datos, f"sticker_{int(time.time() * 1000)}.webp", content_type="image/webp")
+            if not url:
+                return JSONResponse(status_code=500, content={"error": "No se pudo guardar el sticker"})
+        elif not (supabase_url and url.startswith(supabase_url + "/storage/v1/object/public/wa-media/")):
+            return JSONResponse(status_code=400, content={"error": "Sticker no válido"})
+        if supabase_get(f"stickers?url=eq.{urllib.parse.quote(url, safe='')}&select=id&limit=1"):
+            return {"ok": True, "ya_estaba": True}
+        supabase_post("stickers", {"url": url})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.delete("/stickers/{id}")
+def borrar_sticker(id: str):
+    try:
+        supabase_delete(f"stickers?id=eq.{urllib.parse.quote(id, safe='')}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/sticker")
+def enviar_sticker_manual(telefono: str, datos: dict):
+    """Manda un sticker guardado (webp de nuestro Storage) por WhatsApp."""
+    try:
+        url = datos.get("url", "")
+        agente = datos.get("agente", "Admin")
+        supabase_url = os.environ.get("SUPABASE_URL", "")
+        if not (supabase_url and url.startswith(supabase_url + "/storage/v1/object/public/wa-media/")):
+            return JSONResponse(status_code=400, content={"error": "Sticker no válido"})
+        wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "sticker", "sticker": {"link": url}})
+        if not wamid:
+            return JSONResponse(status_code=502, content={"error": _explicar_error_wa()})
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono, "mensaje": f"[{agente}]: [Imagen] {url}\n", "respuesta": None,
+            "tipo": "imagen_saliente", "leido": True, "wa_message_id": wamid,
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @router.patch("/chats/{telefono}/leido")
 def marcar_leido(telefono: str):
