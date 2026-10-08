@@ -4549,7 +4549,7 @@ def enviar_carrusel(telefono: str, datos: dict):
                 "image": {"link": img_url, "caption": caption[:1024]}
             })
             if _wid:
-                mapa_fotos.append({"w": _wid, "n": (t.get("texto", "").split("\n")[0] or "")[:160], "u": img_url})
+                mapa_fotos.append({"w": _wid, "n": (t.get("texto", "").split("\n")[0] or "")[:160], "u": img_url, "c": caption[:1024]})
             enviadas += 1
 
         # No poner en control manual automáticamente — Maya puede seguir respondiendo

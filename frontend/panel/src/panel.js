@@ -18265,7 +18265,7 @@ window._renderBurbujas = (chat) => {
     const textoLimpio = esc(m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : '')   // YA escapado: todo lo derivado de aquí es seguro en HTML
 
     // Construir body de la burbuja según tipo
-    let msgBody = ''
+    let msgBody = '', carruselFotos = []
     if (m.tipo === 'imagen_saliente') {
       const imgUrlRaw = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
       const imgUrl = urlOk(imgUrlRaw)
@@ -18305,6 +18305,20 @@ window._renderBurbujas = (chat) => {
           ${ops.length < (partes[1]||'').split(', ').length ? '<div style="color:#94a3b8">…</div>' : ''}
         </div>`
     } else if (m.tipo === 'carrusel_saliente') {
+      // Como en WhatsApp: cada foto es su propio mensaje con su descripción (los carruseles viejos guardan solo el nombre; el texto completo se reconstruye)
+      try {
+        const mapaC = (m.mensaje || '').includes('\n|MAP|') ? JSON.parse(m.mensaje.split('\n|MAP|')[1]) : []
+        const intro = ((m.mensaje || '').match(/\[Carrusel\]\s*([\s\S]*?)\s+— Productos:/) || [])[1] || ''
+        carruselFotos = mapaC.map((f, i) => {
+          let c = f.c
+          if (c == null) {
+            c = f.n || ''
+            if (i === 0 && intro) c = c ? intro + '\n\n' + c : intro
+            if (i === mapaC.length - 1) c = (c ? c + '\n\n' : '') + '¿Alguno te llama la atención? 👀'
+          }
+          return { u: urlOk(f.u), c: esc(c) }
+        }).filter(f => f.u)
+      } catch (e) { carruselFotos = [] }
       const partesC = ((m.mensaje || '').split('\n|MAP|')[0]).split('|IMGS|')
       const imgsC = partesC[1] ? partesC[1].split(',').filter(Boolean).map(u => urlOk(u)).filter(Boolean) : []
       const textoC = textoLimpio.split('|IMGS|')[0].replace('[Carrusel] ', '')
@@ -18411,7 +18425,13 @@ window._renderBurbujas = (chat) => {
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     </button>`
 
-    const rendered = (m.mensaje || m.media_url) ? `
+    const rendered = carruselFotos.length ? carruselFotos.map((f, i) => `
+      <div class="wa-msg-row saliente" data-idx="${idx}">
+        <div class="wa-msg-row-inner">
+          ${i === 0 ? `<span class="wa-msg-sender">${senderName}</span>` : ''}
+          <div class="wa-bubble saliente"><a href="${f.u}" target="_blank" rel="noopener"><img src="${f.u}" alt="producto" style="width:220px;max-width:100%;border-radius:8px;display:block"></a>${f.c ? `<p style="margin:6px 0 0;font-size:0.85rem;white-space:pre-wrap;word-break:break-word">${f.c}</p>` : ''}<div class="wa-bubble-time">${ts}${i === carruselFotos.length - 1 ? readReceipt : ''}</div></div>
+        </div>
+      </div>`).join('') : (m.mensaje || m.media_url) ? `
       <div class="wa-msg-row ${esSaliente ? 'saliente' : 'entrante'}" data-idx="${idx}">
         ${!esSaliente ? replyBtn : ''}
         <div class="wa-msg-row-inner">
