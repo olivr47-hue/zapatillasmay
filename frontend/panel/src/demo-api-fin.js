@@ -51,9 +51,12 @@ export function registrarRutasExtra({ db, ruta, q, num, mes, cerrado, nuevoId })
   ruta('POST', /^\/finanzas\/caja\/([^/]+)\/cerrar$/, () => { db.cajas.forEach(c => { c.estado = 'cerrada' }); return { ok: true } })
   ruta('GET', /^\/finanzas\/cuentas-por-cobrar$/, () => db.pedidos.filter(p => p.forma_pago === 'credito' && cerrado(p)).slice(0, 8).map(p => ({ ...p, saldo: Math.round(num(p.total) * 0.6), monto_credito: Math.round(num(p.total) * 0.6) })))
   const en = (d) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10)
+  const cxpFila = (id, numero, prov, total, saldo, dias, credito, notas) => ({ id, numero, proveedor_nombre: prov, proveedores: { nombre: prov }, total, saldo_pendiente: saldo, dias_credito: credito, notas,
+    fecha_orden: en(dias - credito), fecha_vencimiento: en(dias), dias_restantes: dias, vencido: dias < 0, abonos: saldo < total ? [{ id: id + '-a', monto: total - saldo, fecha: en(-3) }] : [] })
   ruta('GET', /^\/finanzas\/cuentas-por-pagar$/, () => [
-    { id: 'cxp-1', proveedor: 'Calzado Los Arcos', proveedores: { nombre: 'Calzado Los Arcos' }, total: 18400, saldo: 9200, fecha_vencimiento: en(6), estado: 'pendiente' },
-    { id: 'cxp-2', proveedor: 'Manufacturas Delfín', proveedores: { nombre: 'Manufacturas Delfín' }, total: 26500, saldo: 26500, fecha_vencimiento: en(20), estado: 'pendiente' }])
+    cxpFila('cxp-3', 1019, 'Zapatos Montiel', 7200, 7200, -4, 0, 'Nota de remisión 4471'),
+    cxpFila('cxp-1', 1024, 'Calzado Los Arcos', 18400, 9200, 6, 15, 'Nota 8802 · botines'),
+    cxpFila('cxp-2', 1027, 'Manufacturas Delfín', 26500, 26500, 20, 30, 'Nota 5530 · tacones')])
   ruta('GET', /^\/finanzas\/deudas$/, () => [])
   ruta('GET', /^\/finanzas\/valor-inventario$/, () => {
     let pares = 0, costo = 0, venta = 0; const por = {}

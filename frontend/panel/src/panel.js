@@ -2854,21 +2854,43 @@ window._ordenDetalleCancelar = async (id) => {
 }
 
 window.mostrarCxP = () => {
-  const { cxp } = window._finanzasData
   const container = document.getElementById('fin-tab-contenido')
   if (!container) return
-  const lista = Array.isArray(cxp) ? cxp : []
   container.innerHTML = `
-    <div style="margin-bottom:12px;display:flex;justify-content:flex-end">
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px;max-width:420px;position:relative">
+        <input id="cxp-buscar" class="form-input" type="search" autocomplete="off" placeholder="🔎 Buscar por marca (iniciales o nombre) o número de nota" value="${_e(window._cxpQ || '')}" oninput="cxpBuscar(this.value)" style="width:100%">
+      </div>
       <button class="btn btn-primary" onclick="window.mostrarFormCuentaPorPagarManual()">+ Agregar cuenta por pagar</button>
     </div>
+    <div id="cxp-lista"></div>
+  `
+  window.cxpBuscar(window._cxpQ || '')
+}
+
+// Busca por: nombre del proveedor/marca (o sus iniciales, ej. «CLA» = Calzado Los Arcos), número de nota/orden, texto de la nota y monto
+window.cxpBuscar = (q) => {
+  window._cxpQ = q || ''
+  const { cxp } = window._finanzasData
+  const cont = document.getElementById('cxp-lista')
+  if (!cont) return
+  const norm = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const todas = Array.isArray(cxp) ? cxp : []
+  const tokens = norm(q).split(/\s+/).filter(Boolean)
+  const lista = tokens.length ? todas.filter(o => {
+    const nombre = norm(o.proveedor_nombre)
+    const iniciales = nombre.split(/[^a-z0-9]+/).filter(Boolean).map(w => w[0]).join('')
+    const hay = [nombre, iniciales, norm(o.notas), String(o.numero == null ? '' : o.numero), '#' + (o.numero == null ? '' : o.numero), String(Math.round(parseFloat(o.saldo_pendiente ?? o.total ?? 0)))].join(' ')
+    return tokens.every(t => hay.includes(t))
+  }) : todas
+  cont.innerHTML = `
     <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
       <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <p style="font-weight:700;font-size:0.9rem">📥 Cuentas por pagar a proveedores</p>
-        <span style="font-size:0.78rem;color:#888">${lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.saldo_pendiente ?? o.total ?? 0),0).toFixed(0)} saldo total</span>
+        <span style="font-size:0.78rem;color:#888">${tokens.length ? `${lista.length} de ${todas.length}` : lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.saldo_pendiente ?? o.total ?? 0),0).toFixed(0)} saldo total</span>
       </div>
       ${lista.length === 0
-        ? '<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por pagar pendientes</div>'
+        ? `<div style="padding:2rem;text-align:center;color:#888">${tokens.length ? 'Ninguna cuenta coincide con la búsqueda' : 'Sin cuentas por pagar pendientes'}</div>`
         : lista.map(o => {
           const vencido = o.vencido
           const dias = o.dias_restantes
@@ -2883,9 +2905,9 @@ window.mostrarCxP = () => {
           return `
             <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:160px">
-                <p style="font-size:0.85rem;font-weight:600">🏭 ${o.proveedor_nombre}</p>
+                <p style="font-size:0.85rem;font-weight:600">🏭 ${_e(o.proveedor_nombre)}${o.numero != null ? ` <span style="font-size:0.72rem;font-weight:700;color:#6a1b9a;background:#f3e5f5;border-radius:6px;padding:1px 7px;margin-left:6px">Nota #${_e(o.numero)}</span>` : ''}</p>
                 <p style="font-size:0.72rem;color:#888">
-                  ${o.notas ? `${o.notas} · ` : ''}Orden del ${new Date(o.fecha_orden).toLocaleDateString('es-MX')}
+                  ${o.notas ? `${_e(o.notas)} · ` : ''}Orden del ${new Date(o.fecha_orden).toLocaleDateString('es-MX')}
                   ${o.dias_credito > 0 ? ` · ${o.dias_credito} días de crédito` : ' · pago inmediato'}
                   · vence ${new Date(o.fecha_vencimiento).toLocaleDateString('es-MX')}
                 </p>

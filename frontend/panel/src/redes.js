@@ -743,6 +743,11 @@ window.cargarRedes = async function () {
     .rs-ft img{display:block;width:100%;height:96px;object-fit:cover}
     .rs-ft.pri{border-color:#E91E8C;box-shadow:0 0 0 2px rgba(233,30,140,.18)}
     .rs-ft.ext{border-color:#16a34a}
+    .rs-ft.exc{border-color:#cbd5e1;border-style:dashed}
+    .rs-ft.exc img{opacity:.35}
+    .rs-ft.exc .rs-tag{background:#94a3b8}
+    .rs-ft .rs-quitar{position:absolute;right:4px;bottom:22px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(255,255,255,.95);box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:0.8rem;font-weight:800;color:#b91c1c;cursor:pointer;padding:0;line-height:1}
+    .rs-ft.exc .rs-quitar{color:#16a34a}
     .rs-ft .rs-tag{position:absolute;left:0;right:0;top:0;text-align:center;font-size:0.6rem;font-weight:800;color:#fff;background:#E91E8C;padding:2px 0}
     .rs-ft .rs-mas{position:absolute;right:4px;bottom:22px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(255,255,255,.95);box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:0.95rem;font-weight:800;color:#555;cursor:pointer;line-height:1;padding:0}
     .rs-ft.ext .rs-mas{background:#16a34a;color:#fff}
@@ -836,7 +841,7 @@ window.cargarRedes = async function () {
 
     <div class="rs-card" id="rs-fotos-card" style="display:none">
       <p class="rs-h">Fotos de cada modelo <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· elige la foto y el color que quieres mostrar</span></p>
-      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px"><b style="color:#E91E8C">Toca una foto</b> para usarla como principal (la del collage, la portada y la primera imagen). <b style="color:#16a34a">Toca el ＋</b> de otras fotos para sumarlas: en el <b>carrusel</b> son imágenes extra y en el <b>collage</b> son recuadros más (hasta 4 por imagen), aunque sean del mismo modelo y color.</p>
+      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px"><b style="color:#E91E8C">Toca una foto</b> para usarla como principal (la del collage, la portada y la primera imagen). <b style="color:#b91c1c">Toca la ✕</b> de la principal para quitarla y publicar solo las que marques con ＋. <b style="color:#16a34a">Toca el ＋</b> de otras fotos para sumarlas: en el <b>carrusel</b> son imágenes extra y en el <b>collage</b> son recuadros más (hasta 4 por imagen), aunque sean del mismo modelo y color.</p>
       <div id="rs-fotos"></div>
     </div>
 
@@ -1049,10 +1054,10 @@ window.rsPintarFotos = () => {
     const cuerpo = !gal ? '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Cargando fotos...</p>'
       : !gal.length ? '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Este modelo no tiene fotos.</p>'
       : `<div class="rs-gal">${gal.map((g, i) => {
-        const pri = g.url === d.foto, ext = extras.includes(g.url)
-        return `<div class="rs-ft ${pri ? 'pri' : ''} ${ext ? 'ext' : ''}" onclick="rsFotoPrincipal('${esc(id)}',${i})" title="${esc(g.color || (g.portada ? 'Portada' : 'Foto'))}">
-          ${pri ? '<span class="rs-tag">PRINCIPAL</span>' : ''}<img src="${esc(miniatura(g.url))}" loading="lazy" alt="">
-          ${pri ? '' : `<button class="rs-mas" title="${ext ? 'Quitar del carrusel' : 'Agregar al carrusel'}" onclick="event.stopPropagation();rsFotoExtra('${esc(id)}',${i})">${ext ? '✓' : '＋'}</button>`}
+        const pri = g.url === d.foto, ext = extras.includes(g.url), exc = pri && f.excluida === g.url
+        return `<div class="rs-ft ${pri ? 'pri' : ''} ${ext ? 'ext' : ''} ${exc ? 'exc' : ''}" onclick="rsFotoPrincipal('${esc(id)}',${i})" title="${esc(g.color || (g.portada ? 'Portada' : 'Foto'))}">
+          ${pri ? `<span class="rs-tag">${exc ? 'NO SE USA' : 'PRINCIPAL'}</span>` : ''}<img src="${esc(miniatura(g.url))}" loading="lazy" alt="">
+          ${pri ? `<button class="rs-quitar" title="${exc ? 'Volver a usar esta foto como portada' : 'Quitar esta foto de la publicación (se queda solo con las que marques con ＋)'}" onclick="event.stopPropagation();rsQuitarPrincipal('${esc(id)}')">${exc ? '↺' : '✕'}</button>` : `<button class="rs-mas" title="${ext ? 'Quitar del carrusel' : 'Agregar al carrusel'}" onclick="event.stopPropagation();rsFotoExtra('${esc(id)}',${i})">${ext ? '✓' : '＋'}</button>`}
           <span class="rs-col">${g.hex ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(g.hex)};border:1px solid rgba(0,0,0,.2);margin-right:3px"></i>` : ''}${esc(g.color || (g.portada ? 'Portada' : 'Foto'))}</span>
         </div>`
       }).join('')}</div>`
@@ -1063,7 +1068,23 @@ window.rsFotoPrincipal = (id, i) => {
   const g = (S.galerias[id] || [])[i]; if (!g) return
   const f = S.fotos[id] = S.fotos[id] || { extras: [] }
   f.principal = g.url
+  f.excluida = ''   // al escoger una foto principal se vuelve a usar
   f.extras = (f.extras || []).filter(u => u !== g.url)
+  window.rsPintarFotos(); window.rsGenerar()
+}
+// Quita (o devuelve) la foto principal del carrusel/collage para publicar solo las fotos que se marcan con ＋ (por ejemplo solo variantes de color)
+window.rsQuitarPrincipal = (id) => {
+  const base = S.prods.find(p => p.id === id); if (!base) return
+  const d = datosProducto(base); if (!d) return
+  const f = S.fotos[id] = S.fotos[id] || { extras: [] }
+  if (f.excluida === d.foto) { f.excluida = '' }
+  else {
+    if (!(f.extras || []).length && !document.getElementById('rs-o-porcolor')?.checked) {
+      alert('Marca primero con ＋ las fotos que sí quieres publicar (por ejemplo las de cada color). Si no, el modelo se quedaría sin fotos.')
+      return
+    }
+    f.excluida = d.foto
+  }
   window.rsPintarFotos(); window.rsGenerar()
 }
 window.rsFotoExtra = (id, i) => {
@@ -1102,10 +1123,12 @@ window.rsGenerar = async () => {
   const fotosUsadas = []   // para el editor de encuadre
   const usada = (u) => { if (u && !fotosUsadas.includes(u)) fotosUsadas.push(u) }
   const delProducto = async (p) => {
-    const urls = [p.foto]
+    let urls = [p.foto]
     if (porColor) p.colores.forEach(c => { if (c.foto && !urls.includes(c.foto)) urls.push(c.foto) })
     ;((S.fotos[p.id] && S.fotos[p.id].extras) || []).forEach(u => { if (!urls.includes(u)) urls.push(u) })
-    const manual = !!(S.fotos[p.id] && S.fotos[p.id].principal)
+    const excl = (S.fotos[p.id] && S.fotos[p.id].excluida) || ''
+    if (excl) { const sin = urls.filter(u => u !== excl); if (sin.length) urls = sin }   // la principal quitada no sale (si no queda nada más, se deja para no publicar vacío)
+    const manual = !!(S.fotos[p.id] && S.fotos[p.id].principal) || !!excl
     const colorDe = (u) => ((S.galerias[p.id] || []).find(g => g.url === u) || {}).color || (p.colores.find(c => c.foto === u) || {}).n || ''
     for (const [i, u] of urls.slice(0, 6).entries()) {
       usada(u)
@@ -1120,7 +1143,10 @@ window.rsGenerar = async () => {
     const items = []
     prods.forEach(p => {
       const extras = ((S.fotos[p.id] && S.fotos[p.id].extras) || []).filter(u => u && u !== p.foto)
-      ;[p.foto, ...extras].forEach((u, k) => items.push({ ...p, foto: u, primero: k === 0 }))
+      const excl = (S.fotos[p.id] && S.fotos[p.id].excluida) || ''
+      let fs = [p.foto, ...extras]
+      if (excl && fs.length > 1) fs = fs.filter(u => u !== excl)
+      fs.forEach((u, k) => items.push({ ...p, foto: u, primero: k === 0 }))
     })
     items.forEach(it => usada(it.foto))
     for (let i = 0; i < items.length; i += 4) laminas.push(await laminaCollage(F, E, items.slice(i, i + 4), opts))
