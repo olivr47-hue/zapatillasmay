@@ -1235,7 +1235,7 @@ def sugerencias_recompra(sucursal_id: str):
 
 # ─── CUENTAS POR PAGAR (proveedores) ──────────────
 @router.get("/cuentas-por-pagar")
-def cuentas_por_pagar():
+def cuentas_por_pagar(pagadas: int = 0):
     """Ordenes de compra YA RECIBIDAS que todavia no se han pagado (deuda
     real con el proveedor), con su fecha de vencimiento calculada a partir
     de los dias de credito, su saldo pendiente (puede ya traer abonos
@@ -1246,10 +1246,13 @@ def cuentas_por_pagar():
     esas, y /ordenes/{id}/recibir para pasarlas de borrador a esta lista)."""
     try:
         from datetime import datetime, timedelta
+        # pagadas=1: historial de notas ya liquidadas (para decirle a un proveedor cuándo y cuánto se le pagó)
         ordenes = supabase_get_all(
-            "ordenes_compra?status=eq.recibida"
-            "&order=created_at.asc&select=*,proveedores(nombre,telefono,dias_credito)"
+            f"ordenes_compra?status=eq.{'pagada' if pagadas else 'recibida'}"
+            f"&order=created_at.{'desc' if pagadas else 'asc'}&select=*,proveedores(nombre,telefono,dias_credito)"
         )
+        if pagadas:
+            ordenes = ordenes[:200]
         hoy = _hoy_mx()
 
         pagos_por_orden = {}
@@ -1280,8 +1283,9 @@ def cuentas_por_pagar():
                 "fecha_orden": fecha_orden.isoformat(),
                 "fecha_vencimiento": fecha_vencimiento.isoformat(),
                 "dias_restantes": dias_restantes,
-                "vencido": dias_restantes < 0,
-                "saldo_pendiente": saldo,
+                "vencido": dias_restantes < 0 and not pagadas,
+                "pagada": bool(pagadas),
+                "saldo_pendiente": 0.0 if pagadas else saldo,
                 "abonos": pagos_por_orden.get(o["id"], []),
             })
         resultado.sort(key=lambda x: x["dias_restantes"])

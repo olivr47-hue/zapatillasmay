@@ -2868,7 +2868,10 @@ window.mostrarCxP = () => {
       <div style="flex:1;min-width:220px;max-width:420px;position:relative">
         <input id="cxp-buscar" class="form-input" type="search" autocomplete="off" placeholder="🔎 Buscar por marca (iniciales o nombre) o número de nota" value="${_e(window._cxpQ || '')}" oninput="cxpBuscar(this.value)" style="width:100%">
       </div>
-      <button class="btn btn-primary" onclick="window.mostrarFormCuentaPorPagarManual()">+ Agregar cuenta por pagar</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary" id="cxp-btn-hist" onclick="window.cxpAlternarPagadas()">${window._cxpPagadas ? '← Ver pendientes' : '📜 Ver notas ya pagadas'}</button>
+        <button class="btn btn-primary" onclick="window.mostrarFormCuentaPorPagarManual()">+ Agregar cuenta por pagar</button>
+      </div>
     </div>
     <div id="cxp-lista"></div>
   `
@@ -2878,7 +2881,7 @@ window.mostrarCxP = () => {
 // Busca por: nombre del proveedor/marca (o sus iniciales, ej. «CLA» = Calzado Los Arcos), número de nota/orden, texto de la nota y monto
 window.cxpBuscar = (q) => {
   window._cxpQ = q || ''
-  const { cxp } = window._finanzasData
+  const cxp = window._cxpPagadas ? (window._cxpHist || []) : window._finanzasData.cxp
   const cont = document.getElementById('cxp-lista')
   if (!cont) return
   const norm = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -2893,11 +2896,11 @@ window.cxpBuscar = (q) => {
   cont.innerHTML = `
     <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
       <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <p style="font-weight:700;font-size:0.9rem">📥 Cuentas por pagar a proveedores</p>
-        <span style="font-size:0.78rem;color:#888">${tokens.length ? `${lista.length} de ${todas.length}` : lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.saldo_pendiente ?? o.total ?? 0),0).toFixed(0)} saldo total</span>
+        <p style="font-weight:700;font-size:0.9rem">${window._cxpPagadas ? '📜 Notas ya pagadas a proveedores' : '📥 Cuentas por pagar a proveedores'}</p>
+        <span style="font-size:0.78rem;color:#888">${window._cxpPagadas ? `${tokens.length ? `${lista.length} de ${todas.length}` : lista.length} notas · $${lista.reduce((s,o)=>s+parseFloat(o.total||0),0).toFixed(0)} pagados en total` : `${tokens.length ? `${lista.length} de ${todas.length}` : lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.saldo_pendiente ?? o.total ?? 0),0).toFixed(0)} saldo total`}</span>
       </div>
       ${lista.length === 0
-        ? `<div style="padding:2rem;text-align:center;color:#888">${tokens.length ? 'Ninguna cuenta coincide con la búsqueda' : 'Sin cuentas por pagar pendientes'}</div>`
+        ? `<div style="padding:2rem;text-align:center;color:#888">${tokens.length ? 'Ninguna cuenta coincide con la búsqueda' : (window._cxpPagadas ? 'Aún no hay notas pagadas' : 'Sin cuentas por pagar pendientes')}</div>`
         : lista.map(o => {
           const vencido = o.vencido
           const dias = o.dias_restantes
@@ -2918,9 +2921,10 @@ window.cxpBuscar = (q) => {
                   ${o.dias_credito > 0 ? ` · ${o.dias_credito} días de crédito` : ' · pago inmediato'}
                   · vence ${new Date(o.fecha_vencimiento).toLocaleDateString('es-MX')}
                 </p>
-                ${abonado > 0
-                  ? `<p style="font-size:0.72rem;color:#2e7d32;margin-top:3px">💵 Abonado $${abonado.toFixed(0)} de $${total.toFixed(0)} (${abonos.length} abono${abonos.length===1?'':'s'})</p>`
-                  : ''}
+                ${abonos.length
+                  ? `<p onclick="window.cxpToggleAbonos('${o.id}')" style="font-size:0.72rem;color:#2e7d32;margin-top:3px;cursor:pointer;user-select:none"><span id="cxp-fl-${o.id}" style="display:inline-block;width:12px">${(window._cxpAbiertos || new Set()).has(o.id) ? '▾' : '▸'}</span> 💵 ${o.pagada ? 'Pagado' : 'Abonado'} $${(o.pagada ? total : abonado).toFixed(0)} de $${total.toFixed(0)} (${abonos.length} abono${abonos.length===1?'':'s'}) · <u>ver fechas</u></p>
+                     <div id="cxp-ab-${o.id}" style="display:${(window._cxpAbiertos || new Set()).has(o.id) ? 'block' : 'none'};margin:6px 0 2px">${window._cxpAbonosHTML(o)}</div>`
+                  : (o.pagada ? `<p style="font-size:0.72rem;color:#2e7d32;margin-top:3px">✅ Pagada${o.fecha_pago ? ' el ' + _cxpFecha(o.fecha_pago) : ''} · sin abonos registrados</p>` : '')}
               </div>
               <div style="text-align:right">
                 <p style="font-weight:700;color:#333;font-size:1rem">$${saldo.toFixed(0)}</p>
@@ -2928,15 +2932,98 @@ window.cxpBuscar = (q) => {
                 <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600">${badge.txt}</span>
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#1565c0;border-color:#90caf9" onclick='window.mostrarFormAbono(${JSON.stringify(o.id)}, ${saldo}, ${JSON.stringify(o.proveedor_nombre)})'>💵 Abonar</button>
+                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px" onclick="window.cxpVerNota('${o.id}')">📋 Ver nota</button>
+                ${o.pagada ? '' : `<button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#1565c0;border-color:#90caf9" onclick='window.mostrarFormAbono(${JSON.stringify(o.id)}, ${saldo}, ${JSON.stringify(o.proveedor_nombre)})'>💵 Abonar</button>
                 <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="marcarOrdenPagada('${o.id}')">✅ Marcar pagada</button>
-                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#c62828;border-color:#ef9a9a" onclick="marcarOrdenCancelada('${o.id}')">✕ Cancelar</button>
+                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#c62828;border-color:#ef9a9a" onclick="marcarOrdenCancelada('${o.id}')">✕ Cancelar</button>`}
               </div>
             </div>
           `
         }).join('')}
     </div>
   `
+}
+
+// ── Cuentas por pagar: desglose de abonos y contenido de la nota ──
+const _cxpFecha = (f) => { if (!f) return ''; const [y, m, d] = String(f).slice(0, 10).split('-'); return `${d}/${m}/${y}` }   // sin pasar por Date: evita el corrimiento de un día por zona horaria
+window._cxpAbiertos = window._cxpAbiertos || new Set()
+window._cxpAbonosHTML = (o) => {
+  const abonos = [...(o.abonos || [])].sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.created_at).localeCompare(String(b.created_at)))
+  const suma = abonos.reduce((s, a) => s + parseFloat(a.monto || 0), 0)
+  return `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;max-width:460px">
+    <table style="width:100%;border-collapse:collapse;font-size:0.76rem;color:#14532d">
+      <thead><tr style="text-align:left;color:#166534"><th style="padding:2px 4px">Fecha</th><th style="padding:2px 4px;text-align:right">Monto</th><th style="padding:2px 4px;text-align:right">Quedó debiendo</th></tr></thead>
+      <tbody>${abonos.map(a => `<tr style="border-top:1px solid #dcfce7"><td style="padding:3px 4px">${_cxpFecha(a.fecha)}${a.notas ? `<div style="color:#64748b;font-size:0.68rem">${_e(a.notas)}</div>` : ''}</td><td style="padding:3px 4px;text-align:right;font-weight:600">$${parseFloat(a.monto || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td><td style="padding:3px 4px;text-align:right">${a.saldo_despues != null ? '$' + parseFloat(a.saldo_despues).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '—'}</td></tr>`).join('')}</tbody>
+      <tfoot><tr style="border-top:2px solid #86efac;font-weight:700"><td style="padding:4px">Total abonado</td><td style="padding:4px;text-align:right">$${suma.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td><td></td></tr></tfoot>
+    </table>
+    <button class="btn btn-secondary" style="font-size:0.7rem;padding:4px 9px;margin-top:6px" onclick="window.cxpCopiarAbonos('${o.id}')">📋 Copiar para mandarlo al proveedor</button>
+  </div>`
+}
+window.cxpToggleAbonos = (id) => {
+  const bloque = document.getElementById('cxp-ab-' + id), fl = document.getElementById('cxp-fl-' + id)
+  if (!bloque) return
+  const abrir = bloque.style.display === 'none'
+  bloque.style.display = abrir ? 'block' : 'none'
+  if (fl) fl.textContent = abrir ? '▾' : '▸'
+  if (abrir) window._cxpAbiertos.add(id); else window._cxpAbiertos.delete(id)
+}
+window.cxpCopiarAbonos = async (id) => {
+  const todas = (window._cxpPagadas ? window._cxpHist : window._finanzasData.cxp) || []
+  const o = todas.find(x => x.id === id); if (!o) return
+  const abonos = [...(o.abonos || [])].sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))
+  const m = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+  const texto = `Pagos a ${o.proveedor_nombre}${o.numero != null ? ' · Nota #' + o.numero : ''} (total ${m(o.total)})\n` +
+    abonos.map(a => `• ${_cxpFecha(a.fecha)}: ${m(a.monto)}`).join('\n') +
+    `\nTotal abonado: ${m(abonos.reduce((s, a) => s + parseFloat(a.monto || 0), 0))}` + (o.pagada ? '\nNota liquidada.' : `\nSaldo pendiente: ${m(o.saldo_pendiente)}`)
+  try { await navigator.clipboard.writeText(texto); alert('Copiado. Ya puedes pegarlo en WhatsApp.') } catch (e) { prompt('Copia este texto:', texto) }
+}
+window.cxpAlternarPagadas = async () => {
+  window._cxpPagadas = !window._cxpPagadas
+  if (window._cxpPagadas) {
+    try { window._cxpHist = await fetch(API + '/finanzas/cuentas-por-pagar?pagadas=1').then(r => r.json()); if (!Array.isArray(window._cxpHist)) window._cxpHist = [] }
+    catch (e) { window._cxpHist = []; alert('No se pudo cargar el historial de notas pagadas') }
+  }
+  window.mostrarCxP()
+}
+// Contenido de la nota: qué llegó (productos, tallas, cantidades y costos). Las notas capturadas a mano no traen productos: se muestra su texto.
+window.cxpVerNota = async (id) => {
+  const todas = (window._cxpPagadas ? window._cxpHist : window._finanzasData.cxp) || []
+  const o = todas.find(x => x.id === id) || {}
+  const m = (n) => '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+  document.getElementById('modal-cxp-nota')?.remove()
+  const modal = document.createElement('div'); modal.id = 'modal-cxp-nota'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:16px'
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;width:640px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <div><h3 style="margin:0;font-size:1.05rem">🏭 ${_e(o.proveedor_nombre || 'Proveedor')}${o.numero != null ? ` · Nota #${_e(o.numero)}` : ''}</h3>
+      <p style="margin:3px 0 0;font-size:0.76rem;color:#64748b">Orden del ${_cxpFecha(o.fecha_orden)} · total ${m(o.total)}${o.dias_credito > 0 ? ` · ${o.dias_credito} días de crédito` : ''}${o.pagada ? ' · ✅ pagada' : ''}</p>
+      ${o.notas ? `<p style="margin:6px 0 0;font-size:0.8rem;background:#f8fafc;border-radius:8px;padding:6px 10px;white-space:pre-wrap">📝 ${_e(o.notas)}</p>` : ''}</div>
+      <button onclick="document.getElementById('modal-cxp-nota').remove()" style="border:none;background:none;font-size:1.2rem;cursor:pointer;color:#64748b">✕</button>
+    </div>
+    <div id="cxp-nota-cuerpo" style="margin-top:12px;font-size:0.82rem;color:#94a3b8">Cargando contenido…</div></div>`
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+  const cuerpo = modal.querySelector('#cxp-nota-cuerpo')
+  try {
+    const items = await fetch(API + '/finanzas/ordenes/' + id + '/items').then(r => r.json())
+    if (!Array.isArray(items) || !items.length) { cuerpo.innerHTML = '<p style="margin:0;color:#64748b">Esta nota se capturó a mano como una deuda con el proveedor, sin detalle de productos. Lo único registrado es el monto y las notas de arriba.</p>'; return }
+    // se agrupa por modelo y color: «25 ×2, 26 ×1»
+    const grupos = {}
+    items.forEach(i => {
+      const v = i.variantes || {}, p = v.productos || {}
+      const k = (p.sku_interno || '') + '|' + (p.nombre || '') + '|' + (v.color || '')
+      const g = grupos[k] = grupos[k] || { sku: p.sku_interno, nombre: p.nombre || 'Producto', color: v.color, tallas: [], pares: 0, subtotal: 0, costos: new Set() }
+      const cant = parseInt(i.cantidad || 0)
+      g.tallas.push({ t: v.talla, c: cant }); g.pares += cant; g.subtotal += parseFloat(i.subtotal != null ? i.subtotal : (cant * parseFloat(i.costo_unitario || 0))); g.costos.add(parseFloat(i.costo_unitario || 0))
+    })
+    const filas = Object.values(grupos)
+    const pares = filas.reduce((s, g) => s + g.pares, 0), suma = filas.reduce((s, g) => s + g.subtotal, 0)
+    cuerpo.style.color = '#334155'
+    cuerpo.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+      <thead><tr style="text-align:left;color:#64748b;border-bottom:2px solid #e2e8f0"><th style="padding:4px">Modelo</th><th style="padding:4px">Tallas × pares</th><th style="padding:4px;text-align:right">Pares</th><th style="padding:4px;text-align:right">Costo</th><th style="padding:4px;text-align:right">Subtotal</th></tr></thead>
+      <tbody>${filas.map(g => `<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:5px 4px"><b>${_e(g.sku || '')}</b> ${_e(g.nombre)}${g.color ? `<div style="color:#64748b;font-size:0.72rem">${_e(g.color)}</div>` : ''}</td><td style="padding:5px 4px">${g.tallas.filter(x => x.c).sort((a, b) => parseFloat(a.t) - parseFloat(b.t)).map(x => `${_e(x.t)} ×${x.c}`).join(', ')}</td><td style="padding:5px 4px;text-align:right">${g.pares}</td><td style="padding:5px 4px;text-align:right">${[...g.costos].map(c => m(c)).join(' / ')}</td><td style="padding:5px 4px;text-align:right;font-weight:600">${m(g.subtotal)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr style="font-weight:700;border-top:2px solid #e2e8f0"><td style="padding:6px 4px">${filas.length} modelo${filas.length === 1 ? '' : 's'}</td><td></td><td style="padding:6px 4px;text-align:right">${pares}</td><td></td><td style="padding:6px 4px;text-align:right">${m(suma)}</td></tr></tfoot></table>`
+  } catch (e) { cuerpo.innerHTML = '<p style="margin:0;color:#b91c1c">No se pudo cargar el contenido de la nota.</p>' }
 }
 
 window.mostrarFormCuentaPorPagarManual = async () => {

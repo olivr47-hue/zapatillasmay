@@ -52,8 +52,12 @@ export function registrarRutasExtra({ db, ruta, q, num, mes, cerrado, nuevoId })
   ruta('GET', /^\/finanzas\/cuentas-por-cobrar$/, () => db.pedidos.filter(p => p.forma_pago === 'credito' && cerrado(p)).slice(0, 8).map(p => ({ ...p, saldo: Math.round(num(p.total) * 0.6), monto_credito: Math.round(num(p.total) * 0.6) })))
   const en = (d) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10)
   const cxpFila = (id, numero, prov, total, saldo, dias, credito, notas) => ({ id, numero, proveedor_nombre: prov, proveedores: { nombre: prov }, total, saldo_pendiente: saldo, dias_credito: credito, notas,
-    fecha_orden: en(dias - credito), fecha_vencimiento: en(dias), dias_restantes: dias, vencido: dias < 0, abonos: saldo < total ? [{ id: id + '-a', monto: total - saldo, fecha: en(-3) }] : [] })
-  ruta('GET', /^\/finanzas\/cuentas-por-pagar$/, () => [
+    fecha_orden: en(dias - credito), fecha_vencimiento: en(dias), dias_restantes: dias, vencido: dias < 0, abonos: saldo < total ? [{ id: id + '-a', monto: Math.round((total - saldo) / 2), fecha: en(-12), saldo_despues: total - Math.round((total - saldo) / 2) }, { id: id + '-b', monto: (total - saldo) - Math.round((total - saldo) / 2), fecha: en(-3), saldo_despues: saldo, notas: 'Transferencia' }] : [] })
+  ruta('GET', /^\/finanzas\/ordenes\/([^/]+)\/items$/, ({ m }) => m[1] === 'cxp-3' ? [] : [
+    { cantidad: 6, costo_unitario: 380, subtotal: 2280, variantes: { talla: '25', color: 'Negro', productos: { nombre: 'Tacón Aurora', sku_interno: 'TA-001' } } },
+    { cantidad: 4, costo_unitario: 380, subtotal: 1520, variantes: { talla: '26', color: 'Negro', productos: { nombre: 'Tacón Aurora', sku_interno: 'TA-001' } } },
+    { cantidad: 8, costo_unitario: 350, subtotal: 2800, variantes: { talla: '24', color: 'Beige', productos: { nombre: 'Sandalia Brisa', sku_interno: 'SB-014' } } }])
+  ruta('GET', /^\/finanzas\/cuentas-por-pagar$/, ({ qs }) => /pagadas=1/.test(qs || '') ? [{ ...cxpFila('cxp-9', 1011, 'Calzado Los Arcos', 12000, 0, -30, 15, 'Nota 8790'), pagada: true, vencido: false, saldo_pendiente: 0, fecha_pago: en(-20), abonos: [{ id: 'p1', monto: 5000, fecha: en(-40), saldo_despues: 7000 }, { id: 'p2', monto: 7000, fecha: en(-20), saldo_despues: 0 }] }] : [
     cxpFila('cxp-3', 1019, 'Zapatos Montiel', 7200, 7200, -4, 0, 'Nota de remisión 4471'),
     cxpFila('cxp-1', 1024, 'Calzado Los Arcos', 18400, 9200, 6, 15, 'Nota 8802 · botines'),
     cxpFila('cxp-2', 1027, 'Manufacturas Delfín', 26500, 26500, 20, 30, 'Nota 5530 · tacones')])
