@@ -19352,9 +19352,11 @@ window.waCamara = async (tel) => {
 
 // Grabar video en vivo: en el celular abre la cámara de video del teléfono (sale en mp4, que WhatsApp acepta); en la computadora graba con la cámara web
 window.waGrabarVideo = async (tel) => {
-  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) { document.getElementById('vidcam-file-' + tel)?.click(); return }
+  // Se graba con el navegador pidiendo H.264: la cámara nativa de muchos celulares graba en HEVC (H.265) y WhatsApp lo rechaza (código 131053)
+  const celular = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+  const mime = window.MediaRecorder && ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t))
+  if (!mime && celular) { document.getElementById('vidcam-file-' + tel)?.click(); return }
   if (!navigator.mediaDevices || !window.MediaRecorder) { alert('Este navegador no puede grabar video. Usa «Video» para elegir uno ya grabado.'); return }
-  const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4'].find(t => MediaRecorder.isTypeSupported(t))
   if (!mime) { alert('Este navegador graba video en un formato que WhatsApp no acepta. Graba desde el celular o actualiza Chrome.'); return }
   let stream
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }) }
