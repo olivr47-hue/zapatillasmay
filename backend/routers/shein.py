@@ -293,6 +293,13 @@ def ping():
         return {"ok": resp.get("code") in (0, "0"), "respuesta": resp}
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
+    except Exception as e:
+        # Sin esto, un fallo de red (proxy caído, tiempo agotado, DNS) tronaba con «Internal Server Error» y el panel solo mostraba
+        # un error de JSON sin decir qué pasó.
+        motivo = getattr(e, "reason", None) or e
+        via = "por el proxy de IP fija (SHEIN_PROXY_URL)" if SHEIN_PROXY_URL else "directo (SHEIN_PROXY_URL no está configurada en Railway)"
+        print(f"[SHEIN] ping: {type(e).__name__}: {motivo}")
+        return {"ok": False, "error": f"No se pudo comunicar con SHEIN {via}: {type(e).__name__} - {motivo}"}
 
 
 # ─── Ventas SHEIN → descontar inventario en el ERP ────────────────────────────
