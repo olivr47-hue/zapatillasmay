@@ -7007,12 +7007,6 @@ Se borran todos sus mensajes y no se puede deshacer.`))try{const o=await fetch(w
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         </button>
         <input type="file" id="vid-file-${e}" accept="video/*" style="display:none" onchange="subirVideoWA('${_ja(e)}',this)">
-        <button class="wa-tool-btn" title="Enviar botones interactivos" onclick="mostrarModalBotones('${_ja(e)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="4" rx="2"/><rect x="2" y="13" width="20" height="4" rx="2"/></svg>
-        </button>
-        <button class="wa-tool-btn" title="Enviar lista interactiva" onclick="mostrarModalLista('${_ja(e)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
-        </button>
         <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${_ja(e)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg>
         </button>
