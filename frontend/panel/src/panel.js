@@ -10016,10 +10016,12 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Comentarios internos</p>
         <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Solo visibles para el equipo, el cliente no los ve.</p>
-        <label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;font-size:0.85rem;cursor:pointer">
-          <input type="checkbox" id="cli-llego-solo" ${(id ? d.llego_solo : true) ? 'checked' : ''} style="margin-top:3px">
-          <span><b>Llegó sola (cuenta en «Tu utilidad»)</b><br><span style="color:#667085;font-size:0.76rem">Marca esto si la clienta te encontró por su cuenta (sitio, WhatsApp, redes, recomendación): todos sus pedidos cuentan en tu utilidad, aunque los capture tu equipo. Quítalo solo si es una clienta que tú ya tenías.</span></span>
-        </label>
+        <div id="cli-canales" data-prev="${(id ? d.llego_solo : true) ? '1' : '0'}" style="margin:0 0 12px">
+          <div style="font-size:0.85rem;font-weight:600;margin-bottom:6px">Canal por el cual llegó este cliente</div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.85rem">
+            ${[['conversaciones', 'Conversaciones'], ['sitio', 'Sitio web'], ['mostrador', 'Mostrador']].map(([v, t]) => `<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="cli-canal" value="${v}" ${String(d.canales_llegada || '').split(',').includes(v) ? 'checked' : ''}> ${t}</label>`).join('')}
+          </div>
+        </div>
         <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${d.comentarios_internos || ''}</textarea>
       </div>
 
@@ -10060,7 +10062,12 @@ window.guardarCliente = async (id) => {
     dias_credito: parseInt(document.getElementById('cli-dias').value) || 0,
     comentarios_internos: document.getElementById('cli-comentarios').value || null,
     prefijos_ocultos: document.getElementById('cli-prefijos-ocultos').value || null,
-    llego_solo: !!document.getElementById('cli-llego-solo')?.checked,
+    canales_llegada: [...document.querySelectorAll('.cli-canal:checked')].map(x => x.value).join(',') || null,
+    llego_solo: (() => {
+      const cs = [...document.querySelectorAll('.cli-canal:checked')].map(x => x.value)
+      if (!cs.length) return document.getElementById('cli-canales')?.dataset.prev !== '0'   // sin elegir canal: se queda como estaba (los clientes nuevos cuentan como tuyos)
+      return cs.includes('conversaciones') || cs.includes('sitio')
+    })(),
     activo: true
   }
 
