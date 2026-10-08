@@ -191,8 +191,9 @@ def empleado_vigente(sub) -> dict:
         return c[1]
     try:
         from database import supabase_get
-        filas = supabase_get(f"empleados?id=eq.{_q(str(sub), safe='')}&select=activo,rol")
-        data = {"activo": bool(filas[0].get("activo", True)), "rol": filas[0].get("rol")} if filas else {"activo": False, "rol": None}
+        filas = supabase_get(f"empleados?id=eq.{_q(str(sub), safe='')}&select=activo,rol,ver_finanzas")
+        data = ({"activo": bool(filas[0].get("activo", True)), "rol": filas[0].get("rol"), "ver_finanzas": filas[0].get("ver_finanzas") is not False}
+                if filas else {"activo": False, "rol": None, "ver_finanzas": True})
     except Exception as e:
         print(f"[auth] no se pudo verificar al empleado {sub}: {e}")
         return {"activo": True, "rol": None}
@@ -212,6 +213,7 @@ def _aplicar_vigencia(payload: dict) -> dict:
             raise HTTPException(status_code=401, detail="Cuenta desactivada")
         if v.get("rol"):
             payload = dict(payload, rol=v["rol"])
+        payload = dict(payload, ver_finanzas=v.get("ver_finanzas", True))   # permiso aparte: un administrador puede no ver Finanzas
     return payload
 
 

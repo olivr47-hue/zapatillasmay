@@ -6,6 +6,7 @@ const dinero = (n) => '$' + Math.round(n).toLocaleString('es-MX')
 const hoyISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
 const get = async (ruta) => { const r = await fetch(API + ruta); if (!r.ok) throw new Error(String(r.status)); return r.json() }
 const esAdmin = () => !window._empleadoActual || window._empleadoActual.rol === 'admin'
+const veFinanzas = () => esAdmin() && (!window._empleadoActual || window._empleadoActual.ver_finanzas !== false)
 
 // Orden en el dashboard: arriba «atención hoy» (compacta); las tareas del equipo van justo debajo del bloque de bienvenida y cifras clave
 window._ordenarTarjetasDash = () => {
@@ -34,7 +35,7 @@ window.pintarAtencionHoy = async function (contenedor) {
   const [tareas, enviar, cxp, solic, correo] = await Promise.allSettled([
     get('/chatbot/tareas-equipo'),
     get('/pedidos/por-enviar-resumen'),
-    esAdmin() ? get('/finanzas/cuentas-por-pagar') : Promise.reject(),
+    veFinanzas() ? get('/finanzas/cuentas-por-pagar') : Promise.reject(),
     esAdmin() ? get('/pedidos/solicitudes-total') : Promise.reject(),
     esAdmin() ? get('/emails/buzon/no-leidos') : Promise.reject(),
   ])

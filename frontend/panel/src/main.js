@@ -626,6 +626,15 @@ if (sesion) {
     renderPanel()
     window._initPushPanel()
     _manejarDeepLinkNotificacion()
+    // Permisos vigentes (rol y «ver Finanzas»): la sesión guardada puede ser anterior a un cambio de permisos
+    fetch('/api/empleados/yo').then(r => r.ok ? r.json() : null).then(v => {
+      if (!v || !window._empleadoActual) return
+      const cambio = (v.rol && v.rol !== window._empleadoActual.rol) || ((v.ver_finanzas !== false) !== (window._empleadoActual.ver_finanzas !== false))
+      if (!cambio) return
+      window._empleadoActual = { ...window._empleadoActual, rol: v.rol || window._empleadoActual.rol, ver_finanzas: v.ver_finanzas !== false }
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(window._empleadoActual)) } catch (e) {}
+      renderPanel()
+    }).catch(() => {})
   } catch(e) {
     renderLogin()
   }

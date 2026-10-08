@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
-from security import hash_password, verify_password, create_token, require_admin, limiter, invalidar_empleado
+from security import hash_password, verify_password, create_token, require_admin, require_staff, limiter, invalidar_empleado, empleado_vigente
 import time
 import urllib.parse as _up
 
@@ -29,7 +29,7 @@ def login(request: Request, datos: dict):
 
         # Sin distinguir mayúsculas (antes "Ana@x.com" no entraba si se guardó "ana@x.com"), valor codificado,
         # y coincidencia exacta (ilike trata '_' y '%' como comodines).
-        filas = supabase_get(f"empleados?email=ilike.{_up.quote(email, safe='')}&activo=eq.true&select=id,nombre,email,rol,password_hash")
+        filas = supabase_get(f"empleados?email=ilike.{_up.quote(email, safe='')}&activo=eq.true&select=id,nombre,email,rol,password_hash,ver_finanzas")
         empleados = [x for x in (filas or []) if (x.get("email") or "").strip().lower() == email]
         e = empleados[0] if empleados else None
         if not e or not verify_password(password, e.get("password_hash", "")):
@@ -51,15 +51,24 @@ def login(request: Request, datos: dict):
             "nombre": e["nombre"],
             "email": e["email"],
             "rol": e["rol"],
+            "ver_finanzas": e.get("ver_finanzas") is not False,
         }
     except Exception as ex:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 
 
+@router.get("/yo")
+def mis_permisos(staff=Depends(require_staff)):
+    """Permisos VIGENTES de quien tiene la sesión abierta (rol y si ve Finanzas): el panel lo consulta al abrir, porque la sesión
+    guardada en el navegador puede ser de antes de que se cambiaran sus permisos."""
+    v = empleado_vigente(staff.get("sub")) if isinstance(staff, dict) and staff.get("sub") else {}
+    return {"rol": v.get("rol") or (staff or {}).get("rol"), "ver_finanzas": v.get("ver_finanzas", True), "activo": v.get("activo", True)}
+
+
 @router.get("/")
 def listar(rol: str = None, _admin=Depends(require_admin)):
     try:
-        query = "empleados?select=id,nombre,email,rol,activo,created_at"
+        query = "empleados?select=id,nombre,email,rol,activo,created_at,ver_finanzas"
         if rol:
             query += f"&rol=eq.{rol}"
         return supabase_get(query)
@@ -86,7 +95,7 @@ def crear_empleado(datos: dict, _admin=Depends(require_admin)):
         if existente:
             return JSONResponse(status_code=400, content={"error": "El email ya esta registrado"})
         password_hash = hash_password(password)
-        return supabase_post("empleados", {"nombre": nombre, "email": email, "password_hash": password_hash, "rol": rol, "activo": True})
+        return supabase_post("empleados", {"nombre": nombre, "email": email, "password_hash": password_hash, "rol": rol, "activo": True, "ver_finanzas": datos.get("ver_finanzas") is not False})
     except Exception as ex:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 
@@ -105,6 +114,8 @@ def actualizar_empleado(empleado_id: str, datos: dict, _admin=Depends(require_ad
             update["rol"] = datos["rol"]
         if "activo" in datos:
             update["activo"] = bool(datos["activo"])
+        if "ver_finanzas" in datos:
+            update["ver_finanzas"] = bool(datos["ver_finanzas"])
         if datos.get("password"):
             if len(str(datos["password"])) < 8:
                 return JSONResponse(status_code=400, content={"error": "La contraseña debe tener al menos 8 caracteres"})

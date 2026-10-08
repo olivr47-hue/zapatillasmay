@@ -117,6 +117,14 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
 )]
 
 
+# Lo de dinero del negocio (reportes, cuentas por pagar/cobrar, deudas, caja...): además de ser administrador, hay que tener el permiso
+# «ver Finanzas» (se quita desde Empleados a quien administra pero no debe ver las finanzas).
+_SOLO_FINANZAS = [(m, _re.compile(r)) for m, r in (
+    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
+    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada)"),
+)]
+
+
 @app.middleware("http")
 async def _puerta_auth(request, call_next):
     if AUTH_ENFORCE and request.method != "OPTIONS":
@@ -139,6 +147,8 @@ async def _puerta_auth(request, call_next):
                 return JSONResponse(status_code=403, content={"detail": "Se requiere acceso de personal"})
             if es_personal(payload) and payload.get("rol") != "admin" and _coincide(_SOLO_ADMIN, request.method, path):
                 return JSONResponse(status_code=403, content={"detail": "Se requiere rol de administrador"})
+            if es_personal(payload) and payload.get("ver_finanzas") is False and _coincide(_SOLO_FINANZAS, request.method, path):
+                return JSONResponse(status_code=403, content={"detail": "No tienes permiso para ver Finanzas"})
     return await call_next(request)
 
 # Los orígenes de PRODUCCIÓN siempre están presentes (nunca se quitan → cero riesgo

@@ -95,8 +95,8 @@ const modulos = [
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
-  { id: 'finanzas', icon: '💰', label: 'Finanzas', section: 'Finanzas', soloAdmin: true },
-  { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true },
+  { id: 'finanzas', icon: '💰', label: 'Finanzas', section: 'Finanzas', soloAdmin: true, soloFinanzas: true },
+  { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true, soloFinanzas: true },
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
@@ -133,10 +133,16 @@ const _e = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g
 window._e = _e
 if (!window._escWA) window._escWA = _e
 
+// ¿Puede esta persona ver Finanzas y los pagos a proveedores? (administrador con el permiso «ver Finanzas»; se quita desde Empleados)
+window._veFinanzas = () => window._empleadoActual?.rol === 'admin' && window._empleadoActual?.ver_finanzas !== false
+const _moduloPermitido = (m) => !!m && (window._empleadoActual?.rol === 'admin' || !m.soloAdmin) && (!m.soloFinanzas || window._veFinanzas())
+
 export function renderPanel() {
   const _savedModulo = (() => { try { return localStorage.getItem('zm_panel_modulo') } catch(e) { return null } })()
   const _defaultModulo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
   moduloActivo = _savedModulo || _defaultModulo
+  const _mAct = modulos.find(m => m.id === moduloActivo)
+  if (_mAct && !_moduloPermitido(_mAct)) moduloActivo = _defaultModulo   // lo último que abrió ya no está a su alcance
   document.querySelector('#app').innerHTML = `
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar">
@@ -602,7 +608,7 @@ window._pendientesWalmartInterval = setInterval(_pollPendientesWalmart, 90000)
  window.navegarA = (id, _fromBack) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
-    if (modulo?.soloAdmin && !esAdmin) {
+    if (modulo && !_moduloPermitido(modulo)) {
       alert('No tienes permisos para acceder a este módulo')
       return
     }
@@ -627,11 +633,10 @@ window._pendientesWalmartInterval = setInterval(_pollPendientesWalmart, 90000)
 }
 
 function renderNav() {
-  const esAdmin = window._empleadoActual?.rol === 'admin'
-  const secciones = [...new Set(modulos.filter(m => esAdmin || !m.soloAdmin).map(m => m.section))]
+  const secciones = [...new Set(modulos.filter(_moduloPermitido).map(m => m.section))]
   return secciones.map(sec => `
     <div class="nav-section">${sec}</div>
-    ${modulos.filter(m => m.section === sec && (esAdmin || !m.soloAdmin)).map(m => `
+    ${modulos.filter(m => m.section === sec && _moduloPermitido(m)).map(m => `
       <div class="nav-item ${m.id === moduloActivo ? 'active' : ''}"
            data-modulo="${m.id}"
            onclick="navegarA('${m.id}')">
@@ -16372,6 +16377,10 @@ window.mostrarFormEmpleado = async (id) => {
             <option value="admin" ${d.rol==='admin'?'selected':''}>Administrador</option>
           </select>
         </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.85rem;cursor:pointer">
+          <input type="checkbox" id="emp-ver-finanzas" ${(id ? d.ver_finanzas !== false : true) ? 'checked' : ''} style="margin-top:3px">
+          <span><b>Puede ver Finanzas y pagos a proveedores</b><br><span style="color:#667085;font-size:0.76rem">Quítalo si administra el sistema pero no debe ver el dinero del negocio (reportes, cuentas por pagar y cobrar, deudas, caja). Aplica al volver a abrir su sesión.</span></span>
+        </label>
       </div>
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
         <button class="btn btn-secondary" onclick="navegarA('empleados')">Cancelar</button>
@@ -16390,7 +16399,7 @@ window.guardarEmpleado = async (id) => {
   try {
     const method = id ? 'PATCH' : 'POST'
     const url = id ? API + '/empleados/' + id : API + '/empleados/'
-    const body = { nombre, email, rol }
+    const body = { nombre, email, rol, ver_finanzas: !!document.getElementById('emp-ver-finanzas')?.checked }
     if (password) body.password = password
     const res = await fetch(url, { method, headers: window.authHeaders(), body: JSON.stringify(body) })
     if (res.ok) { alert('Empleado guardado correctamente'); navegarA('empleados') }
