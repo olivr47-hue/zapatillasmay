@@ -648,6 +648,7 @@ function renderNav() {
   `).join('')}
 
 async function cargarModulo(id) {
+  window._bloquearScrollChat && window._bloquearScrollChat(false)
   // Detener el polling en vivo del carrito si el admin navega a otra sección
   // (abrirCarrito lo vuelve a arrancar si entra de nuevo a un carrito).
   if (id !== 'carritos' && typeof _detenerPollCarritoActivo === 'function') _detenerPollCarritoActivo()
@@ -18718,10 +18719,25 @@ area.style.minHeight = '0'
 
 
 // En celular el chat llena la pantalla hasta abajo (antes quedaba un hueco debajo de la barra de escribir)
+// Con un chat abierto en celular la página no debe moverse: si se desplaza, el chat sube y debajo queda un hueco
+window._scrollBloqueado = []
+window._bloquearScrollChat = (on) => {
+  if (on) {
+    if (window._scrollBloqueado.length) return
+    window.scrollTo(0, 0)
+    const nodos = [document.documentElement, document.body]
+    for (let el = document.getElementById('wa-container')?.parentElement; el && el !== document.body; el = el.parentElement) nodos.push(el)
+    nodos.forEach(n => { window._scrollBloqueado.push([n, n.style.getPropertyValue('overflow-y')]); n.style.setProperty('overflow-y', 'hidden', 'important'); n.scrollTop = 0 })   // !important: style.css fuerza overflow-y:auto !important en html, body y #app
+  } else {
+    window._scrollBloqueado.forEach(([n, ov]) => { n.style.removeProperty('overflow-y'); if (ov) n.style.setProperty('overflow-y', ov) })
+    window._scrollBloqueado = []
+  }
+}
 window._ajustarAlturaChat = () => {
   const c = document.getElementById('wa-container')
   if (!c || !window.matchMedia('(max-width: 900px)').matches) return
   c.style.removeProperty('height')
+  window._bloquearScrollChat(true)
   const top = c.getBoundingClientRect().top + (window.scrollY || 0)
   c.style.setProperty('height', Math.max(320, window.innerHeight - top - 6) + 'px', 'important')
 }
@@ -18745,6 +18761,7 @@ window.volverChatsBtn = () => {
   else window.volverChats()
 }
 window.volverChats = () => {
+  window._bloquearScrollChat(false)
   window._chatBackPushed = false
   window._chatActivo = null
   const sidebar = document.getElementById('wa-sidebar')
