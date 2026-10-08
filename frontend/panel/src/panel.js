@@ -18559,33 +18559,14 @@ area.style.minHeight = '0'
       <div class="wa-input-toolbar">
         ${_esWhatsappChat ? `
         <button class="wa-tool-btn" title="Enviar plantilla aprobada (funciona aunque hayan pasado más de 24 h)" style="font-size:0.95rem" onclick="mostrarPlantillaChatWA('${_ja(telefono)}','${_ja((chat.nombre||''))}')">📨</button>
-        <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${telefono}').click()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <button class="wa-tool-btn" id="wa-clip-${telefono}" title="Adjuntar: cámara, fotos, video, documento y más" onclick="waClipAbrir(event,'${_ja(telefono)}')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         </button>
         <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">
-        <button class="wa-tool-btn" title="Adjuntar documento o PDF" onclick="document.getElementById('doc-file-${telefono}').click()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-        </button>
+        <input type="file" id="cam-file-${telefono}" accept="image/*" capture="environment" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">
         <input type="file" id="doc-file-${telefono}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${_ja(telefono)}',this)">
-        <button class="wa-tool-btn" title="Adjuntar video" onclick="document.getElementById('vid-file-${telefono}').click()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        </button>
         <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${_ja(telefono)}',this)">
-        <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${_ja(telefono)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg>
-        </button>
-        <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${_ja(telefono)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        </button>
-        <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${_ja(telefono)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </button>
-        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        </button>` : ''}
-        <button class="wa-tool-btn" title="Catálogo en PDF por categoría (descargar o enviar)" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        </button>
+        <div id="wa-clip-menu-${telefono}" class="wa-clip-menu" style="display:none;position:fixed;background:#fff;border-radius:14px;box-shadow:0 10px 32px rgba(0,0,0,0.28);padding:6px;min-width:250px;z-index:1200"><button type="button" onclick="waClipItem('${_ja(telefono)}','camara')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#e91e8c;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>Cámara</button><button type="button" onclick="waClipItem('${_ja(telefono)}','foto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#7c3aed;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>Fotos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','video')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#dc2626;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>Video</button><button type="button" onclick="waClipItem('${_ja(telefono)}','doc')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#2563eb;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg></span>Documento o PDF</button><button type="button" onclick="waClipItem('${_ja(telefono)}','catalogo')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#b45309;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>Catálogo en PDF por categoría</button><button type="button" onclick="waClipItem('${_ja(telefono)}','carrusel')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#0891b2;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg></span>Carrusel de productos</button><button type="button" onclick="waClipItem('${_ja(telefono)}','ubicacion')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#16a34a;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>Ubicación de la tienda</button><button type="button" onclick="waClipItem('${_ja(telefono)}','contacto')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#475569;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Tarjeta de contacto</button><button type="button" onclick="waClipItem('${_ja(telefono)}','pago')" style="display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border:none;background:none;border-radius:8px;cursor:pointer;font-size:0.86rem;text-align:left;color:#1f2937" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span style="color:#16a34a;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>Crear link de pago o pedido</button></div>` : ''}
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
@@ -19278,6 +19259,78 @@ const waMicTerminar = async (est) => {
     if (!r.ok) throw new Error(d.error || ('WhatsApp rechazó el audio (' + r.status + ')'))
     await window._refrescarChatAbierto(est.tel, false)
   } catch (e) { alert('No se pudo enviar el audio: ' + e.message) }
+}
+
+// ── Menú del clip (como WhatsApp): cámara, fotos, video, documento, catálogo, carrusel, ubicación, contacto y link de pago ──
+window.waClipCerrar = () => { document.querySelectorAll('.wa-clip-menu').forEach(m => { m.style.display = 'none' }) }
+window.waClipAbrir = (ev, tel) => {
+  ev.stopPropagation()
+  const menu = document.getElementById('wa-clip-menu-' + tel); if (!menu) return
+  const abierto = menu.style.display !== 'none'
+  window.waClipCerrar()
+  if (abierto) return
+  const r = ev.currentTarget.getBoundingClientRect()
+  menu.style.display = 'block'
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px'
+  menu.style.bottom = (window.innerHeight - r.top + 8) + 'px'
+  setTimeout(() => document.addEventListener('click', window.waClipCerrar, { once: true }), 0)
+}
+window.waClipItem = (tel, accion) => {
+  window.waClipCerrar()
+  const nombre = (window._chatsData && window._chatsData[tel] && window._chatsData[tel].nombre) || ''
+  const clic = (id) => document.getElementById(id + tel)?.click()
+  switch (accion) {
+    case 'camara': return window.waCamara(tel)
+    case 'foto': return clic('img-file-')
+    case 'video': return clic('vid-file-')
+    case 'doc': return clic('doc-file-')
+    case 'catalogo': return window.mostrarCatalogosChat(tel)
+    case 'carrusel': return window.mostrarModalCarrusel(tel)
+    case 'ubicacion': return window.enviarUbicacionWA(tel)
+    case 'contacto': return window.mostrarEnviarContactoWA(tel)
+    case 'pago': return window.linkPagoDesdeChat(tel, nombre)
+  }
+}
+
+// Cámara: en el celular abre la cámara del teléfono; en la computadora abre la cámara web con vista previa
+window.waCamara = async (tel) => {
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) { document.getElementById('cam-file-' + tel)?.click(); return }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('Este navegador no puede usar la cámara. Usa «Fotos» para elegir una imagen.'); return }
+  let stream
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }) }
+  catch (e) { alert('Para usar la cámara permite el acceso: toca el candado junto a la dirección → Permisos → Cámara → Permitir.'); return }
+  document.getElementById('modal-camara')?.remove()
+  const modal = document.createElement('div'); modal.id = 'modal-camara'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1300;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `<div style="background:#111;border-radius:16px;max-width:640px;width:100%;padding:12px;color:#fff">
+    <video id="cam-video" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;max-height:60vh"></video>
+    <canvas id="cam-canvas" style="display:none;width:100%;border-radius:10px;max-height:60vh"></canvas>
+    <div id="cam-botones" style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap"></div></div>`
+  document.body.appendChild(modal)
+  const video = modal.querySelector('#cam-video'), canvas = modal.querySelector('#cam-canvas'), botones = modal.querySelector('#cam-botones')
+  video.srcObject = stream
+  const cerrar = () => { stream.getTracks().forEach(t => t.stop()); modal.remove() }
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar() })
+  const verVista = () => {
+    botones.innerHTML = '<button class="btn btn-secondary" id="cam-cancelar">Cancelar</button><button class="btn btn-primary" id="cam-tomar" style="background:#e91e8c;border-color:#e91e8c">📸 Tomar foto</button>'
+    botones.querySelector('#cam-cancelar').onclick = cerrar
+    botones.querySelector('#cam-tomar').onclick = () => {
+      canvas.width = video.videoWidth || 1280; canvas.height = video.videoHeight || 720
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
+      video.style.display = 'none'; canvas.style.display = 'block'
+      botones.innerHTML = '<button class="btn btn-secondary" id="cam-repetir">↺ Repetir</button><button class="btn btn-primary" id="cam-enviar" style="background:#00a884;border-color:#00a884">📤 Enviar foto</button>'
+      botones.querySelector('#cam-repetir').onclick = () => { canvas.style.display = 'none'; video.style.display = 'block'; verVista() }
+      botones.querySelector('#cam-enviar').onclick = () => {
+        canvas.toBlob(async (blob) => {
+          if (!blob) { alert('No se pudo tomar la foto. Intenta de nuevo.'); return }
+          const file = new File([blob], 'foto_' + Date.now() + '.jpg', { type: 'image/jpeg' })
+          cerrar()
+          await window.subirImagenWA(tel, { files: [file], set value(v) {}, get value() { return '' } })
+        }, 'image/jpeg', 0.9)
+      }
+    }
+  }
+  verVista()
 }
 
 window.subirDocumentoWA = async (telefono, input) => {
