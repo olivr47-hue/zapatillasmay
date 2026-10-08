@@ -3108,7 +3108,7 @@ def crear_tarea(telefono: str, datos: dict):
 
 _CAMPOS_TAREA = ("titulo", "descripcion", "prioridad", "asignada_a", "fecha_vence", "pasos", "vinculo_tipo", "vinculo_id", "vinculo_texto", "telefono", "completada")
 _PRIORIDADES_TAREA = ("alta", "normal", "baja")
-_VINCULOS_TAREA = ("cliente", "pedido", "producto", "chat")
+_VINCULOS_TAREA = ("cliente", "pedido", "producto", "chat", "carrito")
 
 
 def _limpiar_tarea(datos: dict) -> dict:
@@ -3193,6 +3193,23 @@ def tareas_buscar(tipo: str, q: str = "", _staff=Depends(require_staff)):
     """Buscador para vincular una tarea con un cliente, pedido o producto del ERP."""
     try:
         q = re.sub(r"[^\w\s.\-áéíóúñÁÉÍÓÚÑ@]", "", q or "").strip()[:60]
+        if tipo == "carrito":
+            # Carritos vivos (borrador o apartado), como los que muestra la pantalla de Carritos; sin texto se listan los más recientes
+            rows = supabase_get("pedidos?status=in.(borrador,apartado)&select=id,status,total,created_at,nombre_cliente,clientes(nombre,telefono),pedido_items(cantidad)"
+                                "&order=created_at.desc&limit=150") or []
+            nq = q.lower()
+            out = []
+            for r in rows:
+                cl = r.get("clientes") or {}
+                nombre = cl.get("nombre") or r.get("nombre_cliente") or "Sin cliente"
+                if nq and nq not in nombre.lower() and nq not in str(cl.get("telefono") or ""):
+                    continue
+                pares = sum(int(i.get("cantidad") or 0) for i in (r.get("pedido_items") or []))
+                est = "apartado" if r.get("status") == "apartado" else "borrador"
+                out.append({"id": r["id"], "texto": f"{nombre} · {est} · {pares} par{'' if pares == 1 else 'es'} · ${float(r.get('total') or 0):,.0f} · {(r.get('created_at') or '')[:10]}"})
+                if len(out) >= 20:
+                    break
+            return out
         if len(q) < 2:
             return []
         like = urllib.parse.quote(f"*{q}*", safe="*")

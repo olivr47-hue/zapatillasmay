@@ -6,7 +6,7 @@ const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</
 const hoyISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
 const sumarDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
 const fechaCorta = (iso) => { if (!iso) return ''; const [y, m, d] = iso.slice(0, 10).split('-'); const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']; return `${+d} ${meses[+m - 1]}${y !== String(new Date().getFullYear()) ? ' ' + y : ''}` }
-const VINC = { cliente: ['👤', 'Cliente'], pedido: ['🧾', 'Pedido'], producto: ['👟', 'Producto'], chat: ['💬', 'Conversación'] }
+const VINC = { cliente: ['👤', 'Cliente'], pedido: ['🧾', 'Pedido'], producto: ['👟', 'Producto'], chat: ['💬', 'Conversación'], carrito: ['🛒', 'Carrito'] }
 const PRIO = { alta: ['#fee2e2', '#b91c1c', 'Alta'], normal: ['#eef2ff', '#4338ca', 'Normal'], baja: ['#f1f5f9', '#64748b', 'Baja'] }
 
 let _tareas = [], _empleados = [], _filtro = { quien: 'todas', hechas: false }, _abiertas = new Set(), _contenedor = null
@@ -180,6 +180,7 @@ function abrirVinculo(t) {
   if (tipo === 'cliente') return window.verHistorialCliente(vid)
   if (tipo === 'pedido') return window.verPedido(vid)
   if (tipo === 'producto') return ir('productos', () => window.editarProducto(vid))
+  if (tipo === 'carrito') return ir('carritos', () => window.abrirCarrito(vid), 900)
   if (tipo === 'chat') return abrirConversacion(t.telefono || vid)
 }
 
@@ -247,18 +248,23 @@ window.tareaNueva = async function (op = {}) {
   $('#te-pasos').addEventListener('input', (e) => { if (e.target.classList.contains('te-paso')) pasos[+e.target.dataset.i].t = e.target.value })
   $('#te-pasos').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) { pasos.splice(+b.dataset.del, 1); pintarPasos() } })
   m.querySelectorAll('.te-q').forEach(b => b.onclick = () => { $('#te-fecha').value = b.dataset.q === '' ? '' : sumarDias(+b.dataset.q) })
-  $('#te-vtipo').onchange = () => { vinc = { tipo: $('#te-vtipo').value, id: '', texto: '', telefono: vinc.telefono }; $('#te-vres').innerHTML = ''; pintarVsel(); $('#te-vbus').focus() }
   let tmr = null
+  $('#te-vtipo').onchange = () => {
+    vinc = { tipo: $('#te-vtipo').value, id: '', texto: '', telefono: vinc.telefono }; $('#te-vres').innerHTML = ''; pintarVsel()
+    const bus = $('#te-vbus')
+    bus.placeholder = vinc.tipo === 'carrito' ? 'Filtra por nombre de la clienta (o elige de la lista)…' : 'Buscar por nombre, teléfono, SKU…'
+    if (vinc.tipo === 'carrito') bus.oninput(); else bus.focus()
+  }
   $('#te-vbus').oninput = () => {
     clearTimeout(tmr)
     const tipo = $('#te-vtipo').value, q = $('#te-vbus').value.trim()
-    if (!tipo || q.length < 2) { $('#te-vres').innerHTML = !tipo && q ? '<div style="font-size:0.76rem;color:#94a3b8">Elige primero qué quieres vincular.</div>' : ''; return }
+    if (!tipo || (q.length < 2 && tipo !== 'carrito')) { $('#te-vres').innerHTML = !tipo && q ? '<div style="font-size:0.76rem;color:#94a3b8">Elige primero qué quieres vincular.</div>' : ''; return }
     // Una conversación se busca por cliente (nombre o teléfono)
     const tipoBus = tipo === 'chat' ? 'cliente' : tipo
     tmr = setTimeout(async () => {
       try {
         const r = await api('/chatbot/tareas-buscar?tipo=' + tipoBus + '&q=' + encodeURIComponent(q))
-        $('#te-vres').innerHTML = r.length ? r.map((x, i) => `<div data-i="${i}" style="padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;margin-bottom:3px;cursor:pointer;font-size:0.82rem">${esc(x.texto)}</div>`).join('') : '<div style="font-size:0.76rem;color:#94a3b8">Sin resultados</div>'
+        $('#te-vres').innerHTML = r.length ? `<div style="max-height:200px;overflow-y:auto">${r.map((x, i) => `<div data-i="${i}" style="padding:7px 10px;border:1px solid #f1f5f9;border-radius:8px;margin-bottom:3px;cursor:pointer;font-size:0.82rem">${esc(x.texto)}</div>`).join('')}</div>` : `<div style="font-size:0.76rem;color:#94a3b8">${tipo === 'carrito' ? 'No hay carritos apartados o en borrador' : 'Sin resultados'}</div>`
         $('#te-vres').onclick = (e) => {
           const d = e.target.closest('[data-i]'); if (!d) return
           const x = r[+d.dataset.i]
