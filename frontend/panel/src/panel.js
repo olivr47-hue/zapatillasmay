@@ -18507,7 +18507,7 @@ window._renderBurbujas = (chat) => {
       msgBody = audioSrc
         ? `<div>
             ${window.waAudioHTML(audioSrc, transcripcion ? '4px' : '0')}
-            ${transcripcion ? `<p style="font-size:0.8rem;color:#475569;margin:0;font-style:italic">${transcripcion}</p>` : ''}
+            ${transcripcion ? `<p style="font-size:0.8rem;color:#475569;margin:0;font-style:italic">${transcripcion}</p>` : (m.id ? `<button type="button" onclick="transcribirAudioWA('${_ja(m.id)}', this)" style="margin-top:4px;border:none;background:none;color:#0891b2;font-size:0.74rem;cursor:pointer;padding:0;text-decoration:underline">📝 Transcribir</button>` : '')}
            </div>`
         : `<p style="color:#64748b;font-size:0.8rem">🎵 ${transcripcion || 'Audio de voz'}</p>`
     } else if (m.tipo === 'documento') {
@@ -18856,6 +18856,18 @@ window.waCrearFichaDesdeChat = async (tel) => {
   const nom = ch.nombre && String(ch.nombre).replace(/\D/g, '') !== d10 ? ch.nombre : ''
   set('cli-nombre', nom); set('cli-telefono', d10)
   document.querySelector('.cli-canal[value="conversaciones"]')?.click()   // llegó por conversaciones
+}
+window.transcribirAudioWA = async (id, btn) => {
+  if (btn) { btn.disabled = true; btn.textContent = 'Transcribiendo…' }
+  try {
+    const r = await fetch(API + '/chatbot/audios/' + encodeURIComponent(id) + '/transcribir', { method: 'POST' })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || ('Error ' + r.status))
+    if (window._chatActivo) await window._refrescarChatAbierto(window._chatActivo, false)
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '📝 Transcribir' }
+    alert(e.message)
+  }
 }
 window.waToggleOpciones = () => {
   const area = document.getElementById('chat-area'); if (!area) return

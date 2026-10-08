@@ -1248,26 +1248,61 @@ def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
 
         pub_url = subir_imagen_storage(audio_bytes, f"{from_number}_{audio_id}.ogg", content_type="audio/ogg")
 
-        # Proveedores de transcripción en orden: primero Groq (Whisper con plan gratuito), después OpenAI (de pago) como respaldo.
-        proveedores = []
-        if groq_key:
-            proveedores.append(("Groq", groq_key, "https://api.groq.com/openai/v1/audio/transcriptions", "whisper-large-v3-turbo"))
-        if openai_key:
-            proveedores.append(("OpenAI", openai_key, "https://api.openai.com/v1/audio/transcriptions", "whisper-1"))
-        if not proveedores:
-            print(f"[audio] sin GROQ_API_KEY ni OPENAI_API_KEY, audio de {from_number} no transcrito")
-            return ("[Audio de voz recibido]", pub_url)
-
-        for nombre, llave, url_api, modelo in proveedores:
-            try:
-                return _transcribir_whisper(audio_bytes, llave, pub_url, url_api, modelo)
-            except Exception as e_w:
-                print(f"[audio-wa] {nombre} no pudo transcribir ({e_w}); " + ("se prueba con el siguiente proveedor" if nombre != proveedores[-1][0] else "el audio sí se guardó y se puede escuchar"))
+        texto, motivo = _transcribir_audio(audio_bytes)
+        if texto:
+            return (texto, pub_url)
+        print(f"[audio-wa] audio de {from_number} sin transcribir (el audio sí se guardó y se puede escuchar): {motivo}")
         return ("[Audio de voz recibido]", pub_url)
 
     except Exception as e:
         print(f"[audio-wa] Error: {e}")
         return ("[Audio de voz recibido]", pub_url)
+
+
+def _transcribir_audio(audio_bytes: bytes) -> tuple:
+    """Transcribe con los proveedores configurados, en orden: Groq (Whisper, plan gratuito) y después OpenAI como respaldo.
+    Devuelve (texto, "") si se logró, o (None, motivo) con el motivo real del último fallo."""
+    proveedores = []
+    if os.environ.get("GROQ_API_KEY"):
+        proveedores.append(("Groq", os.environ["GROQ_API_KEY"], "https://api.groq.com/openai/v1/audio/transcriptions", "whisper-large-v3-turbo"))
+    if os.environ.get("OPENAI_API_KEY"):
+        proveedores.append(("OpenAI", os.environ["OPENAI_API_KEY"], "https://api.openai.com/v1/audio/transcriptions", "whisper-1"))
+    if not proveedores:
+        return None, "no hay clave de transcripción (Groq u OpenAI) en Conexiones"
+    motivo = ""
+    for nombre, llave, url_api, modelo in proveedores:
+        try:
+            return _transcribir_whisper(audio_bytes, llave, "", url_api, modelo)[0], ""
+        except urllib.error.HTTPError as e:
+            try:
+                cuerpo = e.read().decode("utf-8", "replace")[:200]
+            except Exception:
+                cuerpo = ""
+            motivo = f"{nombre} respondió HTTP {e.code}: {cuerpo}"
+        except Exception as e:
+            motivo = f"{nombre}: {type(e).__name__} - {e}"
+        print(f"[audio] {nombre} no pudo transcribir: {motivo}")
+    return None, motivo
+
+
+@router.post("/audios/{mensaje_id}/transcribir")
+def transcribir_audio_guardado(mensaje_id: str, _staff=Depends(require_staff)):
+    """Transcribe un audio ya recibido (botón «Transcribir» del chat): sirve para reintentar los que quedaron sin texto."""
+    try:
+        filas = supabase_get(f"conversaciones_whatsapp?id=eq.{urllib.parse.quote(mensaje_id, safe='')}&tipo=eq.audio&select=id,media_url") or []
+        if not filas or not filas[0].get("media_url"):
+            return JSONResponse(status_code=404, content={"error": "No se encontró el audio"})
+        req = urllib.request.Request(filas[0]["media_url"], headers={"User-Agent": "ZapatillasMay/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            audio = r.read()
+        texto, motivo = _transcribir_audio(audio)
+        if not texto:
+            return JSONResponse(status_code=502, content={"error": "No se pudo transcribir: " + motivo})
+        supabase_patch(f"conversaciones_whatsapp?id=eq.{urllib.parse.quote(mensaje_id, safe='')}", {"mensaje": texto})
+        cache_invalidate("chats_lista")
+        return {"ok": True, "texto": texto}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 def _transcribir_whisper(audio_bytes: bytes, openai_key: str, pub_url: str, url_api: str = "https://api.openai.com/v1/audio/transcriptions", modelo: str = "whisper-1") -> tuple:
@@ -1283,7 +1318,8 @@ def _transcribir_whisper(audio_bytes: bytes, openai_key: str, pub_url: str, url_
     for intento in range(2):
         req = urllib.request.Request(
             url_api, data=body, method="POST",
-            headers={"Authorization": f"Bearer {openai_key}", "Content-Type": f"multipart/form-data; boundary={boundary}"})
+            headers={"Authorization": f"Bearer {openai_key}", "Content-Type": f"multipart/form-data; boundary={boundary}",
+                     "User-Agent": "ZapatillasMay/1.0 (+https://zapatillasmay.mx)", "Accept": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 texto = (json.loads(r.read()).get("text") or "").strip()
