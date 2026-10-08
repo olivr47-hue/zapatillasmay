@@ -2445,6 +2445,16 @@ def _unir_chats_duplicados(chats: dict) -> dict:
     return salida
 
 
+@router.get("/chats/ultimo")
+def ultimo_movimiento():
+    """Huella barata (una sola fila) para que el panel sepa si llegó algo nuevo sin bajar la lista completa de chats cada vez."""
+    try:
+        f = supabase_get("conversaciones_whatsapp?select=created_at&order=created_at.desc&limit=1") or []
+        return {"ultimo": (f[0].get("created_at") if f else None)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/chats")
 def listar_chats():
     # Caché 20s — el frontend poll cada 30s, así casi siempre lo sirve de memoria

@@ -184,11 +184,26 @@ export function renderPanel() {
 
   // Interval global para notificaciones de WhatsApp
   if (window._conversacionesInterval) clearInterval(window._conversacionesInterval)
-  window._conversacionesInterval = setInterval(async () => {
+  const _pollChats = async () => {
     if (document.hidden) return  // pestaña oculta: sin sondeo (cada 8 s bajaba la lista de chats completa)
     // Guarda de "en vuelo": si la petición anterior sigue pendiente (red lenta),
     // NO disparar otra — sin esto se apilan requests hasta saturar el navegador.
     if (window._chatsPollEnVuelo) return
+    // Pregunta barata (una fila) cada 3 s: la lista completa solo se baja si llegó algo nuevo o si pasaron 8 s (palomitas de leído/entregado).
+    // Así los mensajes aparecen en ~3 s en vez de hasta 8 y sin cargar más al servidor.
+    if (!window._pingChatsEnVuelo) {
+      window._pingChatsEnVuelo = true
+      try {
+        const u = await fetch(API + '/chatbot/chats/ultimo').then(r => r.ok ? r.json() : null)
+        if (u && u.ultimo != null) {
+          const hayNovedad = u.ultimo !== window._ultimoMsgTs || (Date.now() - (window._ultimaRecargaChats || 0)) > 8000
+          window._ultimoMsgTs = u.ultimo
+          if (!hayNovedad) return
+        }
+      } catch (e) { /* sin ping: se baja la lista como antes */ }
+      finally { window._pingChatsEnVuelo = false }
+    }
+    window._ultimaRecargaChats = Date.now()
     window._chatsPollEnVuelo = true
     try {
       const chats = await window._recargarChats()
@@ -247,7 +262,7 @@ export function renderPanel() {
           // Solo se repinta si algo cambió: antes se reconstruía cada 8 s y eso reiniciaba audios/videos, quitaba la selección de
           // texto (para copiar) y movía el scroll.
           const _ms = chat.mensajes || []
-          const sig = _ms.length + '|' + ((_ms[0] && (_ms[0].created_at || _ms[0].mensaje)) || '') + '|' + (chat.cliente_leyo_at || '') + '|' + (chat.cliente_entrego_at || '')
+          const sig = _ms.length + '|' + _ms.slice(0, 6).map(x => (x.created_at || '') + (x.mensaje || '').length + (x.media_url ? 'm' : '') + (x.respuesta || '').length).join(',') + '|' + ((_ms[0] && (_ms[0].created_at || _ms[0].mensaje)) || '') + '|' + (chat.cliente_leyo_at || '') + '|' + (chat.cliente_entrego_at || '')
           if (mensajesArea.dataset.sig !== sig && !window._audioSonando()) {
             const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 60
             window._pintarBurbujas(mensajesArea, chat)
@@ -263,7 +278,14 @@ export function renderPanel() {
       }
     } catch(e) {}
     finally { window._chatsPollEnVuelo = false }
-  }, 8000)
+  }
+  window._conversacionesInterval = setInterval(_pollChats, 3000)
+  // Al volver a la pestaña o a la app (por ejemplo, desde otra app en el celular) se actualiza al instante, sin esperar el siguiente ciclo
+  if (!window._pollChatsVisibilidad) {
+    window._pollChatsVisibilidad = true
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { window._ultimaRecargaChats = 0; setTimeout(() => window._pollChatsAhora && window._pollChatsAhora(), 50) } })
+  }
+  window._pollChatsAhora = _pollChats
 
  // ── Polling: pedidos por enviar ───────────────────────────────────
 const _BADGE_KEY = 'zm_badge_pedidos'
@@ -18156,7 +18178,8 @@ window._recargarChats = async () => {
         // OJO: la clave NO puede usar `id`: el historial completo (/chats/{tel}/mensajes) trae `id` y el listado (/chats) no, así que
         // el mismo mensaje tenía dos claves distintas y cada actualización lo volvía a sumar (mensajes duplicados al cambiar de chat).
         // Se usa wa_message_id (viene en los dos) o, si no hay, fecha + texto.
-        const clave = (m) => m.wa_message_id || ((m.created_at || '') + '|' + (m.tipo || '') + '|' + (m.mensaje || '') + '|' + (m.respuesta || ''))
+        // La clave NO incluye el texto: un mensaje que cambió (ej. un audio recién transcrito) es el MISMO mensaje y debe reemplazar al viejo.
+        const clave = (m) => m.wa_message_id || ((m.created_at || '') + '|' + (m.tipo || ''))
         // los mensajes vienen del más nuevo al más viejo; se descartan los "temporales" (optimistas) ya confirmados
         // y se quitan repetidos que ya hubieran quedado en memoria
         const vistosBase = new Set()
@@ -18167,8 +18190,10 @@ window._recargarChats = async () => {
           vistosBase.add(k)
           return true
         })
+        const frescos = new Map(c.mensajes.map(m => [clave(m), m]))
+        const baseAct = base.map(m => { const f = frescos.get(clave(m)); return f ? { ...m, ...f } : m })   // versión nueva del mismo mensaje (conserva su id)
         const nuevos = c.mensajes.filter(m => !vistosBase.has(clave(m)))
-        nuevo[c.telefono] = { ...c, mensajes: [...nuevos, ...base], _historial_completo: true }
+        nuevo[c.telefono] = { ...c, mensajes: [...nuevos, ...baseAct], _historial_completo: true }
       } else {
         nuevo[c.telefono] = c
       }
