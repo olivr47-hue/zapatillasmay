@@ -16430,6 +16430,7 @@ window.mostrarFormLinkPago = async (prefill) => {
       window._lpCacheT = Date.now()
     }
     window._lpItems = []
+    window._lpModo = 'sitio'
 
     content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:560px">
@@ -16438,6 +16439,18 @@ window.mostrarFormLinkPago = async (prefill) => {
         <h3 style="margin:0">💳 Crear link de pago</h3>
       </div>
       <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Elige el/los modelo(s) reales del inventario: al pagar, el stock se descuenta solo.</p>
+
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:1rem">
+        <label class="form-label" style="margin:0 0 4px;display:block">Precio con el que se arma el link</label>
+        <select class="form-input" id="lp-modo-precio" onchange="cambiarModoPrecioLinkPago(this.value)">
+          <option value="sitio" ${(window._lpModo || 'sitio') === 'sitio' ? 'selected' : ''}>Precio del sitio web (panel +$80, ofertas sin extra)</option>
+          <option value="panel" ${window._lpModo === 'panel' ? 'selected' : ''}>Precio del panel (menudeo, sin el +$80)</option>
+          <option value="mayoreo3" ${window._lpModo === 'mayoreo3' ? 'selected' : ''}>Mayoreo 3-5 pares</option>
+          <option value="mayoreo6" ${window._lpModo === 'mayoreo6' ? 'selected' : ''}>Mayoreo 6+ pares</option>
+          <option value="corrida" ${window._lpModo === 'corrida' ? 'selected' : ''}>Media corrida</option>
+        </select>
+        <p style="font-size:0.72rem;color:#8a6d00;margin:5px 0 0">Al cambiarlo se recalculan los modelos ya agregados. Después puedes ajustar el precio de cada modelo a mano.</p>
+      </div>
 
       <p style="font-weight:600;margin-bottom:0.5rem;color:#333;font-size:0.9rem">Modelo(s) que compró el cliente</p>
       <input class="form-input" id="lp-buscar-prod" placeholder="Buscar producto por nombre, color o talla..." oninput="buscarVariante(this.value, 'lp-prod')" autocomplete="off">
@@ -16469,6 +16482,28 @@ window.linkPagoDesdeChat = (telefono, nombre) => {
   mostrarFormLinkPago({ telefono, nombre, volver: 'chat' })
 }
 
+// Precio de un modelo según el tipo elegido en el formulario. Mayoreo/corrida: el capturado en el producto; si no hay, el automático (menudeo −$30 / −$70 / −$100).
+window.precioLinkPago = (producto, modo) => {
+  const base = parseFloat(producto.precio_menudeo) || 0
+  const capturado = (v, resta) => { const n = parseFloat(v); return n > 0 ? n : Math.max(0, base - resta) }
+  switch (modo || window._lpModo || 'sitio') {
+    case 'panel': return base
+    case 'mayoreo3': return capturado(producto.precio_mayoreo3, 30)
+    case 'mayoreo6': return capturado(producto.precio_mayoreo6, 70)
+    case 'corrida': return capturado(producto.precio_corrida, 100)
+    default: return base > 0 && !producto.es_oferta ? base + 80 : base   // sitio web: el mismo criterio de la tienda
+  }
+}
+window.cambiarModoPrecioLinkPago = (modo) => {
+  window._lpModo = modo
+  const productos = window._productosCache || [], variantes = window._variantesCache || []
+  ;(window._lpItems || []).forEach(it => {
+    const v = variantes.find(x => x.id === it.variante_id), pr = v && productos.find(x => x.id === v.producto_id)
+    if (pr) it.precio_unitario = window.precioLinkPago(pr, modo)
+  })
+  renderItemsLinkPago()
+}
+
 window.agregarItemLinkPago = (varianteId, nombre) => {
   const variantes = window._variantesCache || []
   const productos = window._productosCache || []
@@ -16477,9 +16512,8 @@ window.agregarItemLinkPago = (varianteId, nombre) => {
   const existente = window._lpItems.find(i => i.variante_id === varianteId)
   if (existente) { existente.cantidad++; renderItemsLinkPago(); return }
   const producto = productos.find(p => p.id === variante.producto_id) || {}
-  // Precio del SITIO WEB (el que ve la clienta): el del panel + $80, salvo en las ofertas (mismo criterio que la tienda). Se puede cambiar en el campo de precio.
-  const precioPanel = parseFloat(producto.precio_menudeo) || 0
-  const precioBase = precioPanel > 0 && !producto.es_oferta ? precioPanel + 80 : precioPanel
+  // Precio según el tipo elegido arriba (por defecto el del SITIO WEB: panel +$80, salvo ofertas). Se puede cambiar en el campo de precio de cada modelo.
+  const precioBase = window.precioLinkPago(producto)
   window._lpItems.push({
     variante_id: varianteId,
     nombre: (producto.nombre || '') + ' - ' + (variante.color || '') + ' - T' + (variante.talla || ''),
@@ -16510,7 +16544,7 @@ window.renderItemsLinkPago = () => {
             <span style="font-weight:700;min-width:26px;text-align:center">${item.cantidad}</span>
             <button onclick="cambiarCantidadItemLinkPago(${idx}, 1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
           </div>
-          <span style="color:#888;font-size:0.8rem">$ precio del sitio (editable):</span>
+          <span style="color:#888;font-size:0.8rem">$ precio (editable):</span>
           <input type="number" min="0" step="1" value="${item.precio_unitario}" oninput="cambiarPrecioItemLinkPago(${idx}, this.value)" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
           <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
         </div>
@@ -16566,20 +16600,45 @@ window.generarLinkPago = async () => {
     const data = await res.json()
     if (!data.ok || !data.link) { out.innerHTML = `<p style="color:#c62828">Error: ${data.error || 'no se pudo generar'}</p>`; return }
     let telWa = tel.replace(/\D/g, ''); if (telWa.length === 10) telWa = '52' + telWa
-    const resumenModelos = items.map(i => i.nombre).join(', ')
-    const msg = `¡Hola ${nombre.split(' ')[0]}! 🥰 Aquí está tu link de pago de ${resumenModelos}:\n💳 Total: $${data.total} MXN (incluye envío)\n👉 ${data.link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`
+    const fmt = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+    const pares = items.reduce((t, i) => t + i.cantidad, 0)
+    const subtotal = items.reduce((t, i) => t + i.cantidad * i.precio_unitario, 0)
+    const totalPago = parseFloat(data.total) || subtotal
+    const envio = Math.max(0, Math.round((totalPago - subtotal) * 100) / 100)
+    const lineas = items.map(i => `• ${i.cantidad} × ${String(i.nombre).replace(/\s+-\s+/g, ' · ')} — ${fmt(i.precio_unitario * i.cantidad)}`).join('\n')
+    const msg = `¡Hola ${nombre.split(' ')[0]}! 🥰 Aquí está tu link de pago.\n\n🛍️ Tu pedido (${pares} ${pares === 1 ? 'par' : 'pares'}):\n${lineas}\n\nSubtotal: ${fmt(subtotal)}\nEnvío: ${envio > 0 ? fmt(envio) : '¡GRATIS! 🚚'}\n💳 Total a pagar: ${fmt(totalPago)} MXN\n\n👉 ${data.link}\n\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`
+    window._lpUltimoLink = data.link
+    window._lpUltimoTel = telWa
     out.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:1rem">
-        <p style="font-weight:700;color:#16a34a;margin:0 0 8px">✅ Link generado — Total $${data.total} MXN</p>
-        <input class="form-input" readonly value="${data.link}" onclick="this.select()" style="font-size:0.76rem;margin-bottom:8px">
+        <p style="font-weight:700;color:#16a34a;margin:0 0 8px">✅ Link generado — Total ${fmt(totalPago)} MXN</p>
+        <label class="form-label" style="margin:0 0 4px;display:block">Mensaje para la clienta (puedes editarlo antes de copiarlo)</label>
+        <textarea id="lp-msg" class="form-input" rows="11" style="font-size:0.8rem;margin-bottom:8px;white-space:pre-wrap">${_e(msg)}</textarea>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.value);this.textContent='✓ Copiado'">📋 Copiar link</button>
-          <a class="btn btn-primary" href="https://wa.me/${telWa}?text=${encodeURIComponent(msg)}" target="_blank" style="background:#25D366;border-color:#25D366">💬 Enviar por WhatsApp</a>
+          <button class="btn btn-primary" onclick="lpCopiar('msg', this)">📋 Copiar mensaje con el link</button>
+          <a class="btn btn-primary" href="#" onclick="lpEnviarWA(event)" style="background:#25D366;border-color:#25D366">💬 Enviar por WhatsApp</a>
+          <button class="btn btn-secondary" onclick="lpCopiar('link', this)">🔗 Solo el link</button>
         </div>
       </div>`
   } catch (e) {
     out.innerHTML = `<p style="color:#c62828">Error de conexión</p>`
   } finally { btn.textContent = 'Generar link de pago'; btn.disabled = false }
+}
+
+window.lpCopiar = async (que, btn) => {
+  const texto = que === 'link' ? (window._lpUltimoLink || '') : ((document.getElementById('lp-msg') || {}).value || '')
+  const original = btn.textContent
+  try { await navigator.clipboard.writeText(texto); btn.textContent = '✓ Copiado' }
+  catch (e) {
+    const ta = document.getElementById('lp-msg')
+    if (ta && que !== 'link') { ta.focus(); ta.select(); btn.textContent = 'Selecciónalo y cópialo' } else { prompt('Copia el link:', texto) }
+  }
+  setTimeout(() => { btn.textContent = original }, 2500)
+}
+window.lpEnviarWA = (ev) => {
+  ev.preventDefault()
+  const texto = (document.getElementById('lp-msg') || {}).value || ''
+  window.open('https://wa.me/' + (window._lpUltimoTel || '') + '?text=' + encodeURIComponent(texto), '_blank')
 }
 
 // ── Gestionar colores de un producto (ocultar/mostrar en el sitio) ─────────
