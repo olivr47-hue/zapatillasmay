@@ -89,7 +89,7 @@ REGISTRO = [
                   ("ZOHO_MAIL_CLIENT_ID", "Zoho Mail: Client ID", False), ("ZOHO_MAIL_CLIENT_SECRET", "Zoho Mail: Client Secret", True),
                   ("ZOHO_MAIL_REFRESH_TOKEN", "Zoho Mail: Refresh token", True), ("ZOHO_MAIL_ACCOUNT_ID", "Zoho Mail: ID de cuenta", False))},
     {"id": "ia", "nombre": "Inteligencia artificial", "icono": "🤖", "probar": None, "descripcion": "Asistente Maya y generación de textos.",
-     "campos": _G(("ANTHROPIC_API_KEY", "Anthropic (Claude): API key", True), ("OPENAI_API_KEY", "OpenAI: API key", True))},
+     "campos": _G(("ANTHROPIC_API_KEY", "Anthropic (Claude): API key", True), ("GROQ_API_KEY", "Groq (transcripción de audios, plan gratuito): API key", True), ("OPENAI_API_KEY", "OpenAI (respaldo para transcribir audios): API key", True))},
     {"id": "imagenes", "nombre": "Fotos (Cloudinary)", "icono": "🖼️", "probar": None, "descripcion": "Almacén de las fotos de productos.",
      "campos": _G(("CLOUDINARY_CLOUD_NAME", "Cloud name", False), ("CLOUDINARY_API_KEY", "API key", False), ("CLOUDINARY_API_SECRET", "API secret", True))},
     {"id": "push", "nombre": "Notificaciones push", "icono": "🔔", "probar": None, "descripcion": "Avisos al celular de tu equipo y de tus clientas.",
