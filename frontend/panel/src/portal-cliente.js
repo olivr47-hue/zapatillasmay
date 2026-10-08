@@ -339,11 +339,14 @@ function renderPC() {
       </span>
       <span>Carrito</span>
     </button>
-    <button class="pc-nav-item pc-bn-item${pc.tab === 'vender' ? ' activo' : ''}" onclick="pcIrA('vender')" aria-label="Vender">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.4-.9-1.4-1.4-2.8-1.4-1.6 0-2.7.8-2.7 2 0 3 5.6 1.4 5.6 4.3 0 1.2-1.1 2.1-2.9 2.1-1.5 0-2.6-.6-3-1.6M12 6.5v11"/></svg>
-      <span>Vender</span>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'novedades' ? ' activo' : ''}" onclick="pcIrA('novedades')" aria-label="Novedades">
+      <span class="pc-bn-cart-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+        <span class="pc-bn-badge" id="pc-bn-nov-badge" style="display:none" aria-hidden="true">0</span>
+      </span>
+      <span>Novedades</span>
     </button>
-    <button id="pc-bn-mas" class="pc-nav-item pc-bn-item${['registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(pc.tab) ? ' activo' : ''}" onclick="pcToggleSidebar()" aria-label="Más opciones">
+    <button id="pc-bn-mas" class="pc-nav-item pc-bn-item${['vender', 'registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(pc.tab) ? ' activo' : ''}" onclick="pcToggleSidebar()" aria-label="Más opciones">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
       <span>Más</span>
     </button>
@@ -531,7 +534,7 @@ function pcIrA(tab, _fromBack) {
     el.classList.toggle('activo', t === tab)
   })
   // "Más" (móvil) se ilumina cuando estás en una sección que vive dentro de ese menú
-  document.getElementById('pc-bn-mas')?.classList.toggle('activo', ['novedades', 'registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(tab))
+  document.getElementById('pc-bn-mas')?.classList.toggle('activo', ['vender', 'registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(tab))
   const content = document.getElementById('pc-content')
   if (!content) return
   // El polling en vivo del carrito solo debe correr mientras esa pestaña está
@@ -1975,11 +1978,13 @@ function pcNovSinVer() {
 }
 
 function pcActualizarBadgeNov() {
-  const b = document.getElementById('pc-nov-badge')
-  if (!b) return
   const n = pc.tab === 'novedades' ? 0 : pcNovSinVer()
-  b.textContent = n > 9 ? '9+' : String(n)
-  b.style.display = n > 0 ? 'inline-block' : 'none'
+  ;['pc-nov-badge', 'pc-bn-nov-badge'].forEach(id => {
+    const b = document.getElementById(id)
+    if (!b) return
+    b.textContent = n > 9 ? '9+' : String(n)
+    b.style.display = n > 0 ? (id === 'pc-bn-nov-badge' ? 'flex' : 'inline-block') : 'none'
+  })
 }
 
 // Franja "Recién llegados" para el Inicio
