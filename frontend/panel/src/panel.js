@@ -18589,9 +18589,6 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>` : ''}
-        <button class="wa-tool-btn" title="Grabar y enviar un audio" style="color:#00a884" onclick="grabarAudioWA('${_ja(telefono)}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
-        </button>
         <button class="wa-tool-btn" title="Catálogo en PDF por categoría (descargar o enviar)" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         </button>
@@ -18604,10 +18601,13 @@ area.style.minHeight = '0'
       </div>
       <div class="wa-input-row">
         <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1"
-                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';waRefrescarBoton('${_ja(telefono)}')"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
-        <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" title="Enviar (Enter)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" id="wa-send-${telefono}" title="Escribe y envía (Enter) · o mantén presionado para grabar un audio"
+                style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"
+                onpointerdown="waMicDown(event,'${_ja(telefono)}')" onpointermove="waMicMove(event)" onpointerup="waMicUp(event,'${_ja(telefono)}')" onpointercancel="waMicUp(event,'${_ja(telefono)}',true)" oncontextmenu="return false">
+          <svg class="ic-enviar" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <svg class="ic-mic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
         </button>
       </div>
     </div>`}
@@ -18982,6 +18982,7 @@ window.enviarMensajeWA = async (telefono) => {
   if (window._enviandoWA) return          // evita doble envío si Enter se presiona dos veces seguidas
   window._enviandoWA = true
   input.value = ''
+  window.waRefrescarBoton(telefono)
   input.style.height = 'auto'             // vuelve a una línea tras enviar
   input.focus()                           // el foco NO se pierde: se puede seguir escribiendo de inmediato
   const agente = window._empleadoActual?.nombre || 'Admin'
@@ -19201,63 +19202,88 @@ window.audioParaWhatsApp = async (blob) => {
   return new File(partes, 'audio.mp3', { type: 'audio/mpeg' })
 }
 
-window.grabarAudioWA = async (telefono) => {
-  if (!navigator.mediaDevices || !window.MediaRecorder) { alert('Este navegador no puede grabar audio. Usa Chrome o Safari actualizado.'); return }
-  let stream
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
-  catch (e) { alert('Para grabar audios permite el micrófono: toca el candado junto a la dirección → Permisos → Micrófono → Permitir.'); return }
-  document.getElementById('modal-grabar-audio')?.remove()
-  const modal = document.createElement('div')
-  modal.id = 'modal-grabar-audio'
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:1rem'
-  modal.innerHTML = `<div id="ga-caja" style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:520px;padding:1.25rem 1.5rem"></div>`
-  document.body.appendChild(modal)
-  const caja = modal.querySelector('#ga-caja')
-  const fmt = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0')
-  const trozos = []; let rec, timer, cancelado = false, t0 = Date.now(), archivo = null
-  const cerrar = () => { cancelado = true; clearInterval(timer); try { if (rec && rec.state !== 'inactive') rec.stop() } catch (e) {} stream.getTracks().forEach(x => x.stop()); modal.remove() }
-  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar() })
-  const pintarGrabando = () => {
-    caja.innerHTML = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="width:12px;height:12px;border-radius:50%;background:#e53935;animation:parpadeo 1s infinite"></span>
-      <b style="font-size:1rem">Grabando…</b><span id="ga-t" style="font-variant-numeric:tabular-nums;color:#666">0:00</span></div>
-      <style>@keyframes parpadeo{50%{opacity:.25}}</style>
-      <div style="display:flex;gap:8px"><button class="btn btn-secondary" id="ga-cancelar">✕ Cancelar</button><button class="btn btn-primary" id="ga-detener" style="background:#00a884;border-color:#00a884">⏹ Detener</button></div>`
-    caja.querySelector('#ga-cancelar').onclick = cerrar
-    caja.querySelector('#ga-detener').onclick = () => { try { rec.stop() } catch (e) {} }
-    timer = setInterval(() => { const el = document.getElementById('ga-t'); if (el) el.textContent = fmt((Date.now() - t0) / 1000) }, 250)
+// ── Audio como en WhatsApp: mantén presionado el micrófono (el botón de enviar cuando no hay texto) para grabar, suelta para enviar,
+//    desliza a la izquierda para cancelar ──
+window.waRefrescarBoton = (tel) => {
+  const b = document.getElementById('wa-send-' + tel); if (!b) return
+  const inp = document.getElementById('msg-input-' + tel), conTexto = !!(inp && inp.value.trim())
+  const e = b.querySelector('.ic-enviar'), m = b.querySelector('.ic-mic')
+  if (e) e.style.display = conTexto ? '' : 'none'
+  if (m) m.style.display = conTexto ? 'none' : ''
+}
+const _waAviso = (t) => {
+  if (window.mostrarToastPanel) { window.mostrarToastPanel(t); return }
+  const d = document.createElement('div'); d.textContent = t
+  d.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#161625;color:#fff;padding:9px 16px;border-radius:100px;font-size:0.82rem;z-index:100001'
+  document.body.appendChild(d); setTimeout(() => d.remove(), 2200)
+}
+window._micEst = null
+window.waMicDown = async (ev, tel) => {
+  const inp = document.getElementById('msg-input-' + tel)
+  if (inp && inp.value.trim()) return                      // con texto escrito el botón solo envía
+  if (ev.pointerType === 'mouse' && ev.button !== 0) return
+  ev.preventDefault()
+  if (window._micEst) return
+  const btn = ev.currentTarget
+  try { btn.setPointerCapture(ev.pointerId) } catch (e) {}
+  const est = window._micEst = { tel, x0: ev.clientX, tInicio: Date.now(), soltado: false, cancelar: false, trozos: [], rec: null, stream: null, timer: null }
+  if (!navigator.mediaDevices || !window.MediaRecorder) { window._micEst = null; alert('Este navegador no puede grabar audio. Usa Chrome o Safari actualizado.'); return }
+  try { est.stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
+  catch (e) { window._micEst = null; alert('Para grabar audios permite el micrófono: toca el candado junto a la dirección → Permisos → Micrófono → Permitir.'); return }
+  if (est.soltado) {                                       // soltó antes de que el navegador diera el permiso
+    est.stream.getTracks().forEach(t => t.stop()); window._micEst = null; _waAviso('Mantén presionado el micrófono para grabar'); return
   }
-  const pintarListo = (url, seg) => {
-    caja.innerHTML = `<p style="font-weight:700;margin:0 0 8px">🎤 Tu audio (${fmt(seg)})</p>
-      <div style="background:#f5f5f5;border-radius:10px;padding:8px 10px;margin-bottom:12px;display:inline-block">${window.waAudioHTML(url, '0')}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" id="ga-cancelar">✕ Descartar</button><button class="btn btn-secondary" id="ga-regrabar">🎙️ Volver a grabar</button>
-      <button class="btn btn-primary" id="ga-enviar" style="background:#00a884;border-color:#00a884">📤 Enviar</button></div><p id="ga-msg" style="font-size:0.78rem;color:#c62828;margin:8px 0 0"></p>`
-    caja.querySelector('#ga-cancelar').onclick = () => { URL.revokeObjectURL(url); cerrar() }
-    caja.querySelector('#ga-regrabar').onclick = () => { URL.revokeObjectURL(url); modal.remove(); window.grabarAudioWA(telefono) }
-    caja.querySelector('#ga-enviar').onclick = async () => {
-      const b = caja.querySelector('#ga-enviar'); b.disabled = true; b.textContent = 'Enviando...'
-      try {
-        const fd = new FormData(); fd.append('archivo', archivo); fd.append('agente', window._empleadoActual?.nombre || 'Admin')
-        const r = await fetch(API + '/chatbot/chats/' + telefono + '/audio', { method: 'POST', body: fd })
-        const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error(d.error || ('WhatsApp rechazó el audio (' + r.status + ')'))
-        URL.revokeObjectURL(url); modal.remove(); await window._refrescarChatAbierto(telefono, false)
-      } catch (e) { caja.querySelector('#ga-msg').textContent = 'No se pudo enviar: ' + e.message; b.disabled = false; b.textContent = '📤 Enviar' }
-    }
-  }
-  try { rec = new MediaRecorder(stream) } catch (e) { cerrar(); alert('No se pudo iniciar la grabación en este navegador.'); return }
-  rec.ondataavailable = (e) => { if (e.data && e.data.size) trozos.push(e.data) }
-  rec.onstop = async () => {
-    clearInterval(timer); stream.getTracks().forEach(x => x.stop())
-    if (cancelado) return
-    const seg = (Date.now() - t0) / 1000
-    if (seg < 0.8 || !trozos.length) { modal.remove(); alert('El audio quedó muy corto. Mantén la grabación al menos un segundo.'); return }
-    caja.innerHTML = '<p style="margin:0;color:#555">⏳ Preparando el audio...</p>'
-    try {
-      archivo = await window.audioParaWhatsApp(new Blob(trozos, { type: rec.mimeType || trozos[0].type }))
-      pintarListo(URL.createObjectURL(archivo), seg)
-    } catch (e) { caja.innerHTML = `<p style="color:#c62828">No se pudo preparar el audio: ${_e(e.message)}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-grabar-audio').remove()">Cerrar</button>` }
-  }
-  rec.start(); t0 = Date.now(); pintarGrabando()
+  let rec
+  try { rec = est.rec = new MediaRecorder(est.stream) } catch (e) { est.stream.getTracks().forEach(t => t.stop()); window._micEst = null; alert('No se pudo iniciar la grabación en este navegador.'); return }
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) est.trozos.push(e.data) }
+  rec.onstop = () => waMicTerminar(est)
+  est.tInicio = Date.now(); rec.start()
+  // franja sobre la barra de escribir
+  const fila = btn.closest('.wa-input-row'); if (fila) fila.style.position = 'relative'
+  const ov = document.createElement('div'); ov.id = 'mic-overlay'
+  ov.style.cssText = 'position:absolute;left:0;right:56px;top:0;bottom:0;background:#fff;border-radius:22px;display:flex;align-items:center;gap:10px;padding:0 14px;z-index:5;font-size:0.9rem'
+  ov.innerHTML = `<span style="width:11px;height:11px;border-radius:50%;background:#e53935;animation:micParpadeo 1s infinite"></span><b id="mic-t" style="font-variant-numeric:tabular-nums">0:00</b>
+    <span id="mic-aviso" style="flex:1;text-align:right;color:#888;font-size:0.78rem;white-space:nowrap">◀ Desliza para cancelar</span><style>@keyframes micParpadeo{50%{opacity:.25}}</style>`
+  ;(fila || document.body).appendChild(ov)
+  btn.style.background = '#e53935'
+  est.timer = setInterval(() => {
+    const seg = (Date.now() - est.tInicio) / 1000, t = document.getElementById('mic-t'); if (t) t.textContent = Math.floor(seg / 60) + ':' + String(Math.floor(seg % 60)).padStart(2, '0')
+    if (seg >= 300 && est.rec && est.rec.state !== 'inactive') est.rec.stop()   // tope de 5 minutos
+  }, 250)
+}
+window.waMicMove = (ev) => {
+  const est = window._micEst; if (!est || est.soltado) return
+  est.cancelar = (ev.clientX - est.x0) < -70
+  const av = document.getElementById('mic-aviso')
+  if (av) { av.textContent = est.cancelar ? '✕ Suelta para cancelar' : '◀ Desliza para cancelar'; av.style.color = est.cancelar ? '#e53935' : '#888' }
+}
+window.waMicUp = (ev, tel, cancelado) => {
+  const est = window._micEst; if (!est || est.soltado) return
+  est.soltado = true
+  if (cancelado) est.cancelar = true
+  if (est.rec && est.rec.state !== 'inactive') est.rec.stop()   // el resto sigue en waMicTerminar
+  // si aún estaba pidiendo el permiso, waMicDown lo limpia al recibirlo
+}
+const _waMicLimpiar = (est) => {
+  clearInterval(est.timer); document.getElementById('mic-overlay')?.remove()
+  const b = document.getElementById('wa-send-' + est.tel); if (b) b.style.background = ''
+  if (est.stream) est.stream.getTracks().forEach(t => t.stop())
+  window._micEst = null
+}
+const waMicTerminar = async (est) => {
+  _waMicLimpiar(est)
+  if (est.cancelar) { _waAviso('Audio cancelado'); return }
+  const seg = (Date.now() - est.tInicio) / 1000
+  if (seg < 0.8 || !est.trozos.length) { _waAviso('Mantén presionado el micrófono para grabar un audio'); return }
+  _waAviso('📤 Enviando audio...')
+  try {
+    const archivo = await window.audioParaWhatsApp(new Blob(est.trozos, { type: (est.rec && est.rec.mimeType) || est.trozos[0].type }))
+    const fd = new FormData(); fd.append('archivo', archivo); fd.append('agente', window._empleadoActual?.nombre || 'Admin')
+    const r = await fetch(API + '/chatbot/chats/' + est.tel + '/audio', { method: 'POST', body: fd })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || ('WhatsApp rechazó el audio (' + r.status + ')'))
+    await window._refrescarChatAbierto(est.tel, false)
+  } catch (e) { alert('No se pudo enviar el audio: ' + e.message) }
 }
 
 window.subirDocumentoWA = async (telefono, input) => {
