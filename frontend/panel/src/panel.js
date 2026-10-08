@@ -16477,7 +16477,9 @@ window.agregarItemLinkPago = (varianteId, nombre) => {
   const existente = window._lpItems.find(i => i.variante_id === varianteId)
   if (existente) { existente.cantidad++; renderItemsLinkPago(); return }
   const producto = productos.find(p => p.id === variante.producto_id) || {}
-  const precioBase = parseFloat(producto.precio_menudeo) || 0
+  // Precio del SITIO WEB (el que ve la clienta): el del panel + $80, salvo en las ofertas (mismo criterio que la tienda). Se puede cambiar en el campo de precio.
+  const precioPanel = parseFloat(producto.precio_menudeo) || 0
+  const precioBase = precioPanel > 0 && !producto.es_oferta ? precioPanel + 80 : precioPanel
   window._lpItems.push({
     variante_id: varianteId,
     nombre: (producto.nombre || '') + ' - ' + (variante.color || '') + ' - T' + (variante.talla || ''),
@@ -16508,7 +16510,7 @@ window.renderItemsLinkPago = () => {
             <span style="font-weight:700;min-width:26px;text-align:center">${item.cantidad}</span>
             <button onclick="cambiarCantidadItemLinkPago(${idx}, 1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
           </div>
-          <span style="color:#888;font-size:0.8rem">$ precio especial:</span>
+          <span style="color:#888;font-size:0.8rem">$ precio del sitio (editable):</span>
           <input type="number" min="0" step="1" value="${item.precio_unitario}" oninput="cambiarPrecioItemLinkPago(${idx}, this.value)" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
           <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
         </div>

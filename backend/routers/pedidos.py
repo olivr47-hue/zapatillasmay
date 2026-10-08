@@ -1733,6 +1733,23 @@ def historial_pedido(id: str, _staff=Depends(require_staff)):
     return supabase_get(f"pedido_historial?pedido_id=eq.{id}&order=created_at.desc&limit=100") or []
 
 
+def _expirar_link_mp(pref_id: str) -> bool:
+    """Hace que el enlace de pago de MercadoPago de un pedido cancelado ya no acepte pagos (lo vence). Si falla no frena la cancelación."""
+    try:
+        import datetime as _dtx
+        from routers.pagos import sdk as _mp_sdk
+        ahora = _dtx.datetime.now(_dtx.timezone.utc)
+        fmt = lambda d: d.strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
+        r = _mp_sdk.preference().update(pref_id, {"expires": True, "expiration_date_from": fmt(ahora - _dtx.timedelta(days=1)), "expiration_date_to": fmt(ahora)})
+        ok = (r or {}).get("status") in (200, 201)
+        if not ok:
+            print(f"[cancelar] no se pudo vencer el link {pref_id}: {str(r)[:200]}")
+        return ok
+    except Exception as e:
+        print(f"[cancelar] error al vencer el link {pref_id}: {e}")
+        return False
+
+
 @router.post("/{id}/cancelar")
 def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional), datos: dict = Body(default=None)):
     _exigir_dueno_pedido(id, credentials)
@@ -1780,8 +1797,11 @@ def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends
         if status_actual != "cancelado":
             _reembolsar_credito(id, pedido[0].get("cliente_id"))
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
-        _historial(id, "cancelado", (f"Motivo: {motivo}. " if motivo else "") + ("Stock devuelto." if hubo_devolucion else ""), _quien(payload_opcional(credentials)))
-        return {"ok": True, "stock_devuelto": hubo_devolucion}
+        link_apagado = False
+        if status_actual not in ("pagado", "confirmado", "enviado", "entregado", "cancelado") and pedido[0].get("mp_preference_id"):
+            link_apagado = _expirar_link_mp(pedido[0]["mp_preference_id"])
+        _historial(id, "cancelado", (f"Motivo: {motivo}. " if motivo else "") + ("Stock devuelto." if hubo_devolucion else "") + (" Link de pago apagado." if link_apagado else ""), _quien(payload_opcional(credentials)))
+        return {"ok": True, "stock_devuelto": hubo_devolucion, "link_apagado": link_apagado}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
