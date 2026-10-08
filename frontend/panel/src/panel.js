@@ -18584,6 +18584,9 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>` : ''}
+        <button class="wa-tool-btn" title="Enviar catálogos para descargar" onclick="mostrarCatalogosChat('${_ja(telefono)}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </button>
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
@@ -18711,6 +18714,53 @@ window.volverChats = () => {
       <p style="font-size:0.78rem;color:#94a3b8;margin:0">para ver los mensajes</p>
     </div>
   `
+}
+
+// Catálogos para descargar: manda por WhatsApp el enlace de la página de descargas (todos) o el de cada catálogo elegido.
+// En la tienda cada catálogo tiene su botón «📥 Descargar PDF» (el PDF se arma en el teléfono de quien lo abre).
+window.mostrarCatalogosChat = async (telefono) => {
+  let cats = []
+  try { cats = await fetch(API + '/catalogos/').then(r => r.json()) } catch (e) {}
+  cats = (Array.isArray(cats) ? cats : []).filter(c => c && c.id && c.activo !== false)
+  window._catChat = cats
+  const modal = document.createElement('div')
+  modal.id = 'modal-catalogos-chat'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:75vh;overflow-y:auto;padding:1.25rem 1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <p style="font-weight:700;margin:0">📚 Enviar catálogos para descargar</p>
+        <button onclick="document.getElementById('modal-catalogos-chat').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+      </div>
+      ${cats.length === 0 ? '<p style="color:#888;font-size:0.85rem;padding:1rem 0">No hay catálogos activos. Se crean en Catálogos.</p>' : `
+        <p style="font-size:0.78rem;color:#888;margin:0 0 10px">Marca los catálogos que quieres mandar. Si mandas todos, le llega un solo enlace a la página de descargas.</p>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fce4f3;border-radius:8px;margin-bottom:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
+          <input type="checkbox" id="cat-todos" onchange="document.querySelectorAll('.cat-chk').forEach(c => c.checked = this.checked)"> Todos los catálogos
+        </label>
+        ${cats.map(c => `
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;cursor:pointer">
+            <input type="checkbox" class="cat-chk" value="${_e(c.id)}" onchange="document.getElementById('cat-todos').checked = [...document.querySelectorAll('.cat-chk')].every(x => x.checked)">
+            ${c.portada_url ? `<img src="${_e(c.portada_url)}" style="width:34px;height:44px;object-fit:cover;border-radius:5px">` : '<span style="font-size:1.4rem">📖</span>'}
+            <span style="flex:1;font-size:0.88rem;font-weight:600">${_e(c.nombre)}${c.temporada ? ` <span style="font-weight:400;color:#888;font-size:0.76rem">· ${_e(c.temporada)}</span>` : ''}</span>
+          </label>`).join('')}
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="enviarCatalogosChat('${_ja(telefono)}')">📤 Enviar por WhatsApp</button>`}
+    </div>`
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+window.enviarCatalogosChat = (telefono) => {
+  const todas = window._catChat || []
+  const ids = [...document.querySelectorAll('.cat-chk:checked')].map(c => c.value)
+  if (!ids.length) { alert('Marca al menos un catálogo'); return }
+  const elegidas = todas.filter(c => ids.includes(c.id))
+  const base = 'https://zapatillasmay.mx'
+  const nom = (n) => String(n || '').toLowerCase().replace(/^./, m => m.toUpperCase())
+  const mensaje = (elegidas.length === todas.length || elegidas.length > 4)
+    ? `📚 Aquí están nuestros catálogos para que los descargues en PDF:\n👉 ${base}/catalogo?descargar\n\nElige el catálogo (${todas.map(c => nom(c.nombre)).join(', ')}) y toca "📥 Descargar PDF". ¡Cualquier duda aquí estoy! 🥰`
+    : `📚 Te comparto ${elegidas.length === 1 ? 'nuestro catálogo' : 'nuestros catálogos'}:\n\n${elegidas.map(c => `• ${nom(c.nombre)}${c.temporada ? ' (' + c.temporada + ')' : ''}: ${base}/catalogo/${c.id}`).join('\n')}\n\nÁbrelo y toca "📥 PDF" para descargarlo en tu teléfono. ¡Cualquier duda aquí estoy! 🥰`
+  document.getElementById('modal-catalogos-chat')?.remove()
+  const input = document.getElementById('msg-input-' + telefono)
+  if (input) { input.value = mensaje; input.focus(); enviarMensajeWA(telefono) }
 }
 
 window.mostrarRespuestasRapidas = async (telefono) => {
