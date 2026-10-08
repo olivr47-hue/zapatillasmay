@@ -10016,6 +10016,10 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Comentarios internos</p>
         <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Solo visibles para el equipo, el cliente no los ve.</p>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;font-size:0.85rem;cursor:pointer">
+          <input type="checkbox" id="cli-llego-solo" ${(id ? d.llego_solo : true) ? 'checked' : ''} style="margin-top:3px">
+          <span><b>Llegó sola (cuenta en «Tu utilidad»)</b><br><span style="color:#667085;font-size:0.76rem">Marca esto si la clienta te encontró por su cuenta (sitio, WhatsApp, redes, recomendación): todos sus pedidos cuentan en tu utilidad, aunque los capture tu equipo. Quítalo solo si es una clienta que tú ya tenías.</span></span>
+        </label>
         <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${d.comentarios_internos || ''}</textarea>
       </div>
 
@@ -10056,6 +10060,7 @@ window.guardarCliente = async (id) => {
     dias_credito: parseInt(document.getElementById('cli-dias').value) || 0,
     comentarios_internos: document.getElementById('cli-comentarios').value || null,
     prefijos_ocultos: document.getElementById('cli-prefijos-ocultos').value || null,
+    llego_solo: !!document.getElementById('cli-llego-solo')?.checked,
     activo: true
   }
 

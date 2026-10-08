@@ -44,7 +44,7 @@ def _costo_unitario(prod: dict, base: str) -> float:
     return pc if pc > 0 else max(float(prod.get("precio_menudeo") or 0) - 100.0, 0.0)
 
 
-_ORIGEN_PROPIO = ('tienda', 'google', 'auto-reparado')   # fichas que la clienta creó sola
+_ORIGEN_PROPIO = ('tienda', 'google', 'auto-reparado', 'llego_solo')   # fichas que la clienta creó sola
 
 
 def _origenes_clientes(cids):
@@ -52,8 +52,10 @@ def _origenes_clientes(cids):
     cids = list({c for c in cids if c})
     out = {}
     for k in range(0, len(cids), 150):
-        for cl in supabase_get(f"clientes?id=in.({','.join(cids[k:k + 150])})&select=id,origen") or []:
-            out[cl['id']] = cl.get('origen')
+        for cl in supabase_get(f"clientes?id=in.({','.join(cids[k:k + 150])})&select=id,origen,llego_solo") or []:
+            o = cl.get('origen')
+            # «llegó sola» (cliente nueva, o marcada en su ficha): todos sus pedidos cuentan en Tu utilidad, los capture quien los capture
+            out[cl['id']] = 'llego_solo' if (cl.get('llego_solo') and o != 'tiktok') else o
     return out
 
 
@@ -65,6 +67,8 @@ def _cuenta_en_tu_utilidad(canal, origen_cliente):
     canal = (canal or '').lower()
     if origen_cliente == 'tiktok':
         return True
+    if origen_cliente == 'llego_solo':
+        return canal != 'shein'
     if canal in ('web', 'online', 'mercadolibre', 'whatsapp'):
         return True
     if canal == 'portal_mayoreo':
@@ -708,6 +712,7 @@ _GRUPOS_TU_UTILIDAD = [
     ("mercadolibre", "MercadoLibre"),
     ("whatsapp", "WhatsApp (Maya y links)"),
     ("portal_solas", "Portal: clientas que se registraron solas"),
+    ("clientes_nuevos", "Clientas nuevas que llegaron solas (pedidos capturados por ti o tu equipo)"),
     ("tiktok", "TikTok (ventas capturadas con el cliente TikTok)"),
     ("mostrador_sitio", "Punto de venta cobrado al precio del sitio (+$80)"),
 ]
@@ -737,6 +742,8 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
                 return "whatsapp"
             if canal == 'portal_mayoreo' and origen.get(p.get('cliente_id')) in _ORIGEN_PROPIO:
                 return "portal_solas"
+            if origen.get(p.get('cliente_id')) == 'llego_solo' and canal != 'shein':
+                return "clientes_nuevos"
             if p['id'] in _sitio:
                 return "mostrador_sitio"
             return None
