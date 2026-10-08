@@ -2596,9 +2596,11 @@ def enviar_imagen_manual(telefono: str, datos: dict):
         imagen_url = datos.get("imagen_url", "")
         caption = datos.get("caption", "")
         agente = datos.get("agente", "Admin")
-        if not enviar_whatsapp_imagen(telefono, imagen_url, caption):
+        wamid = enviar_whatsapp_imagen(telefono, imagen_url, caption)
+        if not wamid:
             return JSONResponse(status_code=502, content={"error": _explicar_error_wa()})
         supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid,   # para poder responder (citar) a lo que mandamos nosotros
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Imagen] {imagen_url}\n{caption}",
             "respuesta": None,
@@ -4258,8 +4260,9 @@ def enviar_documento_manual(telefono: str, datos: dict):
         agente   = datos.get("agente", "Admin")
         if not doc_url:
             return JSONResponse(status_code=400, content={"error": "doc_url requerido"})
-        enviar_whatsapp_documento(telefono, doc_url, filename, caption)
+        wamid = enviar_whatsapp_documento(telefono, doc_url, filename, caption)
         supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid or None,
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Documento] {filename} {doc_url}",
             "respuesta": None,
@@ -4319,8 +4322,9 @@ def enviar_video_manual(telefono: str, datos: dict):
         agente    = datos.get("agente", "Admin")
         if not video_url:
             return JSONResponse(status_code=400, content={"error": "video_url requerido"})
-        enviar_whatsapp_video(telefono, video_url, caption)
+        wamid = enviar_whatsapp_video(telefono, video_url, caption)
         supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid or None,
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Video] {video_url}",
             "respuesta": None,
@@ -4370,8 +4374,9 @@ def enviar_ubicacion_manual(telefono: str, datos: dict):
         agente = datos.get("agente", "Admin")
         if not lat or not lng:
             return JSONResponse(status_code=400, content={"error": "lat y lng requeridos"})
-        enviar_whatsapp_ubicacion(telefono, lat, lng, nombre, dir_)
+        wamid = enviar_whatsapp_ubicacion(telefono, lat, lng, nombre, dir_)
         supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid or None,
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Ubicación] {nombre} https://maps.google.com/?q={lat},{lng}",
             "respuesta": None,
@@ -4393,8 +4398,9 @@ def enviar_contacto_manual(telefono: str, datos: dict):
         agente   = datos.get("agente", "Admin")
         if not tel_c:
             return JSONResponse(status_code=400, content={"error": "telefono_contacto requerido"})
-        enviar_whatsapp_contacto(telefono, nombre_c, tel_c, empresa)
+        wamid = enviar_whatsapp_contacto(telefono, nombre_c, tel_c, empresa)
         supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid or None,
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Contacto] {nombre_c} {tel_c}",
             "respuesta": None,

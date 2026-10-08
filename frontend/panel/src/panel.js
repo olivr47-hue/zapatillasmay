@@ -18358,7 +18358,16 @@ window._renderBurbujas = (chat) => {
     // Cita de WhatsApp: si este mensaje respondió a otro, se muestra arriba de la burbuja (foto o texto citado)
     let citaHTML = ''
     if (m.reply_to_wa_id) {
-      const orig = (chat.mensajes || []).find(x => x.wa_message_id === m.reply_to_wa_id)
+      let orig = (chat.mensajes || []).find(x => x.wa_message_id === m.reply_to_wa_id)
+      if (!orig) {   // una foto de un carrusel: cada foto tiene su propio id guardado en el mapa del mensaje del carrusel
+        for (const x of (chat.mensajes || [])) {
+          if (x.tipo !== 'carrusel_saliente' || !String(x.mensaje || '').includes('\n|MAP|')) continue
+          try {
+            const f = JSON.parse(x.mensaje.split('\n|MAP|')[1]).find(y => y.w === m.reply_to_wa_id)
+            if (f) { orig = { tipo: 'manual', mensaje: `[Tú]: [Imagen] ${f.u}\n${f.n || ''}` }; break }
+          } catch (e) {}
+        }
+      }
       let cuerpoCita = '<i style="color:#667085">Mensaje anterior</i>'
       if (orig) {
         const om = String(orig.mensaje || '')
@@ -18423,7 +18432,7 @@ window._renderBurbujas = (chat) => {
             if (i === 0 && intro) c = c ? intro + '\n\n' + c : intro
             if (i === mapaC.length - 1) c = (c ? c + '\n\n' : '') + '¿Alguno te llama la atención? 👀'
           }
-          return { u: urlOk(f.u), c: esc(c) }
+          return { u: urlOk(f.u), c: esc(c), w: String(f.w || '').replace(/[^A-Za-z0-9=_.\-]/g, '') }
         }).filter(f => f.u)
       } catch (e) { carruselFotos = [] }
       const partesC = ((m.mensaje || '').split('\n|MAP|')[0]).split('|IMGS|')
@@ -18539,6 +18548,7 @@ window._renderBurbujas = (chat) => {
 
     const rendered = carruselFotos.length ? carruselFotos.map((f, i) => `
       <div class="wa-msg-row saliente" data-idx="${idx}">
+        ${f.w ? replyBtn.replace(/iniciarReply\('([^']*)','[^']*'\)/, (_, t) => `iniciarReply('${t}','${f.w}')`) : ''}
         <div class="wa-msg-row-inner">
           ${i === 0 ? `<span class="wa-msg-sender">${senderName}</span>` : ''}
           <div class="wa-bubble saliente"><a href="${f.u}" target="_blank" rel="noopener"><img src="${f.u}" alt="producto" style="width:220px;max-width:100%;border-radius:8px;display:block"></a>${f.c ? `<p style="margin:6px 0 0;font-size:0.85rem;white-space:pre-wrap;word-break:break-word">${f.c}</p>` : ''}<div class="wa-bubble-time">${ts}${i === carruselFotos.length - 1 ? readReceipt : ''}</div></div>
