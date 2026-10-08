@@ -485,11 +485,23 @@ def generar_nombres(datos: dict = Body(default={}), _staff=Depends(require_staff
 def guardar_orden_home(ordenes: List[dict] = Body(...), _staff=Depends(require_staff)):
     """Guarda el orden de aparición en la home. Recibe [{id, orden_home}]."""
     errores = []
-    for item in ordenes:
-        try:
-            supabase_patch(f"productos?id=eq.{item['id']}", {"orden_home": item["orden_home"]})
-        except Exception as e:
-            errores.append({"id": item["id"], "error": str(e)})
+    try:
+        # Una sola consulta en la base (antes: un PATCH por producto, uno tras otro = minutos con cientos de productos)
+        from database import supabase_rpc
+        limpios = [{"id": str(i["id"]), "orden_home": int(i["orden_home"])} for i in ordenes]
+        supabase_rpc("actualizar_orden_home", {"ordenes": limpios})
+    except Exception as e_rpc:
+        print(f"[orden-home] rpc falló ({e_rpc}); se guarda en paralelo")
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _uno(item):
+            try:
+                supabase_patch(f"productos?id=eq.{item['id']}", {"orden_home": item["orden_home"]})
+                return None
+            except Exception as e:
+                return {"id": item["id"], "error": str(e)}
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            errores = [r for r in ex.map(_uno, ordenes) if r]
     import time
     cache_invalidate_prefix(_CK)
     # Actualizar versión del catálogo para que la tienda invalide su caché
