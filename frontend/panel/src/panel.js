@@ -18642,7 +18642,7 @@ area.style.minHeight = '0'
       <div class="wa-input-row">
         <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="1"
                   oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''};this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';waRefrescarBoton('${_ja(telefono)}')"
-                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!window.matchMedia('(pointer: coarse)').matches){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
         <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" id="wa-send-${telefono}" title="Escribe y envía (Enter) · o mantén presionado para grabar un audio"
                 style="touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"
                 onpointerdown="waMicDown(event,'${_ja(telefono)}')" onpointermove="waMicMove(event)" onpointerup="waMicUp(event,'${_ja(telefono)}')" onpointercancel="waMicUp(event,'${_ja(telefono)}',true)" oncontextmenu="return false">
@@ -19238,16 +19238,29 @@ window.waAudVelocidad = (btn) => {
 // Repintar la conversación sin cortar un audio que está sonando: se conserva su posición, velocidad y reproducción
 window._audioSonando = () => [...document.querySelectorAll('.wa-aud audio')].some(a => !a.paused && !a.ended)
 window._pintarBurbujas = (el, chat) => {
-  let est = null
-  document.querySelectorAll('.wa-aud audio').forEach(a => { if (!a.paused || a.currentTime > 0.2) est = { src: a.getAttribute('src'), t: a.currentTime, rate: a.playbackRate, play: !a.paused } })
-  el.innerHTML = window._renderBurbujas(chat)
-  if (!est) return
-  const n = [...el.querySelectorAll('.wa-aud audio')].find(a => a.getAttribute('src') === est.src)
-  if (!n) return
-  n.playbackRate = est.rate
-  const vel = n.closest('.wa-aud').querySelector('.wa-aud-vel'); if (vel) vel.textContent = (est.rate === 1 ? '1' : String(est.rate)) + 'x'
-  const seguir = () => { n.currentTime = est.t; if (est.play) n.play().catch(() => {}) }
-  if (n.readyState >= 1) seguir(); else n.addEventListener('loadedmetadata', seguir, { once: true })
+  // Solo se tocan los mensajes que cambiaron (antes se repintaba todo: las fotos parpadeaban, un audio sonando se cortaba y la conversación se subía al recargar las imágenes)
+  if (!el._pegadoInit) {
+    el._pegadoInit = true; el._pegado = true
+    el.addEventListener('scroll', () => { el._pegado = el.scrollHeight - el.scrollTop - el.clientHeight < 120 }, { passive: true })
+    // al cargar una foto o video la conversación crece: si estabas abajo, te quedas abajo
+    el.addEventListener('load', () => { if (el._pegado) el.scrollTop = el.scrollHeight }, true)
+    el.addEventListener('loadedmetadata', () => { if (el._pegado) el.scrollTop = el.scrollHeight }, true)
+  }
+  const abajo = el.scrollHeight - el.scrollTop - el.clientHeight < 120 || !el.children.length
+  const tmp = document.createElement('div')
+  tmp.innerHTML = window._renderBurbujas(chat)
+  const nuevos = [...tmp.children], viejos = [...el.children]
+  nuevos.forEach((n, k) => {
+    const v = viejos[k]
+    if (!v) { el.appendChild(n); return }
+    if (v.outerHTML === n.outerHTML) return
+    const ya = v.querySelector('.wa-aud audio'), na = n.querySelector('.wa-aud audio')
+    if (ya && na && ya.getAttribute('src') === na.getAttribute('src') && (!ya.paused || ya.currentTime > 0.2)) return   // no cortar un audio que suena
+    el.replaceChild(n, v)
+  })
+  while (el.children.length > nuevos.length) el.lastElementChild.remove()
+  el._pegado = abajo
+  if (abajo) el.scrollTop = el.scrollHeight
 }
 
 // ── Grabar un audio y mandarlo por WhatsApp ──
