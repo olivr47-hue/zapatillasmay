@@ -287,6 +287,33 @@ export function renderPanel() {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { window._ultimaRecargaChats = 0; setTimeout(() => window._pollChatsAhora && window._pollChatsAhora(), 50) } })
   }
   window._pollChatsAhora = _pollChats
+  // Escucha instantánea (long-polling): se deja una petición abierta y el servidor la contesta EN CUANTO llega un mensaje o cambia una palomita.
+  // El sondeo de arriba queda como respaldo por si esta escucha se corta.
+  if (!window._escuchaActiva) {
+    window._escuchaActiva = true
+    ;(async () => {
+      let ver = 0
+      const dormir = (ms) => new Promise(r => setTimeout(r, ms))
+      while (window._escuchaActiva) {
+        if (!localStorage.getItem('erp_token')) { await dormir(3000); continue }          // sin sesión: no se escucha
+        if (document.hidden) { await dormir(1500); continue }                              // pestaña oculta: no se escucha
+        const t0 = Date.now()
+        try {
+          const r = await fetch(API + '/chatbot/chats/esperar?version=' + ver)
+          if (r.status === 404) { window._escuchaActiva = false; break }                  // servidor sin esta función: queda el sondeo normal
+          if (!r.ok) { await dormir(5000); continue }
+          const d = await r.json()
+          if (!d || typeof d.version !== 'number') { await dormir(8000); continue }       // respuesta rara: no se insiste a toda velocidad
+          if (d.version !== ver) {
+            const primera = ver === 0
+            ver = d.version
+            if (!primera) { window._ultimaRecargaChats = 0; if (window._pollChatsAhora) window._pollChatsAhora() }
+          }
+          if (Date.now() - t0 < 400) await dormir(800)                                     // freno por si el servidor contestara de inmediato una y otra vez
+        } catch (e) { await dormir(4000) }
+      }
+    })()
+  }
 
  // ── Polling: pedidos por enviar ───────────────────────────────────
 const _BADGE_KEY = 'zm_badge_pedidos'
@@ -19244,7 +19271,10 @@ window.enviarMensajeWA = async (telefono) => {
       if (ti && !ti.value) { ti.value = mensaje; ti.focus() }
       return
     }
-    await window._refrescarChatAbierto(telefono)
+    // Ya salió: se libera el envío y la lista se actualiza en segundo plano (antes se esperaba a bajar TODA la lista de chats y no se podía
+    // mandar otro mensaje hasta terminar; con la burbuja ya a la vista, esa espera solo hacía sentir lento el envío)
+    window._enviandoWA = false
+    window._refrescarChatAbierto(telefono).catch(() => {})
   } catch(e) {
     quitarTemporal()
     alert('Error enviando mensaje')
@@ -19298,6 +19328,24 @@ window.reducirImagenWA = async (file) => {
     return blob && blob.size < file.size ? new File([blob], (file.name || 'foto').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file
   } catch (e) { return file }
 }
+// Burbuja provisional («Enviando foto…») para que se vea al instante que algo está saliendo; devuelve la función que la quita.
+window._burbujaTemporal = (telefono, texto) => {
+  const chat = window._chatsData && window._chatsData[telefono]
+  const ma = document.getElementById('mensajes-area')
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  const temporal = { _temporal: true, tipo: 'manual', mensaje: `[${agente}]: ${texto}`, created_at: new Date().toISOString() }
+  if (chat && ma && window._chatActivo === telefono) {
+    chat.mensajes = [temporal, ...(chat.mensajes || [])]
+    window._pintarBurbujas(ma, chat)
+    ma.scrollTop = ma.scrollHeight
+  }
+  return () => {
+    const c = window._chatsData && window._chatsData[telefono]
+    if (c) c.mensajes = (c.mensajes || []).filter(m => m !== temporal)
+    const m2 = document.getElementById('mensajes-area')
+    if (c && m2 && window._chatActivo === telefono) window._pintarBurbujas(m2, c)
+  }
+}
 window.subirImagenWA = async (telefono, input) => {
   const original = input.files[0]
   if (!original) return
@@ -19305,7 +19353,7 @@ window.subirImagenWA = async (telefono, input) => {
   const agente = window._empleadoActual?.nombre || 'Admin'
   const btn = document.querySelector('.wa-send-btn')
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5' }
-  _waAviso('📤 Enviando foto...')
+  const _quitarTemp = window._burbujaTemporal(telefono, '📷 Enviando foto…')
   try {
     const file = await window.reducirImagenWA(original)
     // Subir a Supabase storage via endpoint existente
@@ -19321,8 +19369,9 @@ window.subirImagenWA = async (telefono, input) => {
       body: JSON.stringify({ imagen_url, caption: '', agente })
     })
     if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
-    await window._refrescarChatAbierto(telefono, false)
+    window._refrescarChatAbierto(telefono, false).catch(() => {}).finally(_quitarTemp)
   } catch(e) {
+    _quitarTemp()
     alert('Error subiendo imagen: ' + e.message)
   } finally {
     if (btn) { btn.disabled = false; btn.style.opacity = '1' }
@@ -19731,6 +19780,7 @@ window.subirDocumentoWA = async (telefono, input) => {
   if (!file) return
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
+  const _quitarTemp = window._burbujaTemporal(telefono, '📎 Enviando ' + (file.name || 'documento') + '…')
   try {
     const formData = new FormData()
     formData.append('file', file)
@@ -19744,8 +19794,9 @@ window.subirDocumentoWA = async (telefono, input) => {
       body: JSON.stringify({ doc_url, filename: file.name, caption: '', agente })
     })
     if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
-    await window._refrescarChatAbierto(telefono, false)
+    window._refrescarChatAbierto(telefono, false).catch(() => {}).finally(_quitarTemp)
   } catch(e) {
+    _quitarTemp()
     alert('Error enviando documento: ' + e.message)
   }
 }
@@ -19756,7 +19807,7 @@ window.subirVideoWA = async (telefono, input) => {
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
   if (file.size > 80 * 1024 * 1024) { alert('El video pesa ' + (file.size / 1048576).toFixed(1) + ' MB: es demasiado. Graba uno más corto.'); return }
-  _waAviso('📤 Preparando y enviando video (puede tardar unos segundos)...')
+  const _quitarTemp = window._burbujaTemporal(telefono, '🎥 Preparando y enviando video…')
   try {
     const formData = new FormData()
     formData.append('file', file)
@@ -19770,8 +19821,9 @@ window.subirVideoWA = async (telefono, input) => {
       body: JSON.stringify({ video_url, caption: '', agente })
     })
     if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
-    await window._refrescarChatAbierto(telefono, false)
+    window._refrescarChatAbierto(telefono, false).catch(() => {}).finally(_quitarTemp)
   } catch(e) {
+    _quitarTemp()
     alert('Error enviando video: ' + e.message)
   }
 }

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from telefonos import a_e164_mx
-from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
+from cache import cache_get, cache_set, cache_invalidate, on_invalidate, TTL_STOCK
 from security import limpiar_texto, require_staff
 import urllib.request
 import urllib.parse
@@ -1168,12 +1168,19 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
         from routers.push import enviar_push
         from urllib.parse import quote
         preview = (mensaje or "")[:100]
-        enviar_push(
-            titulo=f"💬 {nombre or telefono}",
-            cuerpo=preview,
-            url=f"/?modulo=conversaciones&telefono={quote(str(telefono))}",
-            sitio="panel",
-        )
+        import threading
+
+        def _avisar():
+            try:
+                enviar_push(
+                    titulo=f"💬 {nombre or telefono}",
+                    cuerpo=preview,
+                    url=f"/?modulo=conversaciones&telefono={quote(str(telefono))}",
+                    sitio="panel",
+                )
+            except Exception as e_push2:
+                print(f"[push] Error avisando mensaje WA entrante: {e_push2}")
+        threading.Thread(target=_avisar, daemon=True, name="push-wa").start()   # en segundo plano: no frena el resto del proceso
     except Exception as e_push:
         print(f"[push] Error avisando mensaje WA entrante: {e_push}")
 
@@ -1570,11 +1577,21 @@ async def recibir_mensaje_whatsapp(request: Request):
     if _wamid and _wamid_duplicado(_wamid):
         print(f"[wa webhook] reintento de Meta ignorado (wamid ya procesado): {_wamid}")
         return {"status": "ok"}
-    # Guardar referencia fuerte: sin esto el GC puede matar la tarea antes de terminar.
-    tarea = asyncio.create_task(_procesar_webhook_whatsapp(datos))
-    _TAREAS_BG.add(tarea)
-    tarea.add_done_callback(_TAREAS_BG.discard)
+    # Se procesa en un HILO APARTE con su propio ciclo de eventos: el procesamiento hace muchas llamadas lentas y bloqueantes (base de datos, Meta,
+    # descargas, avisos push) y, corriendo en el ciclo principal, congelaba al servidor entero: el panel tardaba en recibir y en enviar mensajes.
+    _lanzar_en_hilo(_procesar_webhook_whatsapp, datos, "wa")
     return {"status": "ok"}
+
+
+def _lanzar_en_hilo(corutina_fn, datos, nombre):
+    import threading, traceback
+
+    def _correr():
+        try:
+            _asyncio.run(corutina_fn(datos))
+        except Exception as e:
+            print(f"[{nombre} webhook] error en el hilo: {e}\n{traceback.format_exc()}")
+    threading.Thread(target=_correr, daemon=True, name=f"webhook-{nombre}").start()
 
 
 async def _procesar_webhook_whatsapp(datos: dict):
@@ -2265,7 +2282,7 @@ async def recibir_webhook_meta(request: Request):
         datos = json.loads(raw_body) if raw_body else {}
     except Exception:
         datos = {}
-    asyncio.create_task(_procesar_webhook_meta(datos))
+    _lanzar_en_hilo(_procesar_webhook_meta, datos, "meta")
     return {"status": "ok"}
 
 
@@ -2443,6 +2460,50 @@ def _unir_chats_duplicados(chats: dict) -> dict:
         base["telefonos_alias"] = [t for t in tels if t != canon]
         salida[canon] = base
     return salida
+
+
+# ── Aviso instantáneo al panel: el panel deja una petición abierta y el servidor la contesta EN CUANTO cambia algo en las conversaciones
+#    (mensaje nuevo, palomitas de leído/entregado...). Antes el panel tenía que preguntar cada pocos segundos. ──
+import asyncio as _asyncio
+_ESPERANDO: set = set()
+_VERSION_CHATS = 0
+_LOOP_ESPERA = None
+
+
+def avisar_novedad():
+    """Despierta a los paneles que están esperando. Se llama sola cada vez que se invalida la lista de chats (desde cualquier hilo)."""
+    global _VERSION_CHATS
+    _VERSION_CHATS += 1
+    loop = _LOOP_ESPERA
+    if loop is None or not _ESPERANDO:
+        return
+    v = _VERSION_CHATS
+    for fut in list(_ESPERANDO):
+        try:
+            loop.call_soon_threadsafe(lambda f=fut: (not f.done()) and f.set_result(v))
+        except Exception:
+            pass
+
+
+on_invalidate("chats_lista", avisar_novedad)
+
+
+@router.get("/chats/esperar")
+async def esperar_novedad(version: int = 0, _staff=Depends(require_staff)):
+    """Long-polling: contesta de inmediato si ya hay algo más nuevo que `version`; si no, espera hasta 12 s a que llegue algo."""
+    global _LOOP_ESPERA
+    _LOOP_ESPERA = _asyncio.get_running_loop()
+    if version != _VERSION_CHATS:
+        return {"version": _VERSION_CHATS}
+    fut = _LOOP_ESPERA.create_future()
+    _ESPERANDO.add(fut)
+    try:
+        await _asyncio.wait_for(fut, timeout=12)
+    except _asyncio.TimeoutError:
+        pass
+    finally:
+        _ESPERANDO.discard(fut)
+    return {"version": _VERSION_CHATS}
 
 
 @router.get("/chats/ultimo")

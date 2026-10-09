@@ -31,10 +31,23 @@ def cache_set(key: str, data: Any, ttl: int = TTL_PUBLICO) -> None:
     _cache[key] = (data, time.time(), ttl)
 
 
+_ALERTAS: dict = {}   # clave -> funciones a avisar cuando esa clave se invalida
+
+
+def on_invalidate(key: str, fn) -> None:
+    """Registra una función que se llama cada vez que se invalida `key` (la usan las conversaciones para avisar al panel al instante)."""
+    _ALERTAS.setdefault(key, []).append(fn)
+
+
 def cache_invalidate(*keys: str) -> None:
     """Elimina claves específicas del caché."""
     for key in keys:
         _cache.pop(key, None)
+        for fn in _ALERTAS.get(key, ()):
+            try:
+                fn()
+            except Exception:
+                pass
 
 
 def cache_invalidate_prefix(prefix: str) -> None:
