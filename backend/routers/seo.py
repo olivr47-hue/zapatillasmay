@@ -112,7 +112,11 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
 
 # Vercel reutiliza esta página 2 minutos (antes cada visita esperaba ~600 ms a que Railway la armara): la ficha vuelve a pedir
 # existencias y precio en vivo desde el navegador, así que el HTML en caché solo trae título, descripción y datos para buscadores.
-_CC_SSR_PRODUCTO = {"Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600"}
+_CC_SSR_PRODUCTO = {
+    "Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600",
+    # Vercel ignora Cache-Control en páginas que reenvía a otro servidor (rewrites): su memoria se controla con este encabezado propio.
+    "Vercel-CDN-Cache-Control": "max-age=120, stale-while-revalidate=600",
+}
 
 
 @router.get("/seo/producto/{sku}")
