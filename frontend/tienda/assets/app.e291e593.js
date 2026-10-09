@@ -1335,7 +1335,7 @@ cargarConfigSEO()
     }
     const _coloresVistos = new Set(_vPortada && _vPortada.color ? [_vPortada.color] : [])
     varsProd.forEach(v => {
-      if (v.color && v.foto_url && !_coloresVistos.has(v.color)) {
+      if (v.color && v.foto_url && !_coloresVistos.has(v.color) && (!p._novCols || p._novCols.includes(String(v.color).trim()))) {
         _coloresVistos.add(v.color)
         _fotosRot.push(v.foto_url)
       }
@@ -2593,6 +2593,7 @@ function mostrarNuevos() {
       const v = variantes.find(x => x.producto_id === p.id && x.activa !== false && x.foto_url && String(x.color || '').trim() === cols[0])
       const copia = Object.assign({}, p)
       if (v) { copia.imagen_principal = v.foto_url; copia.foto_limpia = null }
+      copia._novCols = cols   // en Novedades, la tarjeta solo rota entre las fotos de los colores marcados
       if (cols.length === 1) copia._novQuery = '?color=' + encodeURIComponent(cols[0])
       return copia
     })
