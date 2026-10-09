@@ -14,7 +14,8 @@ import urllib.parse as _up
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
-from security import bearer_opcional, payload_opcional, es_personal
+from security import bearer_opcional, payload_opcional, es_personal, require_staff
+from datetime import datetime, timezone, timedelta
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 
 router = APIRouter(prefix="/push", tags=["Push"])
@@ -243,6 +244,17 @@ def listar_suscripciones_individuales():
 @router.get("/historial")
 def historial_envios():
     return supabase_get_all("push_notificaciones_log?sitio=neq.panel&order=created_at.desc&limit=50")
+
+
+@router.get("/panel-recientes")
+def avisos_recientes_panel(_staff=Depends(require_staff)):
+    """Avisos que llegaron al panel en los últimos 3 días (los mismos que suenan/aparecen como notificación): para la campanita del
+    panel. Quien no es administrador no ve los de resumen de ventas."""
+    desde = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    filas = supabase_get(f"push_notificaciones_log?sitio=eq.panel&created_at=gte.{desde}&order=created_at.desc&limit=60&select=id,titulo,cuerpo,url,created_at") or []
+    if (_staff or {}).get("rol") != "admin":
+        filas = [f for f in filas if "resumen" not in (f.get("titulo") or "").lower()]
+    return filas
 
 
 @router.get("/diagnostico")

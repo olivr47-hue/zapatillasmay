@@ -12,6 +12,7 @@ import './tareas-equipo.js'
 import './atencion-hoy.js'
 import './existencias-chat.js'
 import './novedades-modelos.js'
+import './campana-avisos.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede

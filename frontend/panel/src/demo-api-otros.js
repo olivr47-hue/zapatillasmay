@@ -35,6 +35,13 @@ export function registrarRutasOtros({ db, ruta }) {
   ruta('PATCH', /^\/pedidos\/([^/]+)\/comprobantes\/([^/]+)$/, ({ m, body }) => { const c = (COMPS[m[1]] || []).find(x => x.id === m[2]); if (c) Object.assign(c, body); return { ok: true } })
   ruta('DELETE', /^\/pedidos\/([^/]+)\/comprobantes\/([^/]+)$/, ({ m }) => { const l = COMPS[m[1]] || []; const i = l.findIndex(x => x.id === m[2]); if (i >= 0) l.splice(i, 1); return { ok: true } })
 
+  const haceMin = (m) => new Date(Date.now() - m * 60000).toISOString()
+  ruta('GET', /^\/push\/panel-recientes$/, () => [
+    { id: 'a1', titulo: '💬 Carolina Méndez', cuerpo: 'Hola, ¿tienen el tacón Aurora en talla 25?', url: '/?modulo=conversaciones', created_at: haceMin(3) },
+    { id: 'a2', titulo: '📎 Comprobante de pago nuevo', cuerpo: 'Fernanda Ruiz subió un comprobante de $800. Revisa Carritos.', url: '/?modulo=carritos', created_at: haceMin(42) },
+    { id: 'a3', titulo: '⚠️ SHEIN no está conectado', cuerpo: 'No se pudo comunicar con SHEIN. Revisa Conexiones.', url: '/?modulo=conexiones', created_at: haceMin(300) },
+  ])
+
   // Tareas del equipo (ejemplos inventados)
   const hoyD = dia(0), manD = dia(-1)
   const TAREAS = [
