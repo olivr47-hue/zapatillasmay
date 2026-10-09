@@ -10,6 +10,7 @@ import './catalogo-pdf.js'
 import './webm-a-ogg.js'
 import './tareas-equipo.js'
 import './atencion-hoy.js'
+import './existencias-chat.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -18737,6 +18738,9 @@ area.style.minHeight = '0'
         </button>
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Buscar tallas y existencias" style="color:#0891b2" onclick="waExistencias('${_ja(telefono)}')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M8.5 11.5l1.8 1.8 3.2-3.6"/></svg>
         </button>
         <input type="file" id="vidcam-file-${telefono}" accept="video/*" capture="environment" style="display:none" onchange="subirVideoWA('${_ja(telefono)}',this)">
         <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">

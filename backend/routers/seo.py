@@ -110,6 +110,11 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
     except Exception as e:
         return {"error": str(e)}
 
+# Vercel reutiliza esta página 2 minutos (antes cada visita esperaba ~600 ms a que Railway la armara): la ficha vuelve a pedir
+# existencias y precio en vivo desde el navegador, así que el HTML en caché solo trae título, descripción y datos para buscadores.
+_CC_SSR_PRODUCTO = {"Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600"}
+
+
 @router.get("/seo/producto/{sku}")
 def producto_ssr(sku: str, request: Request):
     """Sirve producto.html con meta tags y datos del producto pre-inyectados para indexación SEO."""
@@ -126,7 +131,7 @@ def _producto_ssr_inner(sku: str, request: Request):
     _ck_ssr = f"ssr_prod_{sku}"
     _cached = cache_get(_ck_ssr)
     if _cached is not None:
-        return HTMLResponse(content=_cached)
+        return HTMLResponse(content=_cached, headers=_CC_SSR_PRODUCTO)
     # 1. Buscar producto por slug (URL amigable para SEO) → SKU (links viejos
     #    ya compartidos/indexados) → id, solo si parece UUID (evita 400 de PostgREST)
     import re as _re
@@ -545,7 +550,7 @@ def _producto_ssr_inner(sku: str, request: Request):
         template = template.replace("<!-- RESEÑAS -->", _banner + "\n<!-- RESEÑAS -->", 1)
 
     cache_set(_ck_ssr, template, ttl=900)  # 15 min
-    return HTMLResponse(content=template)
+    return HTMLResponse(content=template, headers=_CC_SSR_PRODUCTO)
 
 
 _GUIA_BANNER_TACONES = (

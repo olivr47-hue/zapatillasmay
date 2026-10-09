@@ -165,6 +165,12 @@ export function renderPortalCliente(sesionData) {
 // mayorista -- GA4 solo estaba instalado en la tienda pública. Se activa
 // aquí (no en el HTML) para que el uso del panel de administración (mismo
 // bundle) nunca se mezcle con las métricas de las clientas.
+// Avisos de lo que las mayoristas HACEN en el portal (no solo qué pestaña abren): sin ellos Analytics las contaba como «rebote»
+// aunque estuvieran armando un pedido. Nunca debe tumbar el portal.
+function _pcEvt(nombre, params) {
+  try { if (typeof gtag === 'function' && !window.__zmInterno) gtag('event', nombre, params || {}) } catch (e) {}
+}
+let _pcUltCarritoEvt = ''
 let _pcAnalyticsInit = false
 function _pcInitAnalytics() {
   if (_pcAnalyticsInit || typeof gtag !== 'function' || window.__zmInterno) return
@@ -1110,6 +1116,7 @@ window.pcCancelarSeleccionCompartir = () => {
 }
 
 window.pcCompartirVariosWhatsApp = async () => {
+  _pcEvt('compartir_producto', { medio: 'whatsapp_varios', cantidad: (window._pcCompartirSeleccion || []).length })
   const btn = document.getElementById('pc-bulk-share-btn')
   if (!btn) return
   const origTxt = btn.innerHTML
@@ -2101,6 +2108,7 @@ window.pcToggleCompartir = function(prodId) {
 }
 
 window.pcCompartirProducto = function(prodId, medio) {
+  _pcEvt('compartir_producto', { medio })
   const p = pc.productos.find(x => x.id === prodId)
   if (!p) return
   const link = `https://zapatillasmay.mx/producto/${encodeURIComponent(p.sku_interno || p.id)}`
@@ -3105,6 +3113,12 @@ function pcGuardarCarrito(inmediato) {
 // pedidos" (ver cargarDatosPC) para que no se confunda con un pedido real.
 let _pcSyncTimer = null
 function pcSincronizarCarritoServidorDebounced() {
+  try {   // el carrito cambió: se avisa cuántos pares y de cuánto (solo si es distinto al último aviso)
+    const pares = (pc.carrito || []).reduce((t, i) => t + (parseInt(i.cantidad) || 0), 0)
+    const valor = (pc.carrito || []).reduce((t, i) => t + (parseInt(i.cantidad) || 0) * (parseFloat(i.precio_unitario) || 0), 0)
+    const huella = pares + '|' + Math.round(valor)
+    if (huella !== _pcUltCarritoEvt) { _pcUltCarritoEvt = huella; _pcEvt('carrito_portal', { pares, value: Math.round(valor), currency: 'MXN' }) }
+  } catch (e) {}
   clearTimeout(_pcSyncTimer)
   _pcSyncTimer = setTimeout(() => { pcSincronizarCarritoServidor().catch(() => {}) }, 1500)
 }
@@ -3562,6 +3576,7 @@ function renderCarrito(el) {
 }
 
 window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
+  _pcEvt('descargar_catalogo', { categoria: cat })
   const msg = document.getElementById('pc-cat-msg-' + cat)
   const card = document.getElementById('pc-cat-card-' + cat)
   const btns = card ? card.querySelectorAll('button') : []
@@ -4366,6 +4381,7 @@ async function pcConfirmarEnvioDirecto(envio, mensaje, comentarios) {
 // nace en pendiente_pago -- a diferencia de Apartados, aquí no hay que
 // llamar cerrar-apartado, solo guardar la forma de pago elegida.
 window.pcMostrarPasoPago = function(pedidoId, total, itemsParaMP) {
+  _pcEvt('begin_checkout', { value: Math.round(parseFloat(total) || 0), currency: 'MXN' })
   window._pcItemsParaMPTemp = itemsParaMP  // evita tener que serializar el array dentro de un onclick
   let modal = document.getElementById('pc-pago-directo-modal')
   if (!modal) { modal = document.createElement('div'); modal.id = 'pc-pago-directo-modal'; document.body.appendChild(modal) }

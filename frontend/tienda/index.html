@@ -25,6 +25,7 @@
     });
   </script>
   <!-- Google Analytics 4 — carga estática garantizada -->
+  <script>/* sin estadísticas en pruebas locales (localhost): no ensuciar Analytics */ if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window['ga-disable-G-QX8MK3D4RY'] = true</script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
   <script>
     gtag('js', new Date());
@@ -959,7 +960,7 @@ if (!window.fbq){
   </div>
 </footer>
 
-<script src="/assets/app.8e517c59.js"></script>
+<script src="/assets/app.3a756317.js"></script>
   <!-- PÁGINA INTERNA -->
 
 
@@ -2089,28 +2090,38 @@ function zmRechazarCookies() {
   }, { passive: true });
   container.addEventListener('touchend', function() { _tdragging = false; end(); });
 
-  /* Pre-cargar imágenes y disparar autogiro una vez completado */
-  var loadedCount = 0;
-  var fallbackMs = window.innerWidth < 769 ? 4000 : 1500; /* más tiempo en móvil */
-  var fallbackTimeout = setTimeout(function() {
-    if (!introFired) {
-      introFired = true;
-      runIntro();
-    }
-  }, fallbackMs);
-
-  FRAMES.forEach(function(src) {
-    var temp = new Image();
-    temp.onload = function() {
-      loadedCount++;
-      if (loadedCount === total && !introFired) {
-        clearTimeout(fallbackTimeout);
-        introFired = true;
-        runIntro();
-      }
-    };
-    temp.src = src;
-  });
+  /* Pre-cargar los cuadros y disparar el autogiro una vez completado.
+     Son 17 cuadros (~1.2 MB): antes se pedían TODOS de golpe al abrir la página, compitiendo con lo importante (fuentes, productos, scripts),
+     y en celular con datos eso hacía que muchas personas se fueran antes de que cargara. Ahora se piden cuando la página ya terminó de
+     cargar y el navegador está libre; y en conexiones lentas o con ahorro de datos solo cuando la persona toca el giro. */
+  var loadedCount = 0, precargando = false, conLenta = false;
+  try { var _cx = navigator.connection; conLenta = !!(_cx && (_cx.saveData || /^(slow-2g|2g|3g)$/.test(_cx.effectiveType || ''))); } catch (e) {}
+  function precargar() {
+    if (precargando) return;
+    precargando = true;
+    var fallbackMs = window.innerWidth < 769 ? 4000 : 1500; /* más tiempo en móvil */
+    var fallbackTimeout = setTimeout(function() {
+      if (!introFired && !conLenta) { introFired = true; runIntro(); }
+    }, fallbackMs);
+    FRAMES.forEach(function(src) {
+      var temp = new Image();
+      temp.onload = function() {
+        loadedCount++;
+        if (loadedCount === total && !introFired && !conLenta) {
+          clearTimeout(fallbackTimeout);
+          introFired = true;
+          runIntro();
+        }
+      };
+      temp.src = src;
+    });
+  }
+  ['touchstart', 'mousedown'].forEach(function(ev) { container.addEventListener(ev, precargar, { once: true, passive: true }); });
+  function cuandoLibre() { (window.requestIdleCallback || function(f) { setTimeout(f, 800); })(precargar, { timeout: 3500 }); }
+  if (!conLenta) {
+    if (document.readyState === 'complete') cuandoLibre();
+    else window.addEventListener('load', cuandoLibre, { once: true });
+  }
 
   /* Expuesto para el Editor visual (panel) -- al subir fotos nuevas del
      giro, reemplaza FRAMES en caliente sin recargar la página. */

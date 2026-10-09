@@ -22,11 +22,11 @@
       try {
         var _q = new URLSearchParams(location.search)
         if (_q.has('interno')) { if (_q.get('interno') === '0') localStorage.removeItem('zm_interno'); else localStorage.setItem('zm_interno', '1') }
-        if (localStorage.getItem('zm_interno') === '1') { window.__zmInterno = true; window['ga-disable-G-QX8MK3D4RY'] = true }
+        if (localStorage.getItem('zm_interno') === '1' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) { window.__zmInterno = true; window['ga-disable-G-QX8MK3D4RY'] = true }
       } catch (e) {}
     </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
-    <script type="module" crossorigin src="/assets/index-DaC8oy90.js"></script>
+    <script type="module" crossorigin src="/assets/index-BVskCG_x.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-DnNL4ooU.css">
   </head>
   <body>
