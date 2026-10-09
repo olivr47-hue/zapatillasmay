@@ -20,6 +20,21 @@ export function registrarRutasOtros({ db, ruta }) {
     return [{ id: p.id, estado: p.status, cliente: (cl && cl.nombre) || 'Clienta de ejemplo', faltan: [{ nombre: 'Tacón Aurora', color: 'Negro', talla: '25', pide: 2, hay: 1 }] }]
   })
 
+  // Anticipos y comprobantes de pago (la demo no sube archivos de verdad: genera una captura de ejemplo)
+  const CAPT = (txt) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#e0f2fe"/><text x="60" y="55" font-size="13" text-anchor="middle" fill="#075985">Captura</text><text x="60" y="75" font-size="11" text-anchor="middle" fill="#075985">${txt}</text></svg>`)
+  const PAGOS = {}, COMPS = {}
+  const abiertos = (db.pedidos || []).filter(x => x.status === 'apartado' || x.status === 'borrador')
+  if (abiertos[0]) { abiertos[0].anticipo = 500; PAGOS[abiertos[0].id] = [{ id: 'pg1', monto: 500, forma_pago: 'transferencia', tipo: 'anticipo', usuario: 'Demo', created_at: new Date().toISOString() }]; COMPS[abiertos[0].id] = [{ id: 'cp1', pago_id: 'pg1', url: CAPT('$500'), tipo: 'imagen', origen: 'panel', revisado: true, created_at: new Date().toISOString() }] }
+  if (abiertos[1]) { COMPS[abiertos[1].id] = [{ id: 'cp2', pago_id: null, url: CAPT('Clienta'), tipo: 'imagen', monto: 800, nota: 'anticipo', origen: 'portal', revisado: false, created_at: new Date().toISOString() }] }
+  ruta('GET', /^\/pedidos\/comprobantes-pendientes$/, () => { const o = {}; Object.entries(COMPS).forEach(([id, l]) => { const n = l.filter(c => c.revisado === false).length; if (n) o[id] = n }); return o })
+  ruta('GET', /^\/pedidos\/([^/]+)\/anticipos$/, ({ m }) => { const l = PAGOS[m[1]] || []; return { pagos: l, total: l.reduce((s, x) => s + x.monto, 0) } })
+  ruta('POST', /^\/pedidos\/([^/]+)\/anticipos$/, ({ m, body }) => { const p = db.pedidos.find(x => x.id === m[1]); const monto = parseFloat(body && body.monto) || 0; const pg = { id: 'pg' + Date.now(), monto, forma_pago: (body && body.forma_pago) || 'efectivo', tipo: 'anticipo', usuario: 'Demo', created_at: new Date().toISOString() }; (PAGOS[m[1]] = PAGOS[m[1]] || []).push(pg); if (p) p.anticipo = (parseFloat(p.anticipo) || 0) + monto; return { ok: true, pago_id: pg.id } })
+  ruta('DELETE', /^\/pedidos\/([^/]+)\/anticipos\/([^/]+)$/, ({ m }) => { const l = PAGOS[m[1]] || []; const i = l.findIndex(x => x.id === m[2]); if (i >= 0) { const p = db.pedidos.find(x => x.id === m[1]); if (p) p.anticipo = Math.max(0, (p.anticipo || 0) - l[i].monto); l.splice(i, 1) } return { ok: true } })
+  ruta('GET', /^\/pedidos\/([^/]+)\/comprobantes$/, ({ m }) => ({ comprobantes: COMPS[m[1]] || [] }))
+  ruta('POST', /^\/pedidos\/([^/]+)\/comprobantes$/, ({ m }) => { const c = { id: 'cp' + Date.now(), pago_id: null, url: CAPT('Nuevo'), tipo: 'imagen', origen: 'panel', revisado: true, created_at: new Date().toISOString() }; (COMPS[m[1]] = COMPS[m[1]] || []).push(c); return { ok: true, comprobante: c } })
+  ruta('PATCH', /^\/pedidos\/([^/]+)\/comprobantes\/([^/]+)$/, ({ m, body }) => { const c = (COMPS[m[1]] || []).find(x => x.id === m[2]); if (c) Object.assign(c, body); return { ok: true } })
+  ruta('DELETE', /^\/pedidos\/([^/]+)\/comprobantes\/([^/]+)$/, ({ m }) => { const l = COMPS[m[1]] || []; const i = l.findIndex(x => x.id === m[2]); if (i >= 0) l.splice(i, 1); return { ok: true } })
+
   // Tareas del equipo (ejemplos inventados)
   const hoyD = dia(0), manD = dia(-1)
   const TAREAS = [

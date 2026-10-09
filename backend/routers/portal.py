@@ -8,7 +8,7 @@ Diseño:
 - No modifica los endpoints existentes del panel/tienda; vive bajo el prefijo /portal.
 - Menudeo no entra (usan el sitio web).
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
@@ -580,3 +580,63 @@ def registro_borrar(fila_id: str, auth: dict = Depends(require_cliente_portal)):
         return JSONResponse(status_code=400, content={"error": "Id inválido"})
     supabase_delete(f"mayorista_registro?id=eq.{fila_id}&cliente_id=eq.{cid}")
     return {"ok": True}
+
+
+# ── COMPROBANTES DE PAGO que sube la clienta (captura de transferencia, foto del ticket, PDF) ─────────────────
+# Quedan ligados a su pedido, sin revisar, y el panel avisa al equipo. El cliente_id sale SIEMPRE del token.
+_MAX_COMPROBANTES_PEDIDO = 12
+
+
+def _pedido_de_la_clienta(pedido_id: str, cid: str):
+    if not _UUID_RE.match(pedido_id):
+        return None
+    f = supabase_get(f"pedidos?id=eq.{pedido_id}&cliente_id=eq.{cid}&select=id,status,total")
+    return f[0] if f else None
+
+
+@router.get("/pedidos/{pedido_id}/comprobantes")
+def comprobantes_de_mi_pedido(pedido_id: str, auth: dict = Depends(require_cliente_portal)):
+    if not _pedido_de_la_clienta(pedido_id, auth["cliente_id"]):
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    filas = supabase_get(f"pedido_comprobantes?pedido_id=eq.{pedido_id}&select=id,url,nombre,tipo,monto,nota,origen,revisado,created_at&order=created_at.asc") or []
+    return {"comprobantes": filas}
+
+
+@router.post("/pedidos/{pedido_id}/comprobantes")
+def subir_mi_comprobante(pedido_id: str, archivo: UploadFile = File(...), monto: str = Form(""), nota: str = Form(""),
+                         auth: dict = Depends(require_cliente_portal)):
+    from security import limpiar_texto
+    cid = auth["cliente_id"]
+    ped = _pedido_de_la_clienta(pedido_id, cid)
+    if not ped:
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    if ped.get("status") == "cancelado":
+        return JSONResponse(status_code=409, content={"error": "Este pedido está cancelado"})
+    previos = supabase_get(f"pedido_comprobantes?pedido_id=eq.{pedido_id}&select=id&limit={_MAX_COMPROBANTES_PEDIDO + 1}") or []
+    if len(previos) >= _MAX_COMPROBANTES_PEDIDO:
+        return JSONResponse(status_code=400, content={"error": "Ya subiste el máximo de comprobantes para este pedido. Escríbenos por WhatsApp."})
+    from routers.imagenes import subir_comprobante
+    try:
+        sub = subir_comprobante(archivo)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        print(f"[portal] comprobante: {e}")
+        return JSONResponse(status_code=500, content={"error": "No se pudo subir el archivo. Intenta de nuevo."})
+    try:
+        m = round(float(monto), 2) if str(monto).strip() else None
+        if m is not None and (m <= 0 or m > 100000000):
+            m = None
+    except ValueError:
+        m = None
+    fila = {"pedido_id": pedido_id, "url": sub["url"], "nombre": sub["nombre"], "tipo": sub["tipo"], "monto": m,
+            "nota": (limpiar_texto(nota.strip())[:200] or None), "origen": "portal", "subido_por": "Clienta (portal)", "revisado": False}
+    res = supabase_post("pedido_comprobantes", fila)
+    try:
+        cli = supabase_get(f"clientes?id=eq.{cid}&select=nombre") or [{}]
+        from routers.push import enviar_push
+        enviar_push("📎 Comprobante de pago nuevo", f"{cli[0].get('nombre') or 'Una clienta'} subió un comprobante" + (f" de ${m:,.0f}" if m else "") + ". Revisa Carritos.",
+                    url="/?modulo=carritos", sitio="panel")
+    except Exception as e:
+        print(f"[portal] aviso de comprobante: {e}")
+    return {"ok": True, "comprobante": res[0] if isinstance(res, list) and res else None}

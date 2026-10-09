@@ -27665,14 +27665,15 @@ async function cargarCarritos() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
-    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig, resSinEx] = await Promise.all([
+    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig, resSinEx, resCompPend] = await Promise.all([
       fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/apartados').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/solicitudes-liberacion').then(r => r.json()).catch(() => ({ total: 0 })),
       fetch(API + '/clientes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json()),
       fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => []),
-      fetch(API + '/pedidos/carritos-sin-existencia').then(r => r.json()).catch(() => [])
+      fetch(API + '/pedidos/carritos-sin-existencia').then(r => r.json()).catch(() => []),
+      fetch(API + '/pedidos/comprobantes-pendientes').then(r => r.json()).catch(() => ({}))
     ])
     // Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
     // en su portal (canal portal_mayoreo con la marca [carrito-respaldo]). Estos
@@ -27703,11 +27704,15 @@ async function cargarCarritos() {
       p._solic = items.filter(i => (!i.reservado && i.solicitud_apartar) || (i.reservado && i.solicitud_liberar)).length
       p._pares = items.reduce((s, i) => s + Math.max(0, parseInt(i.cantidad) || 0), 0)
       p._sinTel = !(p.clientes && p.clientes.telefono)
+      p._compPend = (resCompPend && resCompPend[p.id]) || 0   // comprobantes que subió la clienta y nadie ha revisado
       window._carrPedidos[p.id] = p
     })
     const kApartados = todos.filter(p => p.status === 'apartado')
     const kDinero = kApartados.reduce((s, p) => s + (parseFloat(p.total) || 0), 0)
-    const kAnticipos = kApartados.reduce((s, p) => s + (parseFloat(p.anticipo) || 0), 0)
+    // Anticipos de TODOS los carritos (también borradores que ya dieron anticipo), no solo de los apartados
+    const conAnticipo = todos.filter(p => (parseFloat(p.anticipo) || 0) > 0)
+    const kAnticipos = conAnticipo.reduce((s, p) => s + (parseFloat(p.anticipo) || 0), 0)
+    const kSaldoAnt = conAnticipo.reduce((s, p) => s + Math.max(0, (parseFloat(p.total) || 0) - (parseFloat(p.anticipo) || 0)), 0)
     const kPares = kApartados.reduce((s, p) => s + p._pares, 0)
     const vencidos = todos.filter(p => p._vencido)
     const porVencer = todos.filter(p => p._porVencer)
@@ -27747,7 +27752,7 @@ async function cargarCarritos() {
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px">
               <div style="font-size:1.35rem;font-weight:800;color:#15803d">$${Math.round(kAnticipos).toLocaleString('es-MX')}</div>
               <div style="font-size:0.72rem;color:#15803d;font-weight:600">Anticipos recibidos</div>
-              <div style="font-size:0.68rem;color:#3f9d63">Saldo por cobrar $${Math.round(Math.max(0, kDinero - kAnticipos)).toLocaleString('es-MX')}</div>
+              <div style="font-size:0.68rem;color:#3f9d63">${conAnticipo.length} carrito${conAnticipo.length === 1 ? '' : 's'} · saldo por cobrar $${Math.round(kSaldoAnt).toLocaleString('es-MX')}</div>
             </div>
             <div style="background:${vencidos.length ? '#fef2f2' : '#f8fafc'};border:1px solid ${vencidos.length ? '#fecaca' : '#e2e8f0'};border-radius:12px;padding:12px 14px">
               <div style="font-size:1.35rem;font-weight:800;color:${vencidos.length ? '#b91c1c' : '#475569'}">${vencidos.length}</div>
@@ -27809,6 +27814,8 @@ async function cargarCarritos() {
             <button class="pill-filter pill-active" data-chip="todos" onclick="carrChip('todos')">Todos</button>
             <button class="pill-filter" data-chip="apartados" onclick="carrChip('apartados')">🔒 Apartados</button>
             <button class="pill-filter" data-chip="borradores" onclick="carrChip('borradores')">📝 Borradores</button>
+            <button class="pill-filter" data-chip="anticipo" onclick="carrChip('anticipo')">💵 Con anticipo (${conAnticipo.length})</button>
+            <button class="pill-filter" data-chip="comprobantes" onclick="carrChip('comprobantes')">📎 Comprobantes por revisar (${todos.filter(p => p._compPend > 0).length})</button>
             <button class="pill-filter" data-chip="solicitudes" onclick="carrChip('solicitudes')">🙋 Con solicitudes</button>
             <button class="pill-filter" data-chip="vencidos" onclick="carrChip('vencidos')">⏰ Vencidos</button>
             <button class="pill-filter" data-chip="agotados" onclick="carrChip('agotados')">⚠️ Sin existencia</button>
@@ -27824,7 +27831,7 @@ async function cargarCarritos() {
               const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
               const nQuitar = (p.pedido_items || []).filter(i => i.reservado && i.solicitud_liberar).length
               return `
-                <div class="carr-card" data-id="${p.id}" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" data-estado="${p.status}" data-vencido="${p._vencido ? 1 : 0}" data-solic="${p._solic}" data-agot="${p._agotados}" data-sintel="${p._sinTel ? 1 : 0}" data-total="${parseFloat(p.total) || 0}" data-creado="${p.created_at || ''}" data-vence="${p.status === 'apartado' && p._vence !== null ? p._vence : 9999}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div class="carr-card" data-id="${p.id}" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" data-estado="${p.status}" data-vencido="${p._vencido ? 1 : 0}" data-solic="${p._solic}" data-agot="${p._agotados}" data-sintel="${p._sinTel ? 1 : 0}" data-anticipo="${anticipo > 0 ? 1 : 0}" data-comp="${p._compPend}" data-total="${parseFloat(p.total) || 0}" data-creado="${p.created_at || ''}" data-vence="${p.status === 'apartado' && p._vence !== null ? p._vence : 9999}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
@@ -27836,6 +27843,8 @@ async function cargarCarritos() {
                         ${nQuitar > 0 ? `<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #dc2626;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🚫 ${nQuitar} quitar</span>` : ''}
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
                         ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
+                        ${anticipo > 0 ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">💵 Anticipo $${Math.round(anticipo).toLocaleString('es-MX')}</span>` : ''}
+                        ${p._compPend > 0 ? `<span style="display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compPend} comprobante${p._compPend === 1 ? '' : 's'} por revisar</span>` : ''}
                         ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
                       </div>
                     </div>
@@ -27848,13 +27857,14 @@ async function cargarCarritos() {
                   <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
                     <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
                     <p style="font-weight:700;font-size:1.35rem;color:#E91E8C;margin:0">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
-                    ${esApartado ? `<p style="font-size:0.75rem;color:#64748b;margin:4px 0 0">
+                    ${(esApartado || anticipo > 0) ? `<p style="font-size:0.75rem;color:#64748b;margin:4px 0 0">
                       ${anticipo > 0 ? `Anticipo: <strong style="color:#0f172a">$${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}</strong>` : 'Sin anticipo registrado'}
                       ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `<span style="color:#dc2626;font-weight:700">vencido hace ${-diasRestantes}d</span>`}` : ''}
                     </p>` : ''}
                   </div>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${p.id}')">Abrir</button>
+                    <button class="btn btn-secondary" title="Anticipos y comprobantes de pago" style="font-size:0.8rem;padding:6px 10px;color:#166534;border-color:#86efac" onclick="event.stopPropagation();editarAnticipoCarrito('${p.id}', true)">💵</button>
                     <button class="btn btn-secondary" title="Enviar resumen por correo" style="font-size:0.8rem;padding:6px 10px" onclick="event.stopPropagation();enviarResumenCarrito('${p.id}')">📧</button>
                     <button class="btn btn-secondary" title="Enviar resumen por WhatsApp" style="font-size:0.8rem;padding:6px 10px;color:#15803d;border-color:#86efac" onclick="event.stopPropagation();waResumenCarrito('${p.id}')">💬</button>
                     <button class="btn btn-secondary" style="font-size:0.8rem;color:#dc2626;border-color:#fca5a5" onclick="event.stopPropagation();liberarCarrito('${p.id}')">Liberar</button>
@@ -28075,7 +28085,8 @@ function renderCarritoAbierto(p) {
           ${esApartado ? `<p style="font-size:0.78rem;color:#92400e;font-weight:600;margin:4px 0 0">🔒 Apartado
             ${anticipo > 0 ? ` · Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}` : ' · Sin anticipo'}
             ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `vencido hace ${-diasRestantes}d`}` : ''}
-            <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">anticipos</a></p>` : ''}
+            <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">anticipos y comprobantes</a></p>` : `<p style="font-size:0.78rem;color:#166534;font-weight:600;margin:4px 0 0">
+            ${anticipo > 0 ? `💵 Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})} · ` : ''}<a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700">💵 anticipos y comprobantes de pago</a></p>`}
         </div>
         <button class="btn btn-secondary" style="color:#92400e;border-color:#fbbf24;background:#fffbeb;font-weight:700" onclick="aprobarApartadoCarrito('${pedidoId}')">
           🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
@@ -29720,25 +29731,84 @@ window.aprobarApartadoCarrito = async (pedidoId) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
-window.editarAnticipoCarrito = async (pedidoId) => {
+// ─── Anticipos y comprobantes de pago de un carrito/apartado ───────────────────────────────────────────────
+// Cada anticipo es un pago con su forma de pago; a cada pago (o al pedido en general) se le pueden adjuntar capturas/fotos/PDF
+// del comprobante. Los que sube la clienta desde el portal llegan «por revisar» y aquí se marcan como revisados.
+window._compMiniatura = (c) => {
   const esc = window._escWA
-  let datos = { pagos: [], total: 0 }
+  const u = esc(c.url)
+  const cuerpo = c.tipo === 'pdf'
+    ? `<span style="display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:0.7rem;font-weight:700;color:#b91c1c">📄 PDF</span>`
+    : `<img src="${u}" alt="Comprobante" loading="lazy" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">`
+  return `<a href="${u}" target="_blank" rel="noopener" title="${esc(c.nombre || 'Comprobante')}${c.monto ? ' · $' + c.monto : ''}" style="display:inline-block;position:relative;text-decoration:none">${cuerpo}${c.revisado === false ? '<span style="position:absolute;top:-4px;right:-4px;background:#0284c7;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center">!</span>' : ''}</a>`
+}
+window._subirComprobantes = async (pedidoId, archivos, pagoId, monto) => {
+  let fallos = []
+  for (const f of Array.from(archivos || [])) {
+    const fd = new FormData()
+    fd.append('archivo', f)
+    if (pagoId) fd.append('pago_id', pagoId)
+    if (monto) fd.append('monto', String(monto))
+    try {
+      const r = await fetch(API + '/pedidos/' + pedidoId + '/comprobantes', { method: 'POST', body: fd })
+      if (!r.ok) { const d = await r.json().catch(() => ({})); fallos.push((f.name || 'archivo') + ': ' + (d.error || r.status)) }
+    } catch (e) { fallos.push((f.name || 'archivo') + ': ' + e.message) }
+  }
+  return fallos
+}
+window._cerrarModalAnticipo = () => {
+  document.getElementById('modal-anticipo')?.remove()
+  const c = window._antCtx
+  if (c && c.cambio) { c.cambio = false; c.desdeLista ? cargarCarritos() : abrirCarrito(c.pedidoId) }
+}
+window.editarAnticipoCarrito = async (pedidoId, desdeLista) => {
+  const esc = window._escWA
+  const previo = window._antCtx && window._antCtx.pedidoId === pedidoId ? window._antCtx : null
+  window._antCtx = { pedidoId, desdeLista: desdeLista === undefined ? !!previo?.desdeLista : !!desdeLista, cambio: !!previo?.cambio }
+  document.getElementById('modal-anticipo')?.remove()
+  let datos = { pagos: [], total: 0 }, comp = { comprobantes: [] }
   try { datos = await fetch(API + '/pedidos/' + pedidoId + '/anticipos').then(r => r.json()) } catch (e) {}
-  const ped = window._carritoActivo?.pedidoData || {}
+  try { comp = await fetch(API + '/pedidos/' + pedidoId + '/comprobantes').then(r => r.json()) } catch (e) {}
+  const ped = (window._antCtx.desdeLista ? window._carrPedidos?.[pedidoId] : window._carritoActivo?.pedidoData) || window._carritoActivo?.pedidoData || window._carrPedidos?.[pedidoId] || {}
   const totalPedido = parseFloat(ped.total) || 0
   const legacy = Math.max(0, (parseFloat(ped.anticipo) || 0) - (datos.total || 0))
+  const todosComp = comp.comprobantes || []
+  const idsPago = new Set((datos.pagos || []).map(x => x.id))
+  const sueltos = todosComp.filter(c => !c.pago_id || !idsPago.has(c.pago_id))
+  const porPago = (id) => todosComp.filter(c => c.pago_id === id)
   const m = document.createElement('div')
   m.id = 'modal-anticipo'
   m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
-  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:460px;width:100%;max-height:90vh;overflow:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💵 Anticipos del apartado</h3><button onclick="document.getElementById('modal-anticipo').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
-    <p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">Cada anticipo se guarda como un pago con su forma de pago y entra a la caja del día que lo recibes. Al confirmar la venta solo se cobra el saldo.</p>
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💵 Anticipos y comprobantes</h3><button onclick="_cerrarModalAnticipo()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">Cada anticipo se guarda como un pago con su forma de pago y entra a la caja del día que lo recibes. Puedes adjuntar la captura, foto o PDF del comprobante a cada pago. Al confirmar la venta solo se cobra el saldo.</p>
     ${legacy > 0 ? `<p style="font-size:0.76rem;background:#f8fafc;border-radius:8px;padding:8px 10px;color:#64748b;margin:0 0 10px">Anticipo anterior (capturado antes de esta mejora): <strong>$${legacy.toLocaleString('es-MX')}</strong></p>` : ''}
     <div id="ant-lista">${(datos.pagos || []).map(x => `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
-        <span><strong>$${parseFloat(x.monto).toLocaleString('es-MX')}</strong> · ${esc(x.forma_pago)}<br><span style="font-size:0.7rem;color:#94a3b8">${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}${x.nota ? ' · ' + esc(x.nota) : ''}</span></span>
-        <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="borrarAnticipoCarrito('${pedidoId}','${esc(x.id)}')">Quitar</button>
+      <div style="padding:8px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span><strong>$${parseFloat(x.monto).toLocaleString('es-MX')}</strong> · ${esc(x.forma_pago)}<br><span style="font-size:0.7rem;color:#94a3b8">${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}${x.nota ? ' · ' + esc(x.nota) : ''}</span></span>
+          <span style="display:flex;gap:6px;flex-shrink:0">
+            <label class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;margin:0;cursor:pointer">📎 Comprobante<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="antAdjuntar('${pedidoId}', this, '${esc(x.id)}', ${parseFloat(x.monto) || 0})"></label>
+            <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="borrarAnticipoCarrito('${pedidoId}','${esc(x.id)}')">Quitar</button>
+          </span>
+        </div>
+        ${porPago(x.id).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${porPago(x.id).map(c => `<span style="text-align:center">${_compMiniatura(c)}<br><a href="#" onclick="event.preventDefault();antQuitarComp('${pedidoId}','${esc(c.id)}')" style="font-size:0.62rem;color:#b91c1c">quitar</a></span>`).join('')}</div>` : ''}
       </div>`).join('') || '<p style="font-size:0.8rem;color:#94a3b8;margin:0">Todavía no hay anticipos registrados.</p>'}</div>
+
+    <div style="border-top:2px solid #f1f5f9;margin-top:10px;padding-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+        <p style="font-weight:700;margin:0;font-size:0.88rem">Comprobantes sueltos del pedido${sueltos.some(c => c.revisado === false) ? ' <span style="background:#e0f2fe;color:#075985;border-radius:100px;padding:1px 8px;font-size:0.66rem">hay por revisar</span>' : ''}</p>
+        <label class="btn btn-secondary" style="font-size:0.72rem;padding:4px 10px;margin:0;cursor:pointer">＋ Agregar<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="antAdjuntar('${pedidoId}', this, '', 0)"></label>
+      </div>
+      ${sueltos.length ? sueltos.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #f8fafc">
+          ${_compMiniatura(c)}
+          <span style="flex:1;font-size:0.76rem;color:#475569">${c.origen === 'portal' ? '🧑 La clienta lo subió' : esc(c.subido_por || 'Panel')}${c.monto ? ' · <strong>$' + parseFloat(c.monto).toLocaleString('es-MX') + '</strong>' : ''}${c.nota ? '<br>' + esc(c.nota) : ''}<br><span style="font-size:0.66rem;color:#94a3b8">${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span></span>
+          ${c.revisado === false ? `<button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#166534;border-color:#86efac" onclick="antRevisado('${pedidoId}','${esc(c.id)}')">✔ Revisado</button>` : ''}
+          <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="antQuitarComp('${pedidoId}','${esc(c.id)}')">Quitar</button>
+        </div>`).join('') : '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Sin comprobantes sueltos. Los que suba la clienta desde su portal aparecen aquí.</p>'}
+    </div>
+
     <div style="border-top:2px solid #f1f5f9;margin-top:10px;padding-top:12px">
       <p style="font-weight:700;margin:0 0 8px;font-size:0.88rem">Registrar nuevo anticipo</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -29746,31 +29816,63 @@ window.editarAnticipoCarrito = async (pedidoId) => {
         <select id="ant-forma" class="form-input" style="flex:1;min-width:130px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="spei">SPEI</option></select>
       </div>
       <input id="ant-nota" class="form-input" placeholder="Nota (opcional)" style="margin-top:8px;width:100%">
+      <label style="display:block;margin-top:8px;font-size:0.76rem;color:#475569">📎 Captura, foto o PDF del pago (opcional, puedes elegir varios)
+        <input id="ant-archivos" type="file" accept="image/*,application/pdf" multiple style="display:block;margin-top:4px;font-size:0.76rem;width:100%">
+      </label>
       <p style="font-size:0.74rem;color:#64748b;margin:8px 0 0">Total del pedido $${totalPedido.toLocaleString('es-MX')} · ya recibido $${(parseFloat(ped.anticipo) || 0).toLocaleString('es-MX')}</p>
       <button class="btn btn-primary" id="ant-guardar" style="margin-top:10px;width:100%" onclick="guardarAnticipoCarrito('${pedidoId}')">Guardar anticipo</button>
     </div>
   </div>`
   document.body.appendChild(m)
 }
+window.antAdjuntar = async (pedidoId, input, pagoId, monto) => {
+  const archivos = input.files
+  if (!archivos || !archivos.length) return
+  input.disabled = true
+  const lab = input.closest('label'); if (lab) lab.style.opacity = '0.5'
+  const fallos = await window._subirComprobantes(pedidoId, archivos, pagoId, monto)
+  if (fallos.length) alert('No se pudo subir:\n' + fallos.join('\n'))
+  window._antCtx.cambio = true
+  await editarAnticipoCarrito(pedidoId)
+}
+window.antRevisado = async (pedidoId, cid) => {
+  await fetch(API + '/pedidos/' + pedidoId + '/comprobantes/' + cid, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revisado: true }) })
+  window._antCtx.cambio = true
+  await editarAnticipoCarrito(pedidoId)
+}
+window.antQuitarComp = async (pedidoId, cid) => {
+  if (!confirm('¿Quitar este comprobante?')) return
+  await fetch(API + '/pedidos/' + pedidoId + '/comprobantes/' + cid, { method: 'DELETE' })
+  window._antCtx.cambio = true
+  await editarAnticipoCarrito(pedidoId)
+}
 window.guardarAnticipoCarrito = async (pedidoId) => {
   const monto = parseFloat(document.getElementById('ant-monto').value) || 0
   if (monto <= 0) { alert('Escribe el monto del anticipo.'); return }
+  const archivos = document.getElementById('ant-archivos')?.files
   const btn = document.getElementById('ant-guardar'); btn.disabled = true; btn.textContent = 'Guardando...'
   try {
     const r = await fetch(API + '/pedidos/' + pedidoId + '/anticipos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monto, forma_pago: document.getElementById('ant-forma').value, nota: document.getElementById('ant-nota').value }) })
     const d = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(d.error || 'No se pudo guardar')
+    if (archivos && archivos.length) {
+      btn.textContent = 'Subiendo comprobante...'
+      const fallos = await window._subirComprobantes(pedidoId, archivos, d.pago_id || '', monto)
+      if (fallos.length) alert('El anticipo se guardó, pero no se pudo subir:\n' + fallos.join('\n') + '\n\nPuedes volver a adjuntarlo con «📎 Comprobante».')
+    }
+    window._antCtx.cambio = false
     document.getElementById('modal-anticipo')?.remove()
-    await abrirCarrito(pedidoId)
+    window._antCtx.desdeLista ? await cargarCarritos() : await abrirCarrito(pedidoId)
   } catch (e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Guardar anticipo' }
 }
 window.borrarAnticipoCarrito = async (pedidoId, pagoId) => {
   if (!confirm('¿Quitar este anticipo? Úsalo solo si se capturó por error.')) return
   const r = await fetch(API + '/pedidos/' + pedidoId + '/anticipos/' + pagoId, { method: 'DELETE' })
   if (!r.ok) { alert('No se pudo quitar el anticipo.'); return }
+  window._antCtx.cambio = false
   document.getElementById('modal-anticipo')?.remove()
-  await abrirCarrito(pedidoId)
+  window._antCtx.desdeLista ? await cargarCarritos() : await abrirCarrito(pedidoId)
 }
 
 window.verSolicitudesLiberacion = async () => {
@@ -31314,6 +31416,8 @@ window.filtrarCarritosLista = () => {
       if (F.chip === 'apartados') ok = c.dataset.estado === 'apartado'
       else if (F.chip === 'borradores') ok = c.dataset.estado === 'borrador'
       else if (F.chip === 'solicitudes') ok = n(c, 'solic') > 0
+      else if (F.chip === 'anticipo') ok = n(c, 'anticipo') > 0
+      else if (F.chip === 'comprobantes') ok = n(c, 'comp') > 0
       else if (F.chip === 'vencidos') ok = c.dataset.vencido === '1'
       else if (F.chip === 'agotados') ok = n(c, 'agot') > 0
       else if (F.chip === 'sintel') ok = c.dataset.sintel === '1'

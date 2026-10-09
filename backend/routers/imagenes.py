@@ -35,6 +35,29 @@ def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
     return f"{_SUPABASE_URL}/storage/v1/object/public/wa-media/{filename}"
 
 
+def subir_comprobante(upload: UploadFile):
+    """Sube un comprobante de pago (foto/captura o PDF) y devuelve {url, nombre, tipo}. Lo usan el panel y el portal de clientes.
+    Lanza ValueError con un mensaje legible si el archivo no sirve."""
+    import uuid
+    contenido = upload.file.read()
+    if not contenido:
+        raise ValueError("El archivo está vacío")
+    if len(contenido) > 10 * 1024 * 1024:
+        raise ValueError("El archivo pesa más de 10 MB")
+    ct = (upload.content_type or "").lower()
+    nombre = (upload.filename or "comprobante")[:80]
+    if ct == "application/pdf" or nombre.lower().endswith(".pdf"):
+        url = _subir_pdf_supabase(contenido, f"comprobantes/{uuid.uuid4().hex}.pdf")
+        return {"url": url, "nombre": nombre, "tipo": "pdf"}
+    if ct.startswith("image/"):
+        r = cloudinary.uploader.upload(contenido, folder="comprobantes", transformation=[{"quality": "auto"}, {"fetch_format": "auto"}])
+        url = r.get("secure_url", "")
+        if not url:
+            raise ValueError("No se pudo guardar la imagen")
+        return {"url": url, "nombre": nombre, "tipo": "imagen"}
+    raise ValueError("Solo se aceptan imágenes (foto o captura) y PDF")
+
+
 # OJO: estas rutas son `def` (no `async def`): Cloudinary sube de forma síncrona y, dentro de una ruta async, bloqueaba el
 # servidor ENTERO durante cada foto (varios segundos): las fotos de un producto se subían una por una y todo el sistema
 # se ponía lento mientras tanto. Como `def` corren en hilos y se pueden subir varias a la vez.

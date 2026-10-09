@@ -3,7 +3,7 @@ import json
 import urllib.request
 import re
 import urllib.parse as _up
-from fastapi import APIRouter, Request, Depends, HTTPException, Body
+from fastapi import APIRouter, Request, Depends, HTTPException, Body, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, inventario_ajustar
@@ -422,6 +422,16 @@ def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
         return {"solicitudes": rows, "total": len(rows)}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/comprobantes-pendientes")
+def comprobantes_pendientes(_staff=Depends(require_staff)):
+    """Cuántos comprobantes sin revisar tiene cada pedido (los que suben las clientas desde el portal)."""
+    filas = supabase_get("pedido_comprobantes?revisado=eq.false&select=pedido_id&limit=2000") or []
+    cuenta = {}
+    for f in filas:
+        cuenta[f["pedido_id"]] = cuenta.get(f["pedido_id"], 0) + 1
+    return cuenta
 
 
 @router.get("/carritos-sin-existencia")
@@ -1594,14 +1604,15 @@ def registrar_anticipo(id: str, datos: dict, _staff=Depends(require_staff)):
     if not suc:
         s0 = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
         suc = s0[0]["id"] if s0 else None
-    supabase_post("pedido_pagos", {
+    creado = supabase_post("pedido_pagos", {
         "pedido_id": id, "monto": monto, "forma_pago": forma, "tipo": "anticipo",
         "nota": (str(datos.get("nota") or "").strip()[:200] or None), "usuario": _quien(_staff), "sucursal_id": suc,
     })
+    pago_id = creado[0].get("id") if isinstance(creado, list) and creado else None
     nuevo_total = round(float(p.get("anticipo") or 0) + monto, 2)
     supabase_patch(f"pedidos?id=eq.{id}", {"anticipo": nuevo_total})
     _historial(id, "anticipo", f"+${monto:,.2f} ({forma})", _quien(_staff))
-    return {"ok": True, "anticipo": nuevo_total, "saldo": max(0.0, round(float(p.get("total") or 0) - nuevo_total, 2))}
+    return {"ok": True, "pago_id": pago_id, "anticipo": nuevo_total, "saldo": max(0.0, round(float(p.get("total") or 0) - nuevo_total, 2))}
 
 
 @router.delete("/{id}/anticipos/{pago_id}")
@@ -1618,6 +1629,66 @@ def borrar_anticipo(id: str, pago_id: str, _staff=Depends(require_staff)):
     supabase_patch(f"pedidos?id=eq.{id}", {"anticipo": nuevo})
     _historial(id, "anticipo_borrado", f"-${monto:,.2f}", _quien(_staff))
     return {"ok": True, "anticipo": nuevo}
+
+
+# ─── Comprobantes de pago (captura o PDF): se pueden ligar a un pago/anticipo concreto o quedar sueltos en el pedido ───
+@router.get("/{id}/comprobantes")
+def listar_comprobantes(id: str, _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    return {"comprobantes": supabase_get(f"pedido_comprobantes?pedido_id=eq.{id}&order=created_at.asc") or []}
+
+
+@router.post("/{id}/comprobantes")
+def subir_comprobante_pedido(id: str, archivo: UploadFile = File(...), pago_id: str = Form(""), monto: str = Form(""),
+                             nota: str = Form(""), _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id) or (pago_id and not _UUID_RE.match(pago_id)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    if not supabase_get(f"pedidos?id=eq.{id}&select=id"):
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    from routers.imagenes import subir_comprobante
+    try:
+        sub = subir_comprobante(archivo)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"No se pudo subir el archivo: {e}"})
+    try:
+        m = round(float(monto), 2) if str(monto).strip() else None
+    except ValueError:
+        m = None
+    fila = {"pedido_id": id, "pago_id": pago_id or None, "url": sub["url"], "nombre": sub["nombre"], "tipo": sub["tipo"],
+            "monto": m, "nota": (nota.strip()[:200] or None), "origen": "panel", "subido_por": _quien(_staff), "revisado": True}
+    res = supabase_post("pedido_comprobantes", fila)
+    _historial(id, "comprobante", f"Comprobante agregado ({sub['tipo']})", _quien(_staff))
+    return {"ok": True, "comprobante": res[0] if isinstance(res, list) and res else None}
+
+
+@router.patch("/{id}/comprobantes/{cid}")
+def revisar_comprobante(id: str, cid: str, datos: dict, _staff=Depends(require_staff)):
+    if not (_UUID_RE.match(id) and _UUID_RE.match(cid)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    cambios = {}
+    if "revisado" in datos:
+        cambios["revisado"] = bool(datos["revisado"])
+    if "pago_id" in datos:
+        pid = datos.get("pago_id") or None
+        if pid and not _UUID_RE.match(str(pid)):
+            return JSONResponse(status_code=400, content={"error": "Id inválido"})
+        cambios["pago_id"] = pid
+    if not cambios:
+        return JSONResponse(status_code=400, content={"error": "Nada que cambiar"})
+    supabase_patch(f"pedido_comprobantes?id=eq.{cid}&pedido_id=eq.{id}", cambios)
+    return {"ok": True}
+
+
+@router.delete("/{id}/comprobantes/{cid}")
+def borrar_comprobante(id: str, cid: str, _staff=Depends(require_staff)):
+    if not (_UUID_RE.match(id) and _UUID_RE.match(cid)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    supabase_delete(f"pedido_comprobantes?id=eq.{cid}&pedido_id=eq.{id}")
+    _historial(id, "comprobante_borrado", "Comprobante quitado", _quien(_staff))
+    return {"ok": True}
 
 
 # ─── Abonos de crédito: lo que el cliente va pagando de un pedido a crédito (cuentas por cobrar) ───

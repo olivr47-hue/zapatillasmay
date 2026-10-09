@@ -3977,6 +3977,7 @@ async function renderApartados(el) {
         }).join('')}
       </div>
       <button onclick="pcAbrirCerrarApartado('${borrador.id}', ${total})" class="pc-btn pc-btn-primary" style="width:100%;font-size:0.95rem;padding:14px">Cerrar pedido — ${money(total)}</button>
+      <button onclick="pcAbrirComprobantes('${borrador.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.85rem">📎 Subir comprobante de pago o anticipo</button>
       <div id="pc-cerrar-apartado-modal"></div>
     `
   } catch (e) {
@@ -4077,7 +4078,8 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
             <p style="font-size:0.85rem;margin:0"><strong>Tarjeta:</strong> ${esc(cfg.tarjeta_oxxo)}</p>
             <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>` : ''}
           </div>
-          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
+          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 8px">Cuando hagas la transferencia, sube aquí tu comprobante (captura, foto o PDF).</p>
+          <button onclick="pcAbrirComprobantes('${pedidoId}')" class="pc-btn pc-btn-primary" style="width:100%;font-size:0.85rem">📎 Subir comprobante</button>`
       }
     } else {
       const mpRes = await fetch(`${PC_API}/pagos/crear-preferencia`, {
@@ -4436,7 +4438,8 @@ window.pcElegirPagoDirecto = async function(pedidoId, formaPago) {
             <p style="font-size:0.85rem;margin:0"><strong>Tarjeta:</strong> ${esc(cfg.tarjeta_oxxo)}</p>
             <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>` : ''}
           </div>
-          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
+          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 8px">Cuando hagas la transferencia, sube aquí tu comprobante (captura, foto o PDF).</p>
+          <button onclick="pcAbrirComprobantes('${pedidoId}')" class="pc-btn pc-btn-primary" style="width:100%;font-size:0.85rem">📎 Subir comprobante</button>`
       }
     } else {
       const mpRes = await fetch(`${PC_API}/pagos/crear-preferencia`, {
@@ -4564,9 +4567,96 @@ function pcPedidoDetalle(p) {
       <button onclick="pcContinuarPago('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;margin-top:14px;font-size:0.82rem">💳 Continuar pago</button>
       <p style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;text-align:center">${p.status === 'checkout_iniciado' ? 'El link de pago anterior quedó a medias -- genera uno nuevo o paga por transferencia.' : 'Elige cómo pagar este pedido.'}</p>
       <button onclick="pcCancelarPedidoCliente('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.78rem;color:#ef4444">✕ Ya no quiero este pedido, cancelarlo</button>` : ''}
+      ${['pendiente_pago','checkout_iniciado','apartado','confirmado'].includes(p.status) ? `
+      <button onclick="pcAbrirComprobantes('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.82rem">📎 Subir comprobante de pago</button>` : ''}
       ${items.length > 0 ? `
       <button onclick="pcReordenar('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.82rem">🔁 Pedir de nuevo</button>` : ''}
     </div>`
+}
+
+// ── COMPROBANTES DE PAGO: la clienta sube la captura/foto/PDF de su pago o anticipo ───────────────────────────
+// Quedan ligados al pedido y el equipo recibe un aviso para revisarlos. Se pueden subir varios (por ejemplo, un anticipo y un segundo pago).
+window.pcAbrirComprobantes = async function(pedidoId) {
+  const previo = document.getElementById('pc-comprobantes-modal')
+  if (previo) previo.remove()
+  const modal = document.createElement('div')
+  modal.id = 'pc-comprobantes-modal'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.onclick = (e) => { if (e.target === modal) modal.remove() }
+  modal.innerHTML = `<div class="pc-card" style="max-width:440px;width:100%;max-height:90vh;overflow:auto;padding:22px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="margin:0;font-size:1.05rem;color:var(--pc-text)">📎 Comprobantes de pago</h3>
+      <button onclick="document.getElementById('pc-comprobantes-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--pc-muted)">✕</button>
+    </div>
+    <p style="font-size:0.8rem;color:var(--pc-muted);margin:0 0 14px">Sube la captura de tu transferencia, la foto de tu ticket o un PDF. Puedes subir uno por cada pago o anticipo.</p>
+    <div id="pc-comp-lista" style="margin-bottom:14px"><p style="font-size:0.8rem;color:var(--pc-muted)">Cargando…</p></div>
+    <div style="border-top:1px solid var(--pc-border);padding-top:14px">
+      <input id="pc-comp-archivos" type="file" accept="image/*,application/pdf" multiple style="width:100%;font-size:0.8rem;margin-bottom:10px">
+      <input id="pc-comp-monto" type="number" min="1" step="0.01" placeholder="Monto de este pago (opcional)" class="pc-input" style="width:100%;margin-bottom:8px">
+      <input id="pc-comp-nota" type="text" maxlength="200" placeholder="Nota (opcional): por ejemplo «anticipo» o «saldo»" class="pc-input" style="width:100%;margin-bottom:12px">
+      <button id="pc-comp-subir" onclick="pcSubirComprobantes('${pedidoId}')" class="pc-btn pc-btn-primary" style="width:100%">Subir comprobante</button>
+      <p id="pc-comp-msg" style="font-size:0.78rem;margin:10px 0 0;text-align:center"></p>
+    </div>
+  </div>`
+  document.body.appendChild(modal)
+  pcPintarComprobantes(pedidoId)
+}
+
+async function pcPintarComprobantes(pedidoId) {
+  const el = document.getElementById('pc-comp-lista')
+  if (!el) return
+  try {
+    const r = await fetch(`${PC_API}/portal/pedidos/${pedidoId}/comprobantes`, { headers: pcAuthHeaders() })
+    const d = r.ok ? await r.json() : { comprobantes: [] }
+    const lista = d.comprobantes || []
+    el.innerHTML = lista.length
+      ? `<p style="font-size:0.75rem;font-weight:700;color:var(--pc-text-3);margin:0 0 8px">Ya subiste (${lista.length})</p>` + lista.map(c => `
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--pc-border)">
+          <a href="${esc(c.url)}" target="_blank" rel="noopener" style="flex-shrink:0">${c.tipo === 'pdf'
+            ? '<span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;background:var(--pc-bg-elev);font-size:0.65rem;font-weight:700;color:#ef4444">PDF</span>'
+            : `<img src="${esc(c.url)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`}</a>
+          <span style="flex:1;font-size:0.76rem;color:var(--pc-text-4)">${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}${c.monto ? ' · ' + money(c.monto) : ''}${c.nota ? '<br>' + esc(c.nota) : ''}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:${c.revisado ? '#10b981' : '#f59e0b'}">${c.revisado ? '✔ Revisado' : 'En revisión'}</span>
+        </div>`).join('')
+      : '<p style="font-size:0.78rem;color:var(--pc-muted);margin:0">Aún no has subido comprobantes de este pedido.</p>'
+  } catch (e) {
+    el.innerHTML = ''
+  }
+}
+
+window.pcSubirComprobantes = async function(pedidoId) {
+  const input = document.getElementById('pc-comp-archivos')
+  const msg = document.getElementById('pc-comp-msg')
+  const btn = document.getElementById('pc-comp-subir')
+  const archivos = Array.from(input?.files || [])
+  if (!archivos.length) { msg.style.color = '#ef4444'; msg.textContent = 'Elige al menos una foto, captura o PDF.'; return }
+  const monto = document.getElementById('pc-comp-monto').value
+  const nota = document.getElementById('pc-comp-nota').value
+  const token = localStorage.getItem('erp_token')
+  btn.disabled = true
+  let subidos = 0, errores = []
+  for (let i = 0; i < archivos.length; i++) {
+    btn.textContent = `Subiendo ${i + 1} de ${archivos.length}…`
+    const fd = new FormData()
+    fd.append('archivo', archivos[i])
+    if (monto && archivos.length === 1) fd.append('monto', monto)   // el monto solo se liga si es un único comprobante
+    if (nota) fd.append('nota', nota)
+    try {
+      const r = await fetch(`${PC_API}/portal/pedidos/${pedidoId}/comprobantes`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd })
+      if (r.ok) subidos++
+      else { const d = await r.json().catch(() => ({})); errores.push(d.error || ('Error ' + r.status)) }
+    } catch (e) { errores.push('Sin conexión') }
+  }
+  btn.disabled = false
+  btn.textContent = 'Subir comprobante'
+  if (subidos) {
+    input.value = ''
+    document.getElementById('pc-comp-monto').value = ''
+    document.getElementById('pc-comp-nota').value = ''
+  }
+  msg.style.color = errores.length ? '#ef4444' : '#10b981'
+  msg.textContent = (subidos ? `✔ ${subidos} comprobante${subidos !== 1 ? 's' : ''} enviado${subidos !== 1 ? 's' : ''}. Lo revisaremos y te confirmamos.` : '') + (errores.length ? ` ${errores[0]}` : '')
+  pcPintarComprobantes(pedidoId)
 }
 
 window.pcCancelarPedidoCliente = async function(pedidoId) {
