@@ -2,10 +2,11 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
-from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado, require_staff
+from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado, require_staff, TOKEN_CLIENTE_HORAS, verify_token, es_personal
 from email_utils import enviar_email
 from security import limpiar_texto
 import os
+import re as _re_auth
 import secrets
 import json
 import urllib.request
@@ -14,6 +15,7 @@ import html as _html
 import urllib.parse as _up
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+_UUID_AUTH = _re_auth.compile(r"^[0-9a-fA-F-]{36}$")
 
 
 def _q(valor) -> str:
@@ -162,7 +164,7 @@ def login(request: Request, datos: dict):
                 cliente_id = clientes_email[0]["id"]
                 supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
 
-        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": cliente_id})
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": cliente_id}, expires_hours=TOKEN_CLIENTE_HORAS)
         # Para poder ver en el panel quién entra al portal mayorista y cuándo
         # (antes no se guardaba en ningún lado -- ver GET /clientes/portal-mayoreo).
         try:
@@ -179,6 +181,28 @@ def login(request: Request, datos: dict):
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
+
+@router.post("/renovar")
+@limiter.limit("30/minute")
+def renovar_sesion(request: Request, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    """Renueva la sesión de una clienta del portal/tienda: si su token sigue vigente, devuelve uno nuevo de 60 días. Así quien entra
+    seguido nunca se queda fuera (antes el token duraba 15 días fijos y a todas se les cerraba la sesión sin aviso)."""
+    if not credentials:
+        return JSONResponse(status_code=401, content={"error": "Sesión no válida"})
+    try:
+        payload = verify_token(credentials.credentials)
+    except Exception:
+        return JSONResponse(status_code=401, content={"error": "Sesión vencida"})
+    if es_personal(payload):
+        return JSONResponse(status_code=403, content={"error": "Solo para clientes"})
+    sub = payload.get("sub")
+    if sub and _UUID_AUTH.match(str(sub)):
+        u = supabase_get(f"usuarios?id=eq.{sub}&select=activo")
+        if u and u[0].get("activo") is False:
+            return JSONResponse(status_code=401, content={"error": "Cuenta desactivada"})
+    nuevo = {k: v for k, v in payload.items() if k not in ("exp", "iat", "nbf")}
+    return {"token": create_token(nuevo, expires_hours=TOKEN_CLIENTE_HORAS)}
 
 
 @router.get("/perfil/{usuario_id}")
@@ -296,7 +320,7 @@ def google_login(request: Request, datos: dict):
                     supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
                     u["cliente_id"] = cliente_id
 
-        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": u.get("cliente_id")})
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": u.get("cliente_id")}, expires_hours=TOKEN_CLIENTE_HORAS)
         return {
             "token": token,
             "id": u["id"],

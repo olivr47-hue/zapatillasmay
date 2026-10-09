@@ -641,6 +641,18 @@ if (sesion) {
 } else if (sesionCliente) {
   try {
     renderPortalCliente(JSON.parse(sesionCliente))
+    // Renovación de sesión: cada vez que la clienta entra (o vuelve a la pestaña tras unas horas) se le da un token nuevo de 60 días,
+    // así quien usa el portal seguido ya no se queda fuera cuando vencía el anterior.
+    const _renovar = () => {
+      const t = localStorage.getItem('erp_token')
+      if (!t) return
+      try { if (Date.now() - parseInt(localStorage.getItem('zm_renovado') || '0', 10) < 6 * 3600 * 1000) return } catch (e) {}
+      fetch('/api/auth/renovar', { method: 'POST' }).then(r => r.ok ? r.json() : null).then(d => {
+        if (d && d.token) { try { localStorage.setItem('erp_token', d.token); localStorage.setItem('zm_renovado', String(Date.now())) } catch (e) {} }
+      }).catch(() => {})
+    }
+    _renovar()
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) _renovar() })
   } catch(e) {
     renderLogin()
   }

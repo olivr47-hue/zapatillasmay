@@ -59,7 +59,7 @@ def _emitir_token(usuario_id, cliente: dict) -> str:
         "cliente_id": cliente["id"],
         "rol": "cliente",
         "tipo": cliente.get("tipo"),
-    })
+    }, expires_hours=60 * 24)
 
 
 def _validar_mayoreo(cliente: dict):
