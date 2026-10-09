@@ -166,6 +166,9 @@ async function cargarDatos() {
   }
 }
 
+// Cierra la ventana (después de enviar fotos); el aviso «✓ enviada» queda a la vista porque no vive dentro de la ventana
+function cerrarVentana() { document.getElementById('modal-exist')?.remove(); E = null }
+
 function aviso(t, ok = true) {
   const d = document.createElement('div'); d.textContent = t
   d.style.cssText = `position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:${ok ? '#0f172a' : '#b91c1c'};color:#fff;padding:9px 16px;border-radius:100px;font-size:0.82rem;z-index:100100;max-width:90vw;text-align:center`
@@ -192,7 +195,9 @@ async function enviarFoto(key) {
     aviso('📤 Enviando foto…')
     await post(`/chatbot/chats/${encodeURIComponent(E.tel)}/imagen`, { imagen_url: paraWhatsApp(f.c.foto), caption: textoCliente(f.p, f.c), agente: yo() })
     aviso('✓ Foto enviada')
-    if (window._refrescarChatAbierto) window._refrescarChatAbierto(E.tel, false)
+    const tel = E.tel
+    cerrarVentana()
+    if (window._refrescarChatAbierto) window._refrescarChatAbierto(tel, false)
   } catch (e) { aviso('No se pudo enviar: ' + e.message, false) }
 }
 async function enviarTexto(key) {
@@ -220,8 +225,9 @@ async function enviarSeleccion() {
       await post(`/chatbot/chats/${encodeURIComponent(E.tel)}/carrusel`, { cuerpo: E.intro, tarjetas: filas.map(f => ({ imagen_url: paraWhatsApp(f.c.foto), texto: textoCliente(f.p, f.c) })), agente: yo() })
     }
     aviso(`✓ ${filas.length} foto${filas.length === 1 ? '' : 's'} enviada${filas.length === 1 ? '' : 's'}`)
-    E.sel.clear(); pintar()
-    if (window._refrescarChatAbierto) window._refrescarChatAbierto(E.tel, false)
+    const tel = E.tel
+    cerrarVentana()
+    if (window._refrescarChatAbierto) window._refrescarChatAbierto(tel, false)
   } catch (e) { aviso('No se pudo enviar: ' + e.message, false); pintarPie() }
 }
 
@@ -260,7 +266,7 @@ window.waExistencias = function (telefono) {
     <div id="ex-pie" style="display:none;gap:8px;align-items:center;flex-flow:row wrap;background:#fff;border-top:1px solid #eef0f3;padding:10px 12px"></div>
   </div>`
   document.body.appendChild(m)
-  const cerrar = () => { m.remove(); E = null }
+  const cerrar = cerrarVentana
   m.addEventListener('mousedown', (e) => { m._abajo = e.target === m })
   m.addEventListener('click', (e) => {
     if (e.target === m && m._abajo) return cerrar()
