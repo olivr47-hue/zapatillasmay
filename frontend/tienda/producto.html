@@ -1326,7 +1326,9 @@ function pedirSeleccion() {
   const faltaColor = !colorSeleccionado && document.getElementById('color-grid')
   const destino = document.getElementById(faltaColor ? 'color-grid' : 'talla-grid')
   if (!destino) return
-  const y = destino.getBoundingClientRect().top + window.scrollY - 150
+  // Se detiene con el color a la vista (arriba) y las tallas justo debajo; si el modelo no tiene colores, en la etiqueta de talla
+  const _ancla = (document.getElementById('color-grid') && document.getElementById('color-grid').previousElementSibling) || document.getElementById('talla-section-label') || destino
+  const y = _ancla.getBoundingClientRect().top + window.scrollY - 150
   window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' })
   destino.classList.remove('pulsar-sel'); void destino.offsetWidth; destino.classList.add('pulsar-sel')
   try { mostrarToast(faltaColor ? 'Elige un color para continuar' : 'Elige tu talla para continuar') } catch (e) {}
