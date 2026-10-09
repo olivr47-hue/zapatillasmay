@@ -18413,10 +18413,14 @@ window._renderBurbujas = (chat) => {
     // Construir body de la burbuja según tipo
     let msgBody = '', carruselFotos = []
     if (m.tipo === 'imagen_saliente') {
-      const imgUrlRaw = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
+      const _sinEtq = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '')
+      const imgUrlRaw = _sinEtq.split('\n')[0].trim()
       const imgUrl = urlOk(imgUrlRaw)
+      // El texto que va debajo de la foto (nombre, precio y tallas…): se guarda tras la dirección de la imagen y WhatsApp lo muestra; el panel también
+      const _pie = _sinEtq.split('\n').slice(1).join('\n').trim()
+      const _pieHTML = _pie ? `<p style="margin:6px 0 0;font-size:0.84rem;white-space:pre-wrap;word-break:break-word;max-width:260px">${window._linkifyWA(esc(_pie))}</p>` : ''
       msgBody = imgUrl && imgUrlRaw.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)
-        ? `<a href="${imgUrl}" target="_blank" rel="noopener"><img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer"></a>`
+        ? `<a href="${imgUrl}" target="_blank" rel="noopener"><img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer"></a>${_pieHTML}`
         : `<p style="word-break:break-word">${window._linkifyWA(textoLimpio)}</p>`
     } else if (m.tipo === 'documento_saliente') {
       const _docRaw = textoLimpio.replace('[Documento] ', '')
