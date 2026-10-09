@@ -11,6 +11,7 @@ import './webm-a-ogg.js'
 import './tareas-equipo.js'
 import './atencion-hoy.js'
 import './existencias-chat.js'
+import './novedades-modelos.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -5228,6 +5229,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
             <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:180px" oninput="filtrarProductos()">
             ${filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-bulk-prod" onclick="window.toggleModoBulkEdit()" style="display:flex;align-items:center;gap:6px;font-weight:700">✏️ Edición masiva</button>` : ''}
             ${!mostrarInactivos && filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>` : ''}
+            <button class="btn btn-secondary" onclick="abrirNovedadesModelos()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Elegir qué modelos salen en Novedades y con qué etiqueta (Nuevo / Resurtido)">✨ Novedades</button>
             <button class="btn btn-secondary" onclick="abrirFotosLimpias()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Elegir la foto donde se ve el zapato solo">📸 Fotos limpias</button>
             ${!mostrarInactivos ? `<button class="btn btn-secondary" onclick="abrirModelosSinFoto()" style="display:flex;align-items:center;gap:6px;font-weight:700;${activos.some(p => !(p.imagen_principal || '').trim()) ? 'color:#b45309;border-color:#fcd34d' : ''}" title="Modelos activos que no tienen foto principal (no se ven en el sitio)">🖼️ Sin foto (${activos.filter(p => !(p.imagen_principal || '').trim()).length})</button>` : ''}
              <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
