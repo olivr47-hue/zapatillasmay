@@ -18175,7 +18175,7 @@ window._recargarChats = async () => {
     chats.forEach(c => {
       const existente = window._chatsData[c.telefono]
       // Historial completo ya cargado: se conserva y se le suman los mensajes más recientes que trae el listado
-      if (existente && existente._historial_completo && existente.mensajes.length > c.mensajes.length) {
+      if (existente && existente._historial_completo) {   // siempre se combina: nunca se reemplaza el historial por la lista corta
         // OJO: la clave NO puede usar `id`: el historial completo (/chats/{tel}/mensajes) trae `id` y el listado (/chats) no, así que
         // el mismo mensaje tenía dos claves distintas y cada actualización lo volvía a sumar (mensajes duplicados al cambiar de chat).
         // Se usa wa_message_id (viene en los dos) o, si no hay, fecha + texto.
@@ -19403,6 +19403,9 @@ window._pintarBurbujas = (el, chat) => {
   const tmp = document.createElement('div')
   tmp.innerHTML = window._renderBurbujas(chat)
   const nuevos = [...tmp.children], viejos = [...el.children]
+  // Red de seguridad: si de pronto llegara una versión de la conversación mucho más corta que la que ya se ve (datos incompletos), NO se pinta:
+  // antes eso borraba de golpe la mayor parte de los mensajes con el chat abierto.
+  if (viejos.length > 8 && nuevos.length < viejos.length * 0.6) { console.warn('[chat] versión incompleta de la conversación; no se repinta', nuevos.length, '<', viejos.length); return }
   nuevos.forEach((n, k) => {
     const v = viejos[k]
     if (!v) { el.appendChild(n); return }
