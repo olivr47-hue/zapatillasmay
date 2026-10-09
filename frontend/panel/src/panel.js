@@ -18814,17 +18814,26 @@ area.style.minHeight = '0'
   }
   setTimeout(_scrollMensajes, 100)
 
+  window._chatActivo = telefono   // desde ya: así el historial que llega después sabe si todavía es el chat abierto
   // Cargar historial individual completo si no lo tenemos aún
   if (!chat._historial_completo) {
     try {
       const msgs = await fetch(`${API}/chatbot/chats/${telefono}/mensajes`).then(r => r.json())
       if (Array.isArray(msgs) && msgs.length > 0) {
         const nombre = msgs.find(m => m.nombre_contacto && m.nombre_contacto !== telefono)?.nombre_contacto || chat.nombre
-        window._chatsData[telefono] = { ...chat, nombre, mensajes: msgs, _historial_completo: true }
+        // Lo que ya estaba en pantalla y es MÁS NUEVO que lo que trajo el historial (tu respuesta recién enviada, un mensaje que acaba de
+        // llegar) se conserva: el historial se pidió antes y no lo trae. Antes lo pisaba y esos mensajes desaparecían unos segundos.
+        const _actual = window._chatsData[telefono]
+        const _tope = msgs[0] && msgs[0].created_at ? new Date(msgs[0].created_at).getTime() : 0
+        const _extra = ((_actual && _actual.mensajes) || []).filter(m => m._temporal || (_tope && m.created_at && new Date(m.created_at).getTime() > _tope))
+        window._chatsData[telefono] = { ...(_actual || chat), nombre, mensajes: [..._extra, ...msgs], _historial_completo: true }
         chat = window._chatsData[telefono]
+        // Si mientras cargaba el historial ya abriste OTRA conversación, no se pinta nada: antes este historial se dibujaba encima del chat abierto
+        // y mezclaba o borraba sus mensajes.
+        if (window._chatActivo !== telefono) return
         // Actualizar contador en sub-header
         const sub = document.querySelector(`#chat-area .wa-header-sub`)
-        if (sub) sub.textContent = `${chat.telefono} · ${msgs.length} msg`
+        if (sub) sub.textContent = `${chat.telefono} · ${chat.mensajes.length} msg`
         // Re-renderizar burbujas con historial completo
         const ma = document.getElementById('mensajes-area')
         if (ma) {
