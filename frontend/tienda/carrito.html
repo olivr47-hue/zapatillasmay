@@ -138,7 +138,11 @@
     .modal-actions .confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,150,122,0.5); }
     .modal-actions .confirm:disabled { opacity: 0.6; cursor: not-allowed; }
 
+    /* Barra fija de pago (solo celular): el botón real queda debajo de «Combínalo con» y se perdían compras antes de llegar a él */
+    #barra-pagar { display: none; }
     @media (max-width: 600px) {
+      body.hay-carrito.sin-boton-pago #barra-pagar { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(255,255,255,0.96); border-top: 1px solid rgba(200,150,122,0.2); box-shadow: 0 -6px 20px rgba(0,0,0,0.06); }
+      #barra-pagar .btn-checkout { padding: 15px; }
       .item-card { padding: 12px; gap: 12px; }
       .item-img, .item-img-placeholder { width: 72px; height: 88px; }
       h1 { font-size: 1.9rem; }
@@ -279,6 +283,7 @@ function render() {
   carrito = leerCarrito()
   const total = totalPares(carrito)
 
+  document.body.classList.toggle('hay-carrito', carrito.length > 0)
   if (!carrito.length) {
     document.getElementById('carrito-vacio').style.display = ''
     document.getElementById('carrito-contenido').style.display = 'none'
@@ -413,6 +418,8 @@ function render() {
   // Actualizar texto del botón con el total
   const btnText = document.getElementById('btn-checkout-text')
   if (btnText) btnText.textContent = `Finalizar compra · $${totalFinal.toFixed(0)} MXN`
+  const _bp = document.getElementById('barra-pagar-texto')
+  if (_bp) _bp.textContent = `Finalizar compra · $${totalFinal.toFixed(0)} MXN`
   // Guardar para usar en procesarPago
   window._carritoTotal = totalFinal
   window._costoEnvio = costoEnvio
@@ -633,5 +640,14 @@ async function init() {
 init()
 </script>
 <script defer src="/animations.js?v=3"></script>
+<div id="barra-pagar"><button class="btn-checkout" onclick="abrirCheckout()"><span id="barra-pagar-texto">Finalizar compra</span></button></div>
+<script>
+// La barra fija solo se muestra mientras el botón de pago de la página no está a la vista
+(function () {
+  var real = document.getElementById('btn-checkout')
+  if (!real || !('IntersectionObserver' in window)) return
+  new IntersectionObserver(function (e) { document.body.classList.toggle('sin-boton-pago', !e[0].isIntersecting) }).observe(real)
+})()
+</script>
 </body>
 </html>

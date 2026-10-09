@@ -285,6 +285,16 @@
     .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+    /* Celular: foto menos alta (4:3) para que precio, color y talla se vean antes; burbuja de WhatsApp solo con ícono para no tapar botones;
+       tras agregar, el botón principal pasa a «Ir a pagar» y se oculta el botón chico de «Ver carrito» */
+    @media (max-width: 639px) {
+      .gallery-main { aspect-ratio: 4/3; }
+      #btn-float-wa { padding: 12px !important; border-radius: 50% !important; bottom: calc(74px + env(safe-area-inset-bottom, 0px) + 40px) !important; }
+      #btn-float-wa span { display: none !important; }
+    }
+    .ir-pagar #btn-ver-carrito { display: none !important; }
+    .btn-agregar.ir-pagar-btn { background: linear-gradient(135deg,#e91e8c,#b5687a); box-shadow: 0 6px 24px rgba(233,30,140,0.4); }
+
     @media (min-width: 640px) {
       .gallery-main { max-width: 480px; margin: 0 auto; }
       .gallery-thumbs { max-width: 480px; margin: 0 auto; justify-content: center; }
@@ -1124,6 +1134,7 @@ function renderTallas(color, varsProd) {
 }
 
 function seleccionarColor(color) {
+  window._irAPagar = false
   // Defensivo: si el usuario toca un color antes de que termine de cargar
   // el producto (fetch async todavía en curso), reintentar en breve en vez
   // de tronar en silencio y dejar la foto pegada en la de portada.
@@ -1212,6 +1223,7 @@ function avisarAgotada(t) {
 }
 
 function seleccionarTalla(talla) {
+  window._irAPagar = false
   const _am = document.getElementById('talla-agotada-msg'); if (_am) _am.remove()
   tallaSeleccionada = talla
   document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('active'))
@@ -1273,6 +1285,16 @@ function cambiarFoto(idx) {
 
 function actualizarCTA() {
   const btn = document.getElementById('btn-agregar')
+  // Recién agregado y sin otra talla elegida: el botón principal lleva a pagar (antes volvía a decir «Elige tu talla» y parecía que no había pasado nada)
+  if (window._irAPagar && !tallaSeleccionada) {
+    btn.textContent = 'Ir a pagar →'
+    btn.disabled = false
+    btn.classList.remove('pendiente', 'listo')
+    btn.classList.add('ir-pagar-btn')
+    document.body.classList.add('ir-pagar')
+    return
+  }
+  btn.classList.remove('ir-pagar-btn'); document.body.classList.remove('ir-pagar')
   const varsProd = variantes.filter(v => v.producto_id === producto.id && v.activa !== false)
   if (!colorSeleccionado) {
     btn.textContent = 'Elige tu color →'
@@ -1313,6 +1335,7 @@ function pedirSeleccion() {
 
 function irACarrito() {
   if (!producto) return
+  if (window._irAPagar && !tallaSeleccionada) { window.location.href = '/carrito'; return }
   if (!colorSeleccionado || !tallaSeleccionada) { pedirSeleccion(); return }
   const p = producto
   const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
@@ -1399,8 +1422,8 @@ function irACarrito() {
   setTimeout(() => {
     tallaSeleccionada = null
     document.querySelectorAll('.talla-btn').forEach(b => { b.classList.remove('selected'); b.classList.remove('active') })
-    const btn = document.getElementById('btn-agregar')
-    if (btn) { btn.textContent = 'Elige tu talla →'; btn.disabled = false; btn.classList.add('pendiente'); btn.classList.remove('listo') }
+    window._irAPagar = true
+    actualizarCTA()
   }, 480)
 }
 
