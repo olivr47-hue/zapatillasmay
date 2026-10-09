@@ -115,17 +115,27 @@ def enviar_ga4_purchase(pedido, payment):
             ga_items = [{"item_name": "Pedido", "quantity": 1, "price": total}]
         # client_id: el real de GA si se guardó, si no uno estable derivado del pedido
         client_id = pedido.get("ga_client_id") or f"{pedido_id}.0"
+        params = {
+            "transaction_id": payment_id,
+            "currency": "MXN",
+            "value": total,
+            "items": ga_items,
+            # Sin session_id y engagement_time_msec GA4 deja la compra en «Sin asignar»; con ellos la une a la sesión original.
+            "engagement_time_msec": 100,
+        }
+        sid = str(pedido.get("ga_session_id") or "").strip()
+        if sid.isdigit():
+            params["session_id"] = int(sid)
+        # Fuente de la campaña guardada en el pedido (utm / gclid) para que no se pierda si la sesión ya expiró
+        if pedido.get("utm_source"):
+            params["campaign_source"] = pedido["utm_source"]
+        if pedido.get("utm_medium"):
+            params["campaign_medium"] = pedido["utm_medium"]
+        if pedido.get("utm_campaign"):
+            params["campaign"] = pedido["utm_campaign"]
         body = {
             "client_id": client_id,
-            "events": [{
-                "name": "purchase",
-                "params": {
-                    "transaction_id": payment_id,
-                    "currency": "MXN",
-                    "value": total,
-                    "items": ga_items,
-                },
-            }],
+            "events": [{"name": "purchase", "params": params}],
         }
         url = f"https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={api_secret}"
         req = urllib.request.Request(

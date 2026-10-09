@@ -728,6 +728,7 @@ async function procesarPago() {
         client_user_agent: navigator.userAgent || '',
         // client_id real de GA4 (del cookie _ga: GA1.1.<client_id>) para que el
         // Purchase server-side recupere la fuente original de la sesión en GA4.
+        ga_session_id: (function(){ try { return (document.cookie.match(/_ga_QX8MK3D4RY=GS\d\.\d\.(\d+)/)||[])[1] || '' } catch(e){ return '' } })(),
         ga_client_id: (function(){ try { return (document.cookie.match(/_ga=GA\d+\.\d+\.(\d+\.\d+)/)||[])[1] || '' } catch(e){ return '' } })(),
         gclid:  (function(){ try { return new URLSearchParams(location.search).get('gclid')  || localStorage.getItem('zm_gclid')  || '' } catch(e){ return '' } })(),
         fbclid: (function(){ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })(),

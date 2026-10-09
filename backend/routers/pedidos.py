@@ -912,7 +912,7 @@ def crear_pedido(pedido: dict, request: Request):
         # Si PostgREST tiene el schema cache desactualizado retorna PGRST204; en ese caso
         # insertamos sin esos campos y luego hacemos PATCH para no perder la atribución.
         ATRIBUCION_KEYS = (
-            "ga_client_id", "fbc", "fbp", "fbclid", "gclid",
+            "ga_client_id", "ga_session_id", "fbc", "fbp", "fbclid", "gclid",
             "client_user_agent", "client_ip_address",
             "ciudad_cliente", "estado_cliente", "cp_cliente",
             "utm_source", "utm_medium", "utm_campaign", "referrer_origen",

@@ -634,6 +634,54 @@ def _loop_chats_sin_responder():
         _time.sleep(30 * 60)
 
 
+def _salud_integraciones():
+    """Revisa cada integración y devuelve {nombre: error o None}."""
+    res = {}
+    try:
+        r = mercadolibre.ping()
+        res["MercadoLibre"] = None if r.get("ok") else str(r.get("error") or "token inválido")
+    except Exception as e:
+        res["MercadoLibre"] = str(e)[:120]
+    try:
+        if os.getenv("SHEIN_OPEN_KEY") or os.getenv("SHEIN_SECRET_KEY") or shein._secret_key():
+            r = shein.ping()
+            res["SHEIN"] = None if r.get("ok") else str(r.get("error") or "sin respuesta")[:160]
+    except Exception as e:
+        res["SHEIN"] = str(e)[:120]
+    try:
+        import urllib.request as _u
+        tok = os.environ.get("WHATSAPP_TOKEN", "")
+        if tok:
+            _u.urlopen(_u.Request(f"https://graph.facebook.com/v25.0/me?access_token={tok}"), timeout=15).read()
+            res["WhatsApp"] = None
+    except Exception as e:
+        res["WhatsApp"] = f"token rechazado o sin respuesta ({str(e)[:80]})"
+    return res
+
+
+def _loop_salud_integraciones():
+    """Cada 30 min revisa ML, SHEIN y WhatsApp. Si una falla 2 veces seguidas avisa por push a los admins (máx. 1 aviso cada 12 h por
+    integración) y avisa también cuando se recupera. Antes una integración caída pasaba días sin que nadie se enterara."""
+    _time.sleep(400)
+    fallas, avisado = {}, {}
+    while True:
+        try:
+            for nombre, err in _salud_integraciones().items():
+                if err is None:
+                    if avisado.pop(nombre, None):
+                        push.enviar_push(f"✅ {nombre} volvió a funcionar", "La conexión ya responde con normalidad.", url="/?modulo=conexiones", sitio="panel")
+                    fallas[nombre] = 0
+                    continue
+                fallas[nombre] = fallas.get(nombre, 0) + 1
+                print(f"[salud] {nombre} falla ({fallas[nombre]}): {err}")
+                if fallas[nombre] >= 2 and (_time.time() - avisado.get(nombre, 0)) > 12 * 3600:
+                    avisado[nombre] = _time.time()
+                    push.enviar_push(f"⚠️ {nombre} no está conectado", f"{err[:150]}. Revisa Conexiones.", url="/?modulo=conexiones", sitio="panel")
+        except Exception as e:
+            print(f"[salud] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
+
 @app.on_event("startup")
 def _iniciar_hilos():
     # Carrito abandonado
@@ -695,6 +743,9 @@ def _iniciar_hilos():
     t6 = threading.Thread(target=_loop_reporte_semanal, daemon=True)
     t6.start()
     print("[reporte-semanal] Hilo de reporte semanal iniciado (lunes 9am)")
+    # Salud de integraciones (aviso si se cae ML/SHEIN/WhatsApp)
+    threading.Thread(target=_loop_salud_integraciones, daemon=True).start()
+    print("[salud] Hilo de salud de integraciones iniciado (cada 30 min)")
     # Aviso diario de clientas sin responder
     t9 = threading.Thread(target=_loop_chats_sin_responder, daemon=True)
     t9.start()

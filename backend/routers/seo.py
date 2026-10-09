@@ -216,13 +216,21 @@ def _producto_ssr_inner(sku: str, request: Request):
     canonical = f"https://zapatillasmay.mx/producto/{url_canonica}"
 
     # Imágenes para SEO de imágenes (Google Images / Shopping): principal + variantes
+    _hay_stock = True   # si no se puede comprobar, se asume que hay (no marcar agotado por error)
     imagenes_seo = []
     if imagen:
         imagenes_seo.append(imagen)
     try:
         variantes = supabase_get(
-            f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=foto_url,imagenes,color"
+            f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=id,foto_url,imagenes,color"
         )
+        try:
+            _ids = [v["id"] for v in (variantes or []) if v.get("id")]
+            if _ids:
+                _inv = supabase_get(f"inventario?variante_id=in.({','.join(_ids)})&select=cantidad")
+                _hay_stock = any((i.get("cantidad") or 0) > 0 for i in (_inv or []))
+        except Exception:
+            _hay_stock = True
         for v in (variantes or []):
             if v.get("foto_url"):
                 imagenes_seo.append(v["foto_url"])
@@ -346,7 +354,7 @@ def _producto_ssr_inner(sku: str, request: Request):
             # generaba un mismatch de $80 contra el precio real -- Merchant Center
             # y Rich Results lo detectan y pueden rechazar el listado por eso.
             "price": str(precio_display),
-            "availability": "https://schema.org/InStock",
+            "availability": "https://schema.org/InStock" if _hay_stock else "https://schema.org/OutOfStock",
             "seller": {"@type": "Organization", "name": "Zapatillas May"},
             "shippingDetails": {
                 "@type": "OfferShippingDetails",
