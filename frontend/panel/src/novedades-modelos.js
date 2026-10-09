@@ -4,6 +4,8 @@
 //   · ✨ Nuevo     → sale en Novedades con la etiqueta «Nuevo», sin importar cuándo se dio de alta
 //   · 🔄 Resurtido → sale en Novedades con la etiqueta «Resurtido» (volvió a haber existencia)
 //   · 🚫 Fuera     → no sale en Novedades aunque sea reciente
+// Además, por modelo se pueden marcar COLORES sueltos («🎨 Colores»): cuando solo llegó un color nuevo o solo se resurtió uno, el modelo sale
+// en Novedades con la etiqueta de ese color (por ejemplo «Resurtido · Negro») y la foto de ese color.
 const API = '/api'
 const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const norm = (v) => String(v == null ? '' : v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -12,26 +14,47 @@ const mini = (u, w = 80) => (u && /\/image\/upload\//.test(u)) ? u.replace('/ima
 let N = null   // estado de la ventana abierta
 
 const diasAlta = (p) => p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 9999
-const enNovedades = (p) => p.novedad === 'no' ? false : (p.novedad === 'nuevo' || p.novedad === 'resurtido') ? true : diasAlta(p) < 30
+const coloresMarcados = (p) => (p.novedad_colores && typeof p.novedad_colores === 'object') ? Object.keys(p.novedad_colores).filter(c => p.novedad_colores[c]) : []
+const enNovedades = (p) => p.novedad === 'no' ? false : coloresMarcados(p).length ? true : (p.novedad === 'nuevo' || p.novedad === 'resurtido') ? true : diasAlta(p) < 30
+const coloresDe = (p) => [...new Set((N.variantes || []).filter(v => v.producto_id === p.id && v.activa !== false && v.color).map(v => String(v.color).trim()))]
+
+function coloresHTML(p) {
+  const cols = coloresDe(p)
+  const mc = p.novedad_colores || {}
+  return cols.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+    <span style="flex:1;font-size:0.76rem;color:#334155">🎨 ${esc(c)}</span>
+    <select class="form-input" style="width:150px;font-size:0.74rem" onchange="novColor('${esc(p.id)}', '${esc(c)}', this)">
+      <option value="" ${!mc[c] ? 'selected' : ''}>— (sin marcar)</option>
+      <option value="nuevo" ${mc[c] === 'nuevo' ? 'selected' : ''}>✨ Color nuevo</option>
+      <option value="resurtido" ${mc[c] === 'resurtido' ? 'selected' : ''}>🔄 Resurtido</option>
+    </select></div>`).join('')
+}
 
 function filaHTML(p) {
   const en = enNovedades(p)
   const sel = p.novedad || ''
   const d = diasAlta(p)
-  return `<div class="nov-fila" data-id="${esc(p.id)}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+  const nCol = coloresMarcados(p).length
+  const nTodos = coloresDe(p).length
+  return `<div class="nov-fila" data-id="${esc(p.id)}" style="padding:8px 0;border-bottom:1px solid #f1f5f9"><div style="display:flex;align-items:center;gap:10px">
     ${p.imagen_principal ? `<img src="${esc(mini(p.imagen_principal))}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f1f5f9">` : '<div style="width:44px;height:44px;border-radius:8px;background:#f1f5f9;flex-shrink:0"></div>'}
     <div style="flex:1;min-width:0">
       <div style="font-size:0.84rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</div>
       <div style="font-size:0.7rem;color:#94a3b8">${esc(p.sku_interno || '')} · alta hace ${d >= 9999 ? '?' : d + ' día' + (d === 1 ? '' : 's')}
-        · <span class="nov-estado" style="font-weight:700;color:${en ? '#15803d' : '#94a3b8'}">${en ? '✓ Sale en Novedades' : 'No sale'}</span></div>
+        · <span class="nov-estado" style="font-weight:700;color:${en ? '#15803d' : '#94a3b8'}">${en ? (nCol ? '✓ Sale por color' : '✓ Sale en Novedades') : 'No sale'}</span></div>
     </div>
+    ${nTodos > 1 ? `<button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 8px;flex-shrink:0" onclick="novVerColores('${esc(p.id)}')" title="Marcar solo algunos colores">🎨 Colores${nCol ? ' (' + nCol + ')' : ''}</button>` : ''}
     <select class="form-input nov-sel" style="width:170px;font-size:0.78rem;flex-shrink:0" onchange="novCambiar('${esc(p.id)}', this)">
       <option value="" ${sel === '' ? 'selected' : ''}>Automático${d < 30 ? ' (Nuevo)' : ' (no sale)'}</option>
       <option value="nuevo" ${sel === 'nuevo' ? 'selected' : ''}>✨ Nuevo</option>
       <option value="resurtido" ${sel === 'resurtido' ? 'selected' : ''}>🔄 Resurtido</option>
       <option value="no" ${sel === 'no' ? 'selected' : ''}>🚫 Fuera de novedades</option>
     </select>
-  </div>`
+  </div>
+  <div class="nov-colores" style="display:none;margin:6px 0 2px 54px;padding:8px 10px;background:#f8fafc;border-radius:8px">
+    <div style="font-size:0.7rem;color:#64748b;margin-bottom:4px">Marca solo los colores que llegaron nuevos o se resurtieron. El modelo saldrá con la foto y la etiqueta de ese color.</div>
+    ${coloresHTML(p)}
+  </div></div>`
 }
 
 function pintarLista() {
@@ -72,6 +95,38 @@ window.novCambiar = async (id, selectEl) => {
   } catch (e) {
     alert('No se pudo guardar el cambio: ' + e.message)
     selectEl.value = antes || ''
+  } finally { selectEl.disabled = false }
+}
+
+window.novVerColores = (id) => {
+  const f = document.querySelector(`.nov-fila[data-id="${id}"] .nov-colores`)
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none'
+}
+
+window.novColor = async (id, color, selectEl) => {
+  const p = N && N.productos.find(x => x.id === id)
+  if (!p) return
+  const previo = p.novedad_colores ? { ...p.novedad_colores } : {}
+  const mc = { ...previo }
+  if (selectEl.value) mc[color] = selectEl.value; else delete mc[color]
+  const vacio = Object.keys(mc).length === 0
+  selectEl.disabled = true
+  try {
+    const r = await fetch(API + '/productos/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ novedad_colores: vacio ? null : mc, novedad_at: vacio ? (p.novedad === 'nuevo' || p.novedad === 'resurtido' ? p.novedad_at : null) : new Date().toISOString() }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || (d && d.error)) throw new Error((d && d.error) || ('Error ' + r.status))
+    p.novedad_colores = vacio ? null : mc
+    const fila = selectEl.closest('.nov-fila')
+    const abierto = fila.querySelector('.nov-colores').style.display !== 'none'
+    fila.outerHTML = filaHTML(p)
+    if (abierto) window.novVerColores(id)
+    const tot = N.productos.filter(enNovedades).length
+    const el = document.getElementById('nov-resumen')
+    if (el) el.textContent = `${tot} modelo${tot === 1 ? '' : 's'} salen ahora en Novedades de ${N.productos.length}`
+  } catch (e) {
+    alert('No se pudo guardar el cambio: ' + e.message)
+    selectEl.value = previo[color] || ''
   } finally { selectEl.disabled = false }
 }
 
@@ -119,10 +174,11 @@ window.abrirNovedadesModelos = async () => {
   </div>`
   document.body.appendChild(m)
   try {
-    const r = await fetch(API + '/productos/?activo=true')
+    const [r, rv] = await Promise.all([fetch(API + '/productos/?activo=true'), fetch(API + '/variantes/').catch(() => null)])
     const l = await r.json()
-    N = { productos: (Array.isArray(l) ? l : []).filter(p => p.activo !== false).sort((a, b) => (new Date(b.created_at) - new Date(a.created_at))) }
-  } catch (e) { N = { productos: [] } }
+    const vs = rv && rv.ok ? await rv.json() : []
+    N = { variantes: Array.isArray(vs) ? vs : [], productos: (Array.isArray(l) ? l : []).filter(p => p.activo !== false).sort((a, b) => (new Date(b.created_at) - new Date(a.created_at))) }
+  } catch (e) { N = { variantes: [], productos: [] } }
   pintarLista()
 }
 window.novFiltrar = () => pintarLista()
