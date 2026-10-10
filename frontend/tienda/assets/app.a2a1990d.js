@@ -1229,6 +1229,13 @@ cargarConfigSEO()
         document.getElementById('productos-titulo').innerHTML = _tituloHome()
         renderProductos(productos.filter(p => p.activo))
       }
+      // Al recargar una vista de lista (catálogo, categoría, ofertas...) el navegador restauraba el scroll de antes y el título de la lista
+      // quedaba escondido detrás del buscador fijo. Se vuelve arriba, salvo que la persona ya haya empezado a moverse sola.
+      if (_path !== '/' || _hash) {
+        let _movio = false
+        ;['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, () => { _movio = true }, { once: true, passive: true }))
+        ;[0, 200, 600, 1400].forEach(ms => setTimeout(() => { if (!_movio && window.scrollY > 0) window.scrollTo(0, 0) }, ms))
+      }
     } catch(e) {
       console.error('Error cargando datos:', e)
     }
