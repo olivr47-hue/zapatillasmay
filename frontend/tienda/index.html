@@ -1999,6 +1999,11 @@ function zmRechazarCookies() {
 .hero-title { animation-delay: .05s; } .hero-subtitle { animation-delay: .12s; } .hero-cta { animation-delay: .18s; } .hero-offer { animation-delay: .24s; }
 /* El visor 360° quedaba en opacity:0 (base del CSS) hasta que GSAP lo mostraba; sin esa animación hay que dejarlo visible */
 #hero-shoe-wrap { opacity: 1 !important; }
+/* Computadora: el título del hero se leía muy claro sobre la foto */
+@media (min-width: 769px) {
+  .hero-title { color: #2A1A0E !important; font-weight: 500 !important; }
+  .hero-title em { color: #9c5568 !important; font-style: italic !important; }
+}
 @media (max-width: 768px) {
   html.ruta-home #hero-section { margin-top: 104px !important; }
   /* Tarjeta: la foto COMPLETA arriba (así se ve todo el zapato) y el mensaje debajo, sobre fondo crema: nada de texto encima del modelo */
