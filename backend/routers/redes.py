@@ -127,7 +127,10 @@ def _graph(ruta: str, metodo: str = "GET", datos: dict = None, token: str = None
             err = (json.loads(crudo).get("error") or {})
         except Exception:
             err = {}
-        raise _GraphError(err.get("code"), err.get("message") or crudo[:200])
+        det = err.get("error_user_msg") or err.get("error_user_title") or ""
+        sub = err.get("error_subcode")
+        msg = (err.get("message") or crudo[:200]) + (f" [subcódigo {sub}]" if sub else "") + (f" — {det}" if det else "")
+        raise _GraphError(err.get("code"), msg)
     except Exception as e:
         raise _GraphError(None, str(e))
 
@@ -237,9 +240,15 @@ def _ig_producto_meta(cuentas, producto_id):
         r = _graph(f"{ig}/catalog_product_search?catalog_id={catalogo}&q={urllib.parse.quote(sku)}&limit=50").get("data") or []
         # Se devuelven TODOS los artículos del modelo (uno por color/talla): si Meta rechaza el primero (por ejemplo una variante sin
         # existencia o que aún no termina de aprobarse), se prueba con el siguiente en vez de publicar sin etiqueta.
+        mios = [it for it in r if str(it.get("retailer_id") or "").startswith(sku + "-") and it.get("product_id")]
+        # Meta solo deja etiquetar artículos APROBADOS (review_status); los demás (pendientes o rechazados) dan «Invalid parameter»
+        aprobados = [it for it in mios if str(it.get("review_status") or "approved").lower() == "approved"]
+        if mios and not aprobados:
+            estados = sorted({str(it.get("review_status") or "?") for it in mios})
+            return None, f"el modelo {sku} está en tu catálogo de Meta pero ningún artículo está aprobado todavía (estado: {', '.join(estados)})"
         ids = []
-        for it in r:
-            if str(it.get("retailer_id") or "").startswith(sku + "-") and it.get("product_id") and str(it["product_id"]) not in ids:
+        for it in aprobados:
+            if str(it["product_id"]) not in ids:
                 ids.append(str(it["product_id"]))
         if ids:
             _CACHE_META_ID[producto_id] = (time.time(), ids)
@@ -291,6 +300,24 @@ def _publicar_instagram(cuentas, urls, caption, historia=False, meta_id=None):
         c = _graph(f"{ig}/media", "POST", {"media_type": "CAROUSEL", "children": ",".join(hijos), "caption": caption})["id"]
     _esperar_contenedor(c)
     return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id"), aviso
+
+
+@router.get("/diagnostico-etiqueta/{producto_id}")
+def diagnostico_etiqueta(producto_id: str, _staff=Depends(require_staff)):
+    """Solo lectura: qué artículos de este modelo ve Meta en el catálogo de Instagram y en qué estado están (no publica nada)."""
+    try:
+        cuentas = _cuentas()
+        ig = cuentas.get("ig_id")
+        cats = _graph(f"{ig}/available_catalogs").get("data") or []
+        fila = (supabase_get(f"productos?id=eq.{urllib.parse.quote(str(producto_id), safe='')}&select=sku_interno,nombre&limit=1") or [{}])[0]
+        sku = (fila.get("sku_interno") or "").strip()
+        out = {"sku": sku, "nombre": fila.get("nombre"), "catalogos": [{"id": c.get("catalog_id"), "nombre": c.get("catalog_name")} for c in cats], "articulos": []}
+        if cats and sku:
+            r = _graph(f"{ig}/catalog_product_search?catalog_id={cats[0].get('catalog_id')}&q={urllib.parse.quote(sku)}&limit=50").get("data") or []
+            out["articulos"] = [{"retailer_id": it.get("retailer_id"), "product_id": it.get("product_id"), "estado": it.get("review_status"), "checkout": it.get("is_checkout_flow")} for it in r]
+        return out
+    except _GraphError as e:
+        return JSONResponse(status_code=502, content={"error": e.mensaje})
 
 
 @router.post("/publicar")
