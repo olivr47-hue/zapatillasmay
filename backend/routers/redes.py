@@ -222,8 +222,9 @@ def _ig_producto_meta(cuentas, producto_id):
     ig = cuentas.get("ig_id")
     if not ig or not producto_id:
         return None, "sin cuenta de Instagram o sin modelo"
-    if producto_id in _CACHE_META_ID:
-        return _CACHE_META_ID[producto_id], ""
+    hit = _CACHE_META_ID.get(producto_id)
+    if hit and time.time() - hit[0] < 600:   # 10 min: así un color recién sincronizado en el feed entra pronto
+        return hit[1], ""
     try:
         cats = _graph(f"{ig}/available_catalogs").get("data") or []
         if not cats:
@@ -234,10 +235,15 @@ def _ig_producto_meta(cuentas, producto_id):
         if not sku:
             return None, "el modelo no tiene SKU interno para buscarlo en el catálogo"
         r = _graph(f"{ig}/catalog_product_search?catalog_id={catalogo}&q={urllib.parse.quote(sku)}&limit=50").get("data") or []
+        # Se devuelven TODOS los artículos del modelo (uno por color/talla): si Meta rechaza el primero (por ejemplo una variante sin
+        # existencia o que aún no termina de aprobarse), se prueba con el siguiente en vez de publicar sin etiqueta.
+        ids = []
         for it in r:
-            if str(it.get("retailer_id") or "").startswith(sku + "-") and it.get("product_id"):
-                _CACHE_META_ID[producto_id] = str(it["product_id"])
-                return _CACHE_META_ID[producto_id], ""
+            if str(it.get("retailer_id") or "").startswith(sku + "-") and it.get("product_id") and str(it["product_id"]) not in ids:
+                ids.append(str(it["product_id"]))
+        if ids:
+            _CACHE_META_ID[producto_id] = (time.time(), ids)
+            return ids, ""
         return None, f"no se encontró el modelo {sku} en tu catálogo de Meta (puede que aún no se haya sincronizado el feed)"
     except _GraphError as e:
         return None, _explicar_etiqueta(e)
@@ -255,16 +261,19 @@ def _publicar_instagram(cuentas, urls, caption, historia=False, meta_id=None):
     etiqueta y el aviso explica por qué (nunca se bloquea la publicación por esto)."""
     ig = cuentas["ig_id"]
     aviso = ""
-    tags = [{"product_id": meta_id, "x": 0.5, "y": 0.82}] if (meta_id and not historia) else None
+    candidatos = [] if (not meta_id or historia) else ([meta_id] if isinstance(meta_id, str) else list(meta_id))
+    candidatos = candidatos[:8]
 
     def crear(datos):
-        nonlocal tags, aviso
-        if tags:
+        nonlocal candidatos, aviso
+        while candidatos:
+            pid = candidatos[0]
             try:
-                return _graph(f"{ig}/media", "POST", {**datos, "product_tags": tags})["id"]
+                return _graph(f"{ig}/media", "POST", {**datos, "product_tags": [{"product_id": pid, "x": 0.5, "y": 0.82}]})["id"]
             except _GraphError as e:
-                aviso = "Se publicó SIN etiqueta de producto: " + _explicar_etiqueta(e)
-                tags = None
+                candidatos = candidatos[1:]   # ese artículo no se pudo etiquetar: se prueba con otro del mismo modelo
+                if not candidatos:
+                    aviso = "Se publicó SIN etiqueta de producto: " + _explicar_etiqueta(e) + " (se probaron los artículos del modelo; si el color es nuevo, espera a que Meta sincronice el feed)"
         return _graph(f"{ig}/media", "POST", datos)["id"]
 
     if historia:
