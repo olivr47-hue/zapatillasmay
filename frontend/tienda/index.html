@@ -248,6 +248,18 @@ if (!window.fbq){
   fbq('track','PageView');
 }
 </script>
+<style id="zm-cats-v2">
+/* Categorías: foto completa del modelo (sin recortar) sobre fondo claro y el nombre debajo; sin degradado oscuro ni emoji encima */
+#cats-grid{display:grid!important;grid-template-columns:repeat(6,1fr);gap:16px;max-width:1100px;margin:0 auto}
+#cats-grid .cat-wrap{width:auto!important;height:auto!important;aspect-ratio:4/5;border-radius:16px;background:#fff;border:1px solid #efe4da;box-shadow:0 2px 10px rgba(90,60,40,.06)}
+#cats-grid .cat-card img{inset:0 0 40px 0!important;height:calc(100% - 40px)!important;object-fit:contain!important;padding:8px;box-sizing:border-box}
+#cats-grid .cat-card>div:nth-of-type(1){display:none!important}
+#cats-grid .cat-card>div:last-child{bottom:0!important;left:0!important;right:0!important;height:40px;display:flex;align-items:center;justify-content:center;background:#faf4ee;border-top:1px solid #efe4da}
+#cats-grid .cat-card>div:last-child>span{display:none!important}
+#cats-grid .cat-name{color:#2A1A0E!important;font-size:.78rem!important;font-weight:700;letter-spacing:.08em;text-align:center}
+#cats-grid .cat-wrap:hover .cat-name{color:#B5687A!important}
+@media(max-width:768px){#cats-grid{grid-template-columns:repeat(3,1fr);gap:10px;padding:0 4px}#cats-grid .cat-name{font-size:.68rem!important;letter-spacing:.04em}}
+</style>
 </head>
 <body>
 <a href="#productos-section" class="skip-link">Saltar al contenido</a>
