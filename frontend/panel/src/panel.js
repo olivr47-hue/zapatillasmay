@@ -28092,7 +28092,7 @@ function renderCarritoAbierto(p) {
             ${anticipo > 0 ? `💵 Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})} · ` : ''}<a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700">💵 anticipos y comprobantes de pago</a></p>`}
         </div>
         <button class="btn btn-secondary" style="color:#92400e;border-color:#fbbf24;background:#fffbeb;font-weight:700" onclick="aprobarApartadoCarrito('${pedidoId}')">
-          🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
+          🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? (() => { const n = items.filter(i => !i.reservado).reduce((t, i) => t + (parseInt(i.cantidad) || 0), 0); return `Apartar ${n} par${n!==1?'es':''} nuevo${n!==1?'s':''}` })() : 'Apartado') : 'Aprobar apartado'}
         </button>
         ${nSolicitados > 0 ? `<p style="width:100%;font-size:0.72rem;color:#b45309;margin:-8px 0 0">🙋 La clienta pidió apartar ${nSolicitados} par${nSolicitados!==1?'es':''} específico${nSolicitados!==1?'s':''} — al aprobar solo se descuenta stock de esos, no de todo el carrito.</p>` : ''}
         ${nQuitar > 0 ? `<button class="btn btn-secondary" style="color:#991b1b;border-color:#dc2626;background:#fef2f2;font-weight:700" onclick="aprobarLiberacionesCarrito('${pedidoId}')">
@@ -28494,7 +28494,19 @@ async function _refrescarCarritoActivoSiCambio(pedidoId) {
 // reconstruir toda la pantalla (que interrumpiría al admin si está escribiendo
 // en el buscador de "Agregar producto").
 function _construirListaCarritoHTML(items, inventario, sucursalId) {
+  // En un carrito con apartados se ve claro qué pares ya están apartados (stock reservado) y cuáles siguen sin apartar
+  const hayRes = items.some(i => i.reservado)
+  const nRes = items.filter(i => i.reservado).reduce((t, i) => t + (parseInt(i.cantidad) || 0), 0)
+  const nSin = items.filter(i => !i.reservado).reduce((t, i) => t + (parseInt(i.cantidad) || 0), 0)
+  const resumenApartados = hayRes ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <span style="background:#dcfce7;color:#166534;border-radius:100px;padding:5px 12px;font-size:0.78rem;font-weight:700">🔒 ${nRes} par${nRes!==1?'es':''} apartado${nRes!==1?'s':''}</span>
+    <span style="background:${nSin ? '#fef3c7' : '#f1f5f9'};color:${nSin ? '#92400e' : '#64748b'};border-radius:100px;padding:5px 12px;font-size:0.78rem;font-weight:700">${nSin ? '⏳' : '✔'} ${nSin} par${nSin!==1?'es':''} sin apartar${nSin ? ' (usa «Apartar pares nuevos»)' : ''}</span>
+  </div>` : ''
+  const marcaApartado = (it) => !hayRes ? '' : it.reservado
+    ? '<p style="font-size:0.7rem;color:#166534;font-weight:700;margin:2px 0 0">🔒 Apartado</p>'
+    : '<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">⏳ Sin apartar</p>'
   return `
+          ${resumenApartados}
           ${items.length === 0 ? '<p style="color:#aaa;text-align:center;padding:2rem">Carrito vacío — agrega productos arriba</p>' : ''}
           ${(() => {
             // Agrupar: es_corrida viene directo de la BD
@@ -28530,6 +28542,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                     ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${item.reservado ? '🔒 ' : ''}${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
+                      ${marcaApartado(item)}
                       ${pidioApartar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">🙋 Clienta pidió apartar este par</p>` : ''}
                       ${pidioQuitar ? `<p style="font-size:0.7rem;color:#dc2626;font-weight:700;margin:2px 0 0">🚫 Clienta pidió quitarlo</p>` : ''}
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
@@ -28570,7 +28583,9 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                           ${g.items.map(i => {
                             const vt = i.variantes || {}
                             const talla = vt.talla || i.talla || '?'
-                            return `<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${talla}</span>`
+                            return hayRes
+                              ? `<span title="${i.reservado ? 'Apartado' : 'Sin apartar'}" style="background:${i.reservado ? '#dcfce7' : '#fef3c7'};border-radius:100px;padding:2px 8px;font-size:0.72rem;color:${i.reservado ? '#166534' : '#92400e'};font-weight:600">${i.reservado ? '🔒' : '⏳'} T${talla}${i.cantidad > 1 ? ' ×' + i.cantidad : ''}</span>`
+                              : `<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${talla}</span>`
                           }).join('')}
                         </div>
                       </div>
