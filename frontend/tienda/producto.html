@@ -1059,6 +1059,13 @@ function renderProducto() {
       if (_match) colorPrincipal = _match
     }
 
+    // ?talla= sin color (viene del filtro de talla del catálogo): si el color por defecto no tiene esa talla en existencia, se abre
+    // en el primer color que sí la tiene (antes se quedaba en un color sin esa talla y la clienta creía que no había).
+    if (_tallaUrl && !_colorUrl) {
+      const _hayTalla = (c) => varsProd.some(v => v.color === c && String(v.talla) === String(_tallaUrl) && (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) > 0)
+      if (!_hayTalla(colorPrincipal)) { const _alt = colores.find(_hayTalla); if (_alt) colorPrincipal = _alt }
+    }
+
     setTimeout(() => {
       seleccionarColor(colorPrincipal)
       if (_tallaUrl) {
