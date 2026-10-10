@@ -1170,16 +1170,8 @@ function zmRechazarCookies() {
     function runHeroEntry() {
       if (document.documentElement.classList.contains('ruta-categoria') ||
           document.documentElement.classList.contains('ruta-interna')) return;
-      gsap.fromTo(
-        '.hero-eyebrow, .hero-title, .hero-subtitle, .hero-offer, .hero-cta',
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out', stagger: 0.08 }
-      );
-      gsap.fromTo(
-        '#hero-shoe-wrap',
-        { opacity: 0, x: 40, y: 12 },
-        { opacity: 1, x: 0, y: 0, duration: 0.8, ease: 'power3.out', delay: 0.1 }
-      );
+      // La entrada del hero ahora la hace CSS (@keyframes zmHeroIn, más abajo): GSAP se frenaba cuando el navegador estaba ocupado
+      // decodificando las fotos del 360 y el título y el botón tardaban varios segundos en aparecer.
     }
     // Si el splash ya se fue (navegación rápida / caché), corre de inmediato
     if (!document.getElementById('zm-splash')) {
@@ -1975,6 +1967,10 @@ function zmRechazarCookies() {
 }
 </style>
 <style id="zm-hero-v2">
+@keyframes zmHeroIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.hero-eyebrow, .hero-title, .hero-subtitle, .hero-offer, .hero-cta { animation: zmHeroIn .5s ease both; }
+.hero-title { animation-delay: .05s; } .hero-subtitle { animation-delay: .12s; } .hero-cta { animation-delay: .18s; } .hero-offer { animation-delay: .24s; }
+#hero-shoe-wrap { animation: zmHeroIn .6s ease .1s both; }
 @media (max-width: 768px) {
   html.ruta-home #hero-section { margin-top: 104px !important; }
   html.ruta-home #hero-section #hero-content {
