@@ -200,6 +200,30 @@ def _credito_aplicado_a_pedido(pedido_id):
         return 0.0
 
 
+def _reembolsar_credito(pedido_id, cliente_id):
+    """Devuelve al cliente el saldo a favor que se descontó al crear el pedido (una sola
+    vez: se marca con un renglón 'reembolso_cancelacion' en el historial)."""
+    try:
+        if not cliente_id:
+            return
+        aplicado = _credito_aplicado_a_pedido(pedido_id)
+        if aplicado <= 0:
+            return
+        ya = supabase_get(f"clientes_creditos_historial?pedido_id=eq.{pedido_id}&tipo=eq.reembolso_cancelacion&select=id") or []
+        if ya:
+            return
+        cli = supabase_get(f"clientes?id=eq.{cliente_id}&select=credito_disponible") or [{}]
+        saldo = float(cli[0].get("credito_disponible") or 0)
+        nuevo = saldo + aplicado
+        supabase_patch(f"clientes?id=eq.{cliente_id}", {"credito_disponible": nuevo})
+        supabase_post("clientes_creditos_historial", {
+            "cliente_id": cliente_id, "monto": aplicado, "tipo": "reembolso_cancelacion",
+            "pedido_id": pedido_id, "saldo_despues": nuevo,
+        })
+    except Exception as e:
+        print(f"[pedidos] Error reembolsando crédito de {pedido_id}: {e}")
+
+
 def _otorgar_bono_referidor(cliente_id):
     try:
         from routers.referidos import otorgar_bono_referidor
