@@ -1,3 +1,4 @@
+import { iniciarMascota } from './portal-mascota.js'
 // ─────────────────────────────────────────────────────────────
 //  Portal de cliente mayoreo — integrado en el panel
 //  Se carga cuando el login detecta un cliente (tipo = zapateria)
@@ -5090,3 +5091,6 @@ window.pcCalcTecla = function(k) {
   }
   pcCalcPintar()
 }
+
+
+iniciarMascota(() => pc.sesion)
