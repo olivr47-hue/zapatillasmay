@@ -1960,17 +1960,20 @@ function zmRechazarCookies() {
 .badge-new { background: #1E9B57 !important; color: #fff !important; }
 .badge-sale { background: #C0392B !important; color: #fff !important; }
 .badge-stock { background: #B25E09 !important; color: #fff !important; }
-/* En celular no existe el «hover»: el botón «Elegir talla» se queda siempre visible sobre la foto */
+/* «¡Últimos N pares!» arriba a la derecha: abajo chocaba con el botón «Elegir talla» y quedaba tapado */
+.product-card .badge-stock { top: 8px !important; right: 8px !important; bottom: auto !important; left: auto !important; }
+/* En celular no existe el «hover»: «Elegir talla» queda siempre visible, pero como una pastilla chica en la esquina para no tapar el modelo */
 @media (hover: none) {
-  .product-card .product-actions { opacity: 1 !important; transform: none !important; }
-  .product-card .btn-add-cart { background: rgba(255,255,255,.96) !important; color: #2A1A0E !important; text-transform: none !important; letter-spacing: 0 !important; font-size: .76rem !important; font-weight: 700 !important; padding: 8px !important; box-shadow: 0 4px 12px rgba(0,0,0,.12) !important; }
+  .product-card .product-actions { opacity: 1 !important; transform: none !important; left: auto !important; right: 8px !important; bottom: 8px !important; width: auto !important; }
+  .product-card .btn-add-cart { display: inline-block !important; width: auto !important; background: rgba(255,255,255,.94) !important; color: #2A1A0E !important; text-transform: none !important; letter-spacing: 0 !important; font-size: .68rem !important; font-weight: 700 !important; padding: 6px 12px !important; box-shadow: 0 2px 8px rgba(0,0,0,.14) !important; }
 }
 </style>
 <style id="zm-hero-v2">
 @keyframes zmHeroIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .hero-eyebrow, .hero-title, .hero-subtitle, .hero-offer, .hero-cta { animation: zmHeroIn .5s ease both; }
 .hero-title { animation-delay: .05s; } .hero-subtitle { animation-delay: .12s; } .hero-cta { animation-delay: .18s; } .hero-offer { animation-delay: .24s; }
-#hero-shoe-wrap { animation: zmHeroIn .6s ease .1s both; }
+/* El visor 360° quedaba en opacity:0 (base del CSS) hasta que GSAP lo mostraba; sin esa animación hay que dejarlo visible */
+#hero-shoe-wrap { opacity: 1 !important; }
 @media (max-width: 768px) {
   html.ruta-home #hero-section { margin-top: 104px !important; }
   html.ruta-home #hero-section #hero-content {
