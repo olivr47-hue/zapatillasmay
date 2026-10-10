@@ -1348,7 +1348,7 @@ cargarConfigSEO()
       ? `<div class="product-rating" style="display:flex;align-items:center;gap:4px;margin:2px 0 4px;font-size:0.74rem;color:#8B6A54"><span style="color:#f59e0b;letter-spacing:1px">${'★'.repeat(Math.round(_rs.p))}${'☆'.repeat(5 - Math.round(_rs.p))}</span><span>${_rs.p} (${_rs.n})</span></div>`
       : ''
     return `
-      <a class="product-card fade-in" href="/producto/${p.slug||p.sku_interno||p.id}${p._novQuery||''}">
+      <a class="product-card fade-in" href="/producto/${p.slug||p.sku_interno||p.id}${p._novQuery || _queryFiltros()}">
         <div class="product-img-wrap"${_fotosAttr}>
           ${(p.foto_limpia || p.imagen_principal)
             ? `<img src="${zmImg((p.foto_limpia || p.imagen_principal), 600)}" srcset="${zmImg((p.foto_limpia || p.imagen_principal), 300)} 300w, ${zmImg((p.foto_limpia || p.imagen_principal), 400)} 400w, ${zmImg((p.foto_limpia || p.imagen_principal), 500)} 500w, ${zmImg((p.foto_limpia || p.imagen_principal), 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy" style="transition:opacity .18s">`
@@ -2492,11 +2492,28 @@ if (window.ttq) {
     const containers = ['search-results','mobile-search-results']
       .map(id => document.getElementById(id)).filter(Boolean)
     if (!texto || texto.length < 2) { containers.forEach(c => c.classList.remove('show')); return }
-    const terminos = texto.toLowerCase().split(' ').filter(t => t)
+    // Búsqueda tolerante: sin acentos ni mayúsculas, plurales («botines negros» → botin negro), también por COLOR y por talla.
+    // Antes «tacón rojo», «botines negros» o «tenis blancos» no encontraban nada porque solo se buscaba en el nombre.
+    const _n = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    const _tallaReg = /^(2[2-7](\.5)?)$/
+    const _palabrasIgnoradas = ['talla', 'tallas', 'numero', 'num', 'para', 'de', 'del', 'la', 'el', 'en', 'dama', 'mujer']
+    const _terminosTodos = _n(texto).split(/\s+/).filter(t => t)
+    const _tallasPedidas = _terminosTodos.filter(t => _tallaReg.test(t))
+    const terminos = _terminosTodos
+      .filter(t => !_tallaReg.test(t) && !_palabrasIgnoradas.includes(t))
+      .map(t => t.length > 3 ? t.replace(/(es|s)$/, '') : t)
+    if (!window._busqColores) {
+      window._busqColores = {}
+      variantes.forEach(v => { if (v.color) window._busqColores[v.producto_id] = (window._busqColores[v.producto_id] || '') + ' ' + _n(v.color) })
+    }
+    if (_tallasPedidas.length && (!_idxTallas || !Object.keys(_idxTallas).length)) { try { _construirIndicesFiltro() } catch (e) {} }
     const coinciden = productos.filter(p => {
-      const txt = (p.nombre+' '+(p.sku_interno||'')+' '+(p.categoria||'')).toLowerCase()
-      return terminos.every(t => txt.includes(t))
+      if (!p.activo) return false
+      const txt = _n(p.nombre + ' ' + (p.sku_interno || '') + ' ' + (p.categoria || '') + ' ' + (window._busqColores[p.id] || ''))
+      if (!terminos.every(t => txt.includes(t))) return false
+      return _tallasPedidas.every(t => _idxTallas && _idxTallas[p.id] && _idxTallas[p.id].has(t))
     })
+    window._ultimaBusqueda = { texto: texto.trim(), lista: coinciden }
     const filtrados = coinciden.slice(0, 6)
     // Búsquedas para Google Analytics (también las que NO encuentran nada: son lo que la gente quiere y no hay).
     // Se registra al dejar de escribir; Meta y TikTok siguen recibiendo solo las búsquedas con resultados.
@@ -2504,7 +2521,18 @@ if (window.ttq) {
     window._stGa = setTimeout(function() {
       try { if (window.gtag) gtag('event', 'view_search_results', { search_term: texto.trim().toLowerCase().slice(0, 80), results_count: coinciden.length }) } catch (e) {}
     }, 1200)
-    if (!filtrados.length) { containers.forEach(c => c.classList.remove('show')); return }
+    if (!filtrados.length) {
+      // Antes la lista simplemente se cerraba sin decir nada: la clienta se quedaba sin saber si escribió mal o no hay.
+      const _esc = String(texto).trim().slice(0, 40).replace(/[<>&"]/g, '')
+      const vacio = `<div style="padding:16px 18px;font-size:0.84rem;line-height:1.5;color:#5a4030">
+        <p style="margin:0 0 6px;font-weight:700">No encontramos «${_esc}»</p>
+        <p style="margin:0 0 10px;color:#8B6A54">Prueba con el tipo de zapato (tacón, bota, sandalia) o el color. Si buscas algo en especial, te ayudamos por WhatsApp.</p>
+        <a href="https://wa.me/5214792244560?text=${encodeURIComponent('Hola, estoy buscando: ' + _esc)}" target="_blank" rel="noopener" style="display:inline-block;margin-right:10px;color:#128c7e;font-weight:700;text-decoration:none">💬 Pedirlo por WhatsApp</a>
+        <a href="#" onclick="event.preventDefault();_cerrarBusqueda();mostrarTodos()" style="color:#b5687a;font-weight:700;text-decoration:none">Ver todo el catálogo →</a>
+      </div>`
+      containers.forEach(c => { c.innerHTML = vacio; c.classList.add('show') })
+      return
+    }
     const html = filtrados.map(p => `
       <a class="search-result-item" href="/producto/${p.slug||p.sku_interno||p.id}" onclick="document.querySelectorAll('.search-results').forEach(function(c){c.classList.remove('show')})">
         ${p.imagen_principal ? `<img class="search-result-img" src="${zmImg(p.imagen_principal, 96)}" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="48" height="48">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
@@ -2513,13 +2541,34 @@ if (window.ttq) {
           <p class="price">$${p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80} MXN</p>
         </div>
       </a>
-    `).join('')
+    `).join('') + (coinciden.length > filtrados.length
+      ? `<a href="#" onclick="event.preventDefault();verResultadosBusqueda()" style="display:block;padding:12px 18px;text-align:center;font-size:0.82rem;font-weight:700;color:#b5687a;text-decoration:none;border-top:1px solid rgba(200,150,122,0.2)">Ver los ${coinciden.length} resultados →</a>` : '')
     containers.forEach(c => { c.innerHTML = html; c.classList.add('show') })
     clearTimeout(window._st)
     window._st = setTimeout(function() {
       if (window.fbq) fbq('track', 'Search', {search_string: texto, content_category: 'calzado'})
       if (window.ttq) ttq.track('Search', {query: texto})
     }, 800)
+  }
+
+  function verResultadosBusqueda() {
+    const b = window._ultimaBusqueda
+    if (!b || !b.lista.length) return
+    _cerrarBusqueda()
+    mostrarConFiltros(b.lista, 'Resultados para <em>«' + String(b.texto).replace(/[<>&"]/g, '') + '»</em>', '', '/#buscar')
+  }
+
+  // Si la clienta filtró por UNA talla o UN color, la ficha se abre ya con eso elegido (antes tenía que volver a escogerlo).
+  function _queryFiltros() {
+    try {
+      const q = []
+      if (_filtros && _filtros.tallas && _filtros.tallas.length === 1) q.push('talla=' + encodeURIComponent(_filtros.tallas[0]))
+      if (_filtros && _filtros.colores && _filtros.colores.length === 1) {
+        const k = _filtros.colores[0]
+        q.push('color=' + encodeURIComponent((_colorMeta[k] && _colorMeta[k].display) || k))
+      }
+      return q.length ? '?' + q.join('&') : ''
+    } catch (e) { return '' }
   }
 
   function filtrarCategoria(categoria) {

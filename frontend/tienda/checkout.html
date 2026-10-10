@@ -487,10 +487,23 @@ function calcularEnvio(pares, subtotal) {
   return cfgEnvio.tier1
 }
 
-function mostrarToast(msg) {
+function mostrarToast(msg, ms) {
   const t = document.getElementById('toast')
   t.textContent = msg; t.classList.add('show')
-  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 2400)
+  clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), ms || 2400)
+}
+
+// Mercado Pago responde con claves técnicas (cc_rejected_...): se traducen a algo que la clienta pueda entender y corregir.
+function mensajePagoRechazado(detalle) {
+  const d = String(detalle || '')
+  if (/insufficient_amount/.test(d)) return 'Tu tarjeta no tiene fondos suficientes. Prueba con otra tarjeta o paga por transferencia / OXXO.'
+  if (/bad_filled/.test(d)) return 'Revisa los datos de tu tarjeta (número, fecha de vencimiento y código de seguridad).'
+  if (/call_for_authorize/.test(d)) return 'Tu banco necesita autorizar este pago: llama al número de tu tarjeta y vuelve a intentarlo.'
+  if (/card_disabled/.test(d)) return 'Tu tarjeta está desactivada para compras en línea. Llama a tu banco o usa otra tarjeta.'
+  if (/max_attempts/.test(d)) return 'Superaste los intentos permitidos. Usa otra tarjeta o espera unas horas.'
+  if (/duplicated_payment/.test(d)) return 'Ya se hizo un pago igual hace un momento. Revisa tu correo antes de volver a pagar.'
+  if (/high_risk/.test(d)) return 'Por seguridad no se pudo aprobar este pago. Prueba con otra tarjeta o paga por transferencia / OXXO.'
+  return 'Tu banco rechazó el pago. Prueba con otra tarjeta o elige transferencia / OXXO.'
 }
 
 function render() {
@@ -1086,7 +1099,7 @@ async function pagarConBrick(pedidoId, total, email) {
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=${res.status}&transaction_amount=${total}`
             } else {
-              mostrarToast('Pago rechazado: ' + (res.status_detail || res.status || 'intenta con otra tarjeta'))
+              mostrarToast(mensajePagoRechazado(res.status_detail), 7000)
               throw new Error(res.status_detail || 'rejected')   // deja reintentar en el brick
             }
           })
