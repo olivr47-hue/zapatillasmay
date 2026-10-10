@@ -1226,6 +1226,7 @@ cargarConfigSEO()
         if (_pid && typeof PAGINAS !== 'undefined' && PAGINAS[_pid]) mostrarPagina(_pid)
         else renderProductos(productos.filter(p => p.activo))
       } else {
+        document.getElementById('productos-titulo').innerHTML = _tituloHome()
         renderProductos(productos.filter(p => p.activo))
       }
     } catch(e) {
@@ -1425,14 +1426,24 @@ cargarConfigSEO()
     })
   }, { threshold: 0.25 }) : null
 
+  function _tituloHome() {
+    const n = (productos || []).filter(p => p.activo).length
+    return 'Nuestros <em>modelos</em>' + (n ? ' <small class="titulo-cuenta">' + n + ' disponibles</small>' : '')
+  }
+
   function _agregarLote() {
     const grid = document.getElementById('products-grid')
     const lote = _listaActual.slice(_mostrados, _mostrados + _BATCH)
-    lote.forEach(p => {
+    lote.forEach((p, _i) => {
       const wrap = document.createElement('div')
       wrap.innerHTML = _cardHTML(p).trim()
       const card = wrap.firstChild
       grid.appendChild(card)
+      // Banda «¿Vendes calzado?» en medio de la lista del home (al fondo de 283 modelos nadie la veía)
+      if (_mostrados + _i === 7 && _listaActual.length >= 100 && !document.documentElement.classList.contains('ruta-categoria')) {
+        const tpl = document.getElementById('tpl-banda-mayoreo')
+        if (tpl && !document.getElementById('zm-banda-mayoreo')) grid.appendChild(tpl.content.cloneNode(true))
+      }
       if (_fotoRotObserver) {
         const imgWrap = card.querySelector('.product-img-wrap[data-fotos]')
         if (imgWrap) _fotoRotObserver.observe(imgWrap)
@@ -1455,7 +1466,16 @@ cargarConfigSEO()
     s.style.display = hay ? '' : 'none'
     if (!hay) { s.innerHTML = ''; return }
     const restantes = _listaActual.length - _mostrados
-    s.innerHTML = `<button class="btn-ver-mas" onclick="_agregarLote()">Ver más <span class="btn-ver-mas-count">${restantes} productos</span></button>`
+    // Mucha gente creía que solo había los modelos que se ven: ahora se dice cuántos hay, el botón es grande y, además, al llegar
+    // al final se cargan más modelos solos (sin tener que encontrar el botón).
+    s.style.flexDirection = 'column'; s.style.alignItems = 'center'; s.style.gap = '12px'
+    s.innerHTML = `<p class="ver-mas-progreso">Estás viendo <b>${_mostrados}</b> de <b>${_listaActual.length}</b> modelos</p><div class="ver-mas-barra"><span style="width:${Math.round(_mostrados / _listaActual.length * 100)}%"></span></div><button class="btn-ver-mas" onclick="_agregarLote()">Ver más modelos <span class="btn-ver-mas-count">${restantes} restantes</span></button>`
+    if ('IntersectionObserver' in window) {
+      _scrollObs = new IntersectionObserver((ents) => {
+        if (ents[0].isIntersecting) { _scrollObs.disconnect(); _scrollObs = null; _agregarLote() }
+      }, { rootMargin: '400px 0px' })
+      _scrollObs.observe(s)
+    }
   }
 
   function renderProductos(lista) {
@@ -2602,7 +2622,7 @@ if (window.ttq) {
   document.querySelectorAll('.section').forEach(s => s.style.display = '')
   if (bannerMayoreo) bannerMayoreo.style.display = ''
 
-  document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
+  document.getElementById('productos-titulo').innerHTML = _tituloHome()
   const _fb0 = document.getElementById('filtros-bar'); if (_fb0) _fb0.classList.remove('visible')
   // Restaurar strip mayoreo al volver al home
   const _strip = document.querySelector('.cro-trust-strip'); if (_strip) _strip.style.display = ''

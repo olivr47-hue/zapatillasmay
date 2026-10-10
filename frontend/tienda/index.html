@@ -578,7 +578,7 @@ if (!window.fbq){
 <!-- PRODUCTOS -->
 <div class="section" id="productos-section" role="main">
   <div class="section-header">
-    <h2 class="section-title" id="productos-titulo">Nuevos <em>modelos</em></h2>
+    <h2 class="section-title" id="productos-titulo">Nuestros <em>modelos</em></h2>
     <a href="#" class="section-link" onclick="mostrarTodos()">Ver todos →</a>
   </div>
 
@@ -956,7 +956,7 @@ if (!window.fbq){
   </div>
 </footer>
 
-<script src="/assets/app.91d5d8ac.js"></script>
+<script src="/assets/app.99551a1b.js"></script>
   <!-- PÁGINA INTERNA -->
 
 
@@ -1955,6 +1955,33 @@ function zmRechazarCookies() {
 </style>
 
 <!-- Hero v2 (celular): un mensaje, un botón grande y contraste; el visor 360° baja a su propia tarjeta -->
+<!-- Banda de mayoreo: se inserta dentro de la lista de modelos del home (ver _agregarLote en app.js) -->
+<template id="tpl-banda-mayoreo">
+  <div class="zm-banda-mayoreo" id="zm-banda-mayoreo">
+    <h3>¿Vendes calzado? Surte con precio por volumen</h3>
+    <p>Para tiendas, boutiques y revendedoras. Registro gratuito.</p>
+    <ul><li>Descuento automático por cantidad</li><li>Modelos nuevos cada semana</li><li>Envío a todo México</li></ul>
+    <a class="zm-banda-btn" href="/mayoreo">Conocer el portal de mayoristas →</a>
+  </div>
+</template>
+<style id="zm-banda-css">
+.zm-banda-mayoreo { grid-column: 1 / -1; margin: 10px 0; border-radius: 22px; background: linear-gradient(135deg,#9c5568,#b5687a); color: #fff; padding: 22px 20px; }
+.zm-banda-mayoreo h3 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; font-size: 1.7rem; line-height: 1.08; margin: 0 0 8px; }
+.zm-banda-mayoreo p { font-size: .9rem; opacity: .95; margin: 0 0 12px; }
+.zm-banda-mayoreo ul { list-style: none; margin: 0 0 16px; padding: 0; }
+.zm-banda-mayoreo li { font-size: .86rem; padding-left: 22px; position: relative; margin-bottom: 5px; }
+.zm-banda-mayoreo li::before { content: "✓"; position: absolute; left: 0; font-weight: 800; }
+.zm-banda-btn { display: flex; align-items: center; justify-content: center; min-height: 50px; padding: 0 22px; background: #fff; color: #9c5568; font-weight: 700; font-size: .95rem; border-radius: 99px; text-decoration: none; }
+@media (min-width: 769px) { .zm-banda-mayoreo { padding: 34px 40px; display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 8px 30px; align-items: center; } .zm-banda-mayoreo h3 { grid-column: 1; font-size: 2.1rem; } .zm-banda-mayoreo p { grid-column: 1; } .zm-banda-mayoreo ul { grid-column: 2; grid-row: 1 / span 2; margin: 0; } .zm-banda-btn { grid-column: 3; grid-row: 1 / span 2; padding: 0 28px; } }
+/* título con cuenta y botón «Ver más» grande */
+.titulo-cuenta { font-family: 'DM Sans', system-ui, sans-serif; font-size: .78rem; font-weight: 700; letter-spacing: 0; color: #8a7868; margin-left: 8px; vertical-align: middle; }
+.ver-mas-progreso { font-size: .9rem; color: #5a4636; margin: 0; }
+.ver-mas-barra { width: min(280px, 70%); height: 6px; border-radius: 99px; background: #eadfd7; overflow: hidden; }
+.ver-mas-barra span { display: block; height: 100%; background: #B5687A; border-radius: 99px; }
+#scroll-sentinel .btn-ver-mas { background: #B5687A; color: #fff; border-color: #B5687A; border-radius: 99px; min-height: 52px; padding: 0 30px; font-size: .95rem; letter-spacing: .2px; text-transform: none; font-weight: 700; }
+#scroll-sentinel .btn-ver-mas:hover { background: #9c5568; border-color: #9c5568; }
+#scroll-sentinel .btn-ver-mas-count { opacity: .9; font-weight: 500; }
+</style>
 <style id="zm-tarjetas-v2">
 /* Etiquetas con un significado por color: Nuevo = verde, Oferta = rojo, Resurtido = azul (antes Nuevo y Oferta eran casi el mismo mauve) */
 .badge-new { background: #1E9B57 !important; color: #fff !important; }
