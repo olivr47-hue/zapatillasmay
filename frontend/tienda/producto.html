@@ -776,8 +776,8 @@ async function init() {
 // este script (que corre siempre, tambien sobre el HTML del SSR) sobreescribe el <title>
 // que ya arma el servidor con el meta_titulo, dejando solo "nombre | Zapatillas May".
 function construirTituloSeo(p) {
+  // Mismo criterio que el servidor (seo.py): sin SKU interno en el título, cortado en límite de palabra y sin conectores colgando
   const nombre = (p.nombre || 'Calzado').trim()
-  const skuCanon = (p.sku_interno || p.id || '').trim()
   const metaTitulo = (p.meta_titulo || '').trim()
 
   let prefix = nombre
@@ -785,22 +785,18 @@ function construirTituloSeo(p) {
     const dbPrefix = metaTitulo.split(' | ')[0].trim()
     if (dbPrefix.length > 3) prefix = dbPrefix
   }
-  if (skuCanon && !prefix.toLowerCase().includes(skuCanon.toLowerCase())) {
-    prefix = `${prefix} ${skuCanon}`
-  }
 
-  let titulo = `${prefix} | Zapatillas May`
-  if (titulo.length > 60) {
-    const allowedPrefixLen = 60 - ' | Zapatillas May'.length
-    if (skuCanon && prefix.endsWith(skuCanon)) {
-      let descPart = prefix.slice(0, prefix.length - skuCanon.length).trim()
-      const maxDescLen = allowedPrefixLen - skuCanon.length - 1
-      prefix = maxDescLen > 5 ? `${descPart.slice(0, maxDescLen).trim()} ${skuCanon}` : skuCanon
-    } else {
-      prefix = prefix.slice(0, allowedPrefixLen).trim()
-    }
-    titulo = `${prefix} | Zapatillas May`
+  const SUFIJO = ' | Zapatillas May'
+  const maxPrefix = 60 - SUFIJO.length
+  if (prefix.length > maxPrefix) {
+    let corte = prefix.slice(0, maxPrefix)
+    if (prefix[maxPrefix] !== ' ' && corte.includes(' ')) corte = corte.slice(0, corte.lastIndexOf(' '))
+    const palabras = corte.replace(/[ ,.\-–]+$/, '').split(' ')
+    const sueltas = ['de', 'del', 'con', 'para', 'y', 'e', 'en', 'a', 'la', 'el', 'los', 'las', 'muy', 'por', 'sin', 'tipo']
+    while (palabras.length > 2 && sueltas.includes(palabras[palabras.length - 1].toLowerCase())) palabras.pop()
+    prefix = palabras.join(' ')
   }
+  let titulo = prefix + SUFIJO
   if (titulo.length < 30) {
     prefix = `Calzado de Dama ${prefix}`
     titulo = `${prefix} | Zapatillas May`

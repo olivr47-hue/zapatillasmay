@@ -171,7 +171,9 @@ def _producto_ssr_inner(sku: str, request: Request):
     desc      = (meta_desc or desc_raw)[:160]
     sku_canon = (p.get("sku_interno") or sku).strip()
 
-    # Armar título SEO robusto entre 30 y 60 caracteres y con SKU único para evitar duplicados
+    # Título SEO de 30 a 60 caracteres. El SKU interno (D-PLT-0109, C-TAC-0207...) NO va en el título: es un código de bodega, no algo que la
+    # clienta busque, y al cortar el texto dejaba títulos rotos («...lisas p C-TAC-0207»). El código de MODELO del fabricante (DD71100, CH2300)
+    # ya viene en el nombre del producto y es lo que distingue un título de otro.
     prefix = nombre
     if meta_titulo:
         parts = meta_titulo.split(' | ', 1)
@@ -179,24 +181,18 @@ def _producto_ssr_inner(sku: str, request: Request):
         if len(db_prefix) > 3:
             prefix = db_prefix
 
-    if sku_canon.lower() not in prefix.lower():
-        prefix = f"{prefix} {sku_canon}"
-
-    titulo_seo = f"{prefix} | Zapatillas May"
-
-    if len(titulo_seo) > 60:
-        allowed_prefix_len = 60 - len(" | Zapatillas May")
-        if prefix.endswith(sku_canon):
-            desc_part = prefix[:-len(sku_canon)].strip()
-            max_desc_len = allowed_prefix_len - len(sku_canon) - 1
-            if max_desc_len > 5:
-                desc_part = desc_part[:max_desc_len].strip()
-                prefix = f"{desc_part} {sku_canon}"
-            else:
-                prefix = sku_canon
-        else:
-            prefix = prefix[:allowed_prefix_len].strip()
-        titulo_seo = f"{prefix} | Zapatillas May"
+    _SUFIJO = " | Zapatillas May"
+    _max_prefix = 60 - len(_SUFIJO)
+    if len(prefix) > _max_prefix:
+        # se corta en el límite de una palabra y sin dejar conectores colgando («...elegantes de»)
+        corte = prefix[:_max_prefix]
+        if prefix[_max_prefix] != " " and " " in corte:
+            corte = corte.rsplit(" ", 1)[0]
+        palabras_corte = corte.rstrip(" ,.-–").split(" ")
+        while len(palabras_corte) > 2 and palabras_corte[-1].lower() in ("de", "del", "con", "para", "y", "e", "en", "a", "la", "el", "los", "las", "muy", "por", "sin", "tipo"):
+            palabras_corte.pop()
+        prefix = " ".join(palabras_corte)
+    titulo_seo = f"{prefix}{_SUFIJO}"
 
     if len(titulo_seo) < 30:
         prefix = f"Calzado de Dama {prefix}"
@@ -339,7 +335,7 @@ def _producto_ssr_inner(sku: str, request: Request):
     ld = {
         "@context": "https://schema.org/",
         "@type": "Product",
-        "name": titulo_seo.split(" | ")[0] if " | " in titulo_seo else titulo_seo,
+        "name": nombre,   # nombre completo del producto (antes salía el título cortado y con el SKU interno)
         "image": imagenes_seo or ([imagen] if imagen else []),
         "description": (meta_desc or desc_raw)[:300],
         "sku": sku_canon,
@@ -665,7 +661,7 @@ _PAGINAS_CONTENT = {
     "guia-comprar-calzado-mayoreo-leon": _GUIA_MAYOREO_HTML,
     "nosotros": """
 <section style="max-width:800px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h1>
   <p style="color:#7a6055;margin-bottom:24px">Fabricante de calzado femenino en León, Guanajuato</p>
   <p>Somos una empresa familiar fabricante de calzado femenino de moda con sede en <strong>León, Guanajuato</strong>, la capital mundial del calzado. Llevamos años produciendo tacones, sandalias, botas, botines, flats y plataformas con materiales de calidad y diseños actuales.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Directo del fabricante</h2>
@@ -683,7 +679,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "contacto": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Contacto</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Contacto</h1>
   <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
   <p>Estamos disponibles para atenderte por WhatsApp de lunes a sábado. Puedes escribirnos para preguntas sobre productos, tallas, pedidos al mayoreo o seguimiento de envíos.</p>
   <h2 style="font-size:1.2rem;margin-top:28px">WhatsApp</h2>
@@ -699,7 +695,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "envios": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Información de Envíos</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Información de Envíos</h1>
   <p style="color:#7a6055;margin-bottom:24px">Enviamos a toda la República Mexicana</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Costos de envío</h2>
   <ul style="padding-left:20px">
@@ -717,7 +713,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "tabla-tallas": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Tabla de Tallas</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Tabla de Tallas</h1>
   <p style="color:#7a6055;margin-bottom:24px">Calzado de dama — tallas mexicanas</p>
   <p>Nuestro calzado sigue la numeración mexicana estándar. Si tienes dudas sobre tu talla, escríbenos por WhatsApp y con gusto te ayudamos.</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Equivalencias de tallas</h2>
@@ -741,7 +737,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "como-comprar": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Cómo Comprar</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Cómo Comprar</h1>
   <p style="color:#7a6055;margin-bottom:24px">Menudeo y mayoreo sin complicaciones</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Paso a paso</h2>
   <ol style="padding-left:20px">
@@ -820,7 +816,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "privacidad": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Aviso de Privacidad</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Aviso de Privacidad</h1>
   <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
   <p>En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), Zapatillas May informa lo siguiente:</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Responsable</h2>
@@ -841,7 +837,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "politica-de-devoluciones": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Política de Devoluciones</h2>
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Política de Devoluciones</h1>
   <p style="color:#7a6055;margin-bottom:24px">30 días sin complicaciones</p>
   <p>En Zapatillas May aceptamos devoluciones y cambios dentro de los primeros <strong>30 días</strong> naturales a partir de la fecha de entrega.</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Condiciones</h2>
@@ -1267,6 +1263,7 @@ def _guia_extras(slug, template, titulo, desc, canonical):
         ld.append({"@context": "https://schema.org", "@type": "Article", "headline": titulo.split(" |")[0], "description": desc,
                    "datePublished": "2026-10-04", "dateModified": "2026-10-04",
                    "mainEntityOfPage": canonical, "inLanguage": "es-MX",
+                   "image": [og_img or "https://zapatillasmay.mx/logo.png"],
                    "author": {"@type": "Organization", "name": "Zapatillas May"},
                    "publisher": {"@type": "Organization", "name": "Zapatillas May", "logo": {"@type": "ImageObject", "url": "https://zapatillasmay.mx/logo.png"}}})
     miga = [{"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://zapatillasmay.mx/"},
