@@ -4,15 +4,12 @@
 
 ## Product Overview
 **One-liner:** Calzado de moda para dama fabricado en León, Guanajuato, con venta en menudeo, descuento automático por volumen en la tienda y un portal de mayoreo para revendedoras.
-**What it does:** Zapatillas May vende calzado femenino de moda (tacones, sandalias, botas, botines, niña) directamente al consumidor final y a revendedores/tiendas. En la tienda el descuento por volumen es automático (a más pares en el carrito, menor precio por par, sin códigos). Las revendedoras con cuenta usan el portal de mayoreo (zapatillasmay.mx/mayoreo lleva al portal): catálogo, carrito, apartados, corridas, pedidos, registro de ventas, calculadora y la mascota Tacona.
+**What it does:** Zapatillas May vende calzado femenino de moda (tacones, sandalias, botas, botines, niña) directamente al consumidor final y a revendedores/tiendas. En la tienda hay un descuento automático a partir de 3 pares (sin códigos). Las revendedoras con cuenta usan el portal de mayoreo (zapatillasmay.mx/mayoreo lleva al portal): catálogo, carrito, apartados, corridas, pedidos, registro de ventas, calculadora y la mascota Tacona.
 **Product category:** Calzado femenino de moda / Tienda de zapatos en línea
 **Product type:** E-commerce (tienda en línea) con modelo dual menudeo + mayoreo
 **Business model:** Venta directa. Precios dinámicos por volumen:
-- 1 par: precio de la tienda = precio menudeo del panel +$80 (salvo modelos en oferta)
-- 3–5 pares: -$60/par sobre el precio de la tienda
-- 6+ pares: -$100/par sobre el precio de la tienda
-- Corrida completa: precio de corrida por modelo (portal de mayoreo)
-- Envío gratis desde $1,299
+- **Tienda web (zapatillasmay.mx):** 1–2 pares: precio de la tienda = precio menudeo del panel +$80 (salvo modelos en oferta). 3+ pares: -$60/par (es el ÚNICO descuento por volumen en la web; no hay precio de 6+ ni de corrida en el sitio). Envío gratis desde $1,299 (el envío se cobra por tramos según los pares).
+- **Portal de mayoreo (solo clientas con cuenta):** precio por modelo para 3+ pares, 6+ pares y corrida completa (si no está capturado: menudeo del panel -$30 / -$70 / -$100). Los precios del portal NO incluyen envío y no hay envío gratis.
 - Algunas clientas de mayoreo compran a crédito (forma de pago «crédito»)
 - Otros canales: Mercado Libre, Amazon, Walmart, SHEIN y TikTok Shop (inventario y estados se sincronizan desde el panel)
 
@@ -50,7 +47,7 @@
 
 ## Differentiation
 **Key differentiators:**
-- Descuento automático por volumen en la tienda (3+ pares) sin códigos; portal de mayoreo con apartados y corridas para revendedoras
+- Descuento automático de 3+ pares en la tienda, sin códigos; portal de mayoreo con precios de 6+ pares, corridas y apartados para revendedoras
 - Nuevos modelos cada semana (producción local León, Guanajuato)
 - Precio transparente: el sistema calcula el descuento solo
 - Canal directo fabricante→cliente (sin intermediarios)
