@@ -1,5 +1,5 @@
 // ── MASCOTA DEL PORTAL: «Tacona», una zapatilla de tacón con ojitos ─────────────────────────────────────────
-// Solo vive en el portal de mayoreo. Da una frase bonita cada día y lleva a las secciones con botones (no inventa respuestas).
+// Solo vive en el portal de mayoreo. Da una frase bonita distinta en cada entrada y lleva a las secciones con botones (no inventa respuestas).
 const PC_FRASES = [
   'Hoy es un buen día para surtir y vender.', 'Tu negocio crece un par a la vez. 👠', 'Quien se atreve a empezar, ya va a la mitad.',
   'Un buen zapato cambia el día de quien lo estrena.', 'Cada venta de hoy es una clienta feliz mañana.', 'Tu esfuerzo de hoy es tu tranquilidad de mañana.',
@@ -23,15 +23,25 @@ const PC_ATAJOS = [
 ]
 const _esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-function fraseDelDia(extra) {
-  const d = new Date(), n = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000)
-  return PC_FRASES[(n + (extra || 0)) % PC_FRASES.length]
+// Las frases se sacan de una «bolsa» barajada que se guarda en el navegador: no se repite ninguna hasta haber visto las 45
+function siguienteFrase() {
+  let bolsa = [], ultima = -1
+  try { bolsa = JSON.parse(localStorage.getItem('pcm_bolsa') || '[]').filter(i => Number.isInteger(i) && i >= 0 && i < PC_FRASES.length); ultima = parseInt(localStorage.getItem('pcm_ultima') || '-1', 10) } catch (e) {}
+  if (!bolsa.length) {
+    bolsa = PC_FRASES.map((_, i) => i)
+    for (let i = bolsa.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bolsa[i], bolsa[j]] = [bolsa[j], bolsa[i]] }
+    if (bolsa[bolsa.length - 1] === ultima && bolsa.length > 1) bolsa.unshift(bolsa.pop())   // la primera de la nueva vuelta nunca es la última que vio
+  }
+  const idx = bolsa.pop()
+  try { localStorage.setItem('pcm_bolsa', JSON.stringify(bolsa)); localStorage.setItem('pcm_ultima', String(idx)) } catch (e) {}
+  return PC_FRASES[idx]
 }
+let _fraseEntrada = null   // la frase de esta entrada (se saca una sola vez por carga de página)
+function fraseDeEntrada() { if (_fraseEntrada === null) _fraseEntrada = siguienteFrase(); return _fraseEntrada }
 
 window.pcMascotaFrase = function () {
-  window._pcFraseExtra = (window._pcFraseExtra || 0) + 1
   const el = document.getElementById('pcm-frase')
-  if (el) el.textContent = fraseDelDia(window._pcFraseExtra * 7)
+  if (el) el.textContent = siguienteFrase()
 }
 
 window.pcMascotaToggle = function (abrir) {
@@ -42,11 +52,9 @@ window.pcMascotaToggle = function (abrir) {
   p.style.display = ver ? 'block' : 'none'
 }
 
+let _globoMostrado = false
 function montar(sesion) {
   const nombre = (sesion.nombre || '').split(' ')[0] || ''
-  const hoy = new Date().toISOString().slice(0, 10)
-  let visto = ''
-  try { visto = localStorage.getItem('pcm_globo') || '' } catch (e) {}
   const wa = 'https://wa.me/5214792244560?text=' + encodeURIComponent('Hola, soy ' + (sesion.nombre || 'cliente') + ' del portal mayoreo y tengo una pregunta 👋')
   const r = document.createElement('div')
   r.id = 'pcm-raiz'
@@ -63,15 +71,15 @@ function montar(sesion) {
     .pcm-chip{border:1px solid var(--pc-border,#eee);background:transparent;color:var(--pc-text,#222);border-radius:100px;padding:7px 12px;font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit}
     .pcm-chip:hover{border-color:#E91E8C;color:#E91E8C}
   </style>
-  <div id="pcm-globo" style="display:none" onclick="pcMascotaToggle(true)"><strong style="color:#E91E8C">${nombre ? 'Hola, ' + _esc(nombre) + ' 💖' : 'Hola 💖'}</strong><br>${_esc(fraseDelDia())}</div>
+  <div id="pcm-globo" style="display:none" onclick="pcMascotaToggle(true)"><strong style="color:#E91E8C">${nombre ? 'Hola, ' + _esc(nombre) + ' 💖' : 'Hola 💖'}</strong><br>${_esc(fraseDeEntrada())}</div>
   <div id="pcm-panel" style="display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <strong style="font-size:.9rem">👠 Tacona, tu asistente</strong>
       <button onclick="pcMascotaToggle(false)" aria-label="Cerrar" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--pc-muted,#888)">✕</button>
     </div>
     <div style="background:rgba(233,30,140,.08);border-radius:12px;padding:10px 12px;margin-bottom:10px">
-      <div style="font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#E91E8C;margin-bottom:4px">Frase del día</div>
-      <div id="pcm-frase" style="font-size:.84rem;line-height:1.35">${_esc(fraseDelDia())}</div>
+      <div style="font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#E91E8C;margin-bottom:4px">Para ti hoy</div>
+      <div id="pcm-frase" style="font-size:.84rem;line-height:1.35">${_esc(fraseDeEntrada())}</div>
       <button onclick="pcMascotaFrase()" style="margin-top:6px;background:none;border:none;color:#E91E8C;font-size:.72rem;font-weight:700;cursor:pointer;padding:0;font-family:inherit">Otra frase →</button>
     </div>
     <div style="font-size:.76rem;color:var(--pc-muted,#888);margin-bottom:6px">¿A dónde quieres ir?</div>
@@ -82,12 +90,12 @@ function montar(sesion) {
     <img src="/tacona.png" alt="" width="53" height="59" decoding="async">
   </button>`
   document.body.appendChild(r)
-  if (visto !== hoy) {
+  if (!_globoMostrado) {
+    _globoMostrado = true
     setTimeout(() => {
       const g = document.getElementById('pcm-globo'), p = document.getElementById('pcm-panel')
       if (g && p && p.style.display === 'none') { g.style.display = 'block'; setTimeout(() => { g.style.display = 'none' }, 9000) }
     }, 2500)
-    try { localStorage.setItem('pcm_globo', hoy) } catch (e) {}
   }
 }
 
