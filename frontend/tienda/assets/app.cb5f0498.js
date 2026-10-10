@@ -1439,8 +1439,8 @@ cargarConfigSEO()
       wrap.innerHTML = _cardHTML(p).trim()
       const card = wrap.firstChild
       grid.appendChild(card)
-      // Banda «¿Vendes calzado?» en medio de la lista del home (al fondo de 283 modelos nadie la veía)
-      if (_mostrados + _i === 7 && _listaActual.length >= 100 && !document.documentElement.classList.contains('ruta-categoria')) {
+      // Banda «¿Vendes calzado?» en medio de la lista del home, tras la 12ª tarjeta (12 cierra fila en 2 y en 4 columnas); al fondo de 283 modelos nadie la veía
+      if (_mostrados + _i === 11 && _listaActual.length >= 100 && !document.documentElement.classList.contains('ruta-categoria')) {
         const tpl = document.getElementById('tpl-banda-mayoreo')
         if (tpl && !document.getElementById('zm-banda-mayoreo')) grid.appendChild(tpl.content.cloneNode(true))
       }
