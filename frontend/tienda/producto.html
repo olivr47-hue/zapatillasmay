@@ -355,6 +355,11 @@
     @media (max-width:900px) { .footer-top { grid-template-columns:1fr 1fr; gap:32px; } .footer-eyebrow { margin-bottom:32px; } .footer-inner { padding:40px 20px 132px; } }
     @media (max-width:480px) { .footer-top { grid-template-columns:1fr; gap:24px; } }
   </style>
+<style id="zm-barra-opaca">
+/* Encabezado y buscador 100% opacos: con 95–97 % de opacidad se transparentaban los textos de las tarjetas que pasaban por detrás */
+header { background: #FAF8F6 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.mobile-search-bar { background: #FAF8F6 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+</style>
 </head>
 <body>
 <a href="#contenido-principal" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden" onfocus="this.style.cssText='position:fixed;top:8px;left:8px;width:auto;height:auto;padding:8px 16px;background:#0A0A0A;color:white;z-index:9999;font-size:0.85rem;border-radius:4px;text-decoration:none'">Saltar al contenido</a>

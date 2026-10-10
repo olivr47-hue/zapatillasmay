@@ -1983,6 +1983,9 @@ function zmRechazarCookies() {
 #scroll-sentinel .btn-ver-mas-count { opacity: .9; font-weight: 500; }
 </style>
 <style id="zm-tarjetas-v2">
+/* Encabezado y buscador 100% opacos: con 95–97 % de opacidad se transparentaban los textos de las tarjetas que pasaban por detrás */
+header { background: #FAF8F6 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.mobile-search-bar { background: #FAF8F6 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 /* Etiquetas con un significado por color: Nuevo = verde, Oferta = rojo, Resurtido = azul (antes Nuevo y Oferta eran casi el mismo mauve) */
 .badge-new { background: #1E9B57 !important; color: #fff !important; }
 .badge-sale { background: #C0392B !important; color: #fff !important; }
