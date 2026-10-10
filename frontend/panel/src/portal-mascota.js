@@ -51,15 +51,15 @@ function montar(sesion) {
   const r = document.createElement('div')
   r.id = 'pcm-raiz'
   r.innerHTML = `<style>
-    #pcm-raiz{position:fixed;left:14px;bottom:24px;z-index:490;font-family:inherit}
+    #pcm-raiz{position:fixed;right:18px;bottom:24px;z-index:490;font-family:inherit}
     @media(max-width:768px){#pcm-raiz{bottom:84px}}
     #pcm-btn{width:58px;height:58px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#fff 0%,#ffe3f1 100%);box-shadow:0 6px 20px rgba(233,30,140,.35);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;animation:pcmBob 3.2s ease-in-out infinite}
-    #pcm-btn svg{width:46px;height:42px}
+    #pcm-btn svg{width:50px;height:40px}
     .pcm-ojo{transform-origin:center;transform-box:fill-box;animation:pcmParpadeo 5s infinite}
     @keyframes pcmBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
     @keyframes pcmParpadeo{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
     @media(prefers-reduced-motion:reduce){#pcm-btn,.pcm-ojo{animation:none}}
-    #pcm-globo,#pcm-panel{position:absolute;left:0;bottom:70px;background:var(--pc-bg-elev,#fff);color:var(--pc-text,#222);border:1px solid var(--pc-border,#eee);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    #pcm-globo,#pcm-panel{position:absolute;right:0;bottom:70px;background:var(--pc-bg-elev,#fff);color:var(--pc-text,#222);border:1px solid var(--pc-border,#eee);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     #pcm-globo{width:230px;padding:12px 14px;font-size:.82rem;line-height:1.35;cursor:pointer}
     #pcm-panel{width:min(290px,calc(100vw - 28px));padding:14px}
     .pcm-chip{border:1px solid var(--pc-border,#eee);background:transparent;color:var(--pc-text,#222);border-radius:100px;padding:7px 12px;font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit}
@@ -81,12 +81,13 @@ function montar(sesion) {
       <a class="pcm-chip" style="text-decoration:none" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>
   </div>
   <button id="pcm-btn" onclick="pcMascotaToggle()" aria-label="Tacona, tu asistente" title="Tacona">
-    <svg viewBox="0 0 80 70" aria-hidden="true">
-      <path d="M4 44C4 30 16 24 28 28L44 14C47 12 52 13 52 18L52 40C60 42 68 46 70 52L62 52L58 66L52 66L50 52L12 52C7 52 4 49 4 44Z" fill="#E91E8C"/>
-      <path d="M8 49H50" stroke="#b3136c" stroke-width="3" stroke-linecap="round"/>
-      <ellipse class="pcm-ojo" cx="17" cy="39" rx="6" ry="7" fill="#fff"/><circle cx="18.5" cy="40" r="2.8" fill="#2A1A0E"/>
-      <ellipse class="pcm-ojo" cx="31" cy="38" rx="6" ry="7" fill="#fff"/><circle cx="32.5" cy="39" r="2.8" fill="#2A1A0E"/>
-      <path d="M20 47Q24 51 28 47" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <svg viewBox="0 0 100 80" aria-hidden="true">
+      <path d="M6 60C10 50 20 46 30 44C38 42 46 30 58 22C64 18 72 16 78 20C82 24 82 34 78 42L76 74L71 74L68 48C52 54 30 62 14 66C8 66 4 64 6 60Z" fill="#E91E8C" stroke="#b3136c" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M14 65C30 60 52 53 68 48" stroke="#8c0f57" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M33 45C42 41 49 31 60 24" stroke="#ff8cc6" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".8"/>
+      <ellipse class="pcm-ojo" cx="38" cy="50" rx="5.2" ry="6.2" fill="#fff"/><circle cx="39.4" cy="51" r="2.6" fill="#2A1A0E"/>
+      <ellipse class="pcm-ojo" cx="52" cy="42" rx="5.2" ry="6.2" fill="#fff"/><circle cx="53.4" cy="43" r="2.6" fill="#2A1A0E"/>
+      <path d="M41 58Q46 61 51 56" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     </svg>
   </button>`
   document.body.appendChild(r)
