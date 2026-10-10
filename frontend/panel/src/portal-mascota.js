@@ -53,11 +53,11 @@ function montar(sesion) {
   r.innerHTML = `<style>
     #pcm-raiz{position:fixed;right:18px;bottom:24px;z-index:490;font-family:inherit}
     @media(max-width:768px){#pcm-raiz{bottom:84px}}
-    #pcm-btn{width:88px;height:98px;border:none;background:none;cursor:pointer;padding:0;display:flex;align-items:flex-end;justify-content:center;animation:pcmBob 3.2s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(120,0,60,.35))}
+    #pcm-btn{width:53px;height:59px;border:none;background:none;cursor:pointer;padding:0;display:flex;align-items:flex-end;justify-content:center;animation:pcmBob 3.2s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(120,0,60,.35))}
     #pcm-btn img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
     @keyframes pcmBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
     @media(prefers-reduced-motion:reduce){#pcm-btn{animation:none}}
-    #pcm-globo,#pcm-panel{position:absolute;right:0;bottom:106px;background:var(--pc-bg-elev,#fff);color:var(--pc-text,#222);border:1px solid var(--pc-border,#eee);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    #pcm-globo,#pcm-panel{position:absolute;right:0;bottom:68px;background:var(--pc-bg-elev,#fff);color:var(--pc-text,#222);border:1px solid var(--pc-border,#eee);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     #pcm-globo{width:230px;padding:12px 14px;font-size:.82rem;line-height:1.35;cursor:pointer}
     #pcm-panel{width:min(290px,calc(100vw - 28px));padding:14px}
     .pcm-chip{border:1px solid var(--pc-border,#eee);background:transparent;color:var(--pc-text,#222);border-radius:100px;padding:7px 12px;font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit}
@@ -79,7 +79,7 @@ function montar(sesion) {
       <a class="pcm-chip" style="text-decoration:none" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>
   </div>
   <button id="pcm-btn" onclick="pcMascotaToggle()" aria-label="Tacona, tu asistente" title="Tacona">
-    <img src="/tacona.png" alt="" width="88" height="98" decoding="async">
+    <img src="/tacona.png" alt="" width="53" height="59" decoding="async">
   </button>`
   document.body.appendChild(r)
   if (visto !== hoy) {
