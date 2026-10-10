@@ -151,6 +151,15 @@
     .product-price-main { font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--black); line-height: 1; }
     .product-price-before { font-size: 1rem; font-weight: 400; color: #bbb; text-decoration: line-through; margin-right: 6px; }
     .product-price-offer { color: var(--pink); }
+    .entrega-card { margin: 14px 0 0; background: #fff; border: 1px solid rgba(200,150,122,0.28); border-radius: 14px; overflow: hidden; }
+    .entrega-card > div { display: flex; gap: 12px; padding: 11px 14px; align-items: flex-start; }
+    .entrega-card > div + div { border-top: 1px solid rgba(200,150,122,0.2); }
+    .entrega-card i { font-style: normal; font-size: 1.15rem; line-height: 1.3; }
+    .entrega-card p { margin: 0; font-size: 0.84rem; color: var(--black); line-height: 1.3; }
+    .entrega-card p b { display: block; font-weight: 700; }
+    .entrega-card p span { font-size: 0.76rem; color: var(--gray); }
+    .pagos-fila { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .pagos-fila span { font-size: 0.68rem; font-weight: 700; color: #5a4636; background: #fff; border: 1px solid rgba(200,150,122,0.3); border-radius: 8px; padding: 5px 9px; }
     .mayoreo-box { margin-top: 10px; background: #fff8f5; border: 1px solid rgba(200,150,122,0.25); border-radius: 8px; padding: 10px 12px; }
     .mayoreo-box p { font-size: 0.78rem; color: #666; margin-bottom: 2px; }
     .mayoreo-box strong { color: var(--tan); font-weight: 600; }
@@ -974,6 +983,13 @@ function renderProducto() {
     <div class="talla-grid" id="talla-grid"></div>
     <!-- WIDGET AJUSTE / RECOMENDADOR (debajo de las tallas para que las tallas se vean antes) -->
     <div id="talla-ajuste-container" style="margin:12px 0 4px"></div>
+
+    <!-- Entrega, cambios y formas de pago a la vista (los líderes del sector los muestran junto al botón de compra) -->
+    <div class="entrega-card">
+      <div><i>📦</i><p><b>Llega en 1–3 días hábiles</b><span>Enviamos a todo México desde León, Gto.</span></p></div>
+      <div><i>🔄</i><p><b>Cambio de talla en 30 días</b><span>Si no te queda, lo cambiamos.</span></p></div>
+    </div>
+    <div class="pagos-fila"><span>🔒 Pago seguro</span><span>Tarjeta</span><span>Transferencia</span><span>OXXO</span></div>
     <p id="viendo-counter" style="display:none;font-size:0.72rem;color:#e07a30;font-weight:600;margin-top:8px;margin-bottom:2px">👁 <span id="viendo-num">3</span> personas están viendo este modelo</p>
 
     <div style="background:#fff8f5;border:1px solid rgba(200,150,122,0.35);border-radius:12px;padding:14px 16px;margin-top:14px">
