@@ -283,7 +283,7 @@ function renderPC() {
       <div style="padding:12px 10px;border-top:1px solid var(--pc-border);display:flex;flex-direction:column;gap:8px">
         <button onclick="pcAbrirCalculadora()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-text-3);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:8px"
           onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-text-3)'">
-          <span>🧮</span> Calculadora de precios
+          <span>🧮</span> Calculadora
         </button>
         <button onclick="pcToggleTema()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-text-3);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:8px"
           onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-text-3)'">
@@ -305,7 +305,7 @@ function renderPC() {
           <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Portal Mayoreo</span>
         </div>
         <div style="display:flex;align-items:center;gap:4px">
-          <button onclick="pcAbrirCalculadora()" title="Calculadora de precios de reventa" aria-label="Calculadora" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1">🧮</button>
+          <button onclick="pcAbrirCalculadora()" title="Calculadora" aria-label="Calculadora" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1">🧮</button>
           <button onclick="pcToggleTema()" title="Cambiar tema" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1"><span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span></button>
           
           <button onclick="pcIrA('carrito')" title="Ver carrito" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;position:relative;display:flex;align-items:center;justify-content:center">
@@ -4997,60 +4997,96 @@ function _pcActualizarBottomNavApartados() {
 }
 
 
-// ── CALCULADORA DE REVENTA: la clienta calcula a cuánto vender, cuánto gana y cómo le queda con descuento ──────────
-// Usa su costo (lo que paga por par, con el descuento por volumen). Si ya tiene pares en el carrito, precarga el costo promedio.
+// ── CALCULADORA normal (suma, resta, multiplicación, división y %) ─────────────────────────────────────────────
 window.pcAbrirCalculadora = function() {
-  document.getElementById('pc-calc-modal')?.remove()
-  const items = (pc.carrito || []).filter(i => i.precio_unitario > 0)
-  const pares = items.reduce((t, i) => t + (i.cantidad || 1), 0)
-  const costo0 = pares ? Math.round(items.reduce((t, i) => t + i.precio_unitario * (i.cantidad || 1), 0) / pares) : ''
+  if (document.getElementById('pc-calc-modal')) { document.getElementById('pc-calc-modal').remove(); return }
   const m = document.createElement('div')
   m.id = 'pc-calc-modal'
   m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
-  m.onclick = (e) => { if (e.target === m) m.remove() }
-  const inp = 'class="pc-input" style="width:100%" type="number" inputmode="decimal" min="0" step="any" oninput="pcCalcular()"'
-  const lbl = 'style="display:block;font-size:0.74rem;font-weight:700;color:var(--pc-text-3);margin:0 0 4px"'
-  m.innerHTML = `<div class="pc-card" style="max-width:440px;width:100%;max-height:92vh;overflow:auto;padding:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <h3 style="margin:0;font-size:1.05rem;color:var(--pc-text)">🧮 Calculadora de precios</h3>
-      <button onclick="document.getElementById('pc-calc-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--pc-muted)">✕</button>
+  m.onclick = (e) => { if (e.target === m) pcCalcCerrar() }
+  const tecla = (t, v, est) => `<button onclick="pcCalcTecla('${v}')" style="padding:15px 0;border:1px solid var(--pc-border);border-radius:12px;font-family:inherit;font-size:1.15rem;font-weight:600;cursor:pointer;${est || 'background:var(--pc-bg-elev);color:var(--pc-text)'}">${t}</button>`
+  const op = 'background:rgba(233,30,140,0.12);color:#E91E8C'
+  m.innerHTML = `<div class="pc-card" style="width:100%;max-width:320px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong style="font-size:0.95rem;color:var(--pc-text)">🧮 Calculadora</strong>
+      <button onclick="pcCalcCerrar()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--pc-muted)">✕</button>
     </div>
-    <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 14px">Calcula a cuánto vender cada par, cuánto ganas y cómo te queda si le haces descuento a tu clienta.${pares ? ' Tomamos el costo promedio de tu carrito (' + pares + ' pares).' : ''}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div><label ${lbl}>Lo que me cuesta cada par ($)</label><input id="pcc-costo" ${inp} value="${costo0}" placeholder="Ej. 450"></div>
-      <div><label ${lbl}>Pares a vender</label><input id="pcc-pares" ${inp} value="${pares || 6}"></div>
-      <div><label ${lbl}>Otros gastos por par ($)</label><input id="pcc-gastos" ${inp} value="0" placeholder="Envío, empaque…"></div>
-      <div><label ${lbl}>Quiero ganar (%)</label><input id="pcc-margen" ${inp} value="40"></div>
+    <div style="background:var(--pc-bg-elev);border:1px solid var(--pc-border);border-radius:12px;padding:10px 14px;margin-bottom:12px;text-align:right">
+      <div id="pcc-hist" style="min-height:1.1rem;font-size:0.78rem;color:var(--pc-muted);overflow:hidden;white-space:nowrap"></div>
+      <div id="pcc-pant" style="font-size:2rem;font-weight:700;color:var(--pc-text);overflow:hidden;white-space:nowrap">0</div>
     </div>
-    <div style="margin-bottom:12px"><label ${lbl}>O pon tu precio de venta ($) — si lo llenas, manda sobre el %</label><input id="pcc-precio" ${inp} placeholder="Ej. 899"></div>
-    <div style="margin-bottom:14px"><label ${lbl}>Descuento a mi clienta (%)</label><input id="pcc-desc" ${inp} value="0"></div>
-    <div id="pcc-res" style="background:var(--pc-bg-elev);border:1px solid var(--pc-border);border-radius:12px;padding:14px"></div>
-    <p style="font-size:0.7rem;color:var(--pc-muted);margin:10px 0 0">Los precios son una guía: tú decides a cuánto vender.</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      ${tecla('C','C',op)}${tecla('⌫','B',op)}${tecla('%','%',op)}${tecla('÷','/',op)}
+      ${tecla('7','7')}${tecla('8','8')}${tecla('9','9')}${tecla('×','*',op)}
+      ${tecla('4','4')}${tecla('5','5')}${tecla('6','6')}${tecla('−','-',op)}
+      ${tecla('1','1')}${tecla('2','2')}${tecla('3','3')}${tecla('+','+',op)}
+      ${tecla('0','0')}${tecla('.','.')}${tecla('=','=','grid-column:span 2;background:#E91E8C;color:#fff;border-color:#E91E8C')}
+    </div>
   </div>`
   document.body.appendChild(m)
-  pcCalcular()
+  window._pcCalc = { a: '', op: '', b: '', fin: false }
+  window._pcCalcKey = (e) => {
+    if (e.key === 'Escape') return pcCalcCerrar()
+    const k = e.key === 'Enter' ? '=' : e.key === 'Backspace' ? 'B' : e.key === ',' ? '.' : e.key === 'Delete' ? 'C' : e.key
+    if (/^[0-9.+\-*\/%=BC]$/.test(k)) { e.preventDefault(); pcCalcTecla(k) }
+  }
+  document.addEventListener('keydown', window._pcCalcKey)
+  pcCalcPintar()
 }
 
-window.pcCalcular = function() {
-  const n = (id) => parseFloat(document.getElementById(id)?.value) || 0
-  const costo = n('pcc-costo'), pares = Math.max(1, Math.round(n('pcc-pares')) || 1), gastos = n('pcc-gastos')
-  const margen = n('pcc-margen'), desc = Math.min(99, Math.max(0, n('pcc-desc'))), precioFijo = n('pcc-precio')
-  const base = costo + gastos
-  // Precio de lista: el que escribe, o el que da el % de ganancia sobre su costo; se redondea a terminación en 9 para que se vea comercial
-  let lista = precioFijo > 0 ? precioFijo : base * (1 + margen / 100)
-  if (!(precioFijo > 0) && lista > 0) lista = Math.ceil(lista / 10) * 10 - 1
-  const final = lista * (1 - desc / 100)
-  const gan = final - base, ganPct = base > 0 ? gan / base * 100 : 0
-  const fila = (t, v, fuerte, color) => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;${fuerte ? 'border-top:1px solid var(--pc-border);margin-top:4px;padding-top:9px' : ''}"><span style="font-size:0.8rem;color:var(--pc-text-3)">${t}</span><strong style="font-size:${fuerte ? '1.1rem' : '0.9rem'};color:${color || 'var(--pc-text)'}">${v}</strong></div>`
-  const el = document.getElementById('pcc-res')
-  if (!el) return
-  if (!(costo > 0)) { el.innerHTML = '<p style="margin:0;font-size:0.8rem;color:var(--pc-muted);text-align:center">Escribe cuánto te cuesta cada par para calcular.</p>'; return }
-  const pierde = gan < 0
-  el.innerHTML =
-    fila('Precio de lista', money(lista)) +
-    (desc > 0 ? fila('Precio con ' + desc + '% de descuento', money(final)) : '') +
-    fila('Ganancia por par', (pierde ? '−' : '') + money(Math.abs(gan)) + ' (' + Math.round(ganPct) + '%)', false, pierde ? '#ef4444' : '#10b981') +
-    fila('Ganancia total (' + pares + ' pares)', (pierde ? '−' : '') + money(Math.abs(gan * pares)), true, pierde ? '#ef4444' : '#10b981') +
-    fila('Venta total', money(final * pares)) +
-    (pierde ? '<p style="margin:8px 0 0;font-size:0.74rem;color:#ef4444">⚠️ Con ese precio estarías perdiendo dinero.</p>' : '')
+window.pcCalcCerrar = function() {
+  document.getElementById('pc-calc-modal')?.remove()
+  if (window._pcCalcKey) document.removeEventListener('keydown', window._pcCalcKey)
+}
+
+const _pcSig = { '+': '+', '-': '−', '*': '×', '/': '÷' }
+function pcCalcOperar(a, op, b) {
+  const x = parseFloat(a), y = parseFloat(b)
+  if (isNaN(x) || isNaN(y)) return a
+  const r = op === '+' ? x + y : op === '-' ? x - y : op === '*' ? x * y : (y === 0 ? NaN : x / y)
+  return isNaN(r) ? 'Error' : String(parseFloat(r.toPrecision(12)))
+}
+function pcCalcFmt(t) {
+  if (t === 'Error' || t === '') return t || '0'
+  const neg = t.startsWith('-'), [e, d] = (neg ? t.slice(1) : t).split('.')
+  return (neg ? '-' : '') + Number(e || 0).toLocaleString('es-MX') + (d !== undefined ? '.' + d : '')
+}
+function pcCalcPintar() {
+  const c = window._pcCalc, p = document.getElementById('pcc-pant'), h = document.getElementById('pcc-hist')
+  if (!p) return
+  p.textContent = pcCalcFmt(c.op && c.b !== '' ? c.b : (c.a || '0'))
+  p.style.fontSize = p.textContent.length > 11 ? '1.3rem' : p.textContent.length > 8 ? '1.7rem' : '2rem'
+  h.textContent = c.op ? pcCalcFmt(c.a) + ' ' + _pcSig[c.op] + (c.b !== '' ? ' ' + pcCalcFmt(c.b) : '') : ''
+}
+window.pcCalcTecla = function(k) {
+  const c = window._pcCalc
+  if (!c) return
+  if (c.a === 'Error' && k !== 'C') c.a = ''
+  if (k === 'C') { c.a = ''; c.op = ''; c.b = ''; c.fin = false }
+  else if (k === 'B') { if (c.op) c.b = c.b.slice(0, -1); else if (!c.fin) c.a = c.a.slice(0, -1) }
+  else if (/[0-9.]/.test(k)) {
+    if (c.fin && !c.op) { c.a = ''; c.fin = false }
+    const t = c.op ? 'b' : 'a'
+    if (k === '.' && c[t].includes('.')) return
+    if (c[t].replace(/[-.]/g, '').length >= 12) return
+    c[t] = (k === '.' && c[t] === '' ? '0' : c[t]) + k
+    if (c[t] === '00') c[t] = '0'
+  }
+  else if ('+-*/'.includes(k)) {
+    if (c.a === '') { if (k === '-') c.a = '-'; else c.a = '0' }
+    if (c.a === '-') return
+    if (c.op && c.b !== '') c.a = pcCalcOperar(c.a, c.op, c.b)
+    c.op = k; c.b = ''; c.fin = false
+  }
+  else if (k === '%') {
+    // «a + b %» calcula el b% de a (ej. 200 + 10% = 220); solo «b %» lo vuelve fracción
+    if (c.op && c.b !== '') {
+      const y = parseFloat(c.b), x = parseFloat(c.a)
+      c.b = String(parseFloat((['+', '-'].includes(c.op) ? x * y / 100 : y / 100).toPrecision(12)))
+    } else if (!c.op && c.a !== '') c.a = String(parseFloat((parseFloat(c.a) / 100).toPrecision(12)))
+  }
+  else if (k === '=') {
+    if (c.op && c.b !== '') { c.a = pcCalcOperar(c.a, c.op, c.b); c.op = ''; c.b = ''; c.fin = true }
+  }
+  pcCalcPintar()
 }
