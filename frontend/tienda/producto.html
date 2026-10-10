@@ -294,10 +294,9 @@
     .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-    /* Celular: foto menos alta (4:3) para que precio, color y talla se vean antes; burbuja de WhatsApp solo con ícono para no tapar botones;
+    /* Celular: burbuja de WhatsApp solo con ícono para no tapar botones;
        tras agregar, el botón principal pasa a «Ir a pagar» y se oculta el botón chico de «Ver carrito» */
     @media (max-width: 639px) {
-      .gallery-main { aspect-ratio: 4/3; }
       #btn-float-wa { padding: 12px !important; border-radius: 50% !important; bottom: calc(74px + env(safe-area-inset-bottom, 0px) + 40px) !important; }
       #btn-float-wa span { display: none !important; }
       #btn-float-wa { transition: opacity .25s, transform .2s; }
@@ -2932,5 +2931,6 @@ function renderSearchResults(data, containerId) {
 })()
 </script>
 <script src="/push-subscribe.js" defer></script>
+<script defer src="/assets/migas.v1.js"></script>
 </body>
 </html>
