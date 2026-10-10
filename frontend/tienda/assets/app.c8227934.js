@@ -65,7 +65,7 @@ window.addEventListener('load', () => {
   // Ocultar hero inmediatamente en rutas de categoría/interna (antes de cualquier async)
   const _pathLoad = window.location.pathname
   const _catPathsLoad = ['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios','/catalogo','/ofertas','/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/terminos','/eliminacion-datos','/pedido-exitoso','/pedido-pendiente','/pedido-fallido']
-  if (_catPathsLoad.includes(_pathLoad)) {
+  if (_catPathsLoad.includes(_pathLoad) || ['#catalogo', '#nuevos'].includes(window.location.hash)) {
     const _hLoad = document.getElementById('hero-section')
     if (_hLoad) _hLoad.style.setProperty('display','none','important')
   }
@@ -2602,7 +2602,7 @@ if (window.ttq) {
   }
 
   function mostrarTodos() {
-    mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/catalogo')
+    mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/#catalogo')
   }
 
   function mostrarOfertas() {
@@ -2635,7 +2635,7 @@ if (window.ttq) {
   history.replaceState({}, '', '/')
 }
 function mostrarCatalogo() {
-  mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/catalogo')
+  mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/#catalogo')
 }
 
 function mostrarNuevos() {
@@ -2778,13 +2778,13 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
     let _metaDesc = document.querySelector('meta[name="description"]')
     if (_metaDesc) _metaDesc.setAttribute('content', _d)
     _setOg(_t, _d, 'https://zapatillasmay.mx/ofertas')
-  } else if (urlPath === '/catalogo') {
+  } else if (urlPath === '/#catalogo') {
     const _t = 'Catálogo Completo de Calzado para Dama | Zapatillas May — León, Gto.'
     const _d = 'Todo el catálogo de calzado femenino de moda. Directo del fabricante en León, Guanajuato. Envíos a todo México.'
     document.title = _t
     let _metaDesc = document.querySelector('meta[name="description"]')
     if (_metaDesc) _metaDesc.setAttribute('content', _d)
-    _setOg(_t, _d, 'https://zapatillasmay.mx/catalogo')
+    _setOg(_t, _d, 'https://zapatillasmay.mx/')
   } else {
     const _t = 'Calzado de Dama | Envíos a todo México | Zapatillas May León'
     const _d = 'Calzado de moda para dama. Tacones, sandalias, botas y botines. Hecho en León, Guanajuato.'
