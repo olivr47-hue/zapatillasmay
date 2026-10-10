@@ -52,6 +52,33 @@ window.pcMascotaToggle = function (abrir) {
   p.style.display = ver ? 'block' : 'none'
 }
 
+// Preguntas frecuentes: respuestas FIJAS tomadas de las instrucciones del portal («Cómo funciona el portal»). No se inventa nada:
+// lo que no está aquí se resuelve por WhatsApp con la asesora.
+const PC_FAQ = [
+  ['¿Cómo agrego pares al carrito?', 'Entra a un producto y toca la talla que quieras. Puedes tocar varias tallas y colores del mismo modelo antes de confirmar. Al darle «Agregar al pedido» te quedas en el mismo producto para seguir agregando. Puedes seguir agregando pares en cualquier momento, incluso después de apartar algunos.', ['👟 Ir a Productos', "pcIrA('catalogo')"]],
+  ['¿Qué es apartar y cómo lo hago?', 'En tu carrito toca «Apartar pares específicos» y elige exactamente cuáles pares quieres que te reservemos. Al enviarlos quedan «esperando aprobación»: nosotros revisamos y aprobamos el apartado, y hasta ese momento se reserva el stock de verdad. Puedes apartar cuantas veces quieras.', ['🛒 Ir a mi carrito', "pcIrA('carrito')"]],
+  ['¿Cómo veo y cierro mis apartados?', 'Cuando tienes pares apartados aparece «Apartados» en el menú (y un banner en tu carrito) con el desglose completo. Ahí puedes pedir que se quite un par (queda pendiente hasta que lo autoricemos) o darle «Cerrar pedido» cuando quieras pagar todo lo apartado.', ['🔒 Ir a Apartados', "pcIrA('apartados')"]],
+  ['¿Cómo pago mi pedido?', 'Al cerrar el pedido eliges Transferencia (te mostramos los datos bancarios) o Tarjeta (te generamos un link de pago). Ojo: una vez que cierras con una forma de pago no se puede cambiar sola desde el portal; si necesitas cambiarla, escríbele a tu asesora por WhatsApp.', null],
+  ['¿Puedo cerrar el pedido sin apartar?', 'Sí. En tu carrito está el botón «Cerrar pedido» para pagar de una vez todo lo que llevas, sin pasar por la aprobación de apartado.', ['🛒 Ir a mi carrito', "pcIrA('carrito')"]],
+  ['¿Cómo comparto o descargo las fotos?', 'En la ficha de un producto toca cualquier foto para verla en grande y compartirla. También puedes activar «seleccionar varias» para compartir o descargar varias fotos del mismo modelo. En el catálogo puedes seleccionar varios modelos o colores y compartirlos juntos por WhatsApp.', ['👟 Ir a Productos', "pcIrA('catalogo')"]],
+  ['¿Dónde descargo los catálogos en PDF?', 'En «Catálogos» bajas un PDF con las fotos de todos los modelos activos de cada categoría, listo para mandarlo a tus clientas por WhatsApp.', ['📥 Ir a Catálogos', "pcIrA('catalogos')"]],
+  ['¿Dónde pongo mi dirección de envío?', 'En «Mi cuenta». La dirección de envío es necesaria para poder cerrar cualquier pedido. Ahí también actualizas tus datos de contacto y ves tu crédito disponible si tienes.', ['👤 Ir a Mi cuenta', "pcIrA('cuenta')"]],
+  ['¿Dónde veo mis pedidos?', 'En «Mis pedidos» ves los pedidos que ya hiciste.', ['📦 Ir a Mis pedidos', "pcIrA('pedidos')"]],
+  ['¿Cómo pido una función o aviso de un error?', '«Sugerencias» es para escribirnos directo si quieres pedir una función nueva, avisar de un error o darnos cualquier recomendación sobre el portal.', ['💡 Ir a Sugerencias', "pcIrA('sugerencias')"]],
+  ['Mi duda no está aquí', 'Escríbele a tu asesora por WhatsApp y te ayuda.', 'wa']
+]
+window.pcMascotaFaq = function (ver) {
+  const f = document.getElementById('pcm-faq'), m = document.getElementById('pcm-menu')
+  if (!f || !m) return
+  f.style.display = ver ? 'block' : 'none'
+  m.style.display = ver ? 'none' : 'block'
+}
+window.pcMascotaPregunta = function (i) {
+  document.querySelectorAll('.pcm-resp').forEach(el => { if (el.dataset.i !== String(i)) el.style.display = 'none' })
+  const r = document.querySelector('.pcm-resp[data-i="' + i + '"]')
+  if (r) r.style.display = r.style.display === 'block' ? 'none' : 'block'
+}
+
 let _globoMostrado = false
 function montar(sesion) {
   const nombre = (sesion.nombre || '').split(' ')[0] || ''
@@ -67,7 +94,7 @@ function montar(sesion) {
     @media(prefers-reduced-motion:reduce){#pcm-btn{animation:none}}
     #pcm-globo,#pcm-panel{position:absolute;right:0;bottom:68px;background:var(--pc-bg-elev,#fff);color:var(--pc-text,#222);border:1px solid var(--pc-border,#eee);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     #pcm-globo{width:230px;padding:12px 14px;font-size:.82rem;line-height:1.35;cursor:pointer}
-    #pcm-panel{width:min(290px,calc(100vw - 28px));padding:14px}
+    #pcm-panel{width:min(300px,calc(100vw - 28px));padding:14px;max-height:calc(100vh - 140px);overflow-y:auto}
     .pcm-chip{border:1px solid var(--pc-border,#eee);background:transparent;color:var(--pc-text,#222);border-radius:100px;padding:7px 12px;font-size:.76rem;font-weight:600;cursor:pointer;font-family:inherit}
     .pcm-chip:hover{border-color:#E91E8C;color:#E91E8C}
   </style>
@@ -77,14 +104,28 @@ function montar(sesion) {
       <strong style="font-size:.9rem">👠 Tacona, tu asistente</strong>
       <button onclick="pcMascotaToggle(false)" aria-label="Cerrar" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--pc-muted,#888)">✕</button>
     </div>
+    <div id="pcm-menu">
     <div style="background:rgba(233,30,140,.08);border-radius:12px;padding:10px 12px;margin-bottom:10px">
       <div style="font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#E91E8C;margin-bottom:4px">Para ti hoy</div>
       <div id="pcm-frase" style="font-size:.84rem;line-height:1.35">${_esc(fraseDeEntrada())}</div>
       <button onclick="pcMascotaFrase()" style="margin-top:6px;background:none;border:none;color:#E91E8C;font-size:.72rem;font-weight:700;cursor:pointer;padding:0;font-family:inherit">Otra frase →</button>
     </div>
+    <button class="pcm-chip" onclick="pcMascotaFaq(true)" style="width:100%;margin-bottom:10px;background:#E91E8C;color:#fff;border-color:#E91E8C">❓ Preguntas frecuentes</button>
     <div style="font-size:.76rem;color:var(--pc-muted,#888);margin-bottom:6px">¿A dónde quieres ir?</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${PC_ATAJOS.map(x => `<button class="pcm-chip" onclick="pcMascotaToggle(false);${x[1]}">${x[0]}</button>`).join('')}
       <a class="pcm-chip" style="text-decoration:none" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>
+    </div>
+    <div id="pcm-faq" style="display:none">
+      <button onclick="pcMascotaFaq(false)" style="background:none;border:none;color:#E91E8C;font-size:.76rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:inherit">← Volver</button>
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">Preguntas frecuentes</div>
+      <div style="max-height:46vh;overflow-y:auto;padding-right:2px">${PC_FAQ.map((q, i) => `
+        <div style="border-bottom:1px solid var(--pc-border,#eee);padding:2px 0">
+          <button onclick="pcMascotaPregunta(${i})" style="width:100%;text-align:left;background:none;border:none;padding:9px 0;font-size:.8rem;font-weight:600;color:var(--pc-text,#222);cursor:pointer;font-family:inherit">${_esc(q[0])}</button>
+          <div class="pcm-resp" data-i="${i}" style="display:none;font-size:.78rem;line-height:1.45;color:var(--pc-text-3,#555);padding:0 0 10px">${_esc(q[1])}
+            ${q[2] === 'wa' ? `<div style="margin-top:8px"><a class="pcm-chip" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>` : q[2] ? `<div style="margin-top:8px"><button class="pcm-chip" onclick="pcMascotaToggle(false);${q[2][1]}">${q[2][0]}</button></div>` : ''}
+          </div>
+        </div>`).join('')}</div>
+    </div>
   </div>
   <button id="pcm-btn" onclick="pcMascotaToggle()" aria-label="Tacona, tu asistente" title="Tacona">
     <img src="/tacona.png" alt="" width="53" height="59" decoding="async">
