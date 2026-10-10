@@ -281,6 +281,10 @@ function renderPC() {
 
       <!-- Tema + Cerrar sesión -->
       <div style="padding:12px 10px;border-top:1px solid var(--pc-border);display:flex;flex-direction:column;gap:8px">
+        <button onclick="pcAbrirCalculadora()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-text-3);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:8px"
+          onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-text-3)'">
+          <span>🧮</span> Calculadora de precios
+        </button>
         <button onclick="pcToggleTema()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-text-3);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:8px"
           onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-text-3)'">
           <span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span> Cambiar tema
@@ -301,6 +305,7 @@ function renderPC() {
           <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Portal Mayoreo</span>
         </div>
         <div style="display:flex;align-items:center;gap:4px">
+          <button onclick="pcAbrirCalculadora()" title="Calculadora de precios de reventa" aria-label="Calculadora" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1">🧮</button>
           <button onclick="pcToggleTema()" title="Cambiar tema" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1"><span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span></button>
           
           <button onclick="pcIrA('carrito')" title="Ver carrito" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;position:relative;display:flex;align-items:center;justify-content:center">
@@ -4989,4 +4994,63 @@ function _pcActualizarBottomNavApartados() {
     btn.classList.toggle('activo', pc.tab === 'apartados')
   }
   nav.classList.toggle('pc-bn-compacto', !!document.getElementById('pc-bn-apartados'))
+}
+
+
+// ── CALCULADORA DE REVENTA: la clienta calcula a cuánto vender, cuánto gana y cómo le queda con descuento ──────────
+// Usa su costo (lo que paga por par, con el descuento por volumen). Si ya tiene pares en el carrito, precarga el costo promedio.
+window.pcAbrirCalculadora = function() {
+  document.getElementById('pc-calc-modal')?.remove()
+  const items = (pc.carrito || []).filter(i => i.precio_unitario > 0)
+  const pares = items.reduce((t, i) => t + (i.cantidad || 1), 0)
+  const costo0 = pares ? Math.round(items.reduce((t, i) => t + i.precio_unitario * (i.cantidad || 1), 0) / pares) : ''
+  const m = document.createElement('div')
+  m.id = 'pc-calc-modal'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  m.onclick = (e) => { if (e.target === m) m.remove() }
+  const inp = 'class="pc-input" style="width:100%" type="number" inputmode="decimal" min="0" step="any" oninput="pcCalcular()"'
+  const lbl = 'style="display:block;font-size:0.74rem;font-weight:700;color:var(--pc-text-3);margin:0 0 4px"'
+  m.innerHTML = `<div class="pc-card" style="max-width:440px;width:100%;max-height:92vh;overflow:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 style="margin:0;font-size:1.05rem;color:var(--pc-text)">🧮 Calculadora de precios</h3>
+      <button onclick="document.getElementById('pc-calc-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--pc-muted)">✕</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 14px">Calcula a cuánto vender cada par, cuánto ganas y cómo te queda si le haces descuento a tu clienta.${pares ? ' Tomamos el costo promedio de tu carrito (' + pares + ' pares).' : ''}</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div><label ${lbl}>Lo que me cuesta cada par ($)</label><input id="pcc-costo" ${inp} value="${costo0}" placeholder="Ej. 450"></div>
+      <div><label ${lbl}>Pares a vender</label><input id="pcc-pares" ${inp} value="${pares || 6}"></div>
+      <div><label ${lbl}>Otros gastos por par ($)</label><input id="pcc-gastos" ${inp} value="0" placeholder="Envío, empaque…"></div>
+      <div><label ${lbl}>Quiero ganar (%)</label><input id="pcc-margen" ${inp} value="40"></div>
+    </div>
+    <div style="margin-bottom:12px"><label ${lbl}>O pon tu precio de venta ($) — si lo llenas, manda sobre el %</label><input id="pcc-precio" ${inp} placeholder="Ej. 899"></div>
+    <div style="margin-bottom:14px"><label ${lbl}>Descuento a mi clienta (%)</label><input id="pcc-desc" ${inp} value="0"></div>
+    <div id="pcc-res" style="background:var(--pc-bg-elev);border:1px solid var(--pc-border);border-radius:12px;padding:14px"></div>
+    <p style="font-size:0.7rem;color:var(--pc-muted);margin:10px 0 0">Los precios son una guía: tú decides a cuánto vender.</p>
+  </div>`
+  document.body.appendChild(m)
+  pcCalcular()
+}
+
+window.pcCalcular = function() {
+  const n = (id) => parseFloat(document.getElementById(id)?.value) || 0
+  const costo = n('pcc-costo'), pares = Math.max(1, Math.round(n('pcc-pares')) || 1), gastos = n('pcc-gastos')
+  const margen = n('pcc-margen'), desc = Math.min(99, Math.max(0, n('pcc-desc'))), precioFijo = n('pcc-precio')
+  const base = costo + gastos
+  // Precio de lista: el que escribe, o el que da el % de ganancia sobre su costo; se redondea a terminación en 9 para que se vea comercial
+  let lista = precioFijo > 0 ? precioFijo : base * (1 + margen / 100)
+  if (!(precioFijo > 0) && lista > 0) lista = Math.ceil(lista / 10) * 10 - 1
+  const final = lista * (1 - desc / 100)
+  const gan = final - base, ganPct = base > 0 ? gan / base * 100 : 0
+  const fila = (t, v, fuerte, color) => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;${fuerte ? 'border-top:1px solid var(--pc-border);margin-top:4px;padding-top:9px' : ''}"><span style="font-size:0.8rem;color:var(--pc-text-3)">${t}</span><strong style="font-size:${fuerte ? '1.1rem' : '0.9rem'};color:${color || 'var(--pc-text)'}">${v}</strong></div>`
+  const el = document.getElementById('pcc-res')
+  if (!el) return
+  if (!(costo > 0)) { el.innerHTML = '<p style="margin:0;font-size:0.8rem;color:var(--pc-muted);text-align:center">Escribe cuánto te cuesta cada par para calcular.</p>'; return }
+  const pierde = gan < 0
+  el.innerHTML =
+    fila('Precio de lista', money(lista)) +
+    (desc > 0 ? fila('Precio con ' + desc + '% de descuento', money(final)) : '') +
+    fila('Ganancia por par', (pierde ? '−' : '') + money(Math.abs(gan)) + ' (' + Math.round(ganPct) + '%)', false, pierde ? '#ef4444' : '#10b981') +
+    fila('Ganancia total (' + pares + ' pares)', (pierde ? '−' : '') + money(Math.abs(gan * pares)), true, pierde ? '#ef4444' : '#10b981') +
+    fila('Venta total', money(final * pares)) +
+    (pierde ? '<p style="margin:8px 0 0;font-size:0.74rem;color:#ef4444">⚠️ Con ese precio estarías perdiendo dinero.</p>' : '')
 }
