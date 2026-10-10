@@ -679,7 +679,7 @@ _PAGINAS_CONTENT = {
   <p>El descuento de 3 a 5 pares se aplica automáticamente al agregar pares al carrito — sin códigos ni trámites.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Envíos a todo México</h2>
   <p>Enviamos a toda la República Mexicana por paquetería en 1 a 3 días hábiles. También realizamos envíos a <strong>Estados Unidos y Canadá</strong>.</p>
-  <p style="margin-top:24px">Más de 2,400 pedidos enviados a clientes satisfechas en toda la República.</p>
+  <p style="margin-top:24px">Más de 3,000 pares vendidos a clientas satisfechas en toda la República.</p>
 </section>""",
     "contacto": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">

@@ -55,9 +55,6 @@
   <!-- Preload del LCP: fondo del hero (descubrible desde el HTML y optimizado con Cloudinary) -->
   <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(max-width: 767px)">
   <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(min-width: 768px)">
-  <!-- Preload del zapato principal del hero: responsivo -->
-  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(max-width: 767px)">
-  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(min-width: 768px)">
 
 
   <!-- Preload de las fuentes del título/cuerpo: llegan antes del primer pintado → el swap no provoca CLS -->
@@ -557,8 +554,8 @@ if (!window.fbq){
 <div class="cro-trust-strip">
   <div class="cro-trust-inner">
     <div class="cro-social-proof">
-      <span class="cro-sp-num" id="cro-pedidos">+2,400</span>
-      <span class="cro-sp-label">pedidos enviados<br>a toda la República</span>
+      <span class="cro-sp-num" id="cro-pedidos">+3,000</span>
+      <span class="cro-sp-label">pares vendidos<br>a toda la República</span>
     </div>
     <div class="cro-divider"></div>
     <div class="cro-garantias">
@@ -1225,10 +1222,11 @@ function zmRechazarCookies() {
       // "ya es visible" sin depender del ticker de GSAP.
       var numEl = document.getElementById('cro-pedidos');
       if (numEl) {
-        var metaContador = 2400;
+        // Cifra REAL: pares vendidos (redondeada hacia abajo a la centena). Antes era 2,400 + 5 por cada pedido, un número inventado.
+        var metaContador = 3000;
         var fetchContador = fetch(`${API}/pedidos/pares-vendidos-total`)
           .then(function(r) { return r.ok ? r.json() : null; })
-          .then(function(d) { if (d && d.total_pedidos) metaContador = 2400 + (d.total_pedidos * 5); })
+          .then(function(d) { if (d && d.total_pares >= 500) metaContador = Math.floor(d.total_pares / 100) * 100; })
           .catch(function() {});
 
         var contadorFired = false;
@@ -1949,10 +1947,10 @@ function zmRechazarCookies() {
   .hero-cta .btn-outline {
     flex: none !important; /* No estirar */
     max-width: none !important;
-    padding: 6px 12px !important; /* Más pequeños y compactos */
-    font-size: 0.56rem !important; /* Letras más pequeñas y elegantes */
+    padding: 9px 18px !important; /* tocable con el dedo */
+    font-size: 0.7rem !important; /* legible (antes 9 px) */
     letter-spacing: 1px !important;
-    height: 28px !important; /* Altura más baja */
+    height: 40px !important; /* altura mínima cómoda para tocar */
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;

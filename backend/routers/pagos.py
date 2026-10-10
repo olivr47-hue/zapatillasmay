@@ -524,6 +524,15 @@ def crear_preferencia(datos: dict):
         items = datos.get("items", [])
         cliente = datos.get("cliente", {})
 
+        # Solo se genera link de pago para pedidos que siguen por cobrarse. Antes cualquiera con el id de un pedido ya pagado
+        # podía volver a pedir un link y el pedido regresaba a «checkout_iniciado» (perdía su estado de pagado).
+        _ped_estado = supabase_get(f"pedidos?id=eq.{pedido_id}&select=status,total,anticipo") if pedido_id else []
+        if not _ped_estado:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        if _ped_estado[0].get("status") not in ("borrador", "apartado", "checkout_iniciado", "pendiente_pago"):
+            return JSONResponse(status_code=409, content={"error": "Este pedido ya no está pendiente de pago"})
+        _total_guardado = float(_ped_estado[0].get("total") or 0)
+
         webhook_url = os.getenv("MP_WEBHOOK_URL", "")
         frontend_url = os.getenv("FRONTEND_URL", "https://zapatillasmay.mx")
 
@@ -540,6 +549,26 @@ def crear_preferencia(datos: dict):
                 }
                 for item in items
             ]
+
+        # El envío y los extras venían del navegador: quien los omitía pagaba solo los productos. El total del pedido guardado
+        # en la base manda: si lo que se cobraría es menos, la diferencia (envío) se agrega como renglón.
+        try:
+            _cobro = sum(float(i.get("unit_price") or 0) * int(i.get("quantity") or 1) for i in mp_items)
+            _falta = round(_total_guardado - _cobro, 2)
+            if 0.5 < _falta <= 5000:
+                mp_items.append({"title": "Envío", "quantity": 1, "unit_price": _falta, "currency_id": "MXN"})
+        except Exception as e_rec:
+            print(f"[crear_preferencia] conciliación de total omitida: {e_rec}")
+
+        # Si el pedido ya tiene anticipo recibido (carritos/apartados), el link cobra SOLO el saldo: antes cobraba el total completo
+        # y la clienta terminaba pagando dos veces lo del anticipo.
+        _anticipo = float(_ped_estado[0].get("anticipo") or 0)
+        if _anticipo > 0:
+            _cobro_total = sum(float(i.get("unit_price") or 0) * int(i.get("quantity") or 1) for i in mp_items)
+            _saldo = round(_cobro_total - _anticipo, 2)
+            if _saldo <= 0:
+                return JSONResponse(status_code=400, content={"error": f"El anticipo (${_anticipo:,.0f}) ya cubre el total: no hay saldo que cobrar con link."})
+            mp_items = [{"title": f"Saldo de tu pedido (anticipo ya recibido ${_anticipo:,.0f})", "quantity": 1, "unit_price": _saldo, "currency_id": "MXN"}]
 
         preference_data = {
             "items": mp_items,
@@ -885,7 +914,7 @@ async def webhook_mercadopago(request: Request):
                                 print(f"[webhook] marketplace: {e_mp}")
                             try:
                                 monto_pagado = float(payment.get("transaction_amount") or 0)
-                                if monto_pagado + 1 < float(p.get("total") or 0):
+                                if monto_pagado + 1 < float(p.get("total") or 0) - float(p.get("anticipo") or 0):
                                     from routers.push import enviar_push as _ep
                                     _ep(titulo="⚠️ Pago menor al total",
                                         cuerpo=f"Pedido {str(pedido_id)[:8]}: pagó ${monto_pagado:.0f} de ${float(p.get('total') or 0):.0f}",

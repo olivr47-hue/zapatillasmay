@@ -223,6 +223,15 @@ def pares_vendidos_total():
             "pedidos?status=not.in.(cancelado,borrador,checkout_iniciado)&select=id"
         )
         resultado = {"total_pedidos": len(pedidos)}
+        # Pares REALES vendidos (para el contador de confianza del sitio: antes se inflaba con una cuenta inventada)
+        try:
+            filas = supabase_get_all(
+                "pedido_items?cantidad=gt.0&select=cantidad,pedidos!inner(status)"
+                "&pedidos.status=not.in.(cancelado,borrador,checkout_iniciado)"
+            )
+            resultado["total_pares"] = int(sum(int(f.get("cantidad") or 0) for f in filas))
+        except Exception as e_pares:
+            print(f"[pedidos] total_pares: {e_pares}")
         cache_set(cache_key, resultado, ttl=TTL_FEEDS)
         return resultado
     except Exception as e:
