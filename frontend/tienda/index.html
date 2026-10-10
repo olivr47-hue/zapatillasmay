@@ -2009,45 +2009,54 @@ function zmRechazarCookies() {
 }
 @media (max-width: 768px) {
   html.ruta-home #hero-section { margin-top: 104px !important; }
-  /* Tarjeta: la foto COMPLETA arriba (así se ve todo el zapato) y el mensaje debajo, sobre fondo crema: nada de texto encima del modelo */
+  /* Tarjeta oscura con la foto grande arriba: el zapato queda ENTERO en la parte de arriba y el texto y los botones van en la parte baja,
+     sobre un degradado que parte de la misma foto. Así se ve como antes (texto sobre la imagen) pero sin tapar el modelo. */
   html.ruta-home #hero-section #hero-content {
+    --zm-w: calc(100vw - 32px);
     order: 1 !important;
     margin: 8px 16px 0 !important;
     width: auto !important; max-width: none !important;
     min-height: 0 !important; max-height: none !important;
-    padding: calc((100vw - 32px) * 0.667 + 20px) 20px 22px !important;
+    padding: calc(var(--zm-w) * 0.86) 20px 20px !important;
     justify-content: flex-start !important; align-items: stretch !important;
     border-radius: 24px !important; overflow: hidden !important;
-    background-color: #FBF7F3 !important;
-    background-image: var(--hero-lifestyle-url) !important;
-    background-repeat: no-repeat !important; background-size: 100% auto !important; background-position: top center !important;
-    border: 1px solid #eadfd7 !important; box-shadow: 0 8px 24px rgba(80,40,20,.08) !important;
+    background-color: #3a261b !important;
+    background-image:
+      linear-gradient(180deg, rgba(58,38,27,0) calc(var(--zm-w) * 0.70), #3a261b calc(var(--zm-w) * 0.86)),
+      var(--hero-lifestyle-url) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: 100% 100%, auto calc(var(--zm-w) * 0.86) !important;
+    background-position: 0 0, 56% 0 !important;
+    box-shadow: 0 10px 28px rgba(58,38,27,.22) !important;
   }
   html.ruta-home #hero-section .hero-eyebrow {
-    display: block !important; color: #B5687A !important;
-    font-size: .68rem !important; font-weight: 700 !important; letter-spacing: .14em !important; text-transform: uppercase !important;
+    display: block !important; color: rgba(255,255,255,.85) !important;
+    font-size: .66rem !important; font-weight: 700 !important; letter-spacing: .14em !important; text-transform: uppercase !important;
     margin: 0 0 6px !important; text-shadow: none !important;
   }
   html.ruta-home #hero-section .hero-title {
-    color: #2A1A0E !important; text-shadow: none !important;
-    font-size: 2.1rem !important; font-weight: 500 !important; line-height: 1.04 !important; letter-spacing: 0 !important;
+    color: #fff !important; text-shadow: none !important;
+    font-size: 1.95rem !important; font-weight: 500 !important; line-height: 1.04 !important; letter-spacing: 0 !important;
     margin: 0 0 8px !important;
   }
-  html.ruta-home #hero-section .hero-title em { color: #B5687A !important; font-style: italic !important; text-shadow: none !important; }
+  html.ruta-home #hero-section .hero-title em { color: #fff !important; font-style: italic !important; text-shadow: none !important; }
   html.ruta-home #hero-section .hero-subtitle {
-    display: block !important; color: #5a4636 !important; font-size: .92rem !important; line-height: 1.4 !important; margin: 0 0 14px !important;
+    display: block !important; color: rgba(255,255,255,.93) !important; font-size: .88rem !important; line-height: 1.35 !important; margin: 0 0 14px !important;
   }
-  html.ruta-home #hero-section .hero-subtitle strong { color: #2A1A0E !important; }
+  html.ruta-home #hero-section .hero-subtitle strong { color: #fff !important; }
+  /* Los dos botones lado a lado: ocupan una sola fila y dejan más foto libre */
   html.ruta-home #hero-section .hero-cta {
-    width: 100% !important; margin: 0 !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important;
+    width: 100% !important; margin: 0 !important; flex-direction: row !important; align-items: stretch !important; gap: 10px !important;
   }
   html.ruta-home #hero-section .hero-cta .btn-primary,
   html.ruta-home #hero-section .hero-cta .btn-outline {
-    width: 100% !important; height: 50px !important; font-size: .95rem !important; letter-spacing: .2px !important; padding: 0 22px !important;
-    justify-content: center !important; text-transform: none !important; font-weight: 700 !important; border-radius: 99px !important;
+    height: 48px !important; font-size: .9rem !important; letter-spacing: .1px !important; padding: 0 12px !important;
+    justify-content: center !important; text-transform: none !important; font-weight: 700 !important; border-radius: 99px !important; white-space: nowrap !important;
   }
+  html.ruta-home #hero-section .hero-cta .btn-primary { flex: 1.45 1 0 !important; width: auto !important; }
   html.ruta-home #hero-section .hero-cta .btn-outline {
-    background: #fff !important; color: #2A1A0E !important; border: 1.5px solid #e2d3c8 !important; opacity: 1 !important;
+    flex: 1 1 0 !important; width: auto !important;
+    background: rgba(255,255,255,.14) !important; color: #fff !important; border: 1.5px solid rgba(255,255,255,.75) !important; opacity: 1 !important;
   }
   html.ruta-home #hero-section .hero-offer { display: none !important; }
   /* 360°: tarjeta propia debajo del hero */
