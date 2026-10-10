@@ -956,7 +956,7 @@ if (!window.fbq){
   </div>
 </footer>
 
-<script src="/assets/app.c69ebfea.js"></script>
+<script src="/assets/app.91d5d8ac.js"></script>
   <!-- PÁGINA INTERNA -->
 
 
@@ -1962,11 +1962,9 @@ function zmRechazarCookies() {
 .badge-stock { background: #B25E09 !important; color: #fff !important; }
 /* «¡Últimos N pares!» arriba a la derecha: abajo chocaba con el botón «Elegir talla» y quedaba tapado */
 .product-card .badge-stock { top: 8px !important; right: 8px !important; bottom: auto !important; left: auto !important; }
-/* En celular no existe el «hover»: «Elegir talla» queda siempre visible, pero como una pastilla chica en la esquina para no tapar el modelo */
-@media (hover: none) {
-  .product-card .product-actions { opacity: 1 !important; transform: none !important; left: auto !important; right: 8px !important; bottom: 8px !important; width: auto !important; }
-  .product-card .btn-add-cart { display: inline-block !important; width: auto !important; background: rgba(255,255,255,.94) !important; color: #2A1A0E !important; text-transform: none !important; letter-spacing: 0 !important; font-size: .68rem !important; font-weight: 700 !important; padding: 6px 12px !important; box-shadow: 0 2px 8px rgba(0,0,0,.14) !important; }
-}
+/* «Elegir talla» va FUERA de la foto (debajo del precio): encima tapaba el modelo */
+.product-card .btn-elegir-talla { display: block; margin-top: 9px; text-align: center; padding: 9px 10px; border: 1.5px solid #B5687A; color: #B5687A; background: #fff; border-radius: 99px; font-size: .78rem; font-weight: 700; transition: background .15s, color .15s; }
+.product-card:hover .btn-elegir-talla { background: #B5687A; color: #fff; }
 </style>
 <style id="zm-hero-v2">
 @keyframes zmHeroIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

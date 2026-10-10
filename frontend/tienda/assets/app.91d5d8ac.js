@@ -1358,9 +1358,6 @@ cargarConfigSEO()
           ${etiquetaNovedad(p)}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
           ${_stockBajo ? `<span class="badge-stock">¡Últimos ${_stockTotal} pares!</span>` : ''}
-          <div class="product-actions">
-            <span class="btn-add-cart">Elegir talla</span>
-          </div>
         </div>
         <div class="product-colors">
           ${colores.slice(0,5).map(c => {
@@ -1377,6 +1374,7 @@ cargarConfigSEO()
           </div>
           ${_precioMay3 ? `<div class="price-mayoreo-hint" style="margin-top:2px">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
         </div>
+        <span class="btn-elegir-talla">Elegir talla</span>
       </a>`
   }
 
