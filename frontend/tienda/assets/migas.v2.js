@@ -70,7 +70,7 @@
   }
 
   var st = document.createElement('style')
-  st.textContent = '.zm-migas{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 16px 4px;font-size:.78rem;line-height:1.3;color:#8a7868;font-family:inherit}' +
+  st.textContent = '.zm-migas{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:22px 16px 6px;font-size:.78rem;line-height:1.3;color:#8a7868;font-family:inherit}' +
     '.zm-migas a{color:#8a7868;text-decoration:none;font-weight:500}.zm-migas a:hover{color:#B5687A;text-decoration:underline}' +
     '.zm-migas-sep{color:#c9b8aa}.zm-migas-actual{color:#2A1A0E;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '@media(min-width:769px){.zm-migas{padding:14px 40px 6px;font-size:.82rem}}'
