@@ -26,15 +26,28 @@ def _sin_oferta_interna(productos: list) -> list:
     return [p for p in productos if not _es_oferta(p)]
 
 
+_ZM_IMG_HOST = (os.environ.get("ZM_IMG_HOST", "https://img.zapatillasmay.mx") or "").rstrip("/")
+_CLD_PREFIJO = "https://res.cloudinary.com/dybdtehhs/image/upload/"
+
+
+def _cdn_img(u: str) -> str:
+    """Misma foto, servida por img.zapatillasmay.mx (Cloudflare la guarda y Cloudinary ya no gasta descarga).
+    Debe coincidir con zmCdn() del JavaScript de la tienda, para que la foto no se descargue dos veces.
+    Variable ZM_IMG_HOST vacía = apagado (se sirve desde Cloudinary como antes)."""
+    if _ZM_IMG_HOST and u.startswith(_CLD_PREFIJO):
+        return _ZM_IMG_HOST + "/image/upload/" + u[len(_CLD_PREFIJO):]
+    return u
+
+
 def _img_web(url: str, w: int) -> str:
     """Optimiza imágenes de Cloudinary para la web (ancho específico, auto formato y calidad)."""
     u = (url or "").strip()
     if not u or "res.cloudinary.com" not in u or "/upload/" not in u:
         return u
     if "/upload/f_auto" in u or ",f_auto" in u:
-        return u
+        return _cdn_img(u)
     cabeza, _, cola = u.partition("/upload/")
-    return f"{cabeza}/upload/w_{w},f_auto,q_auto/{cola}"
+    return _cdn_img(f"{cabeza}/upload/w_{w},f_auto,q_auto/{cola}")
 
 
 @router.post("/productos/generar-seo")

@@ -28,6 +28,7 @@
   <title>Producto | Zapatillas May — Calzado de Moda para Dama</title>
   <meta name="description" content="Calzado de moda para dama. León, Guanajuato.">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <link rel="preconnect" href="https://img.zapatillasmay.mx">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap"></noscript>
@@ -720,13 +721,38 @@ header { background: #FAF8F6 !important; backdrop-filter: none !important; -webk
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 const targetImgWidth = (window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth) < 600 ? 500 : 900;
+// Fotos desde img.zapatillasmay.mx (Cloudflare guarda cada foto y Cloudinary ya no gasta descarga). Si esa dirección falla, la foto
+// se vuelve a pedir a Cloudinary. Interruptor de emergencia: localStorage.zm_img = 'cloudinary'
+const ZM_CLD = 'https://res.cloudinary.com/dybdtehhs/image/upload/'
+const ZM_CDN = 'https://img.zapatillasmay.mx/image/upload/'
+function zmCdn(u) {
+  if (typeof u !== 'string' || u.indexOf(ZM_CLD) !== 0) return u
+  try { if (localStorage.getItem('zm_img') === 'cloudinary') return u } catch (e) {}
+  return ZM_CDN + u.slice(ZM_CLD.length)
+}
+window.addEventListener('error', function (e) {
+  const t = e.target
+  if (!t || t.tagName !== 'IMG') return
+  const estado = t.getAttribute('data-zm-fb')
+  if (estado === '2') return
+  const src = t.getAttribute('src') || ''
+  const srcset = t.getAttribute('srcset') || ''
+  if (estado !== '1' && (src.indexOf(ZM_CDN) === 0 || srcset.indexOf(ZM_CDN) !== -1)) {
+    t.setAttribute('data-zm-fb', '1')   // primera falla: se vuelve a pedir a Cloudinary
+    const volver = v => v.split(ZM_CDN).join(ZM_CLD)
+    if (srcset) t.setAttribute('srcset', volver(srcset))
+    t.setAttribute('src', volver(src))
+  } else if (estado === '1') {
+    t.setAttribute('data-zm-fb', '2')   // también falló Cloudinary: ya no se insiste
+  }
+}, true)
 // Redimensiona/optimiza imágenes de Cloudinary al vuelo (WebP/AVIF + ancho objetivo).
 // No altera el original en Cloudinary ni lo que se manda a MercadoLibre.
 function zmImg(url, w){
   if (!url || typeof url !== 'string') return url || ''
   if (url.indexOf('/image/upload/') === -1) return url
-  if (url.indexOf('/upload/f_auto') !== -1 || url.indexOf(',f_auto') !== -1) return url
-  return url.replace('/image/upload/', `/image/upload/w_${w},f_auto,q_auto/`)
+  if (url.indexOf('/upload/f_auto') !== -1 || url.indexOf(',f_auto') !== -1) return zmCdn(url)
+  return zmCdn(url.replace('/image/upload/', `/image/upload/w_${w},f_auto,q_auto/`))
 }
 let producto = null
 let variantes = []
