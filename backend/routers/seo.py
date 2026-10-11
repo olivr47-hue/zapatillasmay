@@ -801,6 +801,15 @@ _PAGINAS_CONTENT = {
     <p style="margin:0 0 16px;color:#7a6055">Entra a nuestro Portal de Mayoristas: precios especiales, arma tu corrida por talla y color, descarga catálogos y haz tu pedido directo.</p>
     <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:#E91E8C;color:white;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px">Entrar al portal de mayoristas →</a>
   </div>
+  <h2 style="font-size:1.2rem;margin-top:28px">Herramientas del Portal de Mayoristas</h2>
+  <ul style="padding-left:20px">
+    <li><strong>Compartir fotos sin precios:</strong> elige varios modelos y colores y compártelos por WhatsApp o redes solo con la foto de portada, o descarga todas las fotos de un modelo.</li>
+    <li><strong>Catálogos en PDF con tu marca:</strong> descarga un catálogo por categoría con el nombre de tu negocio y tu WhatsApp, solo con fotos o con tus precios de venta. Tu costo de mayoreo nunca aparece.</li>
+    <li><strong>Tus precios y lista por WhatsApp:</strong> fija tu margen de ganancia y genera una lista de precios lista para mandar a tus clientas.</li>
+    <li><strong>Surtido variado, corridas y apartados:</strong> mezcla modelos, colores y tallas, compra corridas completas y aparta los pares que quieras reservar.</li>
+    <li><strong>Registro de ventas y calculadora:</strong> anota ventas y gastos, ve tu ganancia por mes y haz tus cuentas sin salir del portal.</li>
+    <li><strong>Tacona, la asistente del portal:</strong> preguntas frecuentes y accesos directos a cada sección.</li>
+  </ul>
   <h2 style="font-size:1.2rem;margin-top:28px">Cambios y garantía para mayoristas</h2>
   <ul style="padding-left:20px">
     <li><strong>Cambios (22 días):</strong> dentro de los primeros 22 días desde que recibes tu pedido puedes cambiar por <strong>cualquier otro estilo</strong>. El calzado debe estar sin uso, limpio y en su caja, y el cambio está sujeto a existencia.</li>
