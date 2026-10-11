@@ -65,8 +65,22 @@ def variantes_para_tienda() -> list:
     return data
 
 
+_CAMPOS_FUERA_PORTAL = ("sku", "created_at")
+
+
+def variantes_para_portal() -> list:
+    """Lista de variantes SIN los campos que el portal de mayoristas nunca lee de una variante (SKU y fecha de alta).
+    Conserva el producto anidado (el portal lo usa para el nombre). Solo con `?portal=1`; el panel y el resto reciben la lista de siempre."""
+    cached = cache_get(_CK + "_portal")
+    if cached is not None:
+        return cached
+    data = [{k: v for k, v in fila.items() if k not in _CAMPOS_FUERA_PORTAL} for fila in variantes_publicas_todas()]
+    cache_set(_CK + "_portal", data)
+    return data
+
+
 @router.get("/")
-def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str = None, tienda: bool = False):
+def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str = None, tienda: bool = False, portal: bool = False):
     if solo:
         # Página de producto: solo las variantes de ESE modelo (~3 KB) en vez de las 4,000+ del catálogo (~580 KB comprimidos).
         # Misma forma exacta que la lista completa, filtrada en memoria (sin consultar la base).
@@ -90,6 +104,9 @@ def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str =
 
     if tienda:
         return variantes_para_tienda()
+
+    if portal:
+        return variantes_para_portal()
 
     return variantes_publicas_todas()
 

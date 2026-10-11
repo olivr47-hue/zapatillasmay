@@ -649,8 +649,10 @@ async function cargarDatosPC() {
 
   const [prod, vari, inv, ped, cli, masVend] = await Promise.all([
     _safeFetch(`${PC_API}/productos/`),
-    _safeFetch(`${PC_API}/variantes/?activa=eq.true`),
-    _safeFetch(`${PC_API}/inventario/`),
+    // Sin SKU ni fecha de alta de las variantes y con el inventario ligero (solo variante_id + cantidad, que es lo único que el portal lee):
+    // la carga inicial baja de ~1.3 MB a ~0.7 MB comprimidos. Un servidor viejo ignora `portal=1` y responde la lista completa; /inventario/slim existe desde hace tiempo.
+    _safeFetch(`${PC_API}/variantes/?portal=1`),
+    _safeFetch(`${PC_API}/inventario/slim`),
     cid ? _safeFetchCliente(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
     cid ? _safeFetchCliente(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
     _safeFetch(`${PC_API}/productos/mas-vendidos`),
