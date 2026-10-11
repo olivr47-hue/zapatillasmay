@@ -14,6 +14,24 @@ import './existencias-chat.js'
 import './novedades-modelos.js'
 import './campana-avisos.js'
 
+// Fechas en hora de México (la base guarda UTC; el negocio opera en America/Mexico_City).
+// Usar esto en vez de toISOString().split('T')[0], que después de las 18:00 ya devuelve "mañana".
+const _TZ_MX = 'America/Mexico_City'
+const fechaMX = (d = new Date()) => {
+  const x = d instanceof Date ? d : new Date(d)
+  if (isNaN(x)) return ''
+  return x.toLocaleDateString('en-CA', { timeZone: _TZ_MX })   // AAAA-MM-DD
+}
+// Días de calendario (no bloques de 24 h) entre una fecha y hoy, en hora de México.
+const diasCalendarioMX = (iso) => {
+  if (!iso) return 0
+  const a = fechaMX(iso), b = fechaMX()
+  if (!a) return 0
+  return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000)
+}
+const etiquetaDiasMX = (n) => n <= 0 ? 'Hoy' : n === 1 ? 'Ayer' : n + ' días'
+window._fechaMX = fechaMX
+
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
 // tardar bastante -- el rewrite de Vercel (/api -> Railway) tiene su propio
@@ -826,7 +844,7 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
 
     // Filtrar productos pospuestos (guardados en localStorage)
     const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = fechaMX()
     const sugerenciasFiltradas = sugerencias.filter(p => {
       const info = pospuestos[p.producto_id]
       if (!info) return true
@@ -1160,7 +1178,7 @@ window.generarOrden = () => {
           </div>
           <div>
             <label class="form-label">Fecha máxima de recepción</label>
-            <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+            <input class="form-input" type="date" id="orden-fecha" value="${fechaMX(new Date(Date.now() + 7*24*60*60*1000))}">
           </div>
           <div>
             <label class="form-label">Condición de pago</label>
@@ -1707,7 +1725,7 @@ window.aplicarPosponer = (productoId, dias) => {
   if (dias !== null) {
     const fecha = new Date()
     fecha.setDate(fecha.getDate() + dias)
-    hasta = fecha.toISOString().split('T')[0]
+    hasta = fechaMX(fecha)
   }
   pospuestos[productoId] = { hasta }
   localStorage.setItem('ordenes_pospuestos', JSON.stringify(pospuestos))
@@ -1718,7 +1736,7 @@ window.aplicarPosponer = (productoId, dias) => {
 window.verPospuestos = () => {
   const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
   const { sugerencias } = window._ordenesData
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaMX()
   // Todos los originales que están pospuestos
   const lista = Object.entries(pospuestos).map(([id, info]) => {
     const nombre = info.nombre || id
@@ -3113,7 +3131,7 @@ window.mostrarFormCuentaPorPagarManual = async () => {
           </div>
           <div>
             <label class="form-label">Fecha de la nota</label>
-            <input class="form-input" id="cxp-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+            <input class="form-input" id="cxp-fecha" type="date" value="${fechaMX()}">
           </div>
         </div>
         <div>
@@ -3182,7 +3200,7 @@ window.mostrarFormAbono = (ordenId, saldoActual, proveedorNombre) => {
         </div>
         <div>
           <label class="form-label">Fecha</label>
-          <input class="form-input" id="abono-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+          <input class="form-input" id="abono-fecha" type="date" value="${fechaMX()}">
         </div>
         <div>
           <label class="form-label">Notas</label>
@@ -3374,7 +3392,7 @@ window.mostrarFormPagoDeuda = (deudaId, nombre, pagoSugerido) => {
         </div>
         <div>
           <label class="form-label">Fecha</label>
-          <input class="form-input" id="pago-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+          <input class="form-input" id="pago-fecha" type="date" value="${fechaMX()}">
         </div>
       </div>
       <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
@@ -11016,7 +11034,7 @@ async function cargarPedidos() {
 function _pedFiltrados() {
   const F = window._pedF
   const data = window._pedidosData || []
-  const hoyIso = (d) => new Date(d).toISOString().slice(0, 10)
+  const hoyIso = (d) => fechaMX(d)
   let l = data
   switch (F.pill) {
     case 'pendiente_pago': l = data.filter(p => p.status === 'pendiente_pago'); break
@@ -16151,9 +16169,9 @@ async function cargarDashboard() {
     const ultimos7 = []
     for (let i = 6; i >= 0; i--) {
       const d = new Date(hoy); d.setDate(d.getDate() - i)
-      const ds = d.toISOString().split('T')[0]
+      const ds = fechaMX(d)
       const label = d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric'})
-      const total = conf.filter(p => (p.confirmado_at || p.created_at)?.startsWith(ds)).reduce((s,p) => s + parseFloat(p.total||0), 0)
+      const total = conf.filter(p => (p.confirmado_at || p.created_at) && fechaMX(p.confirmado_at || p.created_at) === ds).reduce((s,p) => s + parseFloat(p.total||0), 0)
       ultimos7.push({ label, total, ds })
     }
 
@@ -17195,9 +17213,8 @@ window._waKbFecha = (iso) => {
   try {
     const d = new Date(iso)
     if (isNaN(d)) return ''
-    const ahora = new Date()
-    const difDias = Math.floor((ahora - d) / 86400000)
-    if (difDias === 0) return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+    const difDias = diasCalendarioMX(d)
+    if (difDias <= 0) return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
     if (difDias === 1) return 'Ayer'
     if (difDias < 7) return `Hace ${difDias} días`
     return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
@@ -19114,7 +19131,7 @@ window.mostrarRespuestasRapidas = async (telefono) => {
 
 window.cargarNotasTareas = async (telefono) => {
   const agente = window._empleadoActual?.nombre || 'Admin'
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaMX()
 
   const [notas, tareas] = await Promise.all([
     fetch(API + '/chatbot/notas/' + telefono).then(r => r.json()),
@@ -27827,7 +27844,7 @@ async function cargarCarritos() {
           <div id="carr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
             ${todos.map(p => {
               const cliente = p.clientes || {}
-              const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+              const dias = diasCalendarioMX(p.created_at)
               const esApartado = p.status === 'apartado'
               const anticipo = parseFloat(p.anticipo || 0)
               const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
@@ -27852,7 +27869,7 @@ async function cargarCarritos() {
                       </div>
                     </div>
                     <span style="background:${dias === 0 ? '#f0fdf4' : dias <= 2 ? '#fffbeb' : '#fef2f2'};color:${dias === 0 ? '#065f46' : dias <= 2 ? '#b45309' : '#991b1b'};border:1px solid ${dias === 0 ? '#bbf7d0' : dias <= 2 ? '#fde68a' : '#fecaca'};border-radius:100px;padding:3px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">
-                      ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
+                      ${etiquetaDiasMX(dias)}
                     </span>
                   </div>
                   ${p._agotados > 0 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⚠️ ${p._agotados} par${p._agotados === 1 ? '' : 'es'} ya sin existencia${window._carrSinEx && window._carrSinEx[p.id] ? `<div style="font-weight:600;margin-top:3px">${window._carrSinEx[p.id].faltan.map(f => window._escWA(f.nombre) + (f.color ? ' · ' + window._escWA(f.color) : '') + ' · talla ' + window._escWA(f.talla)).join('<br>')}</div>` : ''}</div>` : ''}
@@ -28070,7 +28087,7 @@ function renderCarritoAbierto(p) {
   const cliente = p.clientes || {}
   const total = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
   const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
-  const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+  const dias = diasCalendarioMX(p.created_at)
   const esApartado = p.status === 'apartado'
   const hayNuevosSinReservar = esApartado && items.some(i => !i.reservado)
   const nSolicitados = items.filter(i => !i.reservado && i.solicitud_apartar).length
@@ -28084,7 +28101,7 @@ function renderCarritoAbierto(p) {
         <button class="btn btn-secondary" onclick="cargarCarritos()">← Carritos</button>
         <div style="flex:1">
           <h3 style="margin:0">${window._escWA(cliente.nombre || 'Sin cliente')}</h3>
-          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${window._escWA(cliente.telefono || '')} · Abierto hace ${dias === 0 ? 'hoy' : dias + ' día(s)'}</p>
+          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${window._escWA(cliente.telefono || '')} · Abierto ${dias === 0 ? 'hoy' : dias === 1 ? 'ayer' : 'hace ' + dias + ' días'}</p>
           ${esApartado ? `<p style="font-size:0.78rem;color:#92400e;font-weight:600;margin:4px 0 0">🔒 Apartado
             ${anticipo > 0 ? ` · Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}` : ' · Sin anticipo'}
             ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `vencido hace ${-diasRestantes}d`}` : ''}
