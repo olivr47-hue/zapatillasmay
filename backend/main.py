@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from security import limiter, require_staff, AUTH_ENFORCE, verify_token, es_personal, _aplicar_vigencia
+from security import limiter, require_staff, require_admin, AUTH_ENFORCE, verify_token, es_personal, _aplicar_vigencia
 import re as _re
 from database import supabase_get
 import integraciones_cfg
@@ -809,6 +809,16 @@ def buscar_cp(cp: str):
 def cache_estado(_staff=Depends(require_staff)):
     """Ver qué hay en caché y cuánto tiempo le queda a cada clave."""
     return cache_stats()
+
+@app.get("/diagnostico/trafico")
+def diagnostico_trafico(_admin=Depends(require_admin)):
+    """Qué rutas y qué servicios externos mueven más datos, y qué corría cuando subió la memoria (se reinicia en cada deploy)."""
+    import medicion_trafico
+    return medicion_trafico.resumen()
+
+# Medición pasiva de tráfico/memoria (solo cuenta; si falla no afecta al servidor)
+import medicion_trafico as _medicion_trafico
+_medicion_trafico.instalar(app)
 
 @app.post("/cache/limpiar")
 def cache_limpiar(_staff=Depends(require_staff)):
