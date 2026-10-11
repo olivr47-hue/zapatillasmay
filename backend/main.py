@@ -30,6 +30,7 @@ from routers import tiktok as tiktok_router
 from routers import resenas
 from routers import pinterest
 from routers import portal
+from routers import tacona
 from routers import marketplace
 from routers import demo as demo_router
 from routers import conexiones
@@ -249,6 +250,7 @@ app.include_router(mcp_server.router)
 app.include_router(resenas.router)
 app.include_router(pinterest.router)
 app.include_router(portal.router)
+app.include_router(tacona.router)
 app.include_router(sugerencias.router)
 app.include_router(push.router)
 app.include_router(emails.router)
