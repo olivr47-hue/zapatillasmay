@@ -300,7 +300,7 @@ const PAGINAS = {
       <p class="mx-lead" data-animate>No es solo un lugar para comprar: trae las herramientas para que vendas más fácil a tus clientas.</p>
 
     <div class="mx-feat" data-animate>
-      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/compartir-fotos.webp" alt="Pantalla del portal para compartir fotos de modelos sin precios" loading="lazy" width="560"></div></div>
+      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/compartir-fotos.webp" alt="Pantalla del portal para compartir fotos de modelos sin precios" loading="lazy" width="560" height="983"></div></div>
       <div class="mx-ftxt">
         <p class="mx-kick">Comparte sin precios</p>
         <h3 class="mx-h3">Comparte fotos listas para publicar, sin precios</h3>
@@ -310,7 +310,7 @@ const PAGINAS = {
     </div>
 
     <div class="mx-feat inv" data-animate>
-      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/catalogo-con-tu-marca.webp" alt="Pantalla del portal para descargar catálogos en PDF con el nombre y WhatsApp de tu negocio" loading="lazy" width="560"></div></div>
+      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/catalogo-con-tu-marca.webp" alt="Pantalla del portal para descargar catálogos en PDF con el nombre y WhatsApp de tu negocio" loading="lazy" width="560" height="941"></div></div>
       <div class="mx-ftxt">
         <p class="mx-kick">Catálogos con tu marca</p>
         <h3 class="mx-h3">Descarga catálogos en PDF con el nombre de tu negocio</h3>
@@ -320,7 +320,7 @@ const PAGINAS = {
     </div>
 
     <div class="mx-feat" data-animate>
-      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/lista-de-precios.webp" alt="Pantalla del portal con tu margen de ganancia y la lista de precios para mandar por WhatsApp" loading="lazy" width="560"></div></div>
+      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/lista-de-precios.webp" alt="Pantalla del portal con tu margen de ganancia y la lista de precios para mandar por WhatsApp" loading="lazy" width="560" height="1089"></div></div>
       <div class="mx-ftxt">
         <p class="mx-kick">Tus precios y tu ganancia</p>
         <h3 class="mx-h3">Fija tu margen y manda tu lista de precios por WhatsApp</h3>
@@ -330,7 +330,7 @@ const PAGINAS = {
     </div>
 
     <div class="mx-feat inv" data-animate>
-      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/arma-tu-pedido.webp" alt="Pantalla del portal para elegir color, tallas y armar el pedido variado o por corrida" loading="lazy" width="560"></div></div>
+      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/arma-tu-pedido.webp" alt="Pantalla del portal para elegir color, tallas y armar el pedido variado o por corrida" loading="lazy" width="560" height="1011"></div></div>
       <div class="mx-ftxt">
         <p class="mx-kick">Arma tu pedido</p>
         <h3 class="mx-h3">Mezcla modelos o compra la corrida completa</h3>
@@ -340,7 +340,7 @@ const PAGINAS = {
     </div>
 
     <div class="mx-feat" data-animate>
-      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/tacona-preguntas.webp" alt="Tacona, la asistente del portal, mostrando preguntas frecuentes" loading="lazy" width="560"></div></div>
+      <div class="mx-fshot"><div class="mx-phone"><img src="/images/mayoreo/tacona-preguntas.webp" alt="Tacona, la asistente del portal, mostrando preguntas frecuentes" loading="lazy" width="560" height="1157"></div></div>
       <div class="mx-ftxt">
         <p class="mx-kick">Siempre acompañada</p>
         <h3 class="mx-h3">Tacona te responde las dudas del portal</h3>
@@ -351,7 +351,7 @@ const PAGINAS = {
       <p class="mx-nota" data-animate>Capturas con datos de ejemplo (modelos y precios de demostración).</p>
 
       <div class="mx-mini" data-animate>
-        <div class="mx-minicard"><img src="/images/mayoreo/calculadora.webp" alt="Calculadora del portal" loading="lazy" width="420"><div><b>Calculadora integrada</b><span>Suma, resta, multiplica y saca porcentajes sin salir del portal: ideal para tus cuentas con tus clientas.</span></div></div>
+        <div class="mx-minicard"><img src="/images/mayoreo/calculadora.webp" alt="Calculadora del portal" loading="lazy" width="420" height="627"><div><b>Calculadora integrada</b><span>Suma, resta, multiplica y saca porcentajes sin salir del portal: ideal para tus cuentas con tus clientas.</span></div></div>
         <div class="mx-minicard"><div style="font-size:2.6rem;width:96px;text-align:center;flex-shrink:0">📒</div><div><b>Mi registro de ventas</b><span>Anota lo que vendes y lo que gastas y ve tu ganancia real, bruta y neta, por mes. Solo tú lo ves, y puedes descargarlo a Excel.</span></div></div>
       </div>
       <div style="text-align:center">
