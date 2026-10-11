@@ -68,82 +68,10 @@ const PC_FAQ = [
   ['Mi duda no está aquí', 'Escríbele a tu asesora por WhatsApp y te ayuda.', 'wa']
 ]
 window.pcMascotaFaq = function (ver) {
-  const f = document.getElementById('pcm-faq'), m = document.getElementById('pcm-menu'), c = document.getElementById('pcm-chat')
+  const f = document.getElementById('pcm-faq'), m = document.getElementById('pcm-menu')
   if (!f || !m) return
-  if (c) c.style.display = 'none'
   f.style.display = ver ? 'block' : 'none'
   m.style.display = ver ? 'none' : 'block'
-}
-
-// ── Chat: la clienta escribe y Tacona responde (el servidor usa solo la información del portal; ver backend/routers/tacona.py) ──
-const _hist = []
-const _SUGERENCIAS = ['¿Cómo aparto pares?', '¿Cómo pago mi pedido?', '¿Cómo comparto fotos sin precios?', '¿Cuánto tarda el envío?']
-
-function _burbuja(rol, texto) {
-  const caja = document.getElementById('pcm-msgs'); if (!caja) return null
-  const b = document.createElement('div')
-  b.style.cssText = rol === 'user'
-    ? 'align-self:flex-end;max-width:85%;background:#E91E8C;color:#fff;border-radius:14px 14px 4px 14px;padding:8px 12px;font-size:.8rem;line-height:1.4'
-    : 'align-self:flex-start;max-width:90%;background:rgba(233,30,140,.08);color:var(--pc-text,#222);border-radius:14px 14px 14px 4px;padding:8px 12px;font-size:.8rem;line-height:1.45;white-space:pre-wrap'
-  b.textContent = texto
-  caja.appendChild(b); caja.scrollTop = caja.scrollHeight
-  return b
-}
-
-function _botones(acciones) {
-  const caja = document.getElementById('pcm-msgs'); if (!caja || !acciones || !acciones.length) return
-  const f = document.createElement('div'); f.style.cssText = 'align-self:flex-start;display:flex;flex-wrap:wrap;gap:6px'
-  acciones.forEach(a => {
-    if (a.id === 'wa') {
-      const l = document.createElement('a'); l.className = 'pcm-chip'; l.style.textDecoration = 'none'; l.target = '_blank'; l.rel = 'noopener'; l.href = window._pcmWa || '#'; l.textContent = a.texto; f.appendChild(l)
-    } else {
-      const b = document.createElement('button'); b.className = 'pcm-chip'; b.textContent = a.texto
-      b.onclick = () => { window.pcMascotaToggle(false); if (typeof window.pcIrA === 'function') window.pcIrA(a.id) }
-      f.appendChild(b)
-    }
-  })
-  caja.appendChild(f); caja.scrollTop = caja.scrollHeight
-}
-
-window.pcMascotaChat = function (ver) {
-  const c = document.getElementById('pcm-chat'), m = document.getElementById('pcm-menu'), f = document.getElementById('pcm-faq')
-  if (!c || !m) return
-  if (f) f.style.display = 'none'
-  c.style.display = ver ? 'block' : 'none'
-  m.style.display = ver ? 'none' : 'block'
-  if (!ver) return
-  const caja = document.getElementById('pcm-msgs')
-  if (caja && !caja.children.length) {
-    _burbuja('assistant', '¡Hola! Soy Tacona 👠 Pregúntame cómo usar el portal, apartar, pagar o cómo funcionan los envíos y los cambios.')
-    const sug = document.getElementById('pcm-sug')
-    sug.innerHTML = ''
-    _SUGERENCIAS.forEach(t => { const b = document.createElement('button'); b.className = 'pcm-chip'; b.textContent = t; b.onclick = () => window.pcMascotaEnviar(t); sug.appendChild(b) })
-  }
-  setTimeout(() => { const i = document.getElementById('pcm-in'); if (i) i.focus() }, 50)
-}
-
-window.pcMascotaEnviar = async function (texto) {
-  const inp = document.getElementById('pcm-in'), btn = document.getElementById('pcm-send'), sug = document.getElementById('pcm-sug')
-  if (!inp || (btn && btn.disabled)) return
-  const q = String(texto || inp.value || '').trim().slice(0, 300); if (!q) return
-  inp.value = ''; if (sug) sug.innerHTML = ''
-  _burbuja('user', q); _hist.push({ rol: 'user', texto: q })
-  const espera = _burbuja('assistant', 'Tacona está escribiendo…'); if (btn) btn.disabled = true
-  try {
-    let tk = ''; try { tk = localStorage.getItem('erp_token') || '' } catch (e) {}
-    const r = await fetch('/api/portal/tacona', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, tk ? { Authorization: 'Bearer ' + tk } : {}), body: JSON.stringify({ mensajes: _hist.slice(-8) }) })
-    const d = await r.json().catch(() => ({}))
-    const resp = d.respuesta || d.error || 'No pude responder ahora. Intenta de nuevo o escríbele a tu asesora.'
-    if (espera) espera.textContent = resp
-    if (d.respuesta) _hist.push({ rol: 'assistant', texto: d.respuesta }); else _hist.pop()
-    _botones(d.acciones || (d.respuesta ? [] : [{ id: 'wa', texto: '💬 Hablar con mi asesora' }]))
-  } catch (e) {
-    if (espera) espera.textContent = 'No hay conexión. Intenta de nuevo en un momento.'
-    _hist.pop()
-  }
-  if (btn) btn.disabled = false
-  const caja = document.getElementById('pcm-msgs'); if (caja) caja.scrollTop = caja.scrollHeight
-  if (inp) inp.focus()
 }
 window.pcMascotaPregunta = function (i) {
   document.querySelectorAll('.pcm-resp').forEach(el => { if (el.dataset.i !== String(i)) el.style.display = 'none' })
@@ -155,7 +83,6 @@ let _globoMostrado = false
 function montar(sesion) {
   const nombre = (sesion.nombre || '').split(' ')[0] || ''
   const wa = 'https://wa.me/5214792244560?text=' + encodeURIComponent('Hola, soy ' + (sesion.nombre || 'cliente') + ' del portal mayoreo y tengo una pregunta 👋')
-  window._pcmWa = wa
   const r = document.createElement('div')
   r.id = 'pcm-raiz'
   r.innerHTML = `<style>
@@ -183,22 +110,10 @@ function montar(sesion) {
       <div id="pcm-frase" style="font-size:.84rem;line-height:1.35">${_esc(fraseDeEntrada())}</div>
       <button onclick="pcMascotaFrase()" style="margin-top:6px;background:none;border:none;color:#E91E8C;font-size:.72rem;font-weight:700;cursor:pointer;padding:0;font-family:inherit">Otra frase →</button>
     </div>
-    <button class="pcm-chip" onclick="pcMascotaChat(true)" style="width:100%;margin-bottom:8px;background:#E91E8C;color:#fff;border-color:#E91E8C">💬 Pregúntale a Tacona</button>
-    <button class="pcm-chip" onclick="pcMascotaFaq(true)" style="width:100%;margin-bottom:10px">❓ Preguntas frecuentes</button>
+    <button class="pcm-chip" onclick="pcMascotaFaq(true)" style="width:100%;margin-bottom:10px;background:#E91E8C;color:#fff;border-color:#E91E8C">❓ Preguntas frecuentes</button>
     <div style="font-size:.76rem;color:var(--pc-muted,#888);margin-bottom:6px">¿A dónde quieres ir?</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${PC_ATAJOS.map(x => `<button class="pcm-chip" onclick="pcMascotaToggle(false);${x[1]}">${x[0]}</button>`).join('')}
       <a class="pcm-chip" style="text-decoration:none" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>
-    </div>
-    <div id="pcm-chat" style="display:none">
-      <button onclick="pcMascotaChat(false)" style="background:none;border:none;color:#E91E8C;font-size:.76rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:inherit">← Volver</button>
-      <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">Pregúntale a Tacona</div>
-      <div id="pcm-msgs" style="max-height:32vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-      <div id="pcm-sug" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
-      <form onsubmit="pcMascotaEnviar();return false" style="display:flex;gap:6px">
-        <input id="pcm-in" maxlength="300" autocomplete="off" placeholder="Escribe tu pregunta…" style="flex:1;min-width:0;padding:9px 12px;border-radius:100px;border:1px solid var(--pc-border,#ddd);background:var(--pc-bg,#fff);color:var(--pc-text,#222);font-family:inherit;font-size:.8rem">
-        <button type="submit" id="pcm-send" aria-label="Enviar" style="width:38px;height:38px;border-radius:50%;border:none;background:#E91E8C;color:#fff;font-size:1rem;cursor:pointer">➤</button>
-      </form>
-      <p style="font-size:.64rem;color:var(--pc-muted,#888);margin:8px 0 0;line-height:1.4">Tacona no ve tus pedidos, precios ni existencias: para eso, escríbele a tu asesora.</p>
     </div>
     <div id="pcm-faq" style="display:none">
       <button onclick="pcMascotaFaq(false)" style="background:none;border:none;color:#E91E8C;font-size:.76rem;font-weight:700;cursor:pointer;padding:0 0 8px;font-family:inherit">← Volver</button>
@@ -207,7 +122,7 @@ function montar(sesion) {
         <div style="border-bottom:1px solid var(--pc-border,#eee);padding:2px 0">
           <button onclick="pcMascotaPregunta(${i})" style="width:100%;text-align:left;background:none;border:none;padding:9px 0;font-size:.8rem;font-weight:600;color:var(--pc-text,#222);cursor:pointer;font-family:inherit">${_esc(q[0])}</button>
           <div class="pcm-resp" data-i="${i}" style="display:none;font-size:.78rem;line-height:1.45;color:var(--pc-text-3,#555);padding:0 0 10px">${_esc(q[1])}
-            ${q[2] === 'wa' ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><button class="pcm-chip" onclick="pcMascotaChat(true)">💬 Preguntarle a Tacona</button><a class="pcm-chip" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>` : q[2] ? `<div style="margin-top:8px"><button class="pcm-chip" onclick="pcMascotaToggle(false);${q[2][1]}">${q[2][0]}</button></div>` : ''}
+            ${q[2] === 'wa' ? `<div style="margin-top:8px"><a class="pcm-chip" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="${_esc(wa)}">💬 Hablar con mi asesora</a></div>` : q[2] ? `<div style="margin-top:8px"><button class="pcm-chip" onclick="pcMascotaToggle(false);${q[2][1]}">${q[2][0]}</button></div>` : ''}
           </div>
         </div>`).join('')}</div>
     </div>
