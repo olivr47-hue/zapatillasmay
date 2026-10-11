@@ -359,19 +359,6 @@ const PAGINAS = {
       </div>
     </div>
 
-    <!-- PRECIOS -->
-    <div class="mx-sec" data-animate>
-      <h2 class="mx-h2">Cómo bajan los <em>precios</em></h2>
-      <p class="mx-lead">Entre más pares compras, menos pagas por cada uno.</p>
-      <div class="mx-prec">
-        <div class="mx-pc"><small>1–2 pares</small><b>Precio de la tienda</b><span>En zapatillasmay.mx</span></div>
-        <div class="mx-pc hl"><small>3–5 pares</small><b>−$60 por par*</b><span>Se aplica solo en el carrito de zapatillasmay.mx, sin registro.</span></div>
-        <div class="mx-pc hl"><small>6+ pares</small><b>−$100 por par*</b><span>Precio de mayoreo, dentro del portal.</span></div>
-        <div class="mx-pc dk"><small>Corrida completa</small><b>Hasta −$180 por par*</b><span>El mejor precio por par, dentro del portal.</span></div>
-      </div>
-      <p style="text-align:center;color:var(--gray-600);font-size:0.74rem;margin-top:12px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.6">*Ejemplo ilustrativo sobre el precio de menudeo. Tus precios reales, por modelo, los ves con tu cuenta dentro del portal.</p>
-    </div>
-
     <!-- POR QUE NOSOTROS -->
     <div class="mx-sec">
       <h2 class="mx-h2" data-animate>Por qué comprar <em>con nosotros</em></h2>
