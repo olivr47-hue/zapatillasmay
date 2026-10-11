@@ -51,8 +51,22 @@ def variantes_publicas_todas() -> list:
     return data
 
 
+_CAMPOS_FUERA_TIENDA = ("sku", "productos", "created_at")
+
+
+def variantes_para_tienda() -> list:
+    """Lista de variantes SIN los campos que la página principal de la tienda nunca lee (SKU, producto anidado, fecha de
+    alta): ~27% menos. Solo se usa con `?tienda=1`; el panel y el resto siguen recibiendo la lista completa de siempre."""
+    cached = cache_get(_CK + "_tienda")
+    if cached is not None:
+        return cached
+    data = [{k: v for k, v in fila.items() if k not in _CAMPOS_FUERA_TIENDA} for fila in variantes_publicas_todas()]
+    cache_set(_CK + "_tienda", data)
+    return data
+
+
 @router.get("/")
-def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str = None):
+def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str = None, tienda: bool = False):
     if solo:
         # Página de producto: solo las variantes de ESE modelo (~3 KB) en vez de las 4,000+ del catálogo (~580 KB comprimidos).
         # Misma forma exacta que la lista completa, filtrada en memoria (sin consultar la base).
@@ -73,6 +87,9 @@ def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str =
         data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,activa,foto_url")
         cache_set(_CK + "_ligero", data)
         return data
+
+    if tienda:
+        return variantes_para_tienda()
 
     return variantes_publicas_todas()
 
