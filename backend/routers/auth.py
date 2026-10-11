@@ -16,6 +16,22 @@ import urllib.parse as _up
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 _UUID_AUTH = _re_auth.compile(r"^[0-9a-fA-F-]{36}$")
+_ULTIMO_ACCESO = {}   # usuario_id -> cuándo se guardó su último acceso (en este arranque del servidor)
+
+
+def _marcar_acceso(usuario_id, forzar=False):
+    """Guarda cuándo entró por última vez una clienta (se ve en el panel). Antes solo se guardaba con correo y contraseña: quien entraba con
+    Google, o seguía con su sesión de 60 días abierta, aparecía como «nunca entró». Sin forzar, se espera 30 min entre escrituras de la misma persona
+    para no escribir en la base en cada recarga. Nunca estorba el inicio de sesión."""
+    try:
+        import time as _t
+        ahora = _t.time()
+        if not forzar and ahora - _ULTIMO_ACCESO.get(usuario_id, 0) < 1800:
+            return
+        _ULTIMO_ACCESO[usuario_id] = ahora
+        supabase_patch(f"usuarios?id=eq.{usuario_id}", {"ultimo_login": _dt.datetime.now(_dt.timezone.utc).isoformat()})
+    except Exception:
+        pass
 
 
 def _q(valor) -> str:
@@ -201,6 +217,8 @@ def renovar_sesion(request: Request, credentials: HTTPAuthorizationCredentials =
         u = supabase_get(f"usuarios?id=eq.{sub}&select=activo")
         if u and u[0].get("activo") is False:
             return JSONResponse(status_code=401, content={"error": "Cuenta desactivada"})
+    if sub and _UUID_AUTH.match(str(sub)):
+        _marcar_acceso(str(sub))
     nuevo = {k: v for k, v in payload.items() if k not in ("exp", "iat", "nbf")}
     return {"token": create_token(nuevo, expires_hours=TOKEN_CLIENTE_HORAS)}
 
@@ -321,6 +339,7 @@ def google_login(request: Request, datos: dict):
                     u["cliente_id"] = cliente_id
 
         token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": u.get("cliente_id")}, expires_hours=TOKEN_CLIENTE_HORAS)
+        _marcar_acceso(u["id"], forzar=True)
         return {
             "token": token,
             "id": u["id"],
