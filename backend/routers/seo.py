@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
+from security import require_admin
 from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse, HTMLResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
@@ -1029,6 +1030,10 @@ def pagina_ssr(slug: str):
         titulo, desc = _alt.titulo(_alt_info), _alt.descripcion(_alt_info)
     else:
         titulo, desc = _PAGINAS_SEO.get(slug, (_HOME_TITLE, _HOME_DESC))
+    # Título/descripción/H1 que el dueño cambió desde el panel (SEO y Sitio → Títulos de páginas) mandan sobre los de fábrica
+    _ov = _seo_overrides().get(slug) or {}
+    titulo = (_ov.get("titulo") or "").strip() or titulo
+    desc = (_ov.get("descripcion") or "").strip() or desc
 
     template = cache_get("tpl_index_html")
     if template is None:
@@ -1154,7 +1159,7 @@ def pagina_ssr(slug: str):
             "ofertas":     "Ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México.",
             "mayoreo":     "Fábrica de calzado de dama en León, Guanajuato: mayoreo por corrida, catálogo con fotos y precios para zapaterías y revendedoras. Registro gratis en el Portal de Mayoristas.",
         }
-        h1_seo = _PAGINAS_H1.get(slug)
+        h1_seo = (_ov.get("h1") or "").strip() or _PAGINAS_H1.get(slug)
         _cat_desc_txt = _CAT_DESCS.get(slug, "")
         if h1_seo:
             _h1_tag = (
@@ -1977,6 +1982,121 @@ def feed_json():
                         headers={"Cache-Control": "public, max-age=600, s-maxage=600"})
     except Exception as e:
         return Response(content=json.dumps({"error": str(e)}), status_code=500, media_type="application/json")
+
+_NOMBRES_PAG = {
+    "tacones": "Tacones", "sandalias": "Sandalias", "botas": "Botas", "botines": "Botines", "flats": "Flats", "plataformas": "Plataformas",
+    "tenis": "Tenis", "nina": "Niña", "accesorios": "Accesorios", "ofertas": "Ofertas", "mayoreo": "Mayoreo", "guias": "Guías de compra (índice)",
+    "nosotros": "Nosotros", "envios": "Envíos", "contacto": "Contacto", "tabla-tallas": "Tabla de tallas", "como-comprar": "Cómo comprar",
+    "privacidad": "Aviso de privacidad", "terminos": "Términos y condiciones", "devoluciones": "Política de devoluciones",
+    "politica-de-devoluciones": "Política de devoluciones", "eliminacion-datos": "Eliminación de datos",
+}
+_GRUPOS_PAG = [
+    ("Categorías", ["tacones", "sandalias", "botas", "botines", "flats", "plataformas", "tenis", "nina", "accesorios"]),
+    ("Ofertas y mayoreo", ["ofertas", "mayoreo"]),
+]
+
+
+def _seo_overrides() -> dict:
+    """{slug: {titulo, descripcion, h1}} guardado como JSON en configuracion_seo (clave seo_paginas). Nunca falla."""
+    c = cache_get("seo_paginas_ov")
+    if c is not None:
+        return c
+    d = {}
+    try:
+        fila = supabase_get("configuracion_seo?clave=eq.seo_paginas&select=valor") or []
+        if fila and fila[0].get("valor"):
+            d = json.loads(fila[0]["valor"])
+    except Exception:
+        d = {}
+    if not isinstance(d, dict):
+        d = {}
+    cache_set("seo_paginas_ov", d, ttl=600)
+    return d
+
+
+def _slugs_editables():
+    usados = set()
+    grupos = []
+    for nombre, slugs in _GRUPOS_PAG:
+        grupos.append((nombre, [x for x in slugs if x in _PAGINAS_SEO]))
+        usados.update(slugs)
+    guias = [x for x in _PAGINAS_SEO if x == "guias" or x.startswith("guia")]
+    guias = [x for x in guias if x != "guias"]
+    grupos.append(("Guías", guias))
+    usados.update(guias); usados.add("guias")
+    resto = [x for x in _PAGINAS_SEO if x not in usados]
+    grupos.append(("Páginas informativas", resto))
+    return grupos
+
+
+@router.get("/seo/paginas")
+def seo_paginas_listar(_a=Depends(require_admin)):
+    ov = _seo_overrides()
+    salida = []
+    for grupo, slugs in _slugs_editables():
+        for sl in slugs:
+            t, d = _PAGINAS_SEO[sl]
+            o = ov.get(sl) or {}
+            salida.append({
+                "slug": sl, "grupo": grupo, "nombre": _NOMBRES_PAG.get(sl) or sl.replace("-", " ").capitalize(),
+                "titulo_default": t, "descripcion_default": d, "h1_default": _PAGINAS_H1.get(sl, ""),
+                "titulo": o.get("titulo", ""), "descripcion": o.get("descripcion", ""), "h1": o.get("h1", ""),
+            })
+    return salida
+
+
+@router.post("/seo/paginas")
+def seo_paginas_guardar(datos: dict, _a=Depends(require_admin)):
+    """datos: {slug, titulo, descripcion, h1}. Si los tres vienen vacíos se vuelve al texto de fábrica."""
+    slug = str(datos.get("slug") or "")
+    if slug not in _PAGINAS_SEO:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Página desconocida"})
+    nuevo = {
+        "titulo": str(datos.get("titulo") or "").strip()[:120],
+        "descripcion": str(datos.get("descripcion") or "").strip()[:320],
+        "h1": str(datos.get("h1") or "").strip()[:160],
+    }
+    ov = dict(_seo_overrides())
+    if any(nuevo.values()):
+        ov[slug] = {k: v for k, v in nuevo.items() if v}
+    else:
+        ov.pop(slug, None)
+    valor = json.dumps(ov, ensure_ascii=False)
+    existente = supabase_get("configuracion_seo?clave=eq.seo_paginas&select=clave")
+    if existente:
+        supabase_patch("configuracion_seo?clave=eq.seo_paginas", {"valor": valor})
+    else:
+        supabase_post("configuracion_seo", {"clave": "seo_paginas", "valor": valor})
+    cache_invalidate_prefix("seo_")
+    cache_invalidate_prefix("ssr_")
+    return {"ok": True}
+
+
+@router.get("/seo/titulo-producto/{slug}")
+def titulo_producto_leer(slug: str, _a=Depends(require_admin)):
+    """Título y descripción SEO de un modelo (los que se editan en la ficha del producto), buscado por la dirección de su página."""
+    q = urllib.parse.quote(slug, safe="")
+    d = supabase_get(f"productos?slug=eq.{q}&select=id,nombre,meta_titulo,meta_descripcion&limit=1") or         supabase_get(f"productos?sku_interno=eq.{q}&select=id,nombre,meta_titulo,meta_descripcion&limit=1") or []
+    if not d:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Modelo no encontrado"})
+    return d[0]
+
+
+@router.post("/seo/titulo-producto/{slug}")
+def titulo_producto_guardar(slug: str, datos: dict, _a=Depends(require_admin)):
+    q = urllib.parse.quote(slug, safe="")
+    d = supabase_get(f"productos?slug=eq.{q}&select=id&limit=1") or supabase_get(f"productos?sku_interno=eq.{q}&select=id&limit=1") or []
+    if not d:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Modelo no encontrado"})
+    cambios = {
+        "meta_titulo": (str(datos.get("meta_titulo") or "").strip()[:120] or None),
+        "meta_descripcion": (str(datos.get("meta_descripcion") or "").strip()[:320] or None),
+    }
+    supabase_patch(f"productos?id=eq.{d[0]['id']}", cambios)
+    cache_invalidate_prefix("ssr_prod_")
+    cache_invalidate_prefix("seo_")
+    return {"ok": True}
+
 
 @router.get("/seo/config")
 def get_config():

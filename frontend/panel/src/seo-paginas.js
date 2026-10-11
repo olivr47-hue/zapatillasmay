@@ -4,7 +4,7 @@ const API = '/api'
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 const N = (n) => Number(n || 0).toLocaleString('es-MX')
 
-const ST = { datos: null, filtro: { tipo: '', soloProblemas: false, q: '', orden: 'problemas' }, abierta: null, timer: null }
+const ST = { edit: null, datos: null, filtro: { tipo: '', soloProblemas: false, q: '', orden: 'problemas' }, abierta: null, timer: null }
 
 const CSS = `
   .sp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
@@ -89,6 +89,7 @@ function pintar(cont) {
       ${lista.slice(0, 400).map((p, i) => fila(p, i)).join('') || '<tr><td colspan="8" style="padding:1.5rem;text-align:center;color:#64748b">Ninguna página coincide con el filtro.</td></tr>'}
     </tbody></table></div>
     ${lista.length > 400 ? `<p style="font-size:0.74rem;color:#64748b">Mostrando las primeras 400 de ${N(lista.length)}; usa los filtros o la búsqueda.</p>` : ''}`
+  if (ST.abierta) setTimeout(() => window.spCargarEditor(ST.abierta), 0)
 }
 
 function fila(p, i) {
@@ -116,12 +117,105 @@ function detalle(p) {
     <p><b>H1:</b> ${esc(p.h1) || '<i>(no tiene)</i>'}</p>
     <p><b>Datos estructurados:</b> ${(p.datos_estructurados || []).map(esc).join(', ') || 'ninguno'} · <b>Imágenes:</b> ${p.imagenes} (${p.imagenes_sin_alt} sin texto alternativo) · <b>Enlaces internos:</b> ${p.enlaces_internos} · <b>Imagen al compartir:</b> ${p.og_image ? 'sí' : 'no'}</p>
     ${pr.length ? `<p><b>Por mejorar:</b></p><ul>${pr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p style="color:#166534"><b>Sin problemas detectados.</b></p>'}
+    <div id="sp-edit" style="margin-top:12px;border-top:1px dashed #e2e8f0;padding-top:12px"><span style="color:#64748b;font-size:0.78rem">Cargando editor…</span></div>
     <p style="margin-top:10px"><a href="${esc(p.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Abrir la página ↗</a>
       &nbsp;·&nbsp; <button class="btn" onclick="event.stopPropagation();spIndexacion(${JSON.stringify(p.url).replace(/"/g, '&quot;')},this)">¿Está indexada en Google?</button>
       <span id="sp-idx" style="margin-left:8px;font-size:0.78rem"></span></p></td></tr>`
 }
 
 const contenedor = () => document.getElementById('seo-pane-paginas')
+
+// ── Editor de título y descripción de la página abierta ──────────────────────────────────────────
+const slugDe = (p) => p.ruta.replace(/^\/+|\/+$/g, '')
+async function cargarEditables() {
+  if (ST.edit) return ST.edit
+  try { const r = await fetch(`${API}/seo/paginas`); ST.edit = r.ok ? await r.json() : [] } catch (e) { ST.edit = [] }
+  return ST.edit
+}
+const contador = (n, min, max) => `<span class="sp-tag ${claseLen(n, min, max)}">${n}</span>`
+
+function formEditor(o) {
+  const campo = (id, rotulo, valor, def, area) => `
+    <div style="margin-bottom:8px"><label style="display:block;font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:3px">${rotulo} <span id="${id}-n"></span></label>
+      ${area ? `<textarea id="${id}" rows="2" class="form-input" style="width:100%;font-size:0.8rem" oninput="spEdContar()">${esc(valor)}</textarea>`
+             : `<input id="${id}" class="form-input" style="width:100%;font-size:0.8rem" value="${esc(valor)}" oninput="spEdContar()">`}
+      ${def ? `<span style="font-size:0.68rem;color:#94a3b8">Texto original: ${esc(def)}</span>` : ''}</div>`
+  window._spEd = o
+  return `<p style="margin:0 0 8px"><b>✏️ Cambiar cómo aparece en Google</b></p>
+    ${o.nota ? `<p style="font-size:0.74rem;color:#64748b;margin:0 0 8px">${o.nota}</p>` : ''}
+    ${campo('sp-e-t', 'Título (lo ideal: 30 a 60 caracteres)', o.titulo, o.tipo === 'pagina' ? o.tDef : '', false)}
+    ${campo('sp-e-d', 'Descripción (lo ideal: 90 a 160 caracteres)', o.descripcion, o.tipo === 'pagina' ? o.dDef : '', true)}
+    ${o.hDef !== undefined && o.hDef !== null ? campo('sp-e-h', 'Encabezado H1 que ve Google', o.h1, o.hDef, false) : ''}
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;background:#fff;margin:6px 0 10px;max-width:640px">
+      <div style="font-size:0.7rem;color:#64748b">zapatillasmay.mx › ${esc(o.vistaRuta)}</div>
+      <div id="sp-v-t" style="font-size:1rem;color:#1a0dab;line-height:1.3"></div>
+      <div id="sp-v-d" style="font-size:0.78rem;color:#4d5156;line-height:1.4"></div></div>
+    <button class="btn btn-primary" onclick="event.stopPropagation();spEdGuardar(this)">Guardar cambios</button>
+    <button class="btn" onclick="event.stopPropagation();spEdRestablecer(this)" style="margin-left:6px">${o.tipo === 'pagina' ? 'Volver al texto original' : 'Quitar mi texto (que se arme solo)'}</button>
+    <span id="sp-e-msg" style="margin-left:10px;font-size:0.78rem"></span>`
+}
+
+window.spEdContar = () => {
+  const t = document.getElementById('sp-e-t'), d = document.getElementById('sp-e-d'); if (!t) return
+  document.getElementById('sp-e-t-n').innerHTML = contador(t.value.length, 30, 65)
+  document.getElementById('sp-e-d-n').innerHTML = contador(d.value.length, 90, 165)
+  const o = window._spEd || {}
+  const sufijo = o.tipo === 'producto' ? ' | Zapatillas May' : ''
+  document.getElementById('sp-v-t').textContent = (t.value || o.tDef || '') + sufijo
+  document.getElementById('sp-v-d').textContent = (d.value || o.dDef || '').slice(0, 160)
+}
+
+window.spCargarEditor = async (url) => {
+  const box = document.getElementById('sp-edit'); const p = ST.datos && (ST.datos.paginas || []).find(x => x.url === url)
+  if (!box || !p) return
+  try {
+    if (p.tipo === 'producto') {
+      const slug = slugDe(p).replace(/^producto\//, '')
+      const r = await fetch(`${API}/seo/titulo-producto/${encodeURIComponent(slug)}`)
+      const d = await r.json()
+      if (!r.ok) { box.innerHTML = `<span style="color:#b91c1c;font-size:0.78rem">No se pudo cargar el editor: ${esc(d.error || r.status)}</span>`; return }
+      box.innerHTML = formEditor({ tipo: 'producto', slug, titulo: d.meta_titulo || d.nombre || '', descripcion: d.meta_descripcion || '', tDef: d.nombre || '', dDef: '',
+        vistaRuta: p.ruta.replace(/^\//, ''), nota: 'El sitio le agrega « | Zapatillas May» al final y corta el título a 60 caracteres. Es el mismo texto que «Meta título» y «Meta descripción» en la ficha del producto.' })
+    } else {
+      const slug = slugDe(p)
+      if (!slug) { box.innerHTML = '<span style="color:#64748b;font-size:0.78rem">El título y la descripción del inicio se cambian en «Ajustes del sitio» (Meta título y Meta descripción).</span>'; return }
+      const info = (await cargarEditables()).find(x => x.slug === slug)
+      if (!info) { box.innerHTML = '<span style="color:#64748b;font-size:0.78rem">Esta página se arma sola (por ejemplo las de altura de tacón) y no se puede editar desde aquí.</span>'; return }
+      box.innerHTML = formEditor({ tipo: 'pagina', slug, titulo: info.titulo || info.titulo_default, descripcion: info.descripcion || info.descripcion_default, h1: info.h1 || info.h1_default,
+        tDef: info.titulo_default, dDef: info.descripcion_default, hDef: info.h1_default ? info.h1_default : null, vistaRuta: p.ruta.replace(/^\//, ''),
+        nota: info.titulo || info.descripcion || info.h1 ? 'Esta página tiene texto cambiado por ti.' : 'Esta página usa el texto original del sitio.' })
+    }
+    window.spEdContar()
+  } catch (e) { box.innerHTML = '<span style="color:#b91c1c;font-size:0.78rem">No se pudo cargar el editor.</span>' }
+}
+
+async function enviarEditor(vacio, btn) {
+  const o = window._spEd; if (!o) return
+  const msg = document.getElementById('sp-e-msg'); const val = (id) => (document.getElementById(id) || {}).value || ''
+  let body, url
+  if (o.tipo === 'producto') {
+    url = `${API}/seo/titulo-producto/${encodeURIComponent(o.slug)}`
+    body = vacio ? { meta_titulo: '', meta_descripcion: '' } : { meta_titulo: val('sp-e-t') === o.tDef ? '' : val('sp-e-t'), meta_descripcion: val('sp-e-d') }
+  } else {
+    url = `${API}/seo/paginas`
+    const t = val('sp-e-t'), d = val('sp-e-d'), h = val('sp-e-h')
+    body = vacio ? { slug: o.slug, titulo: '', descripcion: '', h1: '' }
+      : { slug: o.slug, titulo: t === o.tDef ? '' : t, descripcion: d === o.dDef ? '' : d, h1: h === o.hDef ? '' : h }
+  }
+  btn.disabled = true; msg.style.color = '#64748b'; msg.textContent = 'Guardando…'
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.ok === false) throw new Error(d.error || ('Error ' + r.status))
+    ST.edit = null
+    msg.style.color = '#166534'
+    msg.textContent = vacio ? '✔ Listo: vuelve el texto original.' : '✔ Guardado. Se ve en el sitio en unos minutos; Google lo toma cuando vuelva a visitar la página.'
+    if (vacio) setTimeout(() => window.spCargarEditor(ST.abierta), 600)
+  } catch (e) { msg.style.color = '#b91c1c'; msg.textContent = 'No se pudo guardar: ' + e.message }
+  btn.disabled = false
+}
+window.spEdGuardar = (btn) => enviarEditor(false, btn)
+window.spEdRestablecer = (btn) => enviarEditor(true, btn)
 
 async function traer(refrescar) {
   const r = await fetch(`${API}/seo/auditoria${refrescar ? '?refrescar=true' : ''}`)

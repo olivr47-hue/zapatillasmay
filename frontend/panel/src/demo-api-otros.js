@@ -76,6 +76,18 @@ export function registrarRutasOtros({ db, ruta }) {
     { clave: 'meta_titulo_home', valor: 'Mi Tienda | Calzado para dama' },
     { clave: 'meta_descripcion_home', valor: 'Tacones, sandalias, botines y más. Envíos a todo el país.' },
     { clave: 'categorias_estilo', valor: '{}' }])
+  // SEO por página (demo): auditoría de unas cuantas páginas y editor de títulos con datos inventados
+  const SEOPAG = [
+    { slug: 'tacones', grupo: 'Categorías', nombre: 'Tacones', titulo_default: 'Tacones y Zapatillas de Dama | Envíos a todo México | Mi Tienda', descripcion_default: 'Zapatillas y tacones de moda para dama. Descuento automático desde 3 pares. Envíos a todo México.', h1_default: 'Zapatillas y Tacones de Dama — Aguja, Bloque y Plataforma | Mi Tienda', titulo: '', descripcion: '', h1: '' },
+    { slug: 'nosotros', grupo: 'Páginas informativas', nombre: 'Nosotros', titulo_default: 'Sobre Nosotras — Fábrica de Calzado | Mi Tienda', descripcion_default: 'Conoce nuestra fábrica de calzado femenino de moda.', h1_default: '', titulo: '', descripcion: '', h1: '' }]
+  ruta('GET', /^\/seo\/auditoria/, () => ({ estado: 'listo', fin: Math.floor(Date.now() / 1000) - 600, paginas: [
+    { url: 'https://demo.mx/tacones', ruta: '/tacones', tipo: 'categoría', estado_http: 200, titulo: 'Tacones y Zapatillas de Dama | Envíos a todo México | Mi Tienda', titulo_len: 62, descripcion: 'Zapatillas y tacones de moda para dama.', descripcion_len: 98, h1: 'Zapatillas y Tacones de Dama', h1_n: 1, palabras: 640, imagenes: 24, imagenes_sin_alt: 0, enlaces_internos: 40, datos_estructurados: ['BreadcrumbList'], problemas: [], gsc: { clics: 120, impresiones: 4300, posicion: 8.4 } },
+    { url: 'https://demo.mx/nosotros', ruta: '/nosotros', tipo: 'página', estado_http: 200, titulo: 'Sobre Nosotras — Fábrica de Calzado | Mi Tienda', titulo_len: 47, descripcion: 'Conoce nuestra fábrica.', descripcion_len: 23, h1: 'Sobre nosotras', h1_n: 1, palabras: 380, imagenes: 6, imagenes_sin_alt: 1, enlaces_internos: 12, datos_estructurados: [], problemas: ['La descripción es muy corta'], gsc: null },
+    { url: 'https://demo.mx/producto/tacon-aurora', ruta: '/producto/tacon-aurora', tipo: 'producto', estado_http: 200, titulo: 'Tacón Aurora | Mi Tienda', titulo_len: 24, descripcion: 'Tacón Aurora de dama.', descripcion_len: 21, h1: 'Tacón Aurora', h1_n: 1, palabras: 150, imagenes: 5, imagenes_sin_alt: 0, enlaces_internos: 18, datos_estructurados: ['Product'], problemas: ['El título es corto'], gsc: null }] }))
+  ruta('GET', /^\/seo\/paginas$/, () => SEOPAG)
+  ruta('POST', /^\/seo\/paginas$/, ({ body }) => { const x = SEOPAG.find(i => i.slug === (body && body.slug)); if (!x) return { ok: false, error: 'Página desconocida' }; x.titulo = body.titulo || ''; x.descripcion = body.descripcion || ''; x.h1 = body.h1 || ''; return { ok: true } })
+  ruta('GET', /^\/seo\/titulo-producto\/([^/]+)$/, () => ({ id: 'p1', nombre: 'Tacón Aurora', meta_titulo: '', meta_descripcion: '' }))
+  ruta('POST', /^\/seo\/titulo-producto\/([^/]+)$/, () => ({ ok: true }))
   ruta('GET', /^\/clientes\/referidos$/, () => db.clientes.filter(c => c.tipo === 'menudeo').map((c, i) => ({ ...c, codigo_referido: 'DEMO' + (100 + i), credito_disponible: i % 3 === 0 ? 60 : 0, referido_por: i > 2 && i % 2 ? 'DEMO100' : null })))
   ruta('GET', /^\/carrito-abandonado\/listar$/, () => ({
     carritos: db.clientes.slice(0, 4).map((c, i) => ({ id: 'ca' + i, nombre: c.nombre, email: c.email, telefono: c.telefono, total: 590 + i * 130, items: [{ nombre: 'Tacón Aurora', color: 'Negro', talla: '25', cantidad: 1, precio: 590 + i * 130 }], created_at: new Date(Date.now() - (i + 1) * 36e5 * 7).toISOString(), recordatorios_enviados: i % 2, estado: 'abandonado', recuperado: false })),
