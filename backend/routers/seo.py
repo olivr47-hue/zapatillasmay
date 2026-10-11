@@ -974,7 +974,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué es una corrida completa?",
          "a": "Una corrida es un mismo modelo en todos sus colores y tallas disponibles. Es la opción ideal para tiendas y revendedoras y da el mejor precio: hasta $180 MXN menos por par que el menudeo. Está disponible solo en el Portal de Mayoristas."},
         {"q": "¿Hacen envíos de pedidos de mayoreo a todo México?",
-         "a": "Sí. Enviamos a toda la República Mexicana en 1 a 3 días hábiles. Los pedidos grandes se envían por paquetería terrestre con número de guía para rastreo. También despachamos a EE.UU. y Canadá."},
+         "a": "Sí. Despachamos cada pedido en un máximo de 24 horas después de confirmar el pago (días hábiles) y la paquetería tarda de 1 a 3 días en entregar a toda la República Mexicana. Los pedidos grandes se envían por paquetería con número de guía para rastreo. También despachamos a EE.UU. y Canadá."},
     ],
     "ofertas": [
         {"q": "¿Cómo puedo aprovechar las ofertas de Zapatillas May?",
