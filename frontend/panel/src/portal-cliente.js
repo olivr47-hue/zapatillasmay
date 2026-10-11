@@ -1,4 +1,5 @@
 import { iniciarMascota } from './portal-mascota.js'
+import { zmImg } from './img-cdn.js'
 // ─────────────────────────────────────────────────────────────
 //  Portal de cliente mayoreo — integrado en el panel
 //  Se carga cuando el login detecta un cliente (tipo = zapateria)
@@ -844,7 +845,7 @@ function renderInicio(el) {
         ${pc.modelosSugeridos.map(p => `
           <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;min-width:0;cursor:pointer">
             <div style="position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:var(--pc-card);margin-bottom:6px">
-              <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+              <img src="${esc(zmImg(p.imagen_principal||'', 300))}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
               ${p._tag ? `<span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${esc(p._tag)}</span>` : ''}
             </div>
             <p style="font-size:0.75rem;color:var(--pc-text-2);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
@@ -1486,7 +1487,7 @@ function pcRegPintar(el) {
             <div style="margin-top:8px">
               ${g.vs.sort((a, b) => String(a.color).localeCompare(String(b.color)) || (parseFloat(a.talla) || 0) - (parseFloat(b.talla) || 0)).map(x => `
                 <div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:0.78rem;color:var(--pc-text-3)">
-                  ${x.foto ? `<img src="${esc(x.foto)}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
+                  ${x.foto ? `<img src="${esc(zmImg(x.foto, 128))}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
                   <span style="flex:1;min-width:0">${esc(x.color)} · talla ${esc(x.talla)}<br><span style="color:var(--pc-muted)">compraste ${x.comprados} · vendiste ${x.vendidos} · te costó ${money(x.costo)} c/u</span></span>
                   <strong style="color:${x.quedan > 0 ? '#10b981' : 'var(--pc-muted)'};flex-shrink:0">quedan ${x.quedan}</strong>
                   <button onclick="pcRegVender('${esc(x.variante_id)}')" class="pc-btn pc-btn-secondary" style="font-size:0.74rem;padding:6px 10px;flex-shrink:0" ${x.quedan <= 0 ? 'disabled' : ''}>Vendí</button>
@@ -1820,7 +1821,7 @@ function pcProductoCard(p) {
   return `
     <div class="pc-prod-card" onclick="${clickAction}" style="display:flex;flex-direction:column;position:relative;${seleccionado ? 'border-color:#25D366;box-shadow:0 0 0 2px #25D366;' : ''}">
       <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--pc-bg-elev)">
-        <img id="pc-card-img-${p.id}" src="${esc(imgPrincipal)}" alt="${esc(p.nombre)}" loading="lazy"
+        <img id="pc-card-img-${p.id}" src="${esc(zmImg(imgPrincipal, 400))}" alt="${esc(p.nombre)}" loading="lazy"
           style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
         ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
         ${esNuevo(p) ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
@@ -1965,7 +1966,7 @@ function pcNovTarjeta(p, i, mini) {
   const tallas = pcTallasDisp(p)
   return `
     <div class="pcn-spot${mini ? ' pcn-mini' : ''}" style="--i:${i}" onclick="pcAbrirProducto('${p.id}')">
-      <img src="${esc(p.imagen_principal)}" alt="${esc(p.nombre)}" loading="lazy">
+      <img src="${esc(zmImg(p.imagen_principal, 300))}" alt="${esc(p.nombre)}" loading="lazy">
       <div class="pcn-shade"></div>
       <span class="pcn-badge">${mini ? pcEdadCorto(p) : pcEdadTxt(p)}</span>
       ${tallas ? `<span class="pcn-tallas">${tallas}</span>` : ''}
@@ -2092,7 +2093,7 @@ window.pcCardColor = function(prodId, fotoUrl, swatchEl) {
   const img = document.getElementById('pc-card-img-' + prodId)
   if (img && fotoUrl) {
     img.style.opacity = '0.5'
-    img.src = fotoUrl
+    img.src = zmImg(fotoUrl, 400)
     img.onload = () => { img.style.opacity = '1' }
   }
   // Marcar swatch activo
@@ -2171,7 +2172,7 @@ window.pcAbrirProducto = function(prodId) {
       <!-- Header: foto + nombre + precios -->
       <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid var(--pc-border-2);flex-shrink:0">
         <div style="display:flex;align-items:flex-start;gap:12px">
-          <img id="pc-modal-img" src="${esc(p.imagen_principal||'')}" onclick="abrirLightboxPC(this.src, null, '${esc(String(p.nombre || '').split(' ')[0])}')"
+          <img id="pc-modal-img" src="${esc(zmImg(p.imagen_principal||'', 128))}" data-orig="${esc(p.imagen_principal||'')}" onclick="abrirLightboxPC(this.dataset.orig || this.src, null, '${esc(String(p.nombre || '').split(' ')[0])}')"
             style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in;background:var(--pc-bg-elev)">
           <div style="flex:1;min-width:0">
             <p style="font-size:0.65rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(p.sku_interno||'')}</p>
@@ -2223,7 +2224,7 @@ window.pcAbrirProducto = function(prodId) {
                 return sum + pc.inventario.filter(i => i.variante_id === v.id).reduce((s, i) => s + (i.cantidad || 0), 0)
               }, 0)
               const swatch = fotoColor
-                ? `<img src="${esc(fotoColor)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border-2)">`
+                ? `<img src="${esc(zmImg(fotoColor, 128))}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border-2)">`
                 : `<div style="width:46px;height:46px;border-radius:8px;background:${hex};border:1px solid var(--pc-border-2)"></div>`
               return `
                 <div onclick="pcSeleccionarColor('${prodId}','${esc(color)}')"
@@ -2395,7 +2396,7 @@ window.pcSeleccionarColor = (prodId, color) => {
   })
   const fotoColor = todasFotos[0] || null
   const modalImg = document.getElementById('pc-modal-img')
-  if (modalImg && fotoColor) modalImg.src = fotoColor
+  if (modalImg && fotoColor) { modalImg.dataset.orig = fotoColor; modalImg.src = zmImg(fotoColor, 128) }
   // Strip de miniaturas
   const strip = document.getElementById('pc-modal-foto-strip')
   if (strip) {
@@ -2406,7 +2407,7 @@ window.pcSeleccionarColor = (prodId, color) => {
       window._pcFotosColorActual = todasFotos
       const modelCode = p ? String(p.nombre || '').split(' ')[0] : ''
       strip.innerHTML = todasFotos.map((u, i) => `
-        <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual,'${esc(modelCode)}')"
+        <img src="${esc(zmImg(u, 128))}" data-orig="${esc(u)}" onclick="var m=document.getElementById('pc-modal-img');m.dataset.orig='${esc(u)}';m.src=pcImg('${esc(u)}',128);document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual,'${esc(modelCode)}')"
           style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${i===0?'2px solid #E91E8C':'none'}">
       `).join('')
     }
@@ -2792,7 +2793,7 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   if (!fotos || !fotos.length) {
     const strip = document.getElementById('pc-modal-foto-strip')
     if (strip && strip.style.display !== 'none') {
-      fotos = Array.from(strip.querySelectorAll('img')).map(i => i.src)
+      fotos = Array.from(strip.querySelectorAll('img')).map(i => i.dataset.orig || i.src)
     }
     if (!fotos || !fotos.length) fotos = [src]
     if (!fotos.includes(src)) fotos = [src, ...fotos]
@@ -2847,7 +2848,7 @@ window.abrirLightboxPC = function(src, fotos, sku) {
       ${modoSeleccion
         ? `<div style="display:flex;gap:8px;margin-top:16px;z-index:2;max-width:92vw;overflow-x:auto;padding:4px 2px">${fotos.map((f,i)=>`
             <div onclick="pcToggleSeleccionFotoLB(${i})" style="position:relative;flex-shrink:0;cursor:pointer">
-              <img src="${f}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid ${seleccion.has(i) ? '#E91E8C' : 'rgba(255,255,255,0.3)'};opacity:${seleccion.has(i) ? 1 : 0.55}">
+              <img src="${zmImg(f, 128)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid ${seleccion.has(i) ? '#E91E8C' : 'rgba(255,255,255,0.3)'};opacity:${seleccion.has(i) ? 1 : 0.55}">
               ${seleccion.has(i) ? `<span style="position:absolute;top:-5px;right:-5px;background:#E91E8C;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;border:2px solid rgba(0,0,0,0.9)">✓</span>` : ''}
             </div>`).join('')}</div>
            <p style="color:rgba(255,255,255,0.6);font-size:0.72rem;margin:8px 0 0;z-index:2">Toca las fotos que quieres compartir</p>`
@@ -3446,7 +3447,7 @@ function renderCarrito(el) {
             const marcado = sel.has(item.variante_id)
             return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendienteLiberar || pendienteApartar ? 'opacity:0.55' : ''}">
               ${seleccionable ? `<input type="checkbox" onchange="pcToggleSeleccionApartado('${item.variante_id}')" ${marcado?'checked':''} style="width:20px;height:20px;accent-color:#E91E8C;cursor:pointer;flex-shrink:0">` : ''}
-              ${item.imagen ? `<img src="${esc(item.imagen)}" onclick="pcAbrirProducto('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${item.producto_id}')" style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
+              ${item.imagen ? `<img src="${esc(zmImg(item.imagen, 128))}" onclick="pcAbrirProducto('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${item.producto_id}')" style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
                 <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(item.nombre || '').split(' ')[0])}</p>
                 <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
@@ -3468,7 +3469,7 @@ function renderCarrito(el) {
           <div style="padding:12px 0;border-bottom:1px solid var(--pc-border);background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px;${pendienteApartar ? 'opacity:0.55' : ''}">
             <div style="display:flex;gap:10px;align-items:flex-start">
               ${seleccionable ? `<input type="checkbox" onchange="pcToggleSeleccionApartado('corrida:${key}')" ${marcado?'checked':''} style="width:20px;height:20px;accent-color:#E91E8C;cursor:pointer;flex-shrink:0;margin-top:4px">` : ''}
-              ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" onclick="pcAbrirProducto('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${corrida.producto_id}')" style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
+              ${corrida.imagen ? `<img src="${esc(zmImg(corrida.imagen, 128))}" onclick="pcAbrirProducto('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${corrida.producto_id}')" style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                   <div style="flex:1;min-width:0">
@@ -3965,7 +3966,7 @@ async function renderApartados(el) {
           const pr = v.productos || {}
           const pendiente = item.solicitud_liberar
           return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendiente?'opacity:0.55':''}">
-            ${v.foto_url || pr.imagen_principal ? `<img src="${esc(v.foto_url || pr.imagen_principal)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : `<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>`}
+            ${v.foto_url || pr.imagen_principal ? `<img src="${esc(zmImg(v.foto_url || pr.imagen_principal, 128))}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : `<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>`}
             <div style="flex:1;min-width:0">
               <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(pr.nombre || item.nombre || '').split(' ')[0])}</p>
               <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(v.talla || item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad!==1?'es':''}</p>
@@ -4557,7 +4558,7 @@ function pcPedidoDetalle(p) {
       <div style="border-top:1px solid var(--pc-border);padding-top:12px">
         ${items.map(i => `
           <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
-            ${i.variantes?.productos?.imagen_principal ? `<img src="${esc(i.variantes.productos.imagen_principal)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--pc-bg-elev);flex-shrink:0">` : ''}
+            ${i.variantes?.productos?.imagen_principal ? `<img src="${esc(zmImg(i.variantes.productos.imagen_principal, 128))}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--pc-bg-elev);flex-shrink:0">` : ''}
             <div style="flex:1;min-width:0">
               <p style="font-size:0.83rem;font-weight:500;color:var(--pc-text-2);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.variantes?.productos?.nombre || 'Producto')}</p>
               <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">Talla ${esc(i.variantes?.talla||'')} · ${i.cantidad} par${i.cantidad !== 1 ? 'es' : ''}</p>
