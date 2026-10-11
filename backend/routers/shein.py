@@ -432,11 +432,58 @@ def ordenes_diagnostico_mapeo(sku_code: str = None, goods_sn: str = None):
 _SYNC_VENTAS_LOCK = threading.Lock()
 
 
+_PRECIOS_SHEIN_CORREGIDOS = False
+
+
+def _corregir_precios_shein_existentes() -> int:
+    """Pedidos SHEIN creados antes con el precio de lista al comprador: se vuelven a anotar al costo que SHEIN paga (costPrice).
+    Idempotente (se salta los que ya dicen «SHEIN pagó (costo)») y corre una sola vez por arranque del servidor."""
+    global _PRECIOS_SHEIN_CORREGIDOS
+    if _PRECIOS_SHEIN_CORREGIDOS:
+        return 0
+    peds = supabase_get_all("pedidos?canal=eq.shein&shein_order_id=not.is.null&select=id,shein_order_id,notas") or []
+    por_orden = {p["shein_order_id"]: p for p in peds if "SHEIN pagó (costo)" not in (p.get("notas") or "")}
+    corregidos = 0
+    if por_orden:
+        variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id")
+        nos = list(por_orden)
+        for i in range(0, len(nos), 30):
+            resp = shein_post("/open-api/order/order-detail", {"orderNoList": nos[i:i + 30]})
+            for orden in resp.get("info") or []:
+                ped = por_orden.get(orden.get("orderNo"))
+                if not ped:
+                    continue
+                total = venta = 0.0
+                for g in orden.get("orderGoodsInfoList") or []:
+                    sku = (g.get("sellerSku") or "").strip() or _seller_sku_desde_sku_code_shein(g.get("skuCode") or "")
+                    var = _buscar_variante_por_seller_sku_shein(sku, variantes) if sku else None
+                    costo = float(g.get("costPrice") or 0)
+                    if not var or costo <= 0:
+                        continue
+                    supabase_patch(f"pedido_items?pedido_id=eq.{ped['id']}&variante_id=eq.{var['id']}", {"precio_unitario": costo})
+                    total += costo
+                    venta += float(g.get("sellerCurrencyPrice") or 0)
+                if total > 0:
+                    supabase_patch(f"pedidos?id=eq.{ped['id']}", {
+                        "total": total, "subtotal": total,
+                        "notas": (ped.get("notas") or "") + f" — Precio al comprador en SHEIN: ${venta:.0f}; SHEIN pagó (costo): ${total:.0f}"})
+                    corregidos += 1
+    _PRECIOS_SHEIN_CORREGIDOS = True
+    return corregidos
+
+
 def _hacer_sync_ventas_shein() -> dict:
     if not _SYNC_VENTAS_LOCK.acquire(blocking=False):
         return {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "omitida": "ya hay una sincronización en curso"}
     try:
-        return _hacer_sync_ventas_shein_inner()
+        r = _hacer_sync_ventas_shein_inner()
+        try:
+            n = _corregir_precios_shein_existentes()
+            if n:
+                r["precios_corregidos"] = n
+        except Exception as e:
+            print(f"[shein] corrección de precios omitida: {e}")
+        return r
     finally:
         _SYNC_VENTAS_LOCK.release()
 
@@ -514,7 +561,10 @@ def _hacer_sync_ventas_shein_inner() -> dict:
                     continue
                 items_pedido.append({
                     "variante_id": variante["id"], "cantidad": 1,
-                    "precio_unitario": float(g.get("sellerCurrencyPrice") or g.get("costPrice") or 0),
+                    # Lo que SHEIN le PAGA a la vendedora es costPrice (el «costo»); sellerCurrencyPrice es el precio de lista al comprador.
+                    # Las ventas se anotan al costo cobrado para que ventas y utilidad reflejen lo que de verdad entra.
+                    "precio_unitario": float(g.get("costPrice") or g.get("sellerCurrencyPrice") or 0),
+                    "precio_comprador": float(g.get("sellerCurrencyPrice") or 0),
                     "nombre": g.get("goodsTitle") or "", "color": variante.get("color") or "",
                     "talla": variante.get("talla") or "", "sku": seller_sku,
                 })
@@ -535,7 +585,8 @@ def _hacer_sync_ventas_shein_inner() -> dict:
                     "status": "pagado",
                     "tipo": "online", "total": total, "subtotal": total, "forma_pago": "shein",
                     "nombre_cliente": "Comprador SHEIN",
-                    "notas": f"Pedido generado automáticamente desde SHEIN (orden {order_id})" + (" — faltó match de algún SKU" if faltante else ""),
+                    "notas": f"Pedido generado automáticamente desde SHEIN (orden {order_id})" + (" — faltó match de algún SKU" if faltante else "")
+                             + f" — Precio al comprador en SHEIN: ${sum(it['precio_comprador'] for it in items_pedido):.0f}; SHEIN pagó (costo): ${total:.0f}",
                 }
                 fecha_orden = orden.get("orderTime")
                 if fecha_orden:

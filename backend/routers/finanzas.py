@@ -586,6 +586,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         tu_ventas = 0.0
         origenes = _origenes_clientes([p.get('cliente_id') for p in pedidos])
         cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), origenes.get(p.get('cliente_id'))) for p in pedidos}
+        shein_ids = {p['id'] for p in pedidos if (p.get('canal') or '').lower() == 'shein'}   # SHEIN: cuenta par por par, solo los que dejan utilidad sobre la corrida
         for _pid in _pedidos_a_precio_sitio([p for p in pedidos if not cuenta.get(p['id'])]):
             cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80): cuenta como venta que llega sola
         if ids_pedidos:
@@ -652,7 +653,8 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
                 subtotal_costo = costo * cantidad
                 subtotal_venta = precio_venta * cantidad
                 cmv += subtotal_costo
-                if cuenta.get(item.get('pedido_id')):   # solo lo que llega solo
+                # solo lo que llega solo; y de SHEIN, únicamente los pares cuyo pago (costo que SHEIN le paga a la vendedora) deja utilidad sobre la corrida
+                if cuenta.get(item.get('pedido_id')) or (item.get('pedido_id') in shein_ids and precio_venta > corrida_u):
                     cmv_corrida += corrida_u * cantidad
                     tu_ventas += subtotal_venta
                 desglose_cmv.append({
@@ -832,6 +834,7 @@ def estado_resultados(sucursal_id: str):
             ids = [p['id'] for p in pedidos]
             _orig = _origenes_clientes([p.get('cliente_id') for p in pedidos])
             _cuenta = {p['id']: _cuenta_en_tu_utilidad(p.get('canal'), _orig.get(p.get('cliente_id'))) for p in pedidos}
+            _shein = {p['id'] for p in pedidos if (p.get('canal') or '').lower() == 'shein'}
             for _pid in _pedidos_a_precio_sitio([p for p in pedidos if not _cuenta.get(p['id'])]):
                 _cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80)
             ventas_prod = cmv = 0.0
@@ -839,7 +842,7 @@ def estado_resultados(sucursal_id: str):
                 items = []
                 for _k in range(0, len(ids), 150):
                     items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[_k:_k + 150])})&select=pedido_id,cantidad,variante_id,precio_unitario") or []
-                items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0 and _cuenta.get(i.get('pedido_id'))]
+                items = [i for i in items if i.get('variante_id') and int(i.get('cantidad') or 0) > 0 and (_cuenta.get(i.get('pedido_id')) or i.get('pedido_id') in _shein)]
                 vids = list({i['variante_id'] for i in items})
                 vmap = {}
                 for _k in range(0, len(vids), 150):
@@ -852,8 +855,12 @@ def estado_resultados(sucursal_id: str):
                         pmap[pr['id']] = pr
                 for i in items:
                     cant = int(i.get('cantidad') or 0)
-                    ventas_prod += float(i.get('precio_unitario') or 0) * cant
-                    cmv += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida") * cant
+                    _pv = float(i.get('precio_unitario') or 0)
+                    _cu = _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida")
+                    if not _cuenta.get(i.get('pedido_id')) and _pv <= _cu:
+                        continue   # SHEIN: un par que no deja utilidad sobre la corrida no cuenta
+                    ventas_prod += _pv * cant
+                    cmv += _cu * cant
             ext = _externas_rango(_ini, _fin)   # TikTok importado: suma a las utilidades, no a las ventas
             utilidad = ventas - gasto + ext["utilidad_real"]   # ventas − gastos (como estaba) + utilidad de lo importado de TikTok
 
