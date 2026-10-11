@@ -88,21 +88,26 @@ def inventario_slim(producto: str = None, variantes: str = None):
     Con `producto=<id>` devuelve solo las filas de las variantes de ese modelo (página de producto).
     """
     try:
-        cached = cache_get(_CK + "_slim")
-        if cached is not None:
-            return _slim_de_producto(cached, producto, variantes)
-        data = supabase_get_all("inventario?select=variante_id,cantidad")
-        # Si hay múltiples sucursales, sumar el stock de todas para la tienda
-        stock: dict = {}
-        for row in data:
-            vid = row.get("variante_id")
-            if vid:
-                stock[vid] = stock.get(vid, 0) + (row.get("cantidad") or 0)
-        result = [{"variante_id": k, "cantidad": v} for k, v in stock.items()]
-        cache_set(_CK + "_slim", result, ttl=TTL_STOCK)
-        return _slim_de_producto(result, producto, variantes)
+        return _slim_de_producto(slim_filas(), producto, variantes)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def slim_filas() -> list:
+    """Stock total por variante (variante_id + cantidad), con la caché en memoria de siempre."""
+    cached = cache_get(_CK + "_slim")
+    if cached is not None:
+        return cached
+    data = supabase_get_all("inventario?select=variante_id,cantidad")
+    # Si hay múltiples sucursales, sumar el stock de todas para la tienda
+    stock: dict = {}
+    for row in data:
+        vid = row.get("variante_id")
+        if vid:
+            stock[vid] = stock.get(vid, 0) + (row.get("cantidad") or 0)
+    result = [{"variante_id": k, "cantidad": v} for k, v in stock.items()]
+    cache_set(_CK + "_slim", result, ttl=TTL_STOCK)
+    return result
 
 
 def _slim_de_producto(filas: list, producto: str = None, variantes: str = None) -> list:

@@ -207,7 +207,7 @@ async def _security_headers(request, call_next):
             response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=60"
     return response
 
-_CACHE_PUBLICA = {"/productos/", "/productos/nuevos", "/variantes/", "/inventario/slim", "/seo/config",
+_CACHE_PUBLICA = {"/productos/", "/productos/inicio", "/productos/nuevos", "/variantes/", "/inventario/slim", "/seo/config",
                   "/config/envio", "/catalogos/", "/sucursales/"}
 
 app.include_router(productos.router)

@@ -311,6 +311,28 @@ def productos_del_carrito(ids: str = "", credentials: HTTPAuthorizationCredentia
             "sugerencias": _publico(_sugerencias_carrito(data, ids_carrito), credentials)}
 
 
+@router.get("/inicio")
+def inicio_tienda(n: int = 60, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    """Primer pintado de la home: todos los productos (como /productos/) + variantes e inventario SOLO de los primeros `n`
+    de la lista, que son los que alcanzan para dibujar las primeras tarjetas. El resto se baja después en segundo plano."""
+    from routers.variantes import variantes_para_tienda
+    from routers.inventario import slim_filas
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        data = cached
+    else:
+        data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
+        cache_set(_CK + "_all", data)
+    n = max(10, min(int(n or 60), 200))
+    ids = [p["id"] for p in data[:n]]
+    cubiertos = set(ids)
+    variantes = [v for v in variantes_para_tienda() if v.get("producto_id") in cubiertos]
+    vids = {v["id"] for v in variantes}
+    inventario = [f for f in slim_filas() if f.get("variante_id") in vids]
+    return {"v": catalog_version().get("v"), "ids": ids, "productos": _publico(data, credentials),
+            "variantes": variantes, "inventario": inventario}
+
+
 @router.get("/{id}")
 def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     return _publico(supabase_get(f"productos?id=eq.{id}"), credentials)
