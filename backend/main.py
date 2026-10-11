@@ -189,6 +189,9 @@ _CSP = (
     "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
 )
 
+import etag_http as _etag_http
+
+
 @app.middleware("http")
 async def _security_headers(request, call_next):
     response = await call_next(request)
@@ -205,6 +208,9 @@ async def _security_headers(request, call_next):
             response.headers["Cache-Control"] = "private, no-store"
         else:
             response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=60"
+    # Variantes e inventario (pesados y iguales para todos): ETag para que el navegador pregunte «¿cambió algo?» y reciba un 304 sin cuerpo.
+    if request.method == "GET" and response.status_code == 200 and request.url.path in _etag_http.RUTAS_ETAG:
+        return await _etag_http.con_etag(request, response)
     return response
 
 _CACHE_PUBLICA = {"/productos/", "/productos/inicio", "/productos/nuevos", "/variantes/", "/inventario/slim", "/seo/config",
