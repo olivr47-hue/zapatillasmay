@@ -281,6 +281,36 @@ def catalog_version():
     cache_set(_CK + "_version", v, ttl=3600)
     return v
 
+def _sugerencias_carrito(data: list, ids_carrito: set, limite: int = 3) -> list:
+    """«Combina con»: misma regla que antes calculaba la página del carrito sobre el catálogo completo.
+    Activos, que no estén ya en el carrito, de las mismas categorías que lo que lleva (todas si no hay categorías),
+    con foto y sin modelos de uso interno («oferta…»); primero destacados/nuevos y luego los más recientes."""
+    cats = {p.get("categoria") for p in data if p.get("id") in ids_carrito and p.get("categoria")}
+    lista = [p for p in data
+             if p.get("activo") and p.get("id") not in ids_carrito and (p.get("categoria") in cats if cats else True)
+             and (p.get("imagen_principal") or "").strip()
+             and not re.match(r"oferta", p.get("nombre") or "", re.I) and not re.match(r"oferta", p.get("slug") or "", re.I)]
+    lista.sort(key=lambda p: str(p.get("updated_at") or ""), reverse=True)   # estable: los empates conservan el orden original
+    lista.sort(key=lambda p: 0 if (p.get("destacado") or p.get("nuevo")) else 1)
+    return lista[:limite]
+
+
+@router.get("/carrito")
+def productos_del_carrito(ids: str = "", credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    """Para la página del carrito: solo los productos que lleva (precios al día) + 3 sugerencias, en vez de bajar el
+    catálogo completo (~73 KB comprimidos) para usar un par de filas."""
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        data = cached
+    else:
+        data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
+        cache_set(_CK + "_all", data)
+    ids_carrito = {i.strip() for i in (ids or "").split(",") if i.strip()}
+    propios = [p for p in data if p.get("id") in ids_carrito]
+    return {"productos": _publico(propios, credentials),
+            "sugerencias": _publico(_sugerencias_carrito(data, ids_carrito), credentials)}
+
+
 @router.get("/{id}")
 def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     return _publico(supabase_get(f"productos?id=eq.{id}"), credentials)

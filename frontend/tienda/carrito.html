@@ -536,11 +536,24 @@ async function refrescarPreciosCarrito() {
   try {
     const items = leerCarrito()
     if (!items.length) return
-    const r = await fetch(`${API}/productos/`)
-    if (!r.ok) return
-    const prods = await r.json()
-    if (!Array.isArray(prods)) return
-    window._catalogoCarrito = prods
+    // Solo los productos que lleva el carrito (+ 3 sugerencias ya calculadas) en vez del catálogo completo (~73 KB).
+    // Si el servidor no responde con esa forma, se usa el catálogo completo como antes.
+    let prods = null
+    try {
+      const ids = [...new Set(items.map(i => i.producto_id).filter(Boolean))]
+      const r0 = await fetch(`${API}/productos/carrito?ids=${encodeURIComponent(ids.join(','))}`)
+      if (r0.ok) {
+        const d0 = await r0.json()
+        if (d0 && Array.isArray(d0.productos) && Array.isArray(d0.sugerencias)) { prods = d0.productos; window._sugerenciasCarrito = d0.sugerencias }
+      }
+    } catch (e) {}
+    if (!prods) {
+      const r = await fetch(`${API}/productos/`)
+      if (!r.ok) return
+      prods = await r.json()
+      if (!Array.isArray(prods)) return
+      window._catalogoCarrito = prods
+    }
     const por = {}
     prods.forEach(p => { por[p.id] = p })
     let cambio = false
@@ -570,15 +583,21 @@ async function refrescarPreciosCarrito() {
 function combinarCon() {
   try {
     const prods = window._catalogoCarrito
+    const sugeridas = window._sugerenciasCarrito
     const items = leerCarrito()
-    if (!Array.isArray(prods) || !items.length) return
-    const ids = new Set(items.map(i => i.producto_id))
-    const cats = new Set(prods.filter(p => ids.has(p.id)).map(p => p.categoria).filter(Boolean))
-    const lista = prods
-      .filter(p => p.activo && !ids.has(p.id) && (cats.size ? cats.has(p.categoria) : true)
-        && (p.imagen_principal || '').trim() && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
-      .sort((a, b) => ((b.destacado || b.nuevo) ? 1 : 0) - ((a.destacado || a.nuevo) ? 1 : 0) || String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
-      .slice(0, 3)
+    if ((!Array.isArray(prods) && !Array.isArray(sugeridas)) || !items.length) return
+    let lista
+    if (Array.isArray(sugeridas)) {
+      lista = sugeridas.slice(0, 3)   // el servidor ya aplicó la misma regla de abajo
+    } else {
+      const ids = new Set(items.map(i => i.producto_id))
+      const cats = new Set(prods.filter(p => ids.has(p.id)).map(p => p.categoria).filter(Boolean))
+      lista = prods
+        .filter(p => p.activo && !ids.has(p.id) && (cats.size ? cats.has(p.categoria) : true)
+          && (p.imagen_principal || '').trim() && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
+        .sort((a, b) => ((b.destacado || b.nuevo) ? 1 : 0) - ((a.destacado || a.nuevo) ? 1 : 0) || String(b.updated_at || '').localeCompare(String(a.updated_at || '')))
+        .slice(0, 3)
+    }
     if (!lista.length) return
     const img = (u) => (u && u.includes('res.cloudinary.com') && u.includes('/upload/')) ? u.replace('/upload/', '/upload/w_260,h_320,c_fill,g_auto,f_auto,q_auto/') : u
     const esc = (t) => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -608,9 +627,18 @@ async function init() {
 
   // Cargar config de envío e inventario en paralelo
   try {
+    // Solo el stock de las variantes del carrito (~0.4 KB) en vez del inventario completo (~89 KB); si falla, el completo.
+    const _pedirInventario = async () => {
+      try {
+        const vids = [...new Set(leerCarrito().map(i => i.variante_id).filter(Boolean))]
+        const r = await fetch(`${API}/inventario/slim?variantes=${encodeURIComponent(vids.join(','))}`)
+        if (r.ok) { const d = await r.clone().json(); if (Array.isArray(d)) return r }
+      } catch (e) {}
+      return fetch(`${API}/inventario/slim`)
+    }
     const [rEnvio, rInv] = await Promise.all([
       fetch(`${API}/config/envio`).catch(() => null),
-      fetch(`${API}/inventario/slim`).catch(() => null)
+      _pedirInventario().catch(() => null)
     ])
     if (rEnvio?.ok) cfgEnvio = await rEnvio.json()
     if (rInv?.ok) {
