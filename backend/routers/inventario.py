@@ -80,16 +80,17 @@ def avisame_stock(datos: dict):
 _CK = "inventario"  # prefijo de caché
 
 @router.get("/slim")
-def inventario_slim():
+def inventario_slim(producto: str = None):
     """
     Versión ligera para la tienda pública.
     Solo devuelve variante_id + cantidad. Sin JOINs.
     ~50KB vs ~3-5MB del endpoint completo.
+    Con `producto=<id>` devuelve solo las filas de las variantes de ese modelo (página de producto).
     """
     try:
         cached = cache_get(_CK + "_slim")
         if cached is not None:
-            return cached
+            return _slim_de_producto(cached, producto)
         data = supabase_get_all("inventario?select=variante_id,cantidad")
         # Si hay múltiples sucursales, sumar el stock de todas para la tienda
         stock: dict = {}
@@ -99,9 +100,18 @@ def inventario_slim():
                 stock[vid] = stock.get(vid, 0) + (row.get("cantidad") or 0)
         result = [{"variante_id": k, "cantidad": v} for k, v in stock.items()]
         cache_set(_CK + "_slim", result, ttl=TTL_STOCK)
-        return result
+        return _slim_de_producto(result, producto)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _slim_de_producto(filas: list, producto: str = None) -> list:
+    """Sin `producto`: la lista completa, igual que siempre. Con `producto`: solo las variantes activas de ese modelo."""
+    if not producto:
+        return filas
+    from routers.variantes import variantes_publicas_todas
+    ids = {v["id"] for v in variantes_publicas_todas() if v.get("producto_id") == producto}
+    return [f for f in filas if f.get("variante_id") in ids]
 
 
 @router.get("/alertas")

@@ -40,8 +40,24 @@ def color_a_codigo(color):
 def talla_a_codigo(talla):
     return talla.replace('.', '_')
 
+def variantes_publicas_todas() -> list:
+    """Lista completa de variantes activas (la que usa la tienda), con la caché en memoria de siempre."""
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        return cached
+    # Usar paginación para traer las 1400+ variantes (Supabase limita a 1000 por defecto)
+    data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
+    cache_set(_CK + "_all", data)
+    return data
+
+
 @router.get("/")
-def listar_variantes(producto_ids: str = None, ligero: bool = False):
+def listar_variantes(producto_ids: str = None, ligero: bool = False, solo: str = None):
+    if solo:
+        # Página de producto: solo las variantes de ESE modelo (~3 KB) en vez de las 4,000+ del catálogo (~580 KB comprimidos).
+        # Misma forma exacta que la lista completa, filtrada en memoria (sin consultar la base).
+        return [v for v in variantes_publicas_todas() if v.get("producto_id") == solo]
+
     if producto_ids:
         ids_list = [i.strip() for i in producto_ids.split(",") if i.strip()]
         if not ids_list:
@@ -58,13 +74,7 @@ def listar_variantes(producto_ids: str = None, ligero: bool = False):
         cache_set(_CK + "_ligero", data)
         return data
 
-    cached = cache_get(_CK + "_all")
-    if cached is not None:
-        return cached
-    # Usar paginación para traer las 1400+ variantes (Supabase limita a 1000 por defecto)
-    data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
-    cache_set(_CK + "_all", data)
-    return data
+    return variantes_publicas_todas()
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):

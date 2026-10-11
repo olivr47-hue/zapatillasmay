@@ -758,9 +758,21 @@ async function init() {
   // Cargar variantes + inventario (siempre necesarios para colores/tallas)
   // Si hay datos pre-inyectados por SSR, el producto no necesita fetch extra
   try {
+    // Con el producto ya inyectado por el SSR, se piden solo las variantes y el stock de ESE modelo (~3 KB) en vez de las
+    // de todo el catálogo (~670 KB comprimidos por visita). Sin producto inyectado, o si algo falla, se usa la lista completa.
+    const _pid = window.__ZM_PRODUCT__ && window.__ZM_PRODUCT__.id ? encodeURIComponent(window.__ZM_PRODUCT__.id) : ''
+    const _pedirLista = async (ruta, filtro) => {
+      if (filtro) {
+        try {
+          const r = await fetch(`${API}${ruta}${filtro}`)
+          if (r.ok) { const d = await r.clone().json(); if (Array.isArray(d)) return r }
+        } catch (e) {}
+      }
+      return fetch(`${API}${ruta}`)
+    }
     const fetchPromises = [
-      fetch(`${API}/variantes/`).catch(() => null),
-      fetch(`${API}/inventario/slim`).catch(() => null),
+      _pedirLista('/variantes/', _pid ? `?solo=${_pid}` : '').catch(() => null),
+      _pedirLista('/inventario/slim', _pid ? `?producto=${_pid}` : '').catch(() => null),
       fetch(`${API}/config/envio`).catch(() => null),
       fetch(`${API}/sucursales/`).catch(() => null)
     ]
