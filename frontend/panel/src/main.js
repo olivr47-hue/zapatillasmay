@@ -30,6 +30,19 @@ if (_skuEstiloPublico) {
   const _cache = new Map()
   const _pathApi = (u) => { try { return u.startsWith('http') ? new URL(u).pathname + new URL(u).search : u } catch (e) { return u } }
 
+  // Las llamadas del panel y del portal (/api/...) pasaban por Vercel, que las reenviaba a Railway, y cada una contaba como una solicitud de Vercel
+  // (el panel hace miles al día con sus consultas de avisos): se estaba llegando al límite del plan gratuito. Ahora van directo a Railway, que ya
+  // acepta este origen (CORS). Solo en el sitio real; la demo y el desarrollo local siguen como siempre. Para volver al camino anterior:
+  // localStorage.setItem('zm_api', 'vercel') y recargar.
+  const _RAILWAY = 'https://zapatillasmay-production.up.railway.app'
+  const _DIRECTO = location.hostname === 'portal.zapatillasmay.mx' && !window.__ZM_DEMO && (() => { try { return localStorage.getItem('zm_api') !== 'vercel' } catch (e) { return true } })()
+  const _destino = (inp) => {
+    if (!_DIRECTO || typeof inp !== 'string') return inp
+    if (inp.startsWith('/api/')) return _RAILWAY + inp.slice(4)
+    if (inp.startsWith(location.origin + '/api/')) return _RAILWAY + inp.slice((location.origin + '/api').length)
+    return inp
+  }
+
   let _ultimoAvisoGuardado = 0
   function _avisarFalloGuardado(motivo) {
     const ahora = Date.now()
@@ -75,7 +88,7 @@ if (_skuEstiloPublico) {
         if (r) return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json' } })
       }
       const p = (async () => {
-        const rr = await _fetch(input, init)
+        const rr = await _fetch(_destino(input), init)
         if (!rr.ok) { _cache.delete(clave); return null }
         return { body: await rr.clone().text(), status: rr.status }
       })()
@@ -88,7 +101,7 @@ if (_skuEstiloPublico) {
     const _esEscritura = esApi && metodo !== 'GET' && metodo !== 'HEAD'
     let res
     try {
-      res = await _fetch(input, init)
+      res = await _fetch(_destino(input), init)
     } catch (errRed) {
       if (_esEscritura) _avisarFalloGuardado('sin conexión con el servidor')
       throw errRed
