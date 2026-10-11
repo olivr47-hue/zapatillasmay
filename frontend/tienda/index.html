@@ -66,7 +66,7 @@
   <!-- Fuentes cargadas sin bloquear el render (media=print → all al cargar). Con display=swap el texto se ve de inmediato. -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="/assets/estilos.9a7905e5.css">
+  <link rel="stylesheet" href="/assets/estilos.5dcb49f1.css">
   <!-- SEO META TAGS BASE -->
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta name="author" content="Zapatillas May">
@@ -248,6 +248,40 @@ if (!window.fbq){
   fbq('track','PageView');
 }
 </script>
+<style id="zm-etapa2">
+/* Etapa 2: tarjetas más parejas, categorías (rejilla en escritorio, carrusel circular en celular) e inicio de escritorio */
+.product-card .product-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em;line-height:1.3}
+.product-card .price-main{font-size:1.12rem;letter-spacing:-.2px}
+.product-card .price-mayoreo-hint{display:inline-flex;margin-top:5px;padding:3px 10px;background:rgba(181,104,122,.09);border-radius:99px;font-size:.7rem}
+.product-card .product-colors{margin-bottom:10px;min-height:14px}
+.product-card .product-img-wrap{margin-bottom:10px;box-shadow:0 2px 10px rgba(90,60,40,.08)}
+.cat-name-m{display:none}
+@media(min-width:769px){
+  .section-cats-desktop{padding-top:60px;padding-bottom:24px}
+  .section-cats-desktop .section-header{justify-content:center;margin-bottom:32px}
+  #cats-grid{display:grid!important;grid-template-columns:repeat(6,1fr);gap:18px;max-width:1180px;margin:0 auto}
+  #cats-grid .cat-wrap{width:auto!important;height:auto!important;aspect-ratio:4/5;border-radius:18px;overflow:hidden;box-shadow:0 8px 22px rgba(90,50,40,.14);transition:transform .3s,box-shadow .3s}
+  #cats-grid .cat-wrap:hover{transform:translateY(-6px);box-shadow:0 16px 34px rgba(90,50,40,.22)}
+  #cats-grid .cat-wrap:hover .cat-card img{transform:scale(1.07)}
+  #cats-grid .cat-name{font-size:.82rem;letter-spacing:.14em}
+  #productos-section .section-header{margin-bottom:30px}
+}
+@media(max-width:768px){
+  .section-cats-desktop{padding:20px 0 6px!important}
+  .section-cats-desktop .section-header{margin-bottom:12px!important;padding:0 16px}
+  .section-cats-desktop .section-title{font-size:1.45rem!important}
+  #cats-grid{display:flex!important;flex-wrap:nowrap!important;justify-content:flex-start!important;overflow-x:auto;gap:14px;padding:4px 16px 12px;scroll-snap-type:x proximity;scroll-padding-left:16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #cats-grid::-webkit-scrollbar{display:none}
+  #cats-grid .cat-wrap{flex:0 0 auto;width:80px!important;height:auto!important;border-radius:0;overflow:visible;scroll-snap-align:start;text-align:center}
+  #cats-grid .cat-wrap:hover{transform:none}
+  #cats-grid .cat-card{position:relative!important;inset:auto!important;width:76px;height:76px;margin:0 auto;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px #fff,0 0 0 4px #d9a3b3,0 6px 14px rgba(60,30,20,.16)}
+  #cats-grid .cat-card>div{display:none!important}
+  .cat-name-m{display:block;margin-top:10px;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#2A1A0E}
+  .product-card .product-name{font-size:.9rem;min-height:2.5em}
+  .product-card .price-main{font-size:1rem}
+  .product-card .price-mayoreo-hint{font-size:.64rem;padding:2px 8px}
+}
+</style>
 </head>
 <body>
 <a href="#productos-section" class="skip-link">Saltar al contenido</a>
@@ -990,7 +1024,7 @@ if (!window.fbq){
   </div>
 </footer>
 
-<script src="/assets/app.ca302f7d.js"></script>
+<script src="/assets/app.b33195f4.js"></script>
   <!-- PÁGINA INTERNA -->
 
 
