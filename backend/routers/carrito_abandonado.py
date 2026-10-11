@@ -225,6 +225,7 @@ def _enviar_recordatorio(carrito: dict) -> bool:
 
 # ── 5. PROCESAR (envía recordatorios pendientes) ──────────────────
 _PAUSA_HASTA = None
+_DOMINIOS_RESERVADOS = {"example.com", "example.org", "example.net", "localhost"}
 
 
 def procesar_recordatorios() -> dict:
@@ -247,8 +248,11 @@ def procesar_recordatorios() -> dict:
         if _PAUSA_HASTA and ahora < _PAUSA_HASTA:
             return {"ok": True, "revisados": len(pendientes or []), "enviados": 0, "pausado_hasta": _PAUSA_HASTA.isoformat()}
         for c in (pendientes or []):
-            if "@" not in (c.get("email") or ""):
-                # email inválido: antes se reintentaba (y fallaba) cada 15 min para siempre
+            _correo = (c.get("email") or "").strip().lower()
+            _dominio = _correo.rsplit("@", 1)[-1] if "@" in _correo else ""
+            if "@" not in _correo or _dominio in _DOMINIOS_RESERVADOS or _dominio.endswith((".test", ".invalid", ".localhost", ".example")):
+                # email inválido o de prueba (example.com): el proveedor lo rechaza para siempre y, con el
+                # disyuntor, frenaba la cola entera (los carritos reales de atrás nunca recibían su recordatorio)
                 supabase_patch(f"carritos_abandonados?id=eq.{c['id']}", {"recordatorio_enviado": True, "recordatorio_enviado_at": _now_iso()})
                 continue
             if _enviar_recordatorio(c):
