@@ -363,6 +363,51 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
     return ""
 
 
+@router.get("/negociaciones/diagnostico")
+def shein_negociaciones_diagnostico(spu: str = "", _admin=Depends(require_admin)):
+    """SOLO LECTURA. Órdenes de negociación de precio de costo (POST /open-api/goods/discuss/query-discuss-list): por cada SKC, el precio que
+    tú pusiste, el que SHEIN sugiere, la ronda y cuántos intentos quedan. Con `spu=a,b` (nombres de SPU de SHEIN) trae además los datos
+    de esos productos para saber cuáles son. No modifica nada (NO acepta ni contraoferta nada)."""
+    ESTADOS = {1: "pendiente de tu confirmación", 2: "pendiente de revisión de SHEIN", 3: "negociación aceptada", 4: "negociación no aceptada",
+               5: "terminada con éxito", 6: "terminada sin éxito"}
+    TIPOS = {0: "producto nuevo", 1: "producto existente", 3: "revisión de precio de producto nuevo"}
+    salida = {"total": 0, "por_estado": {}, "ordenes": [], "errores": []}
+    pagina = 1
+    while pagina <= 20:
+        try:
+            r = shein_post("/open-api/goods/discuss/query-discuss-list", {"pageNum": pagina, "pageSize": 200})
+        except HTTPException as e:
+            salida["errores"].append({"pagina": pagina, "codigo": e.status_code, "detalle": str(e.detail)[:250]})
+            break
+        data = (((r or {}).get("info") or {}).get("data")) or []
+        for o in data:
+            est = ESTADOS.get(o.get("discussStatus"), str(o.get("discussStatus")))
+            salida["por_estado"][est] = salida["por_estado"].get(est, 0) + 1
+            skus = []
+            for s in o.get("skuCostPrices") or []:
+                hist = s.get("costPriceHistories") or []
+                skus.append({"sku": s.get("skuCode"), "atributos": s.get("saleAttributeValues"),
+                             "tu_precio_inicial": (hist[0].get("costPrice") if hist else None),
+                             "tu_ultima_oferta": s.get("latestCostPrice"),
+                             "sugerido_por_shein": s.get("suggestCostPrice"), "moneda": s.get("suggestCostCurrency")})
+            salida["ordenes"].append({"orden": o.get("discussSn"), "estado": est, "tipo": TIPOS.get(o.get("discussType"), o.get("discussType")),
+                                      "spu": o.get("spuName"), "skc": o.get("skcName"), "producto": o.get("productTitle"),
+                                      "codigo_tuyo": o.get("supplierCode"), "ronda": o.get("serialNumber"),
+                                      "intentos_restantes": o.get("appealCount"), "motivo_shein": o.get("appealReason"), "skus": skus})
+        salida["total"] += len(data)
+        if len(data) < 200:
+            break
+        pagina += 1
+    nombres = [n.strip() for n in spu.split(",") if n.strip()][:6]
+    if nombres:
+        salida["productos"] = {}
+        for n in nombres:
+            d = _spu_info(n)
+            time.sleep(0.3)
+            salida["productos"][n] = json.dumps(d, ensure_ascii=False)[:2500] if d else None
+    return salida
+
+
 @router.get("/revision/diagnostico")
 def shein_revision_diagnostico(_admin=Depends(require_admin)):
     """SOLO LECTURA. Estado de revisión (auditoría) de lo que hay en SHEIN: recorre los productos de la tienda, le pregunta a SHEIN el estado
