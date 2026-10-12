@@ -1,5 +1,6 @@
 import './style.css'
 import './demo-boot.js'   // modo demo (?demo=1): servidor falso con datos inventados; sin efecto en uso normal
+import './auto-actualizar.js'   // se recarga sola cuando se publica una version nueva (solo sitio publicado)
 document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%;flex:1'
 import { renderPanel } from './panel.js'
 import { renderPortalCliente } from './portal-cliente.js'
