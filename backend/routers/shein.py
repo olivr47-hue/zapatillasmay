@@ -363,6 +363,73 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
     return ""
 
 
+@router.get("/revision/diagnostico")
+def shein_revision_diagnostico(_admin=Depends(require_admin)):
+    """SOLO LECTURA. Estado de revisión (auditoría) de lo que hay en SHEIN: recorre los productos de la tienda, le pregunta a SHEIN el estado
+    de cada SKC (POST /open-api/goods/query-document-state, de 10 en 10) y devuelve cuántos están aprobados, en revisión o rechazados,
+    con el motivo de cada rechazo y, si se puede, a qué producto del ERP corresponde. No modifica nada."""
+    salida = {"spus_en_tienda": 0, "por_estado": {}, "rechazados": [], "errores": []}
+    spus = {}
+    page = 1
+    while page <= 50:
+        try:
+            r = shein_post("/open-api/openapi-business-backend/product/query", {"pageNum": page, "pageSize": 100})
+        except HTTPException as e:
+            salida["errores"].append({"lista": page, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+            break
+        items = ((r or {}).get("info") or {}).get("data") or []
+        for it in items:
+            if it.get("spuName"):
+                spus.setdefault(it["spuName"], set()).add(it.get("skcName"))
+        if len(items) < 100:
+            break
+        page += 1
+    salida["spus_en_tienda"] = len(spus)
+    nombres = sorted(spus)
+    ESTADOS = {-1: "no aceptado", 1: "en revisión", 2: "aprobado", 3: "rechazado", 4: "retirado", 5: "en apelación"}
+    for i in range(0, len(nombres), 10):
+        lote = nombres[i:i + 10]
+        try:
+            r = shein_post("/open-api/goods/query-document-state", {"spuList": [{"spuName": n} for n in lote]})
+        except HTTPException as e:
+            salida["errores"].append({"estado_lote": i, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+            continue
+        for spu in (((r or {}).get("info") or {}).get("data") or []):
+            for skc in spu.get("skcList") or []:
+                est = skc.get("documentState")
+                etiqueta = ESTADOS.get(est, str(est))
+                salida["por_estado"][etiqueta] = salida["por_estado"].get(etiqueta, 0) + 1
+                if est in (3, -1):
+                    salida["rechazados"].append({
+                        "spuName": spu.get("spuName"), "skcName": skc.get("skcName"), "estado": etiqueta,
+                        "version": spu.get("version"),
+                        "motivos": [m.get("content") for m in (skc.get("failedReason") or []) if isinstance(m, dict)][:6],
+                    })
+        time.sleep(0.2)
+    # a qué producto del ERP corresponde cada rechazo (por el SKU del proveedor)
+    try:
+        variantes = supabase_get_all("variantes?activa=eq.true&select=sku,producto_id")
+        productos = {p["id"]: p for p in supabase_get_all("productos?select=id,nombre,sku_interno")}
+        por_sku = {_norm_sku(v["sku"]): v for v in variantes if v.get("sku")}
+        for rz in salida["rechazados"][:60]:
+            detalle = _spu_info(rz["spuName"])
+            time.sleep(0.3)
+            for skc in (detalle or {}).get("skcInfoList") or []:
+                if skc.get("skcName") != rz["skcName"]:
+                    continue
+                for sku in skc.get("skuInfoList") or []:
+                    v = por_sku.get(_norm_sku(sku.get("supplierSku") or ""))
+                    if v and productos.get(v["producto_id"]):
+                        p = productos[v["producto_id"]]
+                        rz["producto_erp"], rz["sku_interno"] = p.get("nombre"), p.get("sku_interno")
+                        break
+                    if v is None:
+                        continue
+    except Exception as e:
+        salida["errores"].append({"mapeo_erp": str(e)[:200]})
+    return salida
+
+
 @router.get("/devoluciones/diagnostico")
 def shein_devoluciones_diagnostico(dias: int = 30, _admin=Depends(require_admin)):
     """SOLO LECTURA. Usa los servicios documentados por SHEIN (POST /open-api/return-order/list y /details): recorre los últimos `dias`
