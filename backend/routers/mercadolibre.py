@@ -9,7 +9,8 @@ import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, u
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
-from security import limpiar_texto
+from security import limpiar_texto, require_admin
+from fastapi import Depends
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set, cache_invalidate
 
@@ -1959,6 +1960,37 @@ def sincronizar_entregas():
 
 
 
+
+
+@router.get("/devoluciones/diagnostico")
+def devoluciones_diagnostico(_admin=Depends(require_admin)):
+    """SOLO LECTURA. Muestra cómo responde Mercado Libre con los reclamos y devoluciones de la cuenta (para armar la
+    automatización de devoluciones con datos reales). No modifica nada."""
+    salida = {"reclamos": None, "devoluciones": [], "errores": []}
+
+    def _intento(ruta):
+        try:
+            return ml_get(ruta)
+        except HTTPException as e:
+            salida["errores"].append({"ruta": ruta, "codigo": e.status_code, "detalle": str(e.detail)[:300]})
+        except Exception as e:
+            salida["errores"].append({"ruta": ruta, "error": str(e)[:300]})
+        return None
+
+    r = _intento("/post-purchase/v1/claims/search?limit=30&sort=date_created:desc")
+    if r is None:
+        r = _intento("/post-purchase/v1/claims/search?limit=30")
+    if isinstance(r, dict):
+        datos = r.get("data") or r.get("results") or []
+        salida["reclamos"] = {"total": (r.get("paging") or {}).get("total"), "muestra": [
+            {k: c.get(k) for k in ("id", "type", "stage", "status", "reason_id", "resource", "resource_id", "date_created", "related_entities")}
+            for c in datos[:15] if isinstance(c, dict)]}
+        con_dev = [c for c in datos if isinstance(c, dict) and "return" in (c.get("related_entities") or [])]
+        for c in con_dev[:5]:
+            d = _intento(f"/post-purchase/v2/claims/{c.get('id')}/returns")
+            if d is not None:
+                salida["devoluciones"].append({"claim_id": c.get("id"), "detalle": d})
+    return salida
 
 
 @router.get("/categoria-attrs/{category_id}")
