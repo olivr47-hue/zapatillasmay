@@ -1977,19 +1977,26 @@ def devoluciones_diagnostico(_admin=Depends(require_admin)):
             salida["errores"].append({"ruta": ruta, "error": str(e)[:300]})
         return None
 
-    r = _intento("/post-purchase/v1/claims/search?limit=30&sort=date_created:desc")
-    if r is None:
-        r = _intento("/post-purchase/v1/claims/search?limit=30")
-    if isinstance(r, dict):
-        datos = r.get("data") or r.get("results") or []
-        salida["reclamos"] = {"total": (r.get("paging") or {}).get("total"), "muestra": [
-            {k: c.get(k) for k in ("id", "type", "stage", "status", "reason_id", "resource", "resource_id", "date_created", "related_entities")}
-            for c in datos[:15] if isinstance(c, dict)]}
-        con_dev = [c for c in datos if isinstance(c, dict) and "return" in (c.get("related_entities") or [])]
-        for c in con_dev[:5]:
-            d = _intento(f"/post-purchase/v2/claims/{c.get('id')}/returns")
-            if d is not None:
-                salida["devoluciones"].append({"claim_id": c.get("id"), "detalle": d})
+    # la búsqueda exige al menos un filtro: se prueban los más útiles y se junta lo que responda
+    vistos, todos = set(), []
+    salida["busquedas"] = {}
+    for filtro in ("status=opened", "type=returns", "status=closed", "type=returns&status=opened"):
+        r = _intento(f"/post-purchase/v1/claims/search?limit=30&{filtro}")
+        if isinstance(r, dict):
+            datos = r.get("data") or r.get("results") or []
+            salida["busquedas"][filtro] = {"total": (r.get("paging") or {}).get("total"), "recibidos": len(datos)}
+            for c in datos:
+                if isinstance(c, dict) and c.get("id") not in vistos:
+                    vistos.add(c.get("id"))
+                    todos.append(c)
+    salida["reclamos"] = {"unicos": len(todos), "muestra": [
+        {k: c.get(k) for k in ("id", "type", "stage", "status", "reason_id", "resource", "resource_id", "date_created", "related_entities")}
+        for c in todos[:15]]}
+    con_dev = [c for c in todos if "return" in (c.get("related_entities") or []) or c.get("type") == "returns"]
+    for c in con_dev[:5]:
+        d = _intento(f"/post-purchase/v2/claims/{c.get('id')}/returns")
+        if d is not None:
+            salida["devoluciones"].append({"claim_id": c.get("id"), "detalle": d})
     return salida
 
 
