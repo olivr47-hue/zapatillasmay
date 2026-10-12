@@ -7,6 +7,38 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const money = (n) => (n == null ? '—' : '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const ACC = '#f43f5e'
 
+const CSS_ID = 'shein-rev-css'
+function inyectarCss() {
+  if (document.getElementById(CSS_ID)) return
+  const st = document.createElement('style'); st.id = CSS_ID
+  st.textContent = `
+    #shein-rev .rv-fila{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    #shein-rev .rv-nombre{font-size:0.9rem;display:block}
+    #shein-rev .rv-metricas{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0;font-size:0.84rem}
+    #shein-rev .rv-acciones{display:flex;flex-wrap:wrap;gap:4px}
+    #shein-rev .rv-acciones button{margin:2px 4px 2px 0}
+    @media (max-width: 640px){
+      .mkt-page-wrap:has(#shein-tabs){padding:1rem 0.75rem !important}
+      .mkt-page-wrap:has(#shein-tabs) > p{margin-left:0 !important}
+      .content #shein-tabs{display:grid !important;grid-template-columns:1fr 1fr;gap:0 !important}
+      .content #shein-tabs .shein-tab-btn{justify-content:center;white-space:nowrap;padding:0.7rem 0.4rem !important;font-size:0.84rem !important;border-bottom-width:2px}
+      .shein-ventas-tabla{min-width:0 !important}
+      .shein-ventas-tabla th,.shein-ventas-tabla td{padding:0.4rem 0.3rem !important}
+      .shein-ventas-tabla td:first-child{font-size:0.66rem !important;word-break:break-all}
+      #shein-rev .rv-barra{flex-direction:column;align-items:stretch !important;gap:8px}
+      #shein-rev .rv-barra .rv-hace{display:flex;justify-content:space-between;align-items:center}
+      #shein-rev .rv-fila{flex-direction:column;gap:4px}
+      #shein-rev .rv-nombre{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+      #shein-rev .rv-intentos{text-align:left !important}
+      #shein-rev .rv-metricas{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+      #shein-rev .rv-acciones{flex-direction:column;gap:8px}
+      #shein-rev .rv-acciones button{width:100%;min-height:44px;font-size:0.9rem !important;margin:0}
+      #shein-rev .rv-resumen{display:flex;flex-wrap:wrap;gap:6px}
+    }`
+  document.head.appendChild(st)
+}
+inyectarCss()   // también aplica a las demás pestañas de SHEIN (encabezado y pestañas en celular)
+
 async function pedir(ruta, opciones) {
   const r = await fetch(API + ruta, opciones)
   let j = null
@@ -26,17 +58,17 @@ function filaNegociacion(n) {
   const colorGan = gan == null ? '#64748b' : (gan < 0 ? '#b91c1c' : (gan < 40 ? '#b45309' : '#166534'))
   const ultimo = (n.skus[0] || {}).ultimo
   return `<div data-orden="${esc(n.orden)}" data-sugerido="${esc(n.sugerido ?? '')}" data-ultimo="${esc(ultimo ?? '')}" style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff">
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <div><b style="font-size:0.9rem">${esc(n.producto || 'Producto')}</b><br><span style="font-size:0.76rem;color:#64748b">${esc(n.color || '')} · ${esc(n.sku_interno || '')} · tallas ${n.skus.map(s => esc((s.atributos || []).join(','))).join(', ')}</span></div>
-      <div style="text-align:right;font-size:0.78rem;color:#64748b">Intentos que te quedan: <b>${esc(n.intentos ?? '—')}</b></div>
+    <div class="rv-fila">
+      <div><b class="rv-nombre">${esc(n.producto || 'Producto')}</b><span style="font-size:0.76rem;color:#64748b">${esc(n.color || '')} · ${esc(n.sku_interno || '')} · tallas ${n.skus.map(s => esc((s.atributos || []).join(','))).join(', ')}</span></div>
+      <div class="rv-intentos" style="text-align:right;font-size:0.78rem;color:#64748b">Intentos que te quedan: <b>${esc(n.intentos ?? '—')}</b></div>
     </div>
-    <div style="display:flex;gap:18px;flex-wrap:wrap;margin:8px 0;font-size:0.84rem">
+    <div class="rv-metricas">
       <div>Tu precio<br><b>${money(ultimo)}</b></div>
       <div>SHEIN sugiere<br><b>${money(n.sugerido)}</b></div>
       <div>Tu costo<br><b>${money(n.costo)}</b></div>
       <div>Ganancia por par<br><b style="color:${colorGan}">${gan == null ? '—' : money(gan)}</b></div>
     </div>
-    ${btn('✅ Aceptar ' + money(n.sugerido), 'aceptar', '', 'ok')}${btn('💬 Ofrecer otro precio', 'recotizar')}${btn('✖ Rechazar y abandonar', 'abandonar', '', 'mal')}
+    <div class="rv-acciones">${btn('✅ Aceptar ' + money(n.sugerido), 'aceptar', '', 'ok')}${btn('💬 Ofrecer otro precio', 'recotizar')}${btn('✖ Rechazar y abandonar', 'abandonar', '', 'mal')}</div>
   </div>`
 }
 
@@ -47,17 +79,18 @@ function filaRechazado(r) {
   const resubido = r.reenviado_el ? `<span style="font-size:0.74rem;color:#166534;font-weight:700">↻ Reenviado el ${esc(r.reenviado_el)} (en revisión)</span>` : ''
   const puede = r.producto_id && r.tipo !== 'infraccion'
   return `<div data-skc="${esc(r.skc)}" data-pid="${esc(r.producto_id || '')}" data-precio="${esc(r.precio_actual ?? '')}" style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff">
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b style="font-size:0.9rem">${esc(r.producto || r.sku_interno || r.spu)}</b>
+    <div class="rv-fila"><b class="rv-nombre">${esc(r.producto || r.sku_interno || r.spu)}</b>
       <span style="font-size:0.72rem;font-weight:700;padding:2px 9px;border-radius:100px;background:${bg};color:${c}">${tx}</span></div>
     <p style="font-size:0.78rem;color:#64748b;margin:6px 0">${esc(motivo)}</p>
     <div style="font-size:0.78rem;color:#475569;margin-bottom:4px">Precio con el que se subiría: <b>${money(r.precio_actual)}</b> · tu costo: <b>${money(r.costo)}</b> · reenvíos hechos: <b>${esc(r.reintentos)}</b> de 2 ${resubido ? ' · ' + resubido : ''}</div>
-    ${puede ? btn('↻ Volver a subir', 'resubir', '', 'pri') : (r.tipo === 'infraccion' ? '<span style="font-size:0.76rem;color:#991b1b">No se reenvía solo: revisa primero las fotos con SHEIN.</span>' : '<span style="font-size:0.76rem;color:#b45309">No pude ligarlo con un producto del ERP.</span>')}${btn('Ocultar', 'ocultar')}
+    <div class="rv-acciones">${puede ? btn('↻ Volver a subir', 'resubir', '', 'pri') : (r.tipo === 'infraccion' ? '<span style="font-size:0.76rem;color:#991b1b">No se reenvía solo: revisa primero las fotos con SHEIN.</span>' : '<span style="font-size:0.76rem;color:#b45309">No pude ligarlo con un producto del ERP.</span>')}${btn('Ocultar', 'ocultar')}</div>
   </div>`
 }
 
 window._sheinRenderRevisionTab = async function (forzar = false) {
   const body = document.getElementById('shein-tab-body')
   if (!body) return
+  inyectarCss()
   body.innerHTML = `<div style="padding:2rem;color:#94a3b8;font-size:0.85rem">Consultando a SHEIN${forzar ? '' : ''}… la primera vez puede tardar hasta un minuto.</div>`
   let d
   try { d = await pedir('/shein/revision' + (forzar ? '?forzar=true' : '')) } catch (e) { body.innerHTML = `<p style="color:#b91c1c;font-size:0.9rem">No se pudo consultar: ${esc(e.message)}</p>`; return }
@@ -66,9 +99,9 @@ window._sheinRenderRevisionTab = async function (forzar = false) {
   const resumen = Object.entries(d.por_estado || {}).map(([k, v]) => `<span style="font-size:0.78rem;background:#f1f5f9;border-radius:100px;padding:3px 10px;margin-right:6px"><b>${v}</b> ${esc(k)}</span>`).join('')
   const hace = d.calculado ? Math.max(0, Math.round((Date.now() / 1000 - d.calculado) / 60)) : 0
   body.innerHTML = `<div id="shein-rev">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <div>${resumen || ''}</div>
-      <div><span style="font-size:0.74rem;color:#94a3b8;margin-right:8px">Actualizado hace ${hace} min</span>${btn('🔄 Actualizar', 'actualizar')}</div></div>
+    <div class="rv-barra" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="rv-resumen">${resumen || ''}</div>
+      <div class="rv-hace"><span style="font-size:0.74rem;color:#94a3b8;margin-right:8px">Actualizado hace ${hace} min</span>${btn('🔄 Actualizar', 'actualizar')}</div></div>
     <h3 style="font-size:1rem;margin:14px 0 6px">💬 Negociaciones de precio por responder (${pend.length})</h3>
     <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px">SHEIN sugiere un precio de costo menor. Si no contestas en ~14 días, el producto se rechaza solo.</p>
     ${pend.length ? pend.map(filaNegociacion).join('') : '<p style="font-size:0.85rem;color:#16a34a;font-weight:600">No hay negociaciones pendientes.</p>'}

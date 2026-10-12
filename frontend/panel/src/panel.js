@@ -25725,7 +25725,7 @@ async function _sheinRenderVentasTab() {
       </div>
       ${!lista.length ? '<p style="color:#aaa;font-size:0.85rem;margin:0">Todavía no hay ventas de SHEIN registradas en el ERP.</p>' : `
       <div style="overflow-x:auto;border:1px solid #eee;border-radius:8px">
-        <table style="width:100%;border-collapse:collapse">
+        <table class="shein-ventas-tabla" style="width:100%;border-collapse:collapse">
           <thead><tr style="background:#f8f8f8">
             <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Orden SHEIN</th>
             <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
@@ -25738,7 +25738,7 @@ async function _sheinRenderVentasTab() {
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};font-family:monospace">${p.shein_order_id || '—'}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
                 <td style="padding:0.4rem 0.5rem">${window._estadoVentaBadge(p.status)}</td>
-                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', window.innerWidth < 640 ? {dateStyle:'short'} : {dateStyle:'short',timeStyle:'short'}) : '—'}</td>
               </tr>`).join('')}
           </tbody>
         </table>
