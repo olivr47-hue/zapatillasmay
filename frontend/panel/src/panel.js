@@ -9278,7 +9278,7 @@ window.mostrarFormProducto = (datos) => {
               <span>Meta titulo <span style="color:#888;font-size:0.72rem">(SEO)</span></span>
               <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
             </label>
-            <input class="form-input" id="f-metatitulo" placeholder="se genera del nombre del producto" value="${d.meta_titulo || ''}" oninput="this.dataset.autofilled='false'">
+            <input class="form-input" id="f-metatitulo" placeholder="se genera solo al guardar: tipo + detalle + tacón, sin el código del modelo" value="${d.meta_titulo || ''}" oninput="this.dataset.autofilled='false'">
           </div>
           <div>
             <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -9424,7 +9424,7 @@ function _generarSEOTemplate(nombre, descripcion, categoria, material, tacon, ti
   const metaDescInput = document.getElementById('f-metadesc')
 
   if (slugInput && !slugInput.value) slugInput.value = _slugify(nombre)
-  if (metaTituloInput && !metaTituloInput.value) metaTituloInput.value = nombre + ' | Zapatillas May'
+  // El título para Google se deja vacío a propósito: al guardar, el servidor lo arma solo (tipo + detalle + tacón, sin el código del modelo).
 
   const partes = ['Compra ' + nombre + ' en Zapatillas May.']
   if (descripcion) {
