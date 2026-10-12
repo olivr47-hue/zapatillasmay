@@ -4,6 +4,7 @@ from database import supabase_get, supabase_get_all, supabase_post, supabase_pat
 from telefonos import a_e164_mx
 from cache import cache_get, cache_set, cache_invalidate, on_invalidate, TTL_STOCK
 from security import limpiar_texto, require_staff
+import catalogo_relevante as _cat_rel
 import urllib.request
 import urllib.parse
 import contextvars
@@ -1218,8 +1219,61 @@ def _tallas_reales_catalogo() -> dict:
         print(f"[catalogo] Error calculando tallas reales: {e}")
         return {}
 
+def _catalogo_recortado_activo() -> bool:
+    """Interruptor: mandar a la IA solo los productos relevantes al mensaje (activo) o el catálogo completo (clave 'catalogo_recortado' = 'false'
+    en whatsapp_config). Sirve para regresar al comportamiento anterior sin tocar código."""
+    cached = cache_get("catalogo_recortado_activo")
+    if cached is not None:
+        return cached
+    try:
+        fila = supabase_get("whatsapp_config?clave=eq.catalogo_recortado")
+        activo = fila[0]["valor"] != "false" if fila else True
+    except Exception:
+        activo = True
+    cache_set("catalogo_recortado_activo", activo, ttl=30)
+    return activo
+
+
+def _colores_por_producto() -> dict:
+    """producto_id -> conjunto de palabras de color de sus variantes activas (se guarda 10 min)."""
+    cached = cache_get("colores_por_producto")
+    if cached is not None:
+        return cached
+    mapa = {}
+    try:
+        for v in supabase_get_all("variantes?activa=eq.true&select=producto_id,color"):
+            c = (v.get("color") or "").strip().lower()
+            if not c:
+                continue
+            s = mapa.setdefault(v["producto_id"], set())
+            s.add(_cat_rel._norm(c).strip())
+            s.update(w for w in _cat_rel._norm(c).split() if len(w) >= 3)
+    except Exception as e:
+        print(f"[chatbot] no se pudieron cargar los colores para el catálogo recortado: {e}")
+    cache_set("colores_por_producto", mapa, ttl=600)
+    return mapa
+
+
+def catalogo_para(productos, consulta, historial=None, mayorista=False, completo=False):
+    """Catálogo que se le manda a la IA en cada mensaje. Por defecto: solo los ~10 productos que mejor coinciden con lo que pide la clienta
+    (antes se mandaban los 321, ~28 mil tokens por mensaje). Cualquier falla vuelve al catálogo completo."""
+    if completo or not _catalogo_recortado_activo():
+        return construir_catalogo(productos, mayorista)
+    try:
+        return _cat_rel.construir(productos, consulta or "", historial or [], mayorista, _colores_por_producto(), construir_catalogo)
+    except Exception as e:
+        print(f"[chatbot] catálogo recortado falló, se usa el completo: {e}")
+        return construir_catalogo(productos, mayorista)
+
+
+def _sistema_wa(from_number, consulta, historial=None):
+    """System prompt completo para un teléfono, con el catálogo recortado según lo que acaba de escribir."""
+    may = es_mayorista_registrado(from_number)
+    return construir_sistema(catalogo_para(cargar_catalogo(), consulta, historial, may), obtener_pedidos_cliente(from_number), may)
+
+
 def cargar_catalogo():
-    productos = supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal") or []
+    productos = supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal,altura_tacon,tipo_tacon,ocasion,material") or []
     tallas_reales = _tallas_reales_catalogo()
     for p in productos:
         if p.get("id") in tallas_reales:
@@ -1700,10 +1754,12 @@ async def _procesar_webhook_whatsapp(datos: dict):
 
         productos = cargar_catalogo()
         _es_mayorista = es_mayorista_registrado(from_number)
-        catalogo = construir_catalogo(productos, _es_mayorista)
         pedidos_cliente = obtener_pedidos_cliente(from_number)
-        sistema = construir_sistema(catalogo, pedidos_cliente, _es_mayorista)
         historial = obtener_historial(from_number)
+        # catálogo recortado: solo los productos que encajan con lo que acaba de escribir (el definitivo se vuelve a armar justo antes de llamar a la IA)
+        _consulta0 = mensaje_data.get("text", {}).get("body", "") if tipo == "text" else ""
+        catalogo = catalogo_para(productos, _consulta0, historial, _es_mayorista)
+        sistema = construir_sistema(catalogo, pedidos_cliente, _es_mayorista)
 
         if tipo == "image":
             caption_img = mensaje_data.get("image", {}).get("caption", "").strip()
@@ -1753,6 +1809,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
                 img_b64 = base64.b64encode(img_bytes).decode("utf-8")
                 # Retry igual que mensajes de texto
                 respuesta_claude = None
+                sistema = construir_sistema(construir_catalogo(productos, _es_mayorista), pedidos_cliente, _es_mayorista)   # con foto sí va el catálogo completo
                 for intento in range(2):
                     try:
                         respuesta_claude = llamar_claude_con_imagen(img_b64, sistema, historial, caption=caption_img)
@@ -1823,6 +1880,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
             if transcripcion and not transcripcion.startswith("["):
                 try:
                     hist_audio = obtener_historial(from_number) + [{"role": "user", "content": transcripcion}]
+                    sistema = construir_sistema(catalogo_para(productos, transcripcion, hist_audio, _es_mayorista), pedidos_cliente, _es_mayorista)
                     r_audio = llamar_claude(hist_audio, sistema)
                     resp_audio = procesar_y_enviar_respuesta(from_number, r_audio)
                 except Exception as e:
@@ -1864,7 +1922,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
                     # Pasar a Maya como si fuera texto
                     from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": btn_title}]
-                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo(), es_mayorista_registrado(from_number)), obtener_pedidos_cliente(from_number), es_mayorista_registrado(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, _sistema_wa(from_number, btn_title, mensajes_h))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, btn_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -1877,7 +1935,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
                 if not control:
                     from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": row_title}]
-                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo(), es_mayorista_registrado(from_number)), obtener_pedidos_cliente(from_number), es_mayorista_registrado(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, _sistema_wa(from_number, row_title, mensajes_h))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, row_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -1961,6 +2019,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
         # Recargar historial ahora que los mensajes están guardados
         historial_actualizado = obtener_historial(from_number, limite=10)
         mensajes_claude = historial_actualizado + [{"role": "user", "content": mensaje_final}]
+        sistema = construir_sistema(catalogo_para(productos, mensaje_final, historial_actualizado, _es_mayorista), pedidos_cliente, _es_mayorista)
 
         # ── Llamar Claude con retry en caso de error temporal ──────────────────
         respuesta_claude = None
@@ -2189,7 +2248,7 @@ async def _procesar_comentarios_meta(datos: dict):
 
                 try:
                     productos = cargar_catalogo()
-                    catalogo = construir_catalogo(productos)
+                    catalogo = catalogo_para(productos, texto_comentario)
                     sistema_comentario = _sistema_comentario_meta(catalogo)
                     respuesta = llamar_claude([{"role": "user", "content": texto_comentario}], sistema_comentario)
                     respuesta_limpia = _limpiar_respuesta_ia_meta(respuesta).strip()
@@ -2250,9 +2309,9 @@ async def _procesar_webhook_meta(datos: dict):
 
                 try:
                     productos = cargar_catalogo()
-                    catalogo = construir_catalogo(productos)
-                    sistema = construir_sistema(catalogo, [])
                     historial = obtener_historial(identificador)
+                    catalogo = catalogo_para(productos, texto, historial)
+                    sistema = construir_sistema(catalogo, [])
                     mensajes_h = historial + [{"role": "user", "content": texto}]
                     respuesta = llamar_claude(mensajes_h, sistema)
                     respuesta_limpia = _limpiar_respuesta_ia_meta(respuesta)
@@ -2292,7 +2351,7 @@ def procesar_mensaje(datos: dict):
         mensaje = datos.get("mensaje", "")
         historial = datos.get("historial", [])
         productos = cargar_catalogo()
-        catalogo = construir_catalogo(productos)
+        catalogo = catalogo_para(productos, mensaje, historial)
         sistema = construir_sistema(catalogo)
         mensajes = historial + [{"role": "user", "content": mensaje}]
         respuesta = llamar_claude(mensajes, sistema)
