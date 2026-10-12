@@ -9,7 +9,7 @@ import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, u
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
-from security import limpiar_texto, require_admin
+from security import limpiar_texto, require_admin, require_staff
 from fastapi import Depends
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set, cache_invalidate
@@ -1960,6 +1960,166 @@ def sincronizar_entregas():
 
 
 
+
+
+# ─── Devoluciones de MercadoLibre ─────────────────────────────────────────────
+# Cuando un comprador devuelve un par, ML lo regresa a la dirección del vendedor. Aquí se detecta que el paquete YA LLEGÓ y se avisa en
+# el panel para que la dueña revise el par y confirme con un clic: solo entonces se suma al inventario (un par dañado o que no llega
+# no debe aparecer como existencia, porque ese stock se vende en los otros canales).
+_ULT_SYNC_DEV = [0.0]
+
+
+def _fecha_ml(s):
+    try:
+        return datetime.fromisoformat(str(s))
+    except Exception:
+        return None
+
+
+def _items_de_pedido(pedido_id):
+    filas = supabase_get(
+        f"pedido_items?pedido_id=eq.{pedido_id}&select=variante_id,cantidad,variantes(color,talla,foto_url,productos(nombre,sku_interno,imagen_principal))"
+    ) or []
+    items = []
+    for f in filas:
+        v = f.get("variantes") or {}
+        p = v.get("productos") or {}
+        items.append({"variante_id": f.get("variante_id"), "cantidad": int(f.get("cantidad") or 0), "producto": p.get("nombre"),
+                      "sku": p.get("sku_interno"), "color": v.get("color"), "talla": v.get("talla"),
+                      "foto": v.get("foto_url") or p.get("imagen_principal")})
+    return items
+
+
+def _hacer_sync_devoluciones(forzar: bool = False) -> dict:
+    """Revisa los reclamos de tipo devolución (últimos 90 días). Un paquete de regreso entregado en la dirección del vendedor queda
+    'por_confirmar'. Al activarse por primera vez, lo que ya estaba entregado se marca 'historica' (no se vuelve a ofrecer, por si ya se
+    había registrado a mano)."""
+    resultado = {"revisados": 0, "nuevas": 0, "por_confirmar": 0, "errores": []}
+    if not forzar and time.time() - _ULT_SYNC_DEV[0] < 3300:
+        resultado["omitido"] = "se revisó hace menos de una hora"
+        return resultado
+    _ULT_SYNC_DEV[0] = time.time()
+    try:
+        primera = not (supabase_get("ml_devoluciones?select=claim_id&limit=1") or [])
+        limite = datetime.now(timezone.utc) - timedelta(days=90)
+        reclamos, offset = [], 0
+        while offset < 600:
+            try:
+                r = ml_get(f"/post-purchase/v1/claims/search?type=returns&limit=30&offset={offset}")
+            except HTTPException as e:
+                resultado["errores"].append({"busqueda": offset, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+                break
+            datos = [c for c in (r.get("data") or []) if isinstance(c, dict)]
+            reclamos += datos
+            total = (r.get("paging") or {}).get("total") or 0
+            offset += 30
+            if not datos or offset >= total:
+                break
+            time.sleep(0.4)
+        recientes = []
+        for c in reclamos:
+            f = _fecha_ml(c.get("date_created"))
+            if f and f.astimezone(timezone.utc) >= limite and str(c.get("resource")) == "order":
+                recientes.append(c)
+        for c in recientes:
+            claim_id = c.get("id")
+            resultado["revisados"] += 1
+            previa = supabase_get(f"ml_devoluciones?claim_id=eq.{claim_id}&select=claim_id,estado") or []
+            if previa and previa[0].get("estado") in ("por_confirmar", "sumada", "descartada", "historica"):
+                continue
+            time.sleep(0.4)
+            try:
+                d = ml_get(f"/post-purchase/v2/claims/{claim_id}/returns")
+            except HTTPException as e:
+                if e.status_code == 429:
+                    resultado["errores"].append({"claim": claim_id, "codigo": 429, "detalle": "ML pidió esperar; se continúa en la siguiente revisión"})
+                    break
+                continue          # 404 u otros: ese reclamo no tiene devolución consultable
+            envios = [s for s in (d.get("shipments") or []) if isinstance(s, dict) and s.get("type") == "return"]
+            llego = any(s.get("status") == "delivered" and ((s.get("destination") or {}).get("name") == "seller_address") for s in envios)
+            cancelado = bool(envios) and all(s.get("status") in ("cancelled", "not_delivered") for s in envios)
+            if cancelado:
+                continue
+            estado = ("historica" if primera else "por_confirmar") if llego else "en_camino"
+            order_id = str(c.get("resource_id"))
+            pedidos = supabase_get(f"pedidos?ml_order_id=eq.{order_id}&select=id,nombre_cliente&limit=1") or []
+            pedido_id = pedidos[0]["id"] if pedidos else None
+            items = _items_de_pedido(pedido_id) if pedido_id else []
+            devueltas = {str(o.get("order_id")): o for o in (d.get("orders") or []) if isinstance(o, dict)}
+            if len(items) == 1 and devueltas.get(order_id, {}).get("return_quantity"):
+                try:
+                    items[0]["cantidad"] = max(1, int(float(devueltas[order_id]["return_quantity"])))
+                except (TypeError, ValueError):
+                    pass
+            fila = {"claim_id": claim_id, "order_id": order_id, "pedido_id": pedido_id, "estado": estado,
+                    "shipment_status": (envios[0].get("status") if envios else None), "items": items, "varios": len(items) > 1,
+                    "actualizada_at": datetime.now(timezone.utc).isoformat()}
+            if previa:
+                supabase_patch(f"ml_devoluciones?claim_id=eq.{claim_id}", {k: v for k, v in fila.items() if k != "claim_id"})
+            else:
+                supabase_post("ml_devoluciones", fila)
+                resultado["nuevas"] += 1
+            if estado == "por_confirmar":
+                resultado["por_confirmar"] += 1
+    except Exception as e:
+        resultado["errores"].append({"error_general": str(e)[:300]})
+    return resultado
+
+
+@router.get("/devoluciones")
+def devoluciones_lista(_staff=Depends(require_staff)):
+    filas = supabase_get("ml_devoluciones?estado=in.(por_confirmar,en_camino)&order=detectada_at.desc&select=*") or []
+    return {"por_confirmar": [f for f in filas if f.get("estado") == "por_confirmar"],
+            "en_camino": len([f for f in filas if f.get("estado") == "en_camino"])}
+
+
+@router.post("/devoluciones/sync")
+def devoluciones_sync(_staff=Depends(require_staff)):
+    return _hacer_sync_devoluciones(forzar=True)
+
+
+@router.post("/devoluciones/{claim_id}/confirmar")
+def devolucion_confirmar(claim_id: int, body: dict = None, _staff=Depends(require_staff)):
+    """El par llegó bien: se suma al inventario. El estado se cambia ANTES y de forma condicional (solo si seguía 'por_confirmar'),
+    así dos clics o dos personas no suman dos veces."""
+    body = body or {}
+    quien = (_staff or {}).get("email") if isinstance(_staff, dict) else None
+    ganado = supabase_patch(f"ml_devoluciones?claim_id=eq.{claim_id}&estado=eq.por_confirmar",
+                            {"estado": "sumada", "resuelta_at": datetime.now(timezone.utc).isoformat(), "resuelta_por": quien or body.get("por")})
+    if not ganado:
+        return JSONResponse(status_code=409, content={"error": "Esa devolución ya se resolvió o no está por confirmar"})
+    fila = ganado[0]
+    elegidos = body.get("variantes")      # opcional: lista de variante_id a sumar (pedidos con varios productos)
+    sumadas = 0
+    for it in fila.get("items") or []:
+        vid, cant = it.get("variante_id"), int(it.get("cantidad") or 0)
+        if not vid or cant <= 0 or (elegidos is not None and vid not in elegidos):
+            continue
+        filas = supabase_get(f"inventario?variante_id=eq.{vid}&select=sucursal_id,cantidad&order=cantidad.desc")
+        if not filas:
+            continue
+        inventario_ajustar(vid, filas[0]["sucursal_id"], cant)
+        supabase_post("movimientos_inventario", {
+            "variante_id": vid, "sucursal_id": filas[0]["sucursal_id"], "tipo": "entrada", "cantidad": cant,
+            "motivo": f"Devolución MercadoLibre (reclamo {claim_id}, orden {fila.get('order_id')})",
+        })
+        sumadas += cant
+    if fila.get("pedido_id"):
+        _hist_ml(fila["pedido_id"], "devolucion", f"Devolución de ML confirmada (reclamo {claim_id}): {sumadas} pieza(s) regresaron al inventario")
+    return {"ok": True, "sumadas": sumadas}
+
+
+@router.post("/devoluciones/{claim_id}/descartar")
+def devolucion_descartar(claim_id: int, body: dict = None, _staff=Depends(require_staff)):
+    """El par llegó dañado, no llegó o no corresponde: no se suma nada."""
+    body = body or {}
+    quien = (_staff or {}).get("email") if isinstance(_staff, dict) else None
+    ok = supabase_patch(f"ml_devoluciones?claim_id=eq.{claim_id}&estado=eq.por_confirmar",
+                        {"estado": "descartada", "resuelta_at": datetime.now(timezone.utc).isoformat(), "resuelta_por": quien,
+                         "nota": limpiar_texto(str(body.get("nota") or ""))[:300] or None})
+    if not ok:
+        return JSONResponse(status_code=409, content={"error": "Esa devolución ya se resolvió o no está por confirmar"})
+    return {"ok": True}
 
 
 @router.get("/devoluciones/diagnostico")

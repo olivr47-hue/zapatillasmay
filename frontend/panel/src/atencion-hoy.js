@@ -32,12 +32,13 @@ window.pintarAtencionHoy = async function (contenedor) {
   }
   card.innerHTML = '<p style="margin:0;color:#94a3b8;font-size:0.85rem">Revisando qué necesita tu atención…</p>'
   window._ordenarTarjetasDash()
-  const [tareas, enviar, cxp, solic, correo] = await Promise.allSettled([
+  const [tareas, enviar, cxp, solic, correo, devml] = await Promise.allSettled([
     get('/chatbot/tareas-equipo'),
     get('/pedidos/por-enviar-resumen'),
     veFinanzas() ? get('/finanzas/cuentas-por-pagar') : Promise.reject(),
     esAdmin() ? get('/pedidos/solicitudes-total') : Promise.reject(),
     esAdmin() ? get('/emails/buzon/no-leidos') : Promise.reject(),
+    esAdmin() ? get('/ml/devoluciones') : Promise.reject(),
   ])
   const ok = (r) => r.status === 'fulfilled' ? r.value : null
   const tiles = []
@@ -61,6 +62,9 @@ window.pintarAtencionHoy = async function (contenedor) {
   if (S && S.total != null) tiles.push({ ir: 'carritos', icono: '🛒', n: S.total, titulo: 'Solicitudes de carritos', sub: S.total ? 'Apartar o liberar productos' : 'Sin solicitudes', urgente: S.total > 0 })
   const M = ok(correo)
   if (M && M.count != null) tiles.push({ ir: 'correo', icono: '✉️', n: M.count, titulo: 'Correos sin leer', sub: M.count ? 'En el buzón' : 'Buzón al día', urgente: false })
+
+  const D = ok(devml)
+  if (D && Array.isArray(D.por_confirmar)) tiles.push({ ir: 'devml', icono: '↩️', n: D.por_confirmar.length, titulo: 'Devoluciones de Mercado Libre', sub: D.por_confirmar.length ? 'Llegaron: revisa y suma al inventario' : (D.en_camino ? `${D.en_camino} en camino hacia ti` : 'Sin devoluciones por confirmar'), urgente: true })
 
   const pendientes = tiles.filter(t => t.n > 0).length
   card.innerHTML = `
@@ -88,5 +92,6 @@ function ir(destino) {
     }, 250)
     return
   }
+  if (destino === 'devml') { window.abrirDevolucionesML?.(); return }
   window.navegarA(destino)
 }

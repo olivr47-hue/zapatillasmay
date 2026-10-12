@@ -331,6 +331,14 @@ def _loop_ml_ventas():
                 print(f"[ml-entregas] enviados: {res2['actualizados']}, entregados: {res2['entregados']}, cancelados: {res2['cancelados']} (de {res2['revisados']} revisados)")
         except Exception as e:
             print(f"[ml-entregas] Error en loop: {e}")
+        try:
+            # devoluciones: se revisa cada ~hora (la propia función se salta las vueltas intermedias) y solo avisa en el panel
+            from routers.mercadolibre import _hacer_sync_devoluciones
+            res3 = _hacer_sync_devoluciones()
+            if res3.get("por_confirmar"):
+                print(f"[ml-devoluciones] Por confirmar: {res3['por_confirmar']}")
+        except Exception as e:
+            print(f"[ml-devoluciones] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_walmart_ventas():
