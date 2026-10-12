@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from typing import List
 import datetime
 import re
+import urllib.parse
 import seo_titulos as _seo_titulos
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_FEEDS
@@ -147,7 +148,14 @@ def _completar_seo(p, base=None):
         titulo_limpio = ""
     if not mt:
         if titulo_limpio:
-            mt = titulo_limpio + _seo_titulos.SUF
+            mt = _seo_titulos.titulo_google(b)           # lleva el código al final: así no se repite entre productos
+            try:                                         # por si dos productos comparten código: se usa el SKU interno
+                otro = supabase_get(f"productos?meta_titulo=eq.{urllib.parse.quote(mt, safe='')}&select=id&limit=2")
+                propio = str(b.get("id") or "")
+                if any(str(o.get("id")) != propio for o in (otro or [])) and b.get("sku_interno"):
+                    mt = _seo_titulos.titulo_google(b, codigo=str(b["sku_interno"]))
+            except Exception:
+                pass
         else:
             corto = _recorta_palabras(base_nombre, 60 - len(" | Zapatillas May"))
             mt = f"{corto} | Zapatillas May"
@@ -177,7 +185,7 @@ def _completar_seo(p, base=None):
             tipo = "" if tipo.lower() in ("sin tacon", "sin tacón", "") else tipo
             extras.append(f"Tacón {tipo + ' ' if tipo else ''}de {altura:g} cm.")
         extras.append("Hecho en México.")
-        md = f"Compra {_recorta_palabras(titulo_limpio or base_nombre, 55)} en Zapatillas May."
+        md = f"Compra {_recorta_palabras(titulo_limpio or base_nombre, 55)}{(' ' + _seo_titulos.codigo_modelo(b)) if titulo_limpio and _seo_titulos.codigo_modelo(b) else ''} en Zapatillas May."
         for e in extras:
             if len(md) + 1 + len(e) <= 158:
                 md += " " + e
@@ -367,21 +375,42 @@ def regenerar_seo_google(aplicar: bool = False, _admin=Depends(require_admin)):
     meta_descripcion: no el nombre (lo usan el panel y los marketplaces) ni el slug (dirección web). Sin `aplicar` solo muestra una
     vista previa. Respeta los títulos escritos a mano (los que no empiezan con el código del modelo) y guarda el valor anterior en
     seo_respaldo_titulos antes de cambiar."""
-    filas = supabase_get_all("productos?activo=eq.true&select=id,nombre,categoria,altura_tacon,tipo_tacon,material,precio_menudeo,es_oferta,meta_titulo,meta_descripcion")
+    filas = supabase_get_all("productos?activo=eq.true&select=id,nombre,sku_interno,categoria,altura_tacon,tipo_tacon,material,precio_menudeo,es_oferta,meta_titulo,meta_descripcion")
     cambios, omitidos, ejemplos = [], 0, []
+    nuevos = {}                   # id -> título nuevo (para detectar repetidos)
     for p in filas:
         actual = (p.get("meta_titulo") or "").strip()
         if actual and not re.match(r"^[A-Za-z]{0,4}\d", actual):
             omitidos += 1          # escrito a mano o por IA: no se pisa
             continue
         nuevo_t = _seo_titulos.titulo_google(p)
+        nuevos[p["id"]] = nuevo_t
         base = {k: v for k, v in p.items() if k not in ("meta_titulo", "meta_descripcion")}
         nuevo_d = (_completar_seo({}, base) or {}).get("meta_descripcion") or p.get("meta_descripcion") or ""
         if nuevo_t != actual or nuevo_d != (p.get("meta_descripcion") or ""):
             cambios.append((p, nuevo_t, nuevo_d))
             if len(ejemplos) < 12:
                 ejemplos.append({"nombre": p.get("nombre"), "antes": actual, "ahora": nuevo_t})
-    res = {"revisados": len(filas), "por_cambiar": len(cambios), "omitidos_a_mano": omitidos, "ejemplos": ejemplos, "aplicado": False}
+    # si dos productos quedan con el mismo título (mismo código), el segundo usa su SKU interno, que es único
+    vistos = {}
+    for p in filas:
+        ttl = nuevos.get(p["id"]) or (p.get("meta_titulo") or "").strip()
+        vistos.setdefault(ttl, []).append(p["id"])
+    cambios2 = []
+    for p, nt, nd in cambios:
+        if len(vistos.get(nt, [])) > 1 and p.get("sku_interno"):
+            nt2 = _seo_titulos.titulo_google(p, codigo=str(p["sku_interno"]))
+            nuevos[p["id"]] = nt2
+            nt = nt2
+        cambios2.append((p, nt, nd))
+    cambios = cambios2
+    conteo = {}
+    for p in filas:
+        ttl = nuevos.get(p["id"]) or (p.get("meta_titulo") or "").strip()
+        conteo[ttl] = conteo.get(ttl, 0) + 1
+    repetidos = sorted([(ttl, n) for ttl, n in conteo.items() if n > 1], key=lambda x: -x[1])[:10]
+    res = {"revisados": len(filas), "por_cambiar": len(cambios), "omitidos_a_mano": omitidos, "titulos_repetidos_despues": len([1 for n in conteo.values() if n > 1]),
+           "repetidos_ejemplos": repetidos, "ejemplos": ejemplos, "aplicado": False}
     if not aplicar:
         return res
     fallos = 0

@@ -33,6 +33,13 @@ def _sin_tilde(t):
     return (t or "").lower().replace("ñ", "n").replace("ó", "o").replace("á", "a").replace("é", "e").replace("í", "i").replace("ú", "u")
 
 
+def codigo_modelo(p):
+    """Código del modelo (primer 'palabra' del nombre, p. ej. MA6050) o, si no hay, el SKU interno. Va al final del título para que
+    dos productos parecidos NO tengan el mismo título (Google penaliza títulos repetidos) y para que se pueda buscar por código."""
+    m = re.match(r"^\s*([A-Za-z]{0,4}\d+[A-Za-z0-9]*)", p.get("nombre") or "")
+    return (m.group(1) if m else (p.get("sku_interno") or "")).upper()
+
+
 def _limpiar(nombre):
     n = (nombre or "").strip()
     n = re.sub(r"^[A-Za-z]{0,4}\d+[A-Za-z0-9]*\s*", "", n)       # quita el código del modelo
@@ -51,8 +58,8 @@ def _altura(alt, tipo):
     return (f"{int(a)}" if a == int(a) else f"{a:g}".replace(".", ",")) + " cm"
 
 
-def pieza_titulo(p):
-    """Devuelve el título SIN el sufijo ' | Zapatillas May' (≤ 44 caracteres, nunca cortado a media frase)."""
+def pieza_titulo(p, reservado=0):
+    """Devuelve el título SIN el sufijo ' | Zapatillas May' (≤ 44 caracteres menos `reservado`, nunca cortado a media frase)."""
     cat = (p.get("categoria") or "").strip().lower()
     body = _limpiar(p.get("nombre"))
     low = _sin_tilde(body)
@@ -77,7 +84,7 @@ def pieza_titulo(p):
             adj = "bajitos"
     except (TypeError, ValueError):
         pass
-    room = LIM_TITULO - len(SUF)
+    room = LIM_TITULO - len(SUF) - reservado
 
     def arma(adj_, ds, heel):
         if es_tacones and heel:
@@ -112,5 +119,9 @@ def pieza_titulo(p):
     return " ".join(pal)
 
 
-def titulo_google(p):
-    return pieza_titulo(p) + SUF
+def titulo_google(p, codigo=None):
+    """Título completo: '<tipo + detalle + tacón> <CÓDIGO> | Zapatillas May' (≤ 60 caracteres, único por el código)."""
+    cod = (codigo if codigo is not None else codigo_modelo(p)).strip()
+    reservado = (len(cod) + 1) if cod else 0
+    core = pieza_titulo(p, reservado)
+    return core + (" " + cod if cod else "") + SUF
