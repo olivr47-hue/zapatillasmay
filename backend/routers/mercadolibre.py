@@ -2002,20 +2002,27 @@ def _hacer_sync_devoluciones(forzar: bool = False) -> dict:
     try:
         primera = not (supabase_get("ml_devoluciones?select=claim_id&limit=1") or [])
         limite = datetime.now(timezone.utc) - timedelta(days=90)
-        reclamos, offset = [], 0
-        while offset < 600:
-            try:
-                r = ml_get(f"/post-purchase/v1/claims/search?type=returns&limit=30&offset={offset}")
-            except HTTPException as e:
-                resultado["errores"].append({"busqueda": offset, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
-                break
-            datos = [c for c in (r.get("data") or []) if isinstance(c, dict)]
-            reclamos += datos
-            total = (r.get("paging") or {}).get("total") or 0
-            offset += 30
-            if not datos or offset >= total:
-                break
-            time.sleep(0.4)
+        reclamos, vistos_ids = [], set()
+        # Una devolución puede venir como reclamo "returns" o como una mediación (disputa) que termina en devolución: se miran los dos tipos
+        # y a cada reclamo reciente se le pregunta por su devolución (si no tiene, ML responde 404 y se ignora).
+        for tipo in ("returns", "mediations"):
+            offset = 0
+            while offset < 600:
+                try:
+                    r = ml_get(f"/post-purchase/v1/claims/search?type={tipo}&limit=30&offset={offset}")
+                except HTTPException as e:
+                    resultado["errores"].append({"busqueda": f"{tipo}:{offset}", "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+                    break
+                datos = [c for c in (r.get("data") or []) if isinstance(c, dict)]
+                for c in datos:
+                    if c.get("id") not in vistos_ids:
+                        vistos_ids.add(c.get("id"))
+                        reclamos.append(c)
+                total = (r.get("paging") or {}).get("total") or 0
+                offset += 30
+                if not datos or offset >= total:
+                    break
+                time.sleep(0.4)
         recientes = []
         for c in reclamos:
             f = _fecha_ml(c.get("date_created"))
