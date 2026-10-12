@@ -26,7 +26,8 @@ Verificado contra 3 SDKs independientes (PHP oficial, Java oficial, Python comun
 import threading
 import os, json, time, random, string, hmac, hashlib, base64, secrets, re
 import urllib.request, urllib.error, urllib.parse
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
+from security import require_admin
 from fastapi.responses import HTMLResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set
@@ -360,6 +361,34 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
         if item.get("skuCode") == sku_code:
             return item.get("supplierSku") or ""
     return ""
+
+
+@router.get("/devoluciones/diagnostico")
+def shein_devoluciones_diagnostico(_admin=Depends(require_admin)):
+    """SOLO LECTURA. Prueba, uno por uno, posibles servicios de devoluciones de SHEIN y muestra qué responde cada uno (la documentación
+    pública no los detalla): sirve para saber si la cuenta puede consultar devoluciones y con qué forma de datos."""
+    import datetime as _dt
+    ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)
+    ini = ahora - _dt.timedelta(days=30)
+    fmt = "%Y-%m-%d %H:%M:%S"
+    cuerpo = {"startTime": ini.strftime(fmt), "endTime": ahora.strftime(fmt), "page": 1, "pageSize": 20}
+    salida = {"intentos": []}
+    for ruta in ("/open-api/order/return-order-list", "/open-api/order/return-list", "/open-api/order/query-return-list",
+                 "/open-api/order/after-sales-list", "/open-api/order/return-order/list"):
+        try:
+            r = shein_post(ruta, cuerpo)
+            salida["intentos"].append({"ruta": ruta, "respuesta": r})
+        except HTTPException as e:
+            salida["intentos"].append({"ruta": ruta, "codigo": e.status_code, "detalle": str(e.detail)[:250]})
+        except Exception as e:
+            salida["intentos"].append({"ruta": ruta, "error": str(e)[:250]})
+    # estados que SHEIN usa en sus órdenes: si alguno habla de devolución, está en este resumen
+    try:
+        lista = shein_post("/open-api/order/order-list", {"startTime": (ahora - _dt.timedelta(hours=47)).strftime(fmt), "endTime": ahora.strftime(fmt), "queryType": 1, "page": 1, "pageSize": 20})
+        salida["muestra_ordenes"] = lista
+    except Exception as e:
+        salida["muestra_ordenes_error"] = str(e)[:250]
+    return salida
 
 
 @router.get("/ordenes/diagnostico")

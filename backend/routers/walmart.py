@@ -14,7 +14,8 @@ Headers obligatorios en TODAS las llamadas autenticadas (fuera del Token API):
 import threading
 import os, json, time, uuid, base64, io, shutil
 import urllib.request, urllib.error, urllib.parse
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from security import require_admin
 from fastapi.responses import StreamingResponse
 from database import supabase_get_all, supabase_post, supabase_get, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set
@@ -285,6 +286,24 @@ def _orden_normalizada(o: dict) -> dict:
         "estatus": lineas[0]["estatus"] if lineas else None,
         "total": round(total, 2), "lineas": lineas,
     }
+
+
+@router.get("/devoluciones/diagnostico")
+def walmart_devoluciones_diagnostico(dias: int = 90, _admin=Depends(require_admin)):
+    """SOLO LECTURA. Cómo responde Walmart con las devoluciones de la cuenta (para armar la automatización con datos reales)."""
+    import datetime as _dt
+    fin = _dt.datetime.utcnow()
+    ini = fin - _dt.timedelta(days=max(1, min(dias, 180)))
+    salida = {"intentos": []}
+    for params in ({"returnCreationStartDate": ini.strftime("%Y-%m-%d"), "returnCreationEndDate": fin.strftime("%Y-%m-%d"), "limit": 50},
+                   {"limit": 50}):
+        try:
+            r = walmart_get("/returns", params)
+            salida["intentos"].append({"params": params, "respuesta": r})
+            break
+        except HTTPException as e:
+            salida["intentos"].append({"params": params, "codigo": e.status_code, "detalle": str(e.detail)[:400]})
+    return salida
 
 
 @router.get("/ordenes")
