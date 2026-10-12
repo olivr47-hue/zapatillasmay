@@ -363,6 +363,278 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
     return ""
 
 
+# ─── Revisión de SHEIN: rechazados y negociaciones de precio (sección «Revisión» del panel) ─────────────────────
+# SHEIN solo deja ver por API lo aprobado en la lista normal; el estado de revisión (aprobado / en revisión / rechazado + motivo) sale de
+# query-document-state y las negociaciones de precio de query-discuss-list. Todo se junta aquí para que la dueña lo vea y actúe desde el panel.
+_MAX_REINTENTOS_SHEIN = 2
+_ESTADOS_REVISION = {-1: "no aceptado", 1: "en revisión", 2: "aprobado", 3: "rechazado", 4: "retirado", 5: "en apelación"}
+
+
+def _spu_fecha(spu: str):
+    """'x2610130520527416' -> 2026-10-13 (el nombre del SPU empieza con la fecha yymmdd)."""
+    import datetime as _dt
+    m = re.match(r"^[A-Za-z]?(\d{2})(\d{2})(\d{2})", spu or "")
+    if not m:
+        return None
+    try:
+        return _dt.date(2000 + int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
+def _tipo_motivo_shein(motivos: list) -> str:
+    t = " ".join(motivos or []).lower()
+    if "infracci" in t or "derechos de autor" in t or "propiedad intelectual" in t:
+        return "infraccion"
+    if "precio" in t or "negoci" in t:
+        return "precio"
+    return "otro"
+
+
+def _lista_negociaciones_shein(estado: int = None) -> list:
+    todas, pagina = [], 1
+    while pagina <= 20:
+        cuerpo = {"pageNum": pagina, "pageSize": 200}
+        if estado:
+            cuerpo["discussStatus"] = estado
+        r = shein_post("/open-api/goods/discuss/query-discuss-list", cuerpo)
+        data = (((r or {}).get("info") or {}).get("data")) or []
+        todas += data
+        if len(data) < 200:
+            break
+        pagina += 1
+    return todas
+
+
+def _calcular_revision_shein() -> dict:
+    import datetime as _dt
+    salida = {"calculado": time.time(), "spus": 0, "por_estado": {}, "negociaciones": [], "rechazados": [], "errores": []}
+    # 1) todos los SPU de la tienda
+    spus, pagina = {}, 1
+    while pagina <= 50:
+        try:
+            r = shein_post("/open-api/openapi-business-backend/product/query", {"pageNum": pagina, "pageSize": 100})
+        except HTTPException as e:
+            salida["errores"].append({"lista": pagina, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+            break
+        items = ((r or {}).get("info") or {}).get("data") or []
+        for it in items:
+            if it.get("spuName"):
+                spus.setdefault(it["spuName"], set()).add(it.get("skcName"))
+        if len(items) < 100:
+            break
+        pagina += 1
+    salida["spus"] = len(spus)
+    # 2) estado de revisión de cada SKC
+    skcs = []
+    nombres = sorted(spus)
+    for i in range(0, len(nombres), 10):
+        try:
+            r = shein_post("/open-api/goods/query-document-state", {"spuList": [{"spuName": n} for n in nombres[i:i + 10]]})
+        except HTTPException as e:
+            salida["errores"].append({"estado_lote": i, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+            continue
+        for spu in (((r or {}).get("info") or {}).get("data")) or []:
+            for skc in spu.get("skcList") or []:
+                est = skc.get("documentState")
+                etiqueta = _ESTADOS_REVISION.get(est, str(est))
+                salida["por_estado"][etiqueta] = salida["por_estado"].get(etiqueta, 0) + 1
+                skcs.append({"spu": spu.get("spuName"), "skc": skc.get("skcName"), "estado_num": est, "estado": etiqueta,
+                             "motivos": [m.get("content") for m in (skc.get("failedReason") or []) if isinstance(m, dict)][:6]})
+        time.sleep(0.15)
+    # 3) negociaciones de precio
+    try:
+        negs = _lista_negociaciones_shein()
+    except HTTPException as e:
+        negs = []
+        salida["errores"].append({"negociaciones": e.status_code, "detalle": str(e.detail)[:200]})
+    por_sku_interno = {}
+    skus_internos = {str(o.get("supplierCode") or "") for o in negs if o.get("supplierCode")}
+    # 4) productos del ERP por sku_interno (para nombre, costo y precio)
+    rechazados = [s for s in skcs if s["estado_num"] in (3, -1)]
+    mapa_spu_sku = {}
+    for rz in rechazados[:60]:
+        detalle = _spu_info(rz["spu"])
+        time.sleep(0.25)
+        if detalle and detalle.get("supplierCode"):
+            mapa_spu_sku[rz["spu"]] = str(detalle["supplierCode"])
+            skus_internos.add(str(detalle["supplierCode"]))
+    productos = {}
+    if skus_internos:
+        for p in supabase_get_all("productos?select=id,sku_interno,nombre,costo,precio_menudeo,precio_mayoreo6"):
+            if p.get("sku_interno") in skus_internos:
+                productos[p["sku_interno"]] = p
+    # 5) negociaciones pendientes (la dueña decide) y recientes
+    for o in negs:
+        p = productos.get(str(o.get("supplierCode") or ""))
+        costo = float(p["costo"]) if p and p.get("costo") is not None else None
+        skus = []
+        for s in o.get("skuCostPrices") or []:
+            hist = s.get("costPriceHistories") or []
+            ult = max(hist, key=lambda h: h.get("serialNumber") or 0) if hist else {}
+            skus.append({"sku": s.get("skuCode"), "atributos": s.get("saleAttributeValues"), "ultimo": ult.get("costPrice"),
+                         "sugerido": s.get("suggestCostPrice"), "moneda": s.get("suggestCostCurrency")})
+        sug = skus[0]["sugerido"] if skus else None
+        salida["negociaciones"].append({
+            "orden": o.get("discussSn"), "estado_num": o.get("discussStatus"), "estado": {1: "pendiente de ti", 2: "en revisión de SHEIN", 3: "aceptada", 4: "no aceptada", 5: "terminada con éxito", 6: "terminada sin éxito"}.get(o.get("discussStatus"), str(o.get("discussStatus"))),
+            "spu": o.get("spuName"), "skc": o.get("skcName"), "color": o.get("saleAttributeValue"), "producto": (p or {}).get("nombre") or o.get("productTitle"),
+            "sku_interno": o.get("supplierCode"), "producto_id": (p or {}).get("id"), "ronda": o.get("serialNumber"), "intentos": o.get("appealCount"),
+            "costo": costo, "sugerido": sug, "ganancia": (round(sug - costo, 2) if (sug is not None and costo is not None) else None),
+            "skus": skus,
+        })
+    # 6) rechazados con su producto, reenvíos y si están ocultos
+    ocultos = {r["skc_name"] for r in (supabase_get("shein_revision_ocultos?select=skc_name") or [])}
+    pubs = {}
+    for r in (supabase_get_all("shein_publicaciones?exito=eq.true&select=producto_id,created_at") or []):
+        pubs.setdefault(r["producto_id"], []).append(str(r["created_at"])[:10])
+    reint = {}
+    for r in (supabase_get_all("shein_reintentos?select=producto_id") or []):
+        reint[r["producto_id"]] = reint.get(r["producto_id"], 0) + 1
+    for rz in rechazados:
+        sku = mapa_spu_sku.get(rz["spu"])
+        p = productos.get(sku or "")
+        fecha = _spu_fecha(rz["spu"])
+        reenviado = None
+        if p and fecha:
+            posteriores = [d for d in pubs.get(p["id"], []) if d > (fecha + _dt.timedelta(days=1)).isoformat()]
+            reenviado = max(posteriores) if posteriores else None
+        salida["rechazados"].append({
+            "spu": rz["spu"], "skc": rz["skc"], "estado": rz["estado"], "motivos": rz["motivos"], "tipo": _tipo_motivo_shein(rz["motivos"]),
+            "sku_interno": sku, "producto_id": (p or {}).get("id"), "producto": (p or {}).get("nombre"),
+            "precio_actual": ((float(p["precio_mayoreo6"]) if p.get("precio_mayoreo6") else round(float(p.get("precio_menudeo") or 0) - 70, 2)) if p else None),
+            "costo": (float(p["costo"]) if p and p.get("costo") is not None else None),
+            "fecha_spu": fecha.isoformat() if fecha else None, "reenviado_el": reenviado,
+            "reintentos": reint.get((p or {}).get("id"), 0), "oculto": rz["skc"] in ocultos,
+        })
+    return salida
+
+
+@router.get("/revision")
+def shein_revision(forzar: bool = False, _staff=Depends(require_staff)):
+    """Estado de revisión de SHEIN (rechazados, negociaciones de precio y resumen). Se guarda 10 min: calcularlo toma ~1 minuto."""
+    if not forzar:
+        c = cache_get("shein_revision")
+        if c is not None and time.time() - c.get("calculado", 0) < 600:
+            return {**c, "desde_cache": True}
+    r = _calcular_revision_shein()
+    cache_set("shein_revision", r, ttl=10800)
+    return r
+
+
+_ULT_REFRESCO_REVISION = [0.0]
+
+
+def _refrescar_revision_shein(forzar: bool = False):
+    """Lo llama el hilo de SHEIN cada ~hora: deja lista la revisión para el aviso del dashboard (la consulta tarda ~1 minuto)."""
+    if not forzar and time.time() - _ULT_REFRESCO_REVISION[0] < 3300:
+        return None
+    _ULT_REFRESCO_REVISION[0] = time.time()
+    r = _calcular_revision_shein()
+    cache_set("shein_revision", r, ttl=10800)
+    return r
+
+
+@router.get("/revision/resumen")
+def shein_revision_resumen(_staff=Depends(require_staff)):
+    """Conteo rápido para el dashboard (solo lee lo ya calculado; nunca dispara la consulta pesada)."""
+    c = cache_get("shein_revision")
+    if c is None:
+        return {"disponible": False}
+    pend = [n for n in c.get("negociaciones") or [] if n.get("estado_num") == 1]
+    rech = [r for r in c.get("rechazados") or [] if not r.get("oculto") and not r.get("reenviado_el")]
+    return {"disponible": True, "negociaciones_pendientes": len(pend), "rechazados": len(rech), "calculado": c.get("calculado")}
+
+
+def _buscar_negociacion_shein(discuss_sn: str):
+    for o in _lista_negociaciones_shein(1):
+        if o.get("discussSn") == discuss_sn:
+            return o
+    return None
+
+
+@router.post("/negociaciones/{discuss_sn}/accion")
+def shein_negociacion_accion(discuss_sn: str, body: dict = None, _admin=Depends(require_admin)):
+    """aceptar (precio que sugiere SHEIN) | abandonar (rechazar y no publicar) | recotizar (ofrecer otro precio: body.precio, mismo en todas las tallas)."""
+    body = body or {}
+    accion = (body.get("accion") or "").strip()
+    o = _buscar_negociacion_shein(discuss_sn)
+    if not o:
+        return JSONResponse(status_code=409, content={"error": "Esa negociación ya no está pendiente de tu respuesta"})
+    if accion == "aceptar":
+        cuerpo = {"confirmInfos": [{"discussAuditType": "1", "discussSn": discuss_sn}]}
+    elif accion == "abandonar":
+        cuerpo = {"confirmInfos": [{"discussAuditType": "2", "discussSn": discuss_sn}]}
+    elif accion == "recotizar":
+        try:
+            precio = round(float(body.get("precio")), 2)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=400, content={"error": "Falta el precio que quieres ofrecer"})
+        if precio <= 0:
+            return JSONResponse(status_code=400, content={"error": "El precio debe ser mayor que cero"})
+        infos = []
+        for s in o.get("skuCostPrices") or []:
+            hist = s.get("costPriceHistories") or []
+            ult = max(hist, key=lambda h: h.get("serialNumber") or 0) if hist else {}
+            infos.append({"skuCode": s.get("skuCode"), "cost": precio, "currency": ult.get("currency") or s.get("suggestCostCurrency") or "MXN",
+                          "lastCost": ult.get("costPrice") or 0, "lastCurrency": ult.get("currency") or s.get("suggestCostCurrency") or "MXN"})
+        cuerpo = {"createCostDiscusses": [{"discussSn": discuss_sn, "discussStep": o.get("serialNumber"), "skcName": o.get("skcName"),
+                                            "reason": str(body.get("motivo") or "Precio acordado con costo de producción")[:255], "skuCostInfoList": infos}]}
+    else:
+        return JSONResponse(status_code=400, content={"error": "Acción desconocida"})
+    try:
+        r = shein_post("/open-api/goods/discuss/process-discuss", cuerpo)
+    except HTTPException as e:
+        return JSONResponse(status_code=502, content={"error": f"SHEIN respondió con error: {str(e.detail)[:300]}"})
+    cache_set("shein_revision", None, ttl=1)
+    return {"ok": str((r or {}).get("code")) == "0", "respuesta": r}
+
+
+@router.post("/revision/volver-a-subir")
+def shein_volver_a_subir(body: dict = None, _admin=Depends(require_admin)):
+    """Vuelve a subir un producto rechazado como producto NUEVO (mismos datos; precio de siempre salvo que se indique otro). Máximo
+    2 reintentos por producto (SHEIN puede penalizar tiendas que repiten operaciones)."""
+    body = body or {}
+    pid = (body.get("producto_id") or "").strip()
+    if not pid:
+        return JSONResponse(status_code=400, content={"error": "Falta producto_id"})
+    previos = supabase_get(f"shein_reintentos?producto_id=eq.{pid}&select=id") or []
+    if len(previos) >= _MAX_REINTENTOS_SHEIN and not body.get("forzar"):
+        return JSONResponse(status_code=409, content={"error": f"Este producto ya se reenvió {len(previos)} veces. Revisa el motivo antes de insistir."})
+    precio = body.get("precio")
+    try:
+        res = publicar_producto({"producto_id": pid, "solo_preview": False, "precio": (float(precio) if precio else None), "_origen": "reintento"})
+        ok = (res.get("info") or {}).get("success") is True
+        spu = (res.get("info") or {}).get("spu_name")
+        detalle = None if ok else str(res.get("msg") or res.get("info") or "SHEIN respondió sin éxito")[:300]
+    except HTTPException as e:
+        ok, spu, detalle = False, None, str(e.detail)[:300]
+    except Exception as e:
+        ok, spu, detalle = False, None, str(e)[:300]
+    try:
+        supabase_post("shein_reintentos", {"producto_id": pid, "precio": (float(precio) if precio else None), "exito": ok, "spu_name": spu, "detalle": detalle})
+    except Exception as e:
+        print(f"[shein] no se pudo guardar el reintento: {e}")
+    cache_set("shein_revision", None, ttl=1)
+    cache_set("shein_productos_sin_publicar", None, ttl=1)
+    if not ok:
+        return JSONResponse(status_code=502, content={"error": detalle or "SHEIN no aceptó el producto"})
+    return {"ok": True, "spu_name": spu}
+
+
+@router.post("/revision/ocultar")
+def shein_revision_ocultar(body: dict = None, _admin=Depends(require_admin)):
+    """Oculta un rechazado de la lista del panel (SHEIN no permite eliminar por API un producto rechazado; esto solo limpia la vista)."""
+    skc = ((body or {}).get("skc") or "").strip()
+    if not skc:
+        return JSONResponse(status_code=400, content={"error": "Falta skc"})
+    try:
+        supabase_post("shein_revision_ocultos", {"skc_name": skc})
+    except Exception:
+        pass     # ya estaba oculto
+    cache_set("shein_revision", None, ttl=1)
+    return {"ok": True}
+
+
 @router.get("/negociaciones/diagnostico")
 def shein_negociaciones_diagnostico(spu: str = "", _admin=Depends(require_admin)):
     """SOLO LECTURA. Órdenes de negociación de precio de costo (POST /open-api/goods/discuss/query-discuss-list): por cada SKC, el precio que

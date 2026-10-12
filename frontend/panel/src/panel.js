@@ -11,6 +11,7 @@ import './webm-a-ogg.js'
 import './tareas-equipo.js'
 import './atencion-hoy.js'
 import './ml-devoluciones.js'
+import './shein-revision.js'
 import './existencias-chat.js'
 import './novedades-modelos.js'
 import './campana-avisos.js'
@@ -25604,6 +25605,7 @@ const _sheinBtn = (icon, label, onclick, variant = 'primary', id = '') => {
 
 const _SHEIN_TABS = [
   { id: 'publicaciones', label: 'Publicaciones', icon: 'list' },
+  { id: 'revision',      label: 'Revisión', icon: 'clipboard' },
   { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
   { id: 'ventas',        label: 'Ventas', icon: 'dollar' },
 ]
@@ -25681,6 +25683,7 @@ window._sheinSwitchTab = async (tab) => {
     Cargando...
   </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
   if (tab === 'publicaciones')   await _sheinRenderPublicacionesTab()
+  else if (tab === 'revision')   await window._sheinRenderRevisionTab?.()
   else if (tab === 'publicar')   await _sheinRenderPublicarTab()
   else if (tab === 'ventas')     await _sheinRenderVentasTab()
 }

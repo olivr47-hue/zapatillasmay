@@ -32,7 +32,7 @@ window.pintarAtencionHoy = async function (contenedor) {
   }
   card.innerHTML = '<p style="margin:0;color:#94a3b8;font-size:0.85rem">Revisando qué necesita tu atención…</p>'
   window._ordenarTarjetasDash()
-  const [tareas, enviar, cxp, solic, correo, devml, devsh] = await Promise.allSettled([
+  const [tareas, enviar, cxp, solic, correo, devml, devsh, shrev] = await Promise.allSettled([
     get('/chatbot/tareas-equipo'),
     get('/pedidos/por-enviar-resumen'),
     veFinanzas() ? get('/finanzas/cuentas-por-pagar') : Promise.reject(),
@@ -40,6 +40,7 @@ window.pintarAtencionHoy = async function (contenedor) {
     esAdmin() ? get('/emails/buzon/no-leidos') : Promise.reject(),
     esAdmin() ? get('/ml/devoluciones') : Promise.reject(),
     esAdmin() ? get('/shein/devoluciones') : Promise.reject(),
+    esAdmin() ? get('/shein/revision/resumen') : Promise.reject(),
   ])
   const ok = (r) => r.status === 'fulfilled' ? r.value : null
   const tiles = []
@@ -65,6 +66,8 @@ window.pintarAtencionHoy = async function (contenedor) {
   if (M && M.count != null) tiles.push({ ir: 'correo', icono: '✉️', n: M.count, titulo: 'Correos sin leer', sub: M.count ? 'En el buzón' : 'Buzón al día', urgente: false })
 
   const D = ok(devml), D2 = ok(devsh)
+  const SR = ok(shrev)
+  if (SR && SR.disponible) { const n = (SR.negociaciones_pendientes || 0) + (SR.rechazados || 0); tiles.push({ ir: 'sheinrev', icono: '🛍️', n, titulo: 'SHEIN por revisar', sub: n ? `${SR.negociaciones_pendientes || 0} negociación(es) de precio · ${SR.rechazados || 0} rechazado(s)` : 'Todo al día en SHEIN', urgente: (SR.negociaciones_pendientes || 0) > 0 }) }
   const dev = [D, D2].filter(x => x && Array.isArray(x.por_confirmar))
   if (dev.length) { const n = dev.reduce((a, x) => a + x.por_confirmar.length, 0), c = dev.reduce((a, x) => a + (x.en_camino || 0), 0); tiles.push({ ir: 'devml', icono: '↩️', n, titulo: 'Devoluciones por confirmar', sub: n ? 'Llegaron: revisa y suma al inventario' : (c ? `${c} en camino hacia ti` : 'Sin devoluciones por confirmar'), urgente: true }) }
 
@@ -103,5 +106,14 @@ function ir(destino) {
     return
   }
   if (destino === 'devml') { window.abrirDevolucionesML?.(); return }
+  if (destino === 'sheinrev') {
+    window.navegarA('shein')
+    let n = 0
+    const t = setInterval(() => {
+      n++
+      if (document.querySelector('#shein-tabs .shein-tab-btn') || n > 30) { clearInterval(t); if (window._sheinSwitchTab) window._sheinSwitchTab('revision') }
+    }, 250)
+    return
+  }
   window.navegarA(destino)
 }

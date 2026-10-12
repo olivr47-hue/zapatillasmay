@@ -394,6 +394,12 @@ def _loop_shein_ventas():
                 print(f"[shein-devoluciones] Por confirmar: {r2['por_confirmar']}")
         except Exception as e:
             print(f"[shein-devoluciones] Error en loop: {e}")
+        try:
+            # estado de revisión de SHEIN (rechazados / negociaciones de precio): se deja calculado para el aviso del dashboard
+            from routers.shein import _refrescar_revision_shein
+            _refrescar_revision_shein()
+        except Exception as e:
+            print(f"[shein-revision] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_walmart_inventario():
