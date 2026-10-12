@@ -4,9 +4,10 @@ from fastapi.responses import JSONResponse
 from typing import List
 import datetime
 import re
+import seo_titulos as _seo_titulos
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_FEEDS
-from security import require_staff, bearer_opcional, payload_opcional, es_personal
+from security import require_staff, require_admin, bearer_opcional, payload_opcional, es_personal
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
@@ -140,11 +141,18 @@ def _completar_seo(p, base=None):
         p["slug"] = _slug_de(base_nombre)[:90].strip("-")
     # meta título: "<nombre legible> | Zapatillas May" (30-60 caracteres)
     mt = (p.get("meta_titulo") or "").strip()
+    try:
+        titulo_limpio = _seo_titulos.pieza_titulo(b)     # sin código del modelo, nunca cortado a media frase
+    except Exception:
+        titulo_limpio = ""
     if not mt:
-        corto = _recorta_palabras(base_nombre, 60 - len(" | Zapatillas May"))
-        mt = f"{corto} | Zapatillas May"
-        if len(mt) < 30:
-            mt = f"{corto} para Dama | Zapatillas May"
+        if titulo_limpio:
+            mt = titulo_limpio + _seo_titulos.SUF
+        else:
+            corto = _recorta_palabras(base_nombre, 60 - len(" | Zapatillas May"))
+            mt = f"{corto} | Zapatillas May"
+            if len(mt) < 30:
+                mt = f"{corto} para Dama | Zapatillas May"
     p["meta_titulo"] = _recorta_palabras(mt, 60) if len(mt) > 60 else mt
     # meta descripción (140-160 caracteres, con tipo, material, tacón, precio y envío)
     md = (p.get("meta_descripcion") or "").strip()
@@ -169,7 +177,7 @@ def _completar_seo(p, base=None):
             tipo = "" if tipo.lower() in ("sin tacon", "sin tacón", "") else tipo
             extras.append(f"Tacón {tipo + ' ' if tipo else ''}de {altura:g} cm.")
         extras.append("Hecho en México.")
-        md = f"Compra {_recorta_palabras(base_nombre, 55)} en Zapatillas May."
+        md = f"Compra {_recorta_palabras(titulo_limpio or base_nombre, 55)} en Zapatillas May."
         for e in extras:
             if len(md) + 1 + len(e) <= 158:
                 md += " " + e
@@ -352,6 +360,41 @@ def crear_producto(producto: dict, _staff=Depends(require_staff)):
     resultado = supabase_post("productos", producto)
     cache_invalidate_prefix(_CK)
     return resultado
+
+@router.post("/regenerar-seo-google")
+def regenerar_seo_google(aplicar: bool = False, _admin=Depends(require_admin)):
+    """Rehace el TÍTULO y la DESCRIPCIÓN que ve Google en los productos activos (fórmula de seo_titulos.py). Solo toca meta_titulo y
+    meta_descripcion: no el nombre (lo usan el panel y los marketplaces) ni el slug (dirección web). Sin `aplicar` solo muestra una
+    vista previa. Respeta los títulos escritos a mano (los que no empiezan con el código del modelo) y guarda el valor anterior en
+    seo_respaldo_titulos antes de cambiar."""
+    filas = supabase_get_all("productos?activo=eq.true&select=id,nombre,categoria,altura_tacon,tipo_tacon,material,precio_menudeo,es_oferta,meta_titulo,meta_descripcion")
+    cambios, omitidos, ejemplos = [], 0, []
+    for p in filas:
+        actual = (p.get("meta_titulo") or "").strip()
+        if actual and not re.match(r"^[A-Za-z]{0,4}\d", actual):
+            omitidos += 1          # escrito a mano o por IA: no se pisa
+            continue
+        nuevo_t = _seo_titulos.titulo_google(p)
+        base = {k: v for k, v in p.items() if k not in ("meta_titulo", "meta_descripcion")}
+        nuevo_d = (_completar_seo({}, base) or {}).get("meta_descripcion") or p.get("meta_descripcion") or ""
+        if nuevo_t != actual or nuevo_d != (p.get("meta_descripcion") or ""):
+            cambios.append((p, nuevo_t, nuevo_d))
+            if len(ejemplos) < 12:
+                ejemplos.append({"nombre": p.get("nombre"), "antes": actual, "ahora": nuevo_t})
+    res = {"revisados": len(filas), "por_cambiar": len(cambios), "omitidos_a_mano": omitidos, "ejemplos": ejemplos, "aplicado": False}
+    if not aplicar:
+        return res
+    fallos = 0
+    for p, nt, nd in cambios:
+        try:
+            supabase_post("seo_respaldo_titulos", {"producto_id": p["id"], "meta_titulo_antes": p.get("meta_titulo"), "meta_descripcion_antes": p.get("meta_descripcion")})
+            supabase_patch(f"productos?id=eq.{p['id']}", {"meta_titulo": nt, "meta_descripcion": nd})
+        except Exception:
+            fallos += 1
+    cache_invalidate_prefix(_CK)
+    res.update({"aplicado": True, "fallos": fallos})
+    return res
+
 
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
