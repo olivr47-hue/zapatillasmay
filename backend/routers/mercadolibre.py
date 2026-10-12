@@ -2123,10 +2123,34 @@ def devolucion_descartar(claim_id: int, body: dict = None, _staff=Depends(requir
 
 
 @router.get("/devoluciones/diagnostico")
-def devoluciones_diagnostico(_admin=Depends(require_admin)):
+def devoluciones_diagnostico(orden: str = "", _admin=Depends(require_admin)):
     """SOLO LECTURA. Muestra cómo responde Mercado Libre con los reclamos y devoluciones de la cuenta (para armar la
     automatización de devoluciones con datos reales). No modifica nada."""
     salida = {"reclamos": None, "devoluciones": [], "errores": []}
+    if orden.strip():
+        # SOLO LECTURA: qué sabe ML de una orden concreta (por qué una devolución no aparece en la búsqueda por tipo)
+        oid = urllib.parse.quote(orden.strip())
+        o = None
+        try:
+            o = ml_get(f"/orders/{oid}")
+        except HTTPException as e:
+            salida["errores"].append({"ruta": f"/orders/{oid}", "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+        if isinstance(o, dict):
+            salida["orden"] = {k: o.get(k) for k in ("id", "status", "date_created", "date_closed", "tags", "mediations", "shipping")}
+        for filtro in (f"resource_id={oid}&resource=order", f"resource_id={oid}"):
+            try:
+                r = ml_get(f"/post-purchase/v1/claims/search?{filtro}&limit=30")
+                salida.setdefault("reclamos_de_la_orden", []).append({"filtro": filtro, "respuesta": r})
+            except HTTPException as e:
+                salida["errores"].append({"ruta": filtro, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+        ids = [m.get("id") for m in ((o or {}).get("mediations") or []) if isinstance(m, dict)]
+        for cid in ids[:3]:
+            for ruta in (f"/post-purchase/v1/claims/{cid}", f"/post-purchase/v2/claims/{cid}/returns"):
+                try:
+                    salida.setdefault("detalle_reclamos", []).append({"ruta": ruta, "respuesta": ml_get(ruta)})
+                except HTTPException as e:
+                    salida["errores"].append({"ruta": ruta, "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+        return salida
 
     def _intento(ruta):
         try:
