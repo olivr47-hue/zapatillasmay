@@ -35,7 +35,7 @@ if (_skuEstiloPublico) {
   // acepta este origen (CORS). Solo en el sitio real; la demo y el desarrollo local siguen como siempre. Para volver al camino anterior:
   // localStorage.setItem('zm_api', 'vercel') y recargar.
   const _RAILWAY = 'https://zapatillasmay-production.up.railway.app'
-  const _DIRECTO = location.hostname === 'portal.zapatillasmay.mx' && !window.__ZM_DEMO && (() => { try { return localStorage.getItem('zm_api') !== 'vercel' } catch (e) { return true } })()
+  const _DIRECTO = ['portal.zapatillasmay.mx', 'zapatillasmay-panel.vercel.app'].includes(location.hostname) && !window.__ZM_DEMO && (() => { try { return localStorage.getItem('zm_api') !== 'vercel' } catch (e) { return true } })()
   const _destino = (inp) => {
     if (!_DIRECTO || typeof inp !== 'string') return inp
     if (inp.startsWith('/api/')) return _RAILWAY + inp.slice(4)
