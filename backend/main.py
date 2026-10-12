@@ -386,6 +386,14 @@ def _loop_shein_ventas():
                 print(f"[shein-ventas] sin_match: {res.get('sin_match')[:3]}, errores: {res.get('errores')[:3]}")
         except Exception as e:
             print(f"[shein-ventas] Error en loop: {e}")
+        try:
+            # devoluciones de SHEIN: cada ~hora (la función se salta las vueltas intermedias); solo avisa en el panel
+            from routers.shein import _hacer_sync_devoluciones_shein
+            r2 = _hacer_sync_devoluciones_shein()
+            if r2.get("por_confirmar"):
+                print(f"[shein-devoluciones] Por confirmar: {r2['por_confirmar']}")
+        except Exception as e:
+            print(f"[shein-devoluciones] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_walmart_inventario():

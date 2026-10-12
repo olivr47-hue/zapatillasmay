@@ -27,8 +27,8 @@ import threading
 import os, json, time, random, string, hmac, hashlib, base64, secrets, re
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
-from security import require_admin
-from fastapi.responses import HTMLResponse
+from security import require_admin, require_staff, limpiar_texto as limpiar_texto_shein
+from fastapi.responses import HTMLResponse, JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set
 from shein_crypto import shein_decrypt
@@ -428,6 +428,186 @@ def shein_revision_diagnostico(_admin=Depends(require_admin)):
     except Exception as e:
         salida["errores"].append({"mapeo_erp": str(e)[:200]})
     return salida
+
+
+# ─── Devoluciones de SHEIN ────────────────────────────────────────────────────
+# Mismo criterio que en Mercado Libre: se detecta cuándo el par devuelto YA llegó (SHEIN lo marca «Recibido» cuando se firma la recepción en
+# la dirección del negocio) y se avisa en el panel; el par solo se suma al inventario cuando la dueña lo confirma. NUNCA se firma ni se
+# confirma nada del lado de SHEIN desde aquí (eso se hace en SHEIN).
+_ULT_SYNC_DEV_SHEIN = [0.0]
+
+
+def _color_talla_shein(g: dict):
+    """'Rojo-MX24' -> ('Rojo', '24')."""
+    for a in g.get("commodityAttributeList") or []:
+        if a.get("language") == "ES" and a.get("attrName"):
+            m = re.match(r"^(.*?)-MX\s*([0-9]+(?:[.,][0-9]+)?)", a["attrName"])
+            if m:
+                return m.group(1).strip(), m.group(2).replace(",", ".")
+    return None, None
+
+
+def _items_devolucion_shein(det: dict) -> list:
+    """Cada renglón devuelto -> variante del ERP. Primero por el SKU del proveedor (cache de SKUs publicados); si no está, por el código
+    del modelo (goodsSn) + color + talla que trae el detalle."""
+    mapa = cache_get("shein_skus_publicados") or []
+    sup_por_code = {m.get("skuCode"): m.get("supplierSku") for m in mapa}
+    variantes = supabase_get_all("variantes?activa=eq.true&select=id,sku,color,talla,producto_id,foto_url")
+    por_sku = {_norm_sku(v["sku"]): v for v in variantes if v.get("sku")}
+    productos = {p["id"]: p for p in supabase_get_all("productos?select=id,nombre,sku_interno,imagen_principal")}
+    items = []
+    for g in det.get("returnGoodsInfoList") or []:
+        v = None
+        sup = sup_por_code.get(g.get("sku"))
+        if sup:
+            v = por_sku.get(_norm_sku(sup))
+        if v is None:
+            color, talla = _color_talla_shein(g)
+            gsn = (g.get("goodsSn") or "").strip().upper()
+            if gsn and color and talla:
+                for p in productos.values():
+                    nombre = (p.get("nombre") or "").upper()
+                    if nombre == gsn or nombre.startswith(gsn + " "):
+                        for vv in variantes:
+                            if vv["producto_id"] == p["id"] and str(vv.get("talla")) in (talla, talla + ".0") and (vv.get("color") or "").lower().startswith(color.lower()):
+                                v = vv
+                                break
+                    if v:
+                        break
+        p = productos.get(v["producto_id"]) if v else None
+        items.append({"variante_id": v["id"] if v else None, "cantidad": 1,
+                      "producto": (p.get("nombre") if p else None) or g.get("goodsTitle"),
+                      "sku": p.get("sku_interno") if p else None,
+                      "color": v.get("color") if v else _color_talla_shein(g)[0],
+                      "talla": v.get("talla") if v else _color_talla_shein(g)[1],
+                      "foto": (v.get("foto_url") if v else None) or (p.get("imagen_principal") if p else None) or g.get("imageUrl")})
+    return items
+
+
+def _hacer_sync_devoluciones_shein(forzar: bool = False) -> dict:
+    """Revisa las devoluciones de SHEIN de los últimos 45 días. Un par con estado «Recibido» (5) o «Completado» (9), con firma de recepción
+    del vendedor, queda 'por_confirmar'. Al activarse por primera vez, lo que ya estaba recibido se marca 'historica'."""
+    import datetime as _dt
+    resultado = {"revisadas": 0, "nuevas": 0, "por_confirmar": 0, "errores": []}
+    if not forzar and time.time() - _ULT_SYNC_DEV_SHEIN[0] < 3300:
+        resultado["omitido"] = "se revisó hace menos de una hora"
+        return resultado
+    _ULT_SYNC_DEV_SHEIN[0] = time.time()
+    try:
+        primera = not (supabase_get("shein_devoluciones?select=return_no&limit=1") or [])
+        fmt = "%Y-%m-%d %H:%M:%S"
+        ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)
+        limite = ahora - _dt.timedelta(days=45)
+        fin, nos, estados = ahora, [], {}
+        while fin > limite:
+            ini = max(limite, fin - _dt.timedelta(hours=47))
+            pagina = 1
+            while pagina <= 5:
+                try:
+                    r = shein_post("/open-api/return-order/list", {"queryType": 3, "startTime": ini.strftime(fmt), "endTime": fin.strftime(fmt), "page": pagina, "pageSize": 30})
+                except HTTPException as e:
+                    resultado["errores"].append({"lista": ini.strftime(fmt), "codigo": e.status_code, "detalle": str(e.detail)[:200]})
+                    break
+                lista = (((r or {}).get("info") or {}).get("returnOrderList")) or []
+                for d in lista:
+                    if d.get("returnOrderNo") and d.get("returnOrderNo") not in estados:
+                        estados[d["returnOrderNo"]] = d.get("returnOrderStatus")
+                        nos.append(d["returnOrderNo"])
+                if len(lista) < 30:
+                    break
+                pagina += 1
+            fin = ini
+        pendientes = []
+        for no in nos:
+            previa = supabase_get(f"shein_devoluciones?return_no=eq.{urllib.parse.quote(no)}&select=return_no,estado") or []
+            if previa and previa[0].get("estado") in ("por_confirmar", "sumada", "descartada", "historica"):
+                continue
+            if estados.get(no) in (1, 3):      # cerrada o cancelada: no hay par que esperar
+                continue
+            pendientes.append((no, bool(previa)))
+        if pendientes and cache_get("shein_skus_publicados") is None and not cache_get("shein_skus_escaneando"):
+            cache_set("shein_skus_escaneando", True, ttl=600)     # para poder ligar el SKU de SHEIN con el del ERP en la próxima revisión
+            threading.Thread(target=_hacer_escaneo_skus_shein, daemon=True).start()
+        for i in range(0, len(pendientes), 30):
+            lote = pendientes[i:i + 30]
+            try:
+                r = shein_post("/open-api/return-order/details", {"returnOrderNoList": [n for n, _ in lote]})
+            except HTTPException as e:
+                resultado["errores"].append({"detalle": i, "codigo": e.status_code, "texto": str(e.detail)[:200]})
+                continue
+            existentes = {n for n, ya in lote if ya}
+            for det in (r or {}).get("info") or []:
+                no = det.get("returnOrderNo")
+                resultado["revisadas"] += 1
+                llego = (det.get("returnOrderStatus") in (5, 9) and det.get("receiveType") == 1 and det.get("noReturnGoodsSign") == 0
+                         and bool(det.get("sellerSignedTime")))
+                estado = ("historica" if primera else "por_confirmar") if llego else "en_camino"
+                items = _items_devolucion_shein(det)
+                fila = {"return_no": no, "order_no": det.get("orderNo"), "estado": estado, "status_shein": det.get("returnOrderStatus"),
+                        "items": items, "varios": len(items) > 1, "actualizada_at": _dt.datetime.utcnow().isoformat() + "Z"}
+                if no in existentes:
+                    supabase_patch(f"shein_devoluciones?return_no=eq.{urllib.parse.quote(no)}", {k: v for k, v in fila.items() if k != "return_no"})
+                else:
+                    supabase_post("shein_devoluciones", fila)
+                    resultado["nuevas"] += 1
+                if estado == "por_confirmar":
+                    resultado["por_confirmar"] += 1
+            time.sleep(0.3)
+    except Exception as e:
+        resultado["errores"].append({"error_general": str(e)[:300]})
+    return resultado
+
+
+@router.get("/devoluciones")
+def shein_devoluciones_lista(_staff=Depends(require_staff)):
+    filas = supabase_get("shein_devoluciones?estado=in.(por_confirmar,en_camino)&order=detectada_at.desc&select=*") or []
+    return {"por_confirmar": [f for f in filas if f.get("estado") == "por_confirmar"],
+            "en_camino": len([f for f in filas if f.get("estado") == "en_camino"])}
+
+
+@router.post("/devoluciones/sync")
+def shein_devoluciones_sync(_staff=Depends(require_staff)):
+    return _hacer_sync_devoluciones_shein(forzar=True)
+
+
+@router.post("/devoluciones/{return_no}/confirmar")
+def shein_devolucion_confirmar(return_no: str, body: dict = None, _staff=Depends(require_staff)):
+    """El par llegó bien: se suma al inventario. Estado condicional y previo (no se suma dos veces). No toca nada en SHEIN."""
+    import datetime as _dt
+    quien = (_staff or {}).get("email") if isinstance(_staff, dict) else None
+    ganado = supabase_patch(f"shein_devoluciones?return_no=eq.{urllib.parse.quote(return_no)}&estado=eq.por_confirmar",
+                            {"estado": "sumada", "resuelta_at": _dt.datetime.utcnow().isoformat() + "Z", "resuelta_por": quien})
+    if not ganado:
+        return JSONResponse(status_code=409, content={"error": "Esa devolución ya se resolvió o no está por confirmar"})
+    fila = ganado[0]
+    sumadas = 0
+    for it in fila.get("items") or []:
+        vid, cant = it.get("variante_id"), int(it.get("cantidad") or 0)
+        if not vid or cant <= 0:
+            continue
+        filas = supabase_get(f"inventario?variante_id=eq.{vid}&select=sucursal_id,cantidad&order=cantidad.desc")
+        if not filas:
+            continue
+        inventario_ajustar(vid, filas[0]["sucursal_id"], cant)
+        supabase_post("movimientos_inventario", {
+            "variante_id": vid, "sucursal_id": filas[0]["sucursal_id"], "tipo": "entrada", "cantidad": cant,
+            "motivo": f"Devolución SHEIN ({return_no}, orden {fila.get('order_no')})",
+        })
+        sumadas += cant
+    return {"ok": True, "sumadas": sumadas}
+
+
+@router.post("/devoluciones/{return_no}/descartar")
+def shein_devolucion_descartar(return_no: str, body: dict = None, _staff=Depends(require_staff)):
+    import datetime as _dt
+    body = body or {}
+    quien = (_staff or {}).get("email") if isinstance(_staff, dict) else None
+    ok = supabase_patch(f"shein_devoluciones?return_no=eq.{urllib.parse.quote(return_no)}&estado=eq.por_confirmar",
+                        {"estado": "descartada", "resuelta_at": _dt.datetime.utcnow().isoformat() + "Z", "resuelta_por": quien,
+                         "nota": limpiar_texto_shein(str(body.get("nota") or ""))[:300] or None})
+    if not ok:
+        return JSONResponse(status_code=409, content={"error": "Esa devolución ya se resolvió o no está por confirmar"})
+    return {"ok": True}
 
 
 @router.get("/devoluciones/diagnostico")

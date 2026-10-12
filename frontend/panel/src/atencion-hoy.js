@@ -32,13 +32,14 @@ window.pintarAtencionHoy = async function (contenedor) {
   }
   card.innerHTML = '<p style="margin:0;color:#94a3b8;font-size:0.85rem">Revisando qué necesita tu atención…</p>'
   window._ordenarTarjetasDash()
-  const [tareas, enviar, cxp, solic, correo, devml] = await Promise.allSettled([
+  const [tareas, enviar, cxp, solic, correo, devml, devsh] = await Promise.allSettled([
     get('/chatbot/tareas-equipo'),
     get('/pedidos/por-enviar-resumen'),
     veFinanzas() ? get('/finanzas/cuentas-por-pagar') : Promise.reject(),
     esAdmin() ? get('/pedidos/solicitudes-total') : Promise.reject(),
     esAdmin() ? get('/emails/buzon/no-leidos') : Promise.reject(),
     esAdmin() ? get('/ml/devoluciones') : Promise.reject(),
+    esAdmin() ? get('/shein/devoluciones') : Promise.reject(),
   ])
   const ok = (r) => r.status === 'fulfilled' ? r.value : null
   const tiles = []
@@ -63,17 +64,26 @@ window.pintarAtencionHoy = async function (contenedor) {
   const M = ok(correo)
   if (M && M.count != null) tiles.push({ ir: 'correo', icono: '✉️', n: M.count, titulo: 'Correos sin leer', sub: M.count ? 'En el buzón' : 'Buzón al día', urgente: false })
 
-  const D = ok(devml)
-  if (D && Array.isArray(D.por_confirmar)) tiles.push({ ir: 'devml', icono: '↩️', n: D.por_confirmar.length, titulo: 'Devoluciones de Mercado Libre', sub: D.por_confirmar.length ? 'Llegaron: revisa y suma al inventario' : (D.en_camino ? `${D.en_camino} en camino hacia ti` : 'Sin devoluciones por confirmar'), urgente: true })
+  const D = ok(devml), D2 = ok(devsh)
+  const dev = [D, D2].filter(x => x && Array.isArray(x.por_confirmar))
+  if (dev.length) { const n = dev.reduce((a, x) => a + x.por_confirmar.length, 0), c = dev.reduce((a, x) => a + (x.en_camino || 0), 0); tiles.push({ ir: 'devml', icono: '↩️', n, titulo: 'Devoluciones por confirmar', sub: n ? 'Llegaron: revisa y suma al inventario' : (c ? `${c} en camino hacia ti` : 'Sin devoluciones por confirmar'), urgente: true }) }
 
   const pendientes = tiles.filter(t => t.n > 0).length
+  // Solo se muestran las tarjetas que tienen algo pendiente; si no hay ninguna, queda una sola línea para no saturar el inicio.
+  const visibles = tiles.filter(t => t.n > 0)
+  if (!visibles.length) {
+    card.style.padding = '0.6rem 1.25rem'
+    card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><h3 style="font-size:0.95rem;font-weight:700;margin:0">🔔 Requiere tu atención hoy</h3><span style="font-size:0.76rem;color:#16a34a;font-weight:600">Todo al día 🎉</span></div>'
+    return
+  }
+  card.style.padding = '1.1rem 1.25rem'
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <h3 style="font-size:1rem;font-weight:700;margin:0">🔔 Requiere tu atención hoy</h3>
       <span style="font-size:0.76rem;color:${pendientes ? '#be185d' : '#16a34a'};font-weight:600">${pendientes ? `${pendientes} cosa${pendientes === 1 ? '' : 's'} por revisar` : 'Todo al día 🎉'}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
-      ${tiles.map(t => `<button type="button" data-ir="${t.ir}" style="text-align:left;cursor:pointer;border:1px solid ${t.n > 0 && t.urgente ? '#fbcfe8' : '#e2e8f0'};background:${t.n > 0 && t.urgente ? '#fdf2f8' : '#f8fafc'};border-radius:10px;padding:10px 12px;font-family:inherit">
+      ${visibles.map(t => `<button type="button" data-ir="${t.ir}" style="text-align:left;cursor:pointer;border:1px solid ${t.n > 0 && t.urgente ? '#fbcfe8' : '#e2e8f0'};background:${t.n > 0 && t.urgente ? '#fdf2f8' : '#f8fafc'};border-radius:10px;padding:10px 12px;font-family:inherit">
         <div style="display:flex;align-items:center;gap:8px"><span style="font-size:1.15rem">${t.icono}</span><span style="font-size:1.45rem;font-weight:800;color:${t.n > 0 ? (t.urgente ? '#be185d' : '#0f172a') : '#94a3b8'}">${t.n}</span></div>
         <div style="font-size:0.78rem;font-weight:700;color:#334155;margin-top:2px">${t.titulo}</div>
         <div style="font-size:0.7rem;color:#64748b;margin-top:1px">${t.sub}${t.extra ? ` · <b style="color:#b45309">${t.extra}</b>` : ''}</div></button>`).join('')}
