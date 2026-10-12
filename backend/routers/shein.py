@@ -364,30 +364,43 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
 
 
 @router.get("/devoluciones/diagnostico")
-def shein_devoluciones_diagnostico(_admin=Depends(require_admin)):
-    """SOLO LECTURA. Prueba, uno por uno, posibles servicios de devoluciones de SHEIN y muestra qué responde cada uno (la documentación
-    pública no los detalla): sirve para saber si la cuenta puede consultar devoluciones y con qué forma de datos."""
+def shein_devoluciones_diagnostico(dias: int = 30, _admin=Depends(require_admin)):
+    """SOLO LECTURA. Usa los servicios documentados por SHEIN (POST /open-api/return-order/list y /details): recorre los últimos `dias`
+    en ventanas de 47 h (el servicio consulta ~48 h por llamada), junta las devoluciones y trae el detalle de las primeras. No modifica
+    nada (NO firma ni confirma recepciones)."""
     import datetime as _dt
     ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)
-    ini = ahora - _dt.timedelta(days=30)
     fmt = "%Y-%m-%d %H:%M:%S"
-    cuerpo = {"startTime": ini.strftime(fmt), "endTime": ahora.strftime(fmt), "page": 1, "pageSize": 20}
-    salida = {"intentos": []}
-    for ruta in ("/open-api/order/return-order-list", "/open-api/order/return-list", "/open-api/order/query-return-list",
-                 "/open-api/order/after-sales-list", "/open-api/order/return-order/list"):
+    salida = {"ventanas": 0, "devoluciones": [], "errores": []}
+    fin = ahora
+    limite = ahora - _dt.timedelta(days=max(1, min(dias, 90)))
+    while fin > limite and salida["ventanas"] < 45:
+        ini = max(limite, fin - _dt.timedelta(hours=47))
+        salida["ventanas"] += 1
+        pagina = 1
+        while pagina <= 5:
+            try:
+                r = shein_post("/open-api/return-order/list", {"queryType": 3, "startTime": ini.strftime(fmt), "endTime": fin.strftime(fmt), "page": pagina, "pageSize": 30})
+            except HTTPException as e:
+                salida["errores"].append({"ventana": ini.strftime(fmt), "codigo": e.status_code, "detalle": str(e.detail)[:250]})
+                break
+            except Exception as e:
+                salida["errores"].append({"ventana": ini.strftime(fmt), "error": str(e)[:250]})
+                break
+            info = (r or {}).get("info") or {}
+            lista = info.get("returnOrderList") or []
+            salida["devoluciones"] += lista
+            if len(lista) < 30:
+                break
+            pagina += 1
+        fin = ini
+    nos = [d.get("returnOrderNo") for d in salida["devoluciones"] if d.get("returnOrderNo")][:10]
+    if nos:
         try:
-            r = shein_post(ruta, cuerpo)
-            salida["intentos"].append({"ruta": ruta, "respuesta": r})
+            salida["detalle"] = shein_post("/open-api/return-order/details", {"returnOrderNoList": nos})
         except HTTPException as e:
-            salida["intentos"].append({"ruta": ruta, "codigo": e.status_code, "detalle": str(e.detail)[:250]})
-        except Exception as e:
-            salida["intentos"].append({"ruta": ruta, "error": str(e)[:250]})
-    # estados que SHEIN usa en sus órdenes: si alguno habla de devolución, está en este resumen
-    try:
-        lista = shein_post("/open-api/order/order-list", {"startTime": (ahora - _dt.timedelta(hours=47)).strftime(fmt), "endTime": ahora.strftime(fmt), "queryType": 1, "page": 1, "pageSize": 20})
-        salida["muestra_ordenes"] = lista
-    except Exception as e:
-        salida["muestra_ordenes_error"] = str(e)[:250]
+            salida["errores"].append({"detalle": True, "codigo": e.status_code, "texto": str(e.detail)[:250]})
+    salida["total_encontradas"] = len(salida["devoluciones"])
     return salida
 
 
