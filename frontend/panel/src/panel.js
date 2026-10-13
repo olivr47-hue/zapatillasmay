@@ -10497,6 +10497,7 @@ window.nuevoPedidoCliente = async (clienteId, clienteNombre) => {
   }, 300)
 }
 window.verHistorialCliente = async (clienteId) => {
+  window._bloquearScrollChat && window._bloquearScrollChat(false)   // viniendo del chat en celular la página quedaba sin scroll
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
   try {
@@ -11598,6 +11599,7 @@ window.abrirPreviewPedido = async (id) => {
 }
 
 window.verPedido = async (id) => {
+  window._bloquearScrollChat && window._bloquearScrollChat(false)   // viniendo del chat en celular la página quedaba sin scroll
   if (window._zmPushBack) window._zmPushBack(() => cargarModulo('pedidos'))
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando pedido...</p>'
