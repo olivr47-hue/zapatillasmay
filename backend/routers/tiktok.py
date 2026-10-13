@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
 import os
 import json
@@ -7,8 +7,10 @@ import hmac
 import hashlib
 import urllib.request
 import urllib.parse
+import urllib.error
 from dotenv import load_dotenv
 from database import supabase_get, supabase_patch, supabase_post
+from security import require_staff
 
 load_dotenv()
 
@@ -20,9 +22,14 @@ TIKTOK_REDIRECT_URI = os.getenv(
     "TIKTOK_REDIRECT_URI",
     "https://zapatillasmay-production.up.railway.app/tiktok/callback"
 )
-TIKTOK_AUTH_URL  = "https://auth.tiktok-shops.com/oauth/authorize"
-TIKTOK_TOKEN_URL = "https://auth.tiktok-shops.com/oauth/token"
-TIKTOK_API_BASE  = "https://open-api.tiktokglobalshop.com"
+# ID del servicio (app "Zapatillas May ERP" en el Partner Center → Aplicación y servicio)
+TIKTOK_SERVICE_ID = os.getenv("TIKTOK_SERVICE_ID", "7641934060004837136")
+TIKTOK_AUTH_URL   = "https://services.tiktokshop.com/open/authorize"          # mercados fuera de EE. UU.
+TIKTOK_TOKEN_URL  = "https://auth.tiktok-shops.com/api/v2/token/get"          # GET
+TIKTOK_REFRESH_URL = "https://auth.tiktok-shops.com/api/v2/token/refresh"     # GET
+TIKTOK_API_BASE   = "https://open-api.tiktokglobalshop.com"
+# La escritura de existencias en TikTok queda APAGADA hasta que se pruebe la lectura y se reescriba sync_stock con la API vigente
+TIKTOK_SYNC_ACTIVO = os.getenv("TIKTOK_SYNC_STOCK", "") == "1"
 
 # ── Token storage (Supabase configuracion table con fallback a /tmp) ──────────
 
@@ -64,54 +71,83 @@ def _save_token(data: dict):
         pass
 
 
-# ── Firma TikTok Open API ─────────────────────────────────────────────────────
+# ── Firma TikTok Open API (HMAC-SHA256 con path + parámetros ordenados + cuerpo, envuelto con el secreto) ──
 
-def _sign(params: dict, body_str: str = "") -> str:
-    """Genera la firma HMAC-SHA256 para las peticiones a TikTok Open API."""
-    sorted_params = sorted(params.items())
-    sign_str = TIKTOK_APP_SECRET
-    for k, v in sorted_params:
-        sign_str += str(k) + str(v)
+def _sign(path: str, params: dict, body_str: str = "") -> str:
+    """Firma según 'Sign your API request': se excluyen sign y access_token; el token va en el encabezado x-tts-access-token."""
+    entrada = path + "".join(f"{k}{v}" for k, v in sorted(params.items()) if k not in ("sign", "access_token"))
     if body_str:
-        sign_str += body_str
-    sign_str += TIKTOK_APP_SECRET
-    return hashlib.sha256(sign_str.encode()).hexdigest()
+        entrada += body_str
+    entrada = TIKTOK_APP_SECRET + entrada + TIKTOK_APP_SECRET
+    return hmac.new(TIKTOK_APP_SECRET.encode("utf-8"), entrada.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _tiktok_api(method: str, path: str, access_token: str,
                 body: dict = None, extra_params: dict = None) -> dict:
-    """Realiza una petición firmada a TikTok Shop Open API."""
-    timestamp = str(int(time.time()))
-    params = {
-        "app_key":      TIKTOK_APP_KEY,
-        "access_token": access_token,
-        "timestamp":    timestamp,
-        "version":      "202309",
-    }
+    """Petición firmada a TikTok Shop Open API (versiones 202309 en adelante)."""
+    params = {"app_key": TIKTOK_APP_KEY, "timestamp": str(int(time.time()))}
     if extra_params:
         params.update(extra_params)
-
     body_str = json.dumps(body, separators=(",", ":")) if body else ""
-    params["sign"] = _sign(params, body_str)
+    params["sign"] = _sign(path, params, body_str)
 
     url = TIKTOK_API_BASE + path + "?" + urllib.parse.urlencode(params)
-    data = body_str.encode() if body_str else None
-    headers = {"Content-Type": "application/json"}
-
+    data = body_str.encode("utf-8") if body_str else None
+    headers = {"Content-Type": "application/json", "x-tts-access-token": access_token}
     req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read())
+        except Exception:
+            return {"code": e.code, "message": f"HTTP {e.code}"}
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+def _pedir_token(url: str, params: dict) -> dict:
+    """GET a los endpoints de token (get / refresh). El secreto viaja en la consulta, como lo define TikTok."""
+    full = url + "?" + urllib.parse.urlencode(params)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(full, method="GET"), timeout=20) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read())
+        except Exception:
+            return {"code": e.code, "message": f"HTTP {e.code}"}
+
+
+def _vence_en(token: dict) -> int:
+    """access_token_expire_in es una marca de tiempo Unix (no segundos de vigencia)."""
+    exp = int(token.get("access_token_expire_in", 0) or 0)
+    return exp if exp > 10**9 else int(token.get("obtained_at", 0) or 0) + exp
+
+
+def _token_vigente() -> str:
+    """Devuelve un access_token válido; si le queda menos de un día intenta renovarlo con el refresh_token."""
+    token = _load_token()
+    if not token or not token.get("access_token"):
+        return ""
+    if time.time() > _vence_en(token) - 86400 and token.get("refresh_token"):
+        res = _pedir_token(TIKTOK_REFRESH_URL, {
+            "app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET,
+            "refresh_token": token["refresh_token"], "grant_type": "refresh_token",
+        })
+        if res.get("code") == 0:
+            nuevo = res.get("data", {})
+            nuevo["obtained_at"] = int(time.time())
+            _save_token(nuevo)
+            token = nuevo
+    return token.get("access_token", "") if time.time() < _vence_en(token) else ""
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────────
 
 @router.get("/authorize")
 def authorize():
-    """Devuelve la URL de autorización OAuth para conectar tu tienda TikTok Shop."""
-    params = {
-        "app_key": TIKTOK_APP_KEY,
-        "state":   "zapatillasmay",
-    }
+    """Devuelve la URL de autorización para conectar tu tienda TikTok Shop (entrar con la cuenta administradora del Seller Center)."""
+    params = {"service_id": TIKTOK_SERVICE_ID, "state": "zapatillasmay"}
     url = TIKTOK_AUTH_URL + "?" + urllib.parse.urlencode(params)
     return {
         "auth_url": url,
@@ -121,43 +157,30 @@ def authorize():
 
 @router.get("/callback")
 def callback(code: str = None, state: str = None, error: str = None):
-    """Recibe el código OAuth de TikTok y lo canjea por un access_token."""
-    if error or not code:
+    """Recibe el código de autorización de TikTok y lo canjea por access_token y refresh_token."""
+    if error or not code or code == "null":
         return JSONResponse(
             status_code=400,
             content={"error": f"TikTok devolvio error: {error or 'sin codigo'}"}
         )
     try:
-        body = json.dumps({
-            "app_key":    TIKTOK_APP_KEY,
-            "app_secret": TIKTOK_APP_SECRET,
-            "auth_code":  code,
-            "grant_type": "authorized_code",
-        }).encode()
-
-        req = urllib.request.Request(
-            TIKTOK_TOKEN_URL,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read())
-
+        result = _pedir_token(TIKTOK_TOKEN_URL, {
+            "app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET,
+            "auth_code": code, "grant_type": "authorized_code",
+        })
         if result.get("code") == 0:
             token_data = result.get("data", {})
             token_data["obtained_at"] = int(time.time())
             _save_token(token_data)
             seller = token_data.get("seller_name") or token_data.get("open_id", "TikTok Shop")
             return RedirectResponse(
-                url=f"/?tiktok_connected=1&shop={urllib.parse.quote(seller)}",
+                url=f"https://portal.zapatillasmay.mx/?tiktok_connected=1&shop={urllib.parse.quote(seller)}",
                 status_code=302
             )
-        else:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "No se pudo obtener el token", "detalle": result}
-            )
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No se pudo obtener el token", "detalle": {"code": result.get("code"), "message": result.get("message")}}
+        )
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -168,19 +191,45 @@ def status():
     token = _load_token()
     if not token:
         return {"connected": False, "message": "No hay tienda TikTok conectada"}
-
-    obtained_at = token.get("obtained_at", 0)
-    expires_in  = token.get("access_token_expire_in", 0)
-    expires_at  = obtained_at + expires_in
-    expired     = time.time() > expires_at
-
+    expires_at = _vence_en(token)
+    expired = time.time() > expires_at
     return {
         "connected":  not expired,
         "expired":    expired,
         "shop":       token.get("seller_name", ""),
         "shop_id":    token.get("open_id", ""),
         "expires_at": expires_at,
+        "scopes":     token.get("granted_scopes", []),
     }
+
+
+@router.get("/diagnostico")
+def diagnostico(_staff=Depends(require_staff)):
+    """Prueba de SOLO LECTURA: confirma que la app tiene acceso (tiendas autorizadas y 3 productos de ejemplo). No escribe nada en TikTok."""
+    if not TIKTOK_APP_KEY or not TIKTOK_APP_SECRET:
+        return JSONResponse(status_code=500, content={"error": "Faltan TIKTOK_APP_KEY / TIKTOK_APP_SECRET en el servidor"})
+    access = _token_vigente()
+    if not access:
+        return JSONResponse(status_code=401, content={"error": "Sin token vigente: abre /tiktok/authorize y autoriza la tienda"})
+    salida = {"scopes_autorizados": (_load_token() or {}).get("granted_scopes", [])}
+    try:
+        r = _tiktok_api("GET", "/authorization/202309/shops", access)
+        salida["tiendas_codigo"] = r.get("code")
+        salida["tiendas_mensaje"] = r.get("message")
+        tiendas = (r.get("data") or {}).get("shops") or []
+        salida["tiendas"] = [{"nombre": s.get("name"), "region": s.get("region"), "tipo": s.get("seller_type"), "id": s.get("id")} for s in tiendas]
+        if tiendas:
+            cipher = tiendas[0].get("cipher", "")
+            p = _tiktok_api("POST", "/product/202309/products/search", access,
+                            body={}, extra_params={"page_size": "3", "shop_cipher": cipher})
+            salida["productos_codigo"] = p.get("code")
+            salida["productos_mensaje"] = p.get("message")
+            d = p.get("data") or {}
+            salida["productos_total"] = d.get("total_count")
+            salida["productos_ejemplo"] = [{"id": x.get("id"), "titulo": (x.get("title") or "")[:60], "estado": x.get("status")} for x in (d.get("products") or [])]
+    except Exception as e:
+        salida["error"] = str(e)
+    return salida
 
 
 @router.post("/sync-stock")
@@ -190,6 +239,9 @@ def sync_stock():
     Busca cada producto de TikTok por seller_sku (debe coincidir con el
     formato usado al importar: SKU_ERP-COLOR-TALLA).
     """
+    if not TIKTOK_SYNC_ACTIVO:
+        return {"ok": False, "desactivado": True,
+                "mensaje": "Sincronizacion de existencias APAGADA: primero hay que probar la lectura y reescribirla con la API vigente (TIKTOK_SYNC_STOCK=1 para activarla)."}
     token = _load_token()
     if not token:
         return JSONResponse(
@@ -316,6 +368,8 @@ def actualizar_stock_tiktok_tras_venta(items: list, prod_sku_map: dict, inv_map:
     prod_sku_map: {variante_id: seller_sku_tiktok}
     inv_map: {variante_id: nueva_cantidad_erp}
     """
+    if not TIKTOK_SYNC_ACTIVO:
+        return
     token = _load_token()
     if not token or not token.get("access_token"):
         return  # Si no hay conexion, ignorar silenciosamente

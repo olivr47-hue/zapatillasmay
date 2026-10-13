@@ -479,7 +479,7 @@ def _loop_tiktok_sync():
     while True:
         try:
             estado = tiktok_router.status()
-            if isinstance(estado, dict) and estado.get("connected"):
+            if tiktok_router.TIKTOK_SYNC_ACTIVO and isinstance(estado, dict) and estado.get("connected"):   # escritura apagada hasta nuevo aviso
                 res = tiktok_router.sync_stock()
                 if isinstance(res, dict) and res.get("ok"):
                     print(f"[tiktok-sync] Stock actualizado — OK:{res.get('actualizados')} ERR:{res.get('errores')} SIN_MATCH:{res.get('sin_match')}")
