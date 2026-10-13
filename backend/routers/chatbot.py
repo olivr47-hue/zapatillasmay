@@ -229,6 +229,7 @@ Cuando pregunten por algún tipo de calzado o modelo específico:
 - Incluye su foto: ENVIAR_FOTO:[url_exacta_del_IMG]
 - Pregunta si le gusta o si quiere ver los colores disponibles
 - Ejemplo: "Tenemos el MA302 a $365 👠 ENVIAR_FOTO:[https://...] ¿Te gusta? ¿Le doy una vuelta a los colores disponibles?"
+- CARRUSEL: si la clienta pide ver el catálogo, "más opciones", "muéstrame más", o pide varios modelos o un tipo de calzado en general, NO mandes modelo por modelo: usa UNA SOLA VEZ el marcador ENVIAR_CARRUSEL:[SKU1,SKU2,SKU3,SKU4] con 4 a 8 SKU exactos del catálogo de abajo (los de [SKU:...]), con una frase corta antes. El sistema manda las fotos con nombre, precio y tallas; tú NO escribas la lista de modelos ni uses ENVIAR_FOTO en ese mensaje. No incluyas modelos que ya le mostraste. Si ya mandaste 2 carruseles y sigue pidiendo más, dale el enlace de la categoría en https://zapatillasmay.mx para que navegue sola.
 
 PASO 2 — MOSTRAR COLORES (cuando el cliente muestre interés en un modelo):
 - USA el marcador: BUSCAR_COLORES:[SKU_exacto]
@@ -827,6 +828,42 @@ def _extraer_generar_pago(texto: str):
     texto_limpio = (texto[:idx] + texto[end + 1:]).strip()
     return json_str, texto_limpio
 
+def _resolver_carrusel(productos, claves, mayorista=False, vistos=None, maximo=8):
+    """Convierte los SKU/códigos que escribió la IA en tarjetas {imagen_url, texto} para el carrusel.
+    Solo entran modelos reales con foto y con existencia; sin repetir; y sin los que la clienta ya vio (salvo que no quede ninguno)."""
+    vistos = vistos or set()
+    por_clave = {}
+    for p in productos:
+        for k in (_cat_rel._norm(p.get("sku_interno") or "").replace(" ", ""), _cat_rel._codigo_de(p)):
+            if k:
+                por_clave.setdefault(k, p)
+    elegidos, ids = [], set()
+    for c in claves:
+        p = por_clave.get(_cat_rel._norm(c).replace(" ", ""))
+        if not p or p.get("id") in ids or not p.get("imagen_principal"):
+            continue
+        if p.get("tallas_disponibles") == []:
+            continue                                   # agotado
+        ids.add(p.get("id"))
+        elegidos.append(p)
+    nuevos = [p for p in elegidos if _cat_rel._codigo_de(p) not in vistos]
+    elegidos = (nuevos or elegidos)[:maximo]
+    tarjetas = []
+    for p in elegidos:
+        pw = precios_web(p)
+        codigo = (p.get("nombre") or "").split(" ")[0]
+        resto = " ".join((p.get("nombre") or "").split(" ")[1:])
+        linea1 = f"*{codigo}* {resto}".strip()[:120] + f" — ${pw['menudeo']:.0f}"
+        extra = []
+        if mayorista and not p.get("es_oferta"):
+            pp = precios_portal(p)
+            extra.append(f"Mayoreo 3-5 pares ${pp['mayoreo3']:.0f} · 6+ ${pp['mayoreo6']:.0f}")
+        if p.get("tallas_disponibles"):
+            extra.append("Tallas: " + ", ".join(str(x) for x in p["tallas_disponibles"]))
+        tarjetas.append({"imagen_url": p["imagen_principal"], "texto": "\n".join([linea1] + extra)})
+    return tarjetas
+
+
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
 
@@ -867,6 +904,29 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
             enviar_whatsapp_texto(from_number, msg_fallback)
             msg_enviado = (texto + "\n\n" + msg_fallback).strip() if texto else msg_fallback
         return msg_enviado or respuesta_claude
+
+    # ── ENVIAR_CARRUSEL:[SKU1,SKU2,...] (varias fotos de una vez, en vez de ir modelo por modelo) ──
+    match_carrusel = re.search(r'ENVIAR_CARRUSEL:\[([^\]]*)\]', respuesta_claude)
+    if match_carrusel:
+        texto = re.sub(r'ENVIAR_CARRUSEL:\[[^\]]*\]', '', respuesta_claude).strip()
+        claves = [x.strip() for x in match_carrusel.group(1).split(",") if x.strip()]
+        try:
+            vistos = _cat_rel.codigos_del_historial(obtener_historial(from_number))
+            tarjetas = _resolver_carrusel(cargar_catalogo(), claves, es_mayorista_registrado(from_number), vistos)
+        except Exception as e:
+            print(f"[chatbot] no se pudo armar el carrusel para {from_number}: {e}")
+            tarjetas = []
+        if texto:
+            enviar_whatsapp_texto(from_number, texto)
+        if tarjetas:
+            time.sleep(0.8)
+            r = enviar_carrusel(from_number, {"cuerpo": "", "tarjetas": tarjetas, "agente": "Maya"})
+            if not (isinstance(r, dict) and r.get("ok")):
+                print(f"[chatbot] el carrusel de Maya no se envió a {from_number}: {r}")
+                enviar_whatsapp_texto(from_number, "Te dejo el catálogo completo para que lo veas con calma 👠 https://zapatillasmay.mx")
+        else:
+            enviar_whatsapp_texto(from_number, "Te dejo el catálogo completo para que lo veas con calma 👠 https://zapatillasmay.mx")
+        return texto or respuesta_claude
 
     # ── BUSCAR_COLORES:[SKU] ─────────────────────────────────────────────────
     match_colores = re.search(r'BUSCAR_COLORES:\[?([A-Za-z0-9_\-]+)\]?', respuesta_claude)
@@ -952,6 +1012,7 @@ def obtener_historial(telefono, limite=10):
                 resp_limpia = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', resp)
                 resp_limpia = re.sub(r'ENVIAR_FOTO:\S+', '', resp_limpia)
                 resp_limpia = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', resp_limpia)
+                resp_limpia = re.sub(r'ENVIAR_CARRUSEL:\[[^\]]*\]', '', resp_limpia)
                 _, resp_limpia = _extraer_generar_pago(resp_limpia)
                 resp_limpia = resp_limpia.strip()
                 if resp_limpia:
@@ -2114,6 +2175,7 @@ def _limpiar_respuesta_ia_meta(texto: str) -> str:
     limpio = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', texto or '')
     limpio = re.sub(r'ENVIAR_FOTO:\S+', '', limpio)
     limpio = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', limpio)
+    limpio = re.sub(r'ENVIAR_CARRUSEL:\[[^\]]*\]', '', limpio)
     _, limpio = _extraer_generar_pago(limpio)
     return limpio.strip()
 
@@ -2182,7 +2244,7 @@ REGLAS PARA COMENTARIOS PUBLICOS (todo mundo lo ve, no es un chat privado):
 - Responde en 1-2 lineas, tono amigable de marca, nunca como robot.
 - Si preguntan precio, tallas o disponibilidad de un modelo del catalogo: contesta con el dato EXACTO del catalogo.
 - NUNCA pidas datos personales (direccion, telefono, email) en el comentario -- si hace falta cerrar una venta, invita a mandar mensaje directo: "Te esperamos por inbox para tu pedido 💕"
-- NUNCA generes links de pago ni uses marcadores internos (ENVIAR_FOTO, BUSCAR_COLORES, GENERAR_PAGO) -- aqui no aplican.
+- NUNCA generes links de pago ni uses marcadores internos (ENVIAR_FOTO, ENVIAR_CARRUSEL, BUSCAR_COLORES, GENERAR_PAGO) -- aqui no aplican.
 - Si el comentario no tiene relacion con el negocio, es spam o solo un emoji: responde algo breve y cordial (ej. un emoji o "¡Gracias! 😊"), nunca lo ignores por completo.
 - Responde siempre en español mexicano natural."""
 
