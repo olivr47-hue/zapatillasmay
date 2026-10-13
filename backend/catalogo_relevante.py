@@ -139,19 +139,36 @@ def codigos_del_historial(historial: list) -> set:
     return cods
 
 
+_PIDE_MAS = re.compile(r"\b(mas|otro|otra|otros|otras|similar\w*|parecid\w*|diferente\w*|descartad\w*|siguiente\w*|variedad|opciones)\b")
+
+
+def _pide_mas(consulta: str) -> bool:
+    return bool(_PIDE_MAS.search(_norm(consulta)))
+
+
+def _contexto_usuario(historial: list, n: int = 3) -> str:
+    """Últimos mensajes de la clienta: dan el contexto cuando solo dice 'muéstrame más'."""
+    msgs = [m.get("content") for m in (historial or []) if m.get("role") == "user" and isinstance(m.get("content"), str)]
+    return " ".join(msgs[-n:])
+
+
 def seleccionar(productos: list, consulta: str, historial: list = None, colores_por_producto: dict = None, n: int = 10) -> list:
     hist = codigos_del_historial(historial)
     colores_por_producto = colores_por_producto or {}
+    mas = _pide_mas(consulta)
+    consulta_ef = (consulta + " " + _contexto_usuario(historial)) if mas else consulta
     puntuados = []
     for p in productos:
-        pts = puntuar(p, consulta, hist, colores_por_producto.get(p.get("id"), set()))
+        if mas and _codigo_de(p) in hist:
+            continue                                # pide ver otros: los que ya se le mostraron no se repiten
+        pts = puntuar(p, consulta_ef, set() if mas else hist, colores_por_producto.get(p.get("id"), set()))
         if pts > 0:
             puntuados.append((pts, p))
     puntuados.sort(key=lambda x: (-x[0], str(x[1].get("nombre"))))
     elegidos = [p for _, p in puntuados[:n]]
     if len(elegidos) < 6:                           # pregunta general o sin coincidencias: completa con novedades y ofertas
         ids = {p.get("id") for p in elegidos}
-        extra = [p for p in productos if p.get("id") not in ids and (p.get("nuevo") or p.get("es_oferta"))]
+        extra = [p for p in productos if p.get("id") not in ids and (p.get("nuevo") or p.get("es_oferta")) and not (mas and _codigo_de(p) in hist)]
         extra.sort(key=lambda p: (not p.get("nuevo"), str(p.get("nombre"))))
         elegidos += extra[:6 - len(elegidos)]
     return elegidos
@@ -178,4 +195,9 @@ ENCABEZADO = (
 def construir(productos: list, consulta: str, historial: list, mayorista: bool, colores_por_producto: dict, construir_lineas, n: int = 10) -> str:
     """`construir_lineas(lista, mayorista)` es construir_catalogo del chatbot (mismo formato de línea)."""
     elegidos = seleccionar(productos, consulta, historial, colores_por_producto, n)
-    return ENCABEZADO.format(total=len(productos), categorias=resumen_categorias(productos)) + construir_lineas(elegidos, mayorista)
+    vistos = sorted(c.upper() for c in codigos_del_historial(historial) if any(_codigo_de(p) == c for p in productos))
+    aviso = ""
+    if vistos:
+        aviso = ("YA LE MOSTRASTE a esta clienta: " + ", ".join(vistos[:20]) + ". No repitas esos modelos ni su foto a menos que ella lo pida; si pide ver más y ya llevas "
+                 "varias rondas, mándale el enlace de la categoría en https://zapatillasmay.mx para que navegue sola en vez de ir modelo por modelo.\n")
+    return ENCABEZADO.format(total=len(productos), categorias=resumen_categorias(productos)) + aviso + construir_lineas(elegidos, mayorista)
