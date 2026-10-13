@@ -1312,14 +1312,16 @@ function zmRechazarCookies() {
         }, { threshold: 0.15 }).observe(trustStrip);
       }
 
-      // Tiers (cajas) entran en stagger desde abajo
-      gsap.fromTo('.cro-tier',
-        { opacity: 0, y: 30, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1,
-          duration: 0.6, ease: 'back.out(1.4)', stagger: 0.1,
-          scrollTrigger: { trigger: '.cro-mayoreo-tiers', start: 'top 88%', once: true }
-        }
-      );
+      // Tiers (cajas) entran en stagger desde abajo (esa sección ya no está en la página: solo se anima si existe, para no llenar la consola de avisos)
+      if (document.querySelector('.cro-tier') && document.querySelector('.cro-mayoreo-tiers')) {
+        gsap.fromTo('.cro-tier',
+          { opacity: 0, y: 30, scale: 0.95 },
+          { opacity: 1, y: 0, scale: 1,
+            duration: 0.6, ease: 'back.out(1.4)', stagger: 0.1,
+            scrollTrigger: { trigger: '.cro-mayoreo-tiers', start: 'top 88%', once: true }
+          }
+        );
+      }
 
       // Garantías entran desde la izquierda
       gsap.fromTo('.cro-garantia',
