@@ -160,6 +160,7 @@ def _resumir_pedidos(pedidos: list) -> str:
     return "\n".join(lineas)
 
 _PORTAL_URL = "https://portal.zapatillasmay.mx"
+_WA_MAYOREO = "477 247 2285"   # WhatsApp de atención a mayoristas (https://wa.me/524772472285)
 
 
 def _seccion_precios(mayorista: bool) -> str:
@@ -168,7 +169,7 @@ def _seccion_precios(mayorista: bool) -> str:
 - Esta persona es CLIENTE MAYORISTA REGISTRADA. Por WhatsApp NUNCA des precios de mayoreo, de corrida ni de varios pares: no los tienes en el catálogo y NO los inventes.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
 - Para cualquier pedido de 3 pares o más, corridas, o si pregunta por sus precios de mayoreo: mándala a su portal {_PORTAL_URL} — ahí ve sus precios, arma su carrito y aparta sus pares. Dilo con amabilidad y dale el enlace.
-- Si insiste en que le des los precios por aquí, dile que por su seguridad y para que siempre vea precios y existencias al momento, los maneja en el portal; y que si necesita ayuda con el portal, una asesora le apoya."""
+- Si prefiere que la atiendan por WhatsApp (precios, pedidos de mayoreo, dudas del portal), pásale el WhatsApp de atención a mayoristas: {_WA_MAYOREO} (https://wa.me/524772472285). NO le des precios de mayoreo tú."""
     return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
 - Esta persona es CLIENTE MAYORISTA REGISTRADA en el portal: usa para ella los precios de PORTAL del catálogo.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo (precio del sitio web).
@@ -181,7 +182,7 @@ def _seccion_precios(mayorista: bool) -> str:
 - Usa SIEMPRE los precios del sitio web que aparecen en el catálogo.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
 - Desde 3 pares (puede mezclar estilos y colores): precio "3+ pares" del catálogo. Preséntalo SIEMPRE como "descuento por comprar varios pares", NUNCA como "precio de mayoreo".
-- Los precios del sitio web son precios de MENUDEO (incluso con el descuento por varios pares). Si preguntan por "precio de mayoreo", mayoreo formal, corridas, zapaterías o revendedoras: aclárale que los precios del sitio son de menudeo, NO des precios de mayoreo ni de corrida por aquí, y mándale al Portal Mayorista: {_PORTAL_URL} — ahí se registra, arma su carrito, aparta sus pares y ve sus precios de mayoreo.
+- Los precios del sitio web son precios de MENUDEO (incluso con el descuento por varios pares). Si preguntan por "precio de mayoreo", mayoreo formal, corridas, zapaterías o revendedoras: aclárale que los precios del sitio son de menudeo, NO des precios de mayoreo ni de corrida por aquí, y mándale al Portal Mayorista: {_PORTAL_URL} — ahí se registra, arma su carrito, aparta sus pares y ve sus precios de mayoreo. Si prefiere que la atiendan por WhatsApp, pásale el WhatsApp de atención a mayoristas: {_WA_MAYOREO} (https://wa.me/524772472285).
 - Si dice que ya está registrada en el portal pero no la reconoces, dile que una asesora le confirma sus precios en un momento."""
 
 
@@ -269,7 +270,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + 
 - NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
 - Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre, dirección y email para envío.
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
-- Si preguntan por mayoreo o corrida: sigue la sección PRECIOS Y MAYOREO de arriba (mayorista registrada o no, NUNCA des precios de mayoreo ni de corrida por WhatsApp: mándala al Portal Mayorista). NUNCA inventes precios.
+- Si preguntan por mayoreo o corrida: sigue la sección PRECIOS Y MAYOREO de arriba (mayorista registrada o no, NUNCA des precios de mayoreo ni de corrida por WhatsApp: mándala al Portal Mayorista o al WhatsApp de mayoristas 477 247 2285). NUNCA inventes precios.
 - Sé diferente en cada mensaje, no repitas el mismo texto
 - Responde siempre en español mexicano natural
 
