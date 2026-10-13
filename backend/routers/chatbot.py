@@ -167,7 +167,8 @@ def _seccion_precios(mayorista: bool) -> str:
     if mayorista:
         return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
 - Esta persona es CLIENTE MAYORISTA REGISTRADA. Por WhatsApp NUNCA des precios de mayoreo, de corrida ni de varios pares: no los tienes en el catálogo y NO los inventes.
-- Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
+- Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL (es el precio del SITIO WEB, nunca otro).
+- SIEMPRE que le des un precio (en texto o en un carrusel de fotos), aclárale en ese mismo mensaje que son precios de MENUDEO, los del sitio web, y que los precios de mayoreo solo se los damos en su portal {_PORTAL_URL} o por WhatsApp al {_WA_MAYOREO} (https://wa.me/524772472285). No lo omitas aunque ya se lo hayas dicho antes si vuelve a pedir precios.
 - Para cualquier pedido de 3 pares o más, corridas, o si pregunta por sus precios de mayoreo: mándala a su portal {_PORTAL_URL} — ahí ve sus precios, arma su carrito y aparta sus pares. Dilo con amabilidad y dale el enlace.
 - Si prefiere que la atiendan por WhatsApp (precios, pedidos de mayoreo, dudas del portal), pásale el WhatsApp de atención a mayoristas: {_WA_MAYOREO} (https://wa.me/524772472285). NO le des precios de mayoreo tú."""
     return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
