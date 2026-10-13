@@ -93,11 +93,8 @@ def construir_catalogo(productos, mayorista=False):
         catalogo += f": menudeo ${_pw['menudeo']:.0f}"
         if not p.get('es_oferta'):
             if mayorista:
-                # Cliente mayorista REGISTRADA: precios del portal
-                _pp = precios_portal(p)
-                catalogo += f", mayoreo 3-5pares ${_pp['mayoreo3']:.0f}, mayoreo 6+ ${_pp['mayoreo6']:.0f}"
-                if p.get('corrida_activa') or p.get('precio_corrida'):
-                    catalogo += f", corrida ${_pp['corrida']:.0f}"
+                # Cliente mayorista REGISTRADA: por WhatsApp solo menudeo; sus precios de mayoreo los ve en el portal
+                pass
             else:
                 # Cualquier otra persona: solo el precio del sitio (desde 3 pares el sitio descuenta solo)
                 catalogo += f", 3+ pares ${_pw['mayoreo3']:.0f}"
@@ -168,6 +165,11 @@ _PORTAL_URL = "https://portal.zapatillasmay.mx"
 def _seccion_precios(mayorista: bool) -> str:
     if mayorista:
         return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
+- Esta persona es CLIENTE MAYORISTA REGISTRADA. Por WhatsApp NUNCA des precios de mayoreo, de corrida ni de varios pares: no los tienes en el catálogo y NO los inventes.
+- Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
+- Para cualquier pedido de 3 pares o más, corridas, o si pregunta por sus precios de mayoreo: mándala a su portal {_PORTAL_URL} — ahí ve sus precios, arma su carrito y aparta sus pares. Dilo con amabilidad y dale el enlace.
+- Si insiste en que le des los precios por aquí, dile que por su seguridad y para que siempre vea precios y existencias al momento, los maneja en el portal; y que si necesita ayuda con el portal, una asesora le apoya."""
+    return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
 - Esta persona es CLIENTE MAYORISTA REGISTRADA en el portal: usa para ella los precios de PORTAL del catálogo.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo (precio del sitio web).
 - Mayoreo variado 3-5 pares: precio "mayoreo 3-5pares" del catálogo (puede mezclar estilos y colores).
@@ -267,7 +269,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + 
 - NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
 - Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre, dirección y email para envío.
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
-- Si preguntan por mayoreo o corrida: sigue la sección PRECIOS Y MAYOREO de arriba (si no es mayorista registrada, mándala al Portal Mayorista; si lo es, usa los precios de portal del catálogo). NUNCA inventes precios.
+- Si preguntan por mayoreo o corrida: sigue la sección PRECIOS Y MAYOREO de arriba (mayorista registrada o no, NUNCA des precios de mayoreo ni de corrida por WhatsApp: mándala al Portal Mayorista). NUNCA inventes precios.
 - Sé diferente en cada mensaje, no repitas el mismo texto
 - Responde siempre en español mexicano natural
 
@@ -855,9 +857,6 @@ def _resolver_carrusel(productos, claves, mayorista=False, vistos=None, maximo=8
         resto = " ".join((p.get("nombre") or "").split(" ")[1:])
         linea1 = f"*{codigo}* {resto}".strip()[:120] + f" — ${pw['menudeo']:.0f}"
         extra = []
-        if mayorista and not p.get("es_oferta"):
-            pp = precios_portal(p)
-            extra.append(f"Mayoreo 3-5 pares ${pp['mayoreo3']:.0f} · 6+ ${pp['mayoreo6']:.0f}")
         if p.get("tallas_disponibles"):
             extra.append("Tallas: " + ", ".join(str(x) for x in p["tallas_disponibles"]))
         tarjetas.append({"imagen_url": p["imagen_principal"], "texto": "\n".join([linea1] + extra)})
