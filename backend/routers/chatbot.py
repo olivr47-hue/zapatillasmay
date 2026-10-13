@@ -171,14 +171,6 @@ def _seccion_precios(mayorista: bool) -> str:
 - Para cualquier pedido de 3 pares o más, corridas, o si pregunta por sus precios de mayoreo: mándala a su portal {_PORTAL_URL} — ahí ve sus precios, arma su carrito y aparta sus pares. Dilo con amabilidad y dale el enlace.
 - Si prefiere que la atiendan por WhatsApp (precios, pedidos de mayoreo, dudas del portal), pásale el WhatsApp de atención a mayoristas: {_WA_MAYOREO} (https://wa.me/524772472285). NO le des precios de mayoreo tú."""
     return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
-- Esta persona es CLIENTE MAYORISTA REGISTRADA en el portal: usa para ella los precios de PORTAL del catálogo.
-- Menudeo (1-2 pares): precio "menudeo" del catálogo (precio del sitio web).
-- Mayoreo variado 3-5 pares: precio "mayoreo 3-5pares" del catálogo (puede mezclar estilos y colores).
-- Mayoreo variado 6+ pares: precio "mayoreo 6+" del catálogo.
-- Corrida completa: precio "corrida" del catálogo (mismo estilo/color, tallas 23 al 26 con medios = 6 pares).
-- Puedes recordarle que también puede armar su carrito y apartar sus pares en su portal: {_PORTAL_URL}
-- Si un modelo no muestra precio de mayoreo/corrida en el catálogo, ofrece el de menudeo y di que confirmas el de mayoreo con una asesora."""
-    return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
 - Usa SIEMPRE los precios del sitio web que aparecen en el catálogo.
 - Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
 - Desde 3 pares (puede mezclar estilos y colores): precio "3+ pares" del catálogo. Preséntalo SIEMPRE como "descuento por comprar varios pares", NUNCA como "precio de mayoreo".
