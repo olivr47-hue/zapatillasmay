@@ -51,14 +51,23 @@ function pintarLista() {
     </div>`).join('') : '<p style="padding:24px 14px;text-align:center;color:#94a3b8;font-size:0.8rem;margin:0">Sin avisos en los últimos 3 días.</p>'
 }
 
-window.campanaIr = (i) => {
+window.campanaIr = async (i) => {
   const a = AVISOS[i]
   document.getElementById('campana-panel')?.remove()
   if (!a) return
   try {
     const u = new URL(a.url || '/', location.origin)
-    const mod = u.searchParams.get('modulo')
-    if (mod && typeof window.navegarA === 'function') window.navegarA(mod)
+    let mod = u.searchParams.get('modulo')
+    const tel = u.searchParams.get('telefono')
+    // Los avisos de correo nuevo se guardan solo con "/": se reconocen por el título
+    if (!mod && /correo/i.test(a.titulo || '')) mod = 'correo'
+    if (!mod || typeof window.navegarA !== 'function') return
+    // Un aviso de mensaje abre el chat de esa clienta, no solo la lista. Se usa el mecanismo del panel ("qué abrir al llegar al módulo")
+    // para que la lista no se cargue después y borre el chat recién abierto.
+    if (mod === 'conversaciones' && tel) {
+      window._alAbrirModulo = async () => { await window.cargarConversaciones?.(); window.abrirChat?.(tel) }
+    }
+    window.navegarA(mod)
   } catch (e) {}
 }
 

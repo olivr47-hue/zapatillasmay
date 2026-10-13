@@ -214,11 +214,11 @@ async function _manejarDeepLinkNotificacion() {
   const telefono = params.get('telefono')
   if (!modulo) return
   history.replaceState(null, '', location.pathname)
-  window.navegarA(modulo)
   if (modulo === 'conversaciones' && telefono) {
-    await window.cargarConversaciones()
-    window.abrirChat(telefono)
+    // El módulo se carga una sola vez y al terminar abre el chat (si no, la lista se dibujaba después y borraba el chat)
+    window._alAbrirModulo = async () => { await window.cargarConversaciones(); window.abrirChat(telefono) }
   }
+  window.navegarA(modulo)
 }
 
 function renderLogin() {
