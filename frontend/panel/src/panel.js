@@ -26926,16 +26926,16 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
   ov.onclick = (ev) => { if (ev.target === ov) ov.remove() }
   const puedeResponder = tab === 'inbox'
   ov.innerHTML = `
-    <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
+    <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
         <div style="min-width:0">
-          <p style="margin:0;font-weight:700;font-size:0.95rem">${_escSugerencia(asunto || '—')}</p>
+          <p style="margin:0;font-weight:700;font-size:0.95rem;overflow-wrap:anywhere">${_escSugerencia(asunto || '—')}</p>
           <p style="margin:4px 0 0;font-size:0.8rem;color:#888">${_escSugerencia(contacto || '')}</p>
         </div>
         <button onclick="document.getElementById('modal-buzon-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
       </div>
-      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:1rem">
-        <iframe id="buzon-iframe-${messageId}" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:420px;border:none"></iframe>
+      <div id="buzon-cuerpo-${messageId}" style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:1rem">
+        <iframe id="buzon-iframe-${messageId}" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:min(420px,45vh);border:none"></iframe>
       </div>
       <div id="buzon-adjuntos-${messageId}"></div>
       ${puedeResponder ? `<button class="btn btn-primary" onclick="window._buzonRedactar(${_escSugerencia(JSON.stringify(contacto))}, ${_escSugerencia(JSON.stringify('Re: ' + (asunto||'')))}, '${messageId}')">↩️ Responder</button>` : ''}
@@ -26945,7 +26945,13 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
     const res = await fetch(`${API}/emails/buzon/mensaje/${folderId}/${messageId}`)
     const data = await res.json()
     const iframe = document.getElementById(`buzon-iframe-${messageId}`)
-    if (iframe) iframe.srcdoc = (data.html ? '<base target="_blank">' + data.html : '') || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
+    const textoVisible = String(data.html || '').replace(/<(style|script)[\s\S]*?<\/\1>/gi, '').replace(/<(?!img\b)[^>]*>/gi, '').replace(/&nbsp;|\s/g, '')
+    const sinTexto = !textoVisible && data.adjuntos && data.adjuntos.length
+    if (sinTexto) {
+      // Correo sin texto (p. ej. los reportes DMARC de Google traen solo un adjunto): en lugar de un recuadro en blanco se avisa
+      const caja = document.getElementById(`buzon-cuerpo-${messageId}`)
+      if (caja) caja.innerHTML = '<p style="margin:0;padding:12px 14px;font-size:0.82rem;color:#888">Este correo no trae texto, solo archivos adjuntos.</p>'
+    } else if (iframe) iframe.srcdoc = (data.html ? '<base target="_blank">' + data.html : '') || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
     const cont = document.getElementById(`buzon-adjuntos-${messageId}`)
     if (cont && data.adjuntos && data.adjuntos.length) {
       cont.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem'
@@ -26953,7 +26959,7 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
         const url = `${API}/emails/buzon/adjunto/${folderId}/${messageId}/${a.attachmentId}`
         const nombre = a.attachmentName || 'archivo'
         const kb = a.attachmentSize ? `${Math.round(a.attachmentSize / 1024)} KB` : ''
-        return `<a href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:0.78rem;color:#333;text-decoration:none">📎 ${_escSugerencia(nombre)}${kb ? ` <span style="color:#999">(${kb})</span>` : ''}</a>`
+        return `<a href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-all;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:0.78rem;color:#333;text-decoration:none">📎 ${_escSugerencia(nombre)}${kb ? ` <span style="color:#999">(${kb})</span>` : ''}</a>`
       }).join('')
     }
   } catch (e) {
