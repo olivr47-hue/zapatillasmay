@@ -133,6 +133,10 @@ ruta('GET', /^\/finanzas\/(reporte|estado-resultados|desglose)\/?$/, ({ qs }) =>
 
 // Conversaciones (WhatsApp)
 ruta('GET', /^\/chatbot\/chats\/?$/, () => db.chats.map(({ mensajes, ...c }) => c))
+ruta('GET', /^\/chatbot\/chats\/([^/]+)\/pedidos\/?$/, () => [
+  { id: 'a1b2c3d4-0000-0000-0000-000000000001', created_at: new Date(Date.now() - 2 * 864e5).toISOString(), status: 'enviado', total: 1040, forma_pago: 'tarjeta', paqueteria: 'Estafeta', numero_guia: '8012345678', tracking_url: 'https://example.com/rastreo', articulos: [{ nombre: 'MA302 Tacón clásico', color: 'Negro', talla: '24', cantidad: 2 }] },
+  { id: 'e5f6a7b8-0000-0000-0000-000000000002', created_at: new Date(Date.now() - 40 * 864e5).toISOString(), status: 'entregado', total: 510, forma_pago: 'transferencia', articulos: [{ nombre: 'CR3385 Sandalia con brillos', color: 'Oro', talla: '23', cantidad: 1 }] },
+])
 ruta('GET', /^\/chatbot\/chats\/([^/]+)\/?(mensajes)?$/, ({ m }) => { const c = db.chats.find(x => x.telefono === m[1]); return c ? (m[2] ? c.mensajes : { ...c }) : [] })
 ruta('POST', /^\/chatbot\/chats\/([^/]+)\/(enviar|mensaje)\/?$/, ({ m, body }) => { const c = db.chats.find(x => x.telefono === m[1]); if (c) c.mensajes.push({ id: nuevoId(), direccion: 'out', texto: body.texto || body.mensaje || '', created_at: new Date().toISOString() }); return { ok: true } })
 ruta('GET', /^\/chatbot\/config\/?$/, () => ({ activo: true, prompt: 'Eres Maya, la asistente de Zapatillas May (demo).' }))

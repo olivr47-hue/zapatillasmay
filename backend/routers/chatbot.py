@@ -107,18 +107,33 @@ def construir_catalogo(productos, mayorista=False):
         catalogo += "\n"
     return catalogo
 
+def _pedidos_por_telefono(telefono: str, select: str, extra: str = "", limite: int = 8) -> list:
+    """Pedidos de una persona a partir de su teléfono de WhatsApp: los que guardan ese teléfono y los enlazados a su ficha de cliente
+    (la mayoría de los pedidos solo traen cliente_id). Se compara por los últimos 10 dígitos."""
+    d10 = re.sub(r"\D", "", telefono or "")[-10:]
+    if len(d10) < 10:
+        return []
+    ids = []
+    try:
+        cola = urllib.parse.quote(f"*{d10[-4:]}", safe="*")
+        for c in supabase_get(f"clientes?telefono=ilike.{cola}&select=id,telefono&limit=25") or []:
+            if re.sub(r"\D", "", c.get("telefono") or "")[-10:] == d10:
+                ids.append(str(c["id"]))
+    except Exception as e:
+        print(f"[pedidos-tel] no se pudo buscar la ficha del cliente: {e}")
+    cond = f"telefono_cliente.ilike.*{d10}"
+    if ids:
+        cond += f",cliente_id.in.({','.join(ids)})"
+    return supabase_get(f"pedidos?or=({cond}){extra}&order=created_at.desc&limit={limite}&select={select}") or []
+
+
 def obtener_pedidos_cliente(telefono: str) -> list:
     """Busca los pedidos recientes del cliente por teléfono para dárselos a Maya."""
     try:
-        tel = telefono.replace("+", "").strip()
-        tel_sin = tel[2:] if tel.startswith("52") else tel
-        tel_con = "52" + tel_sin
-        pedidos = supabase_get(
-            f"pedidos?telefono_cliente=in.({tel_con},{tel_sin})"
-            f"&status=neq.cancelado&order=created_at.desc&limit=5"
-            f"&select=id,created_at,status,total,notas,direccion_envio,numero_guia,paqueteria,tracking_url,forma_pago"
-        )
-        return pedidos if pedidos else []
+        return _pedidos_por_telefono(
+            telefono,
+            "id,created_at,status,total,notas,direccion_envio,numero_guia,paqueteria,tracking_url,forma_pago",
+            "&status=neq.cancelado", 5)
     except Exception as e:
         print(f"[pedidos-cliente] Error: {e}")
         return []
@@ -3410,6 +3425,31 @@ def cliente_del_chat(telefono: str, _staff=Depends(require_staff)):
             if re.sub(r"\D", "", c.get("telefono") or "")[-10:] == d10:
                 return {"registrado": True, "id": c["id"], "nombre": c.get("nombre") or "", "activo": c.get("activo") is not False}
         return {"registrado": False}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/chats/{telefono}/pedidos")
+def pedidos_del_chat(telefono: str, _staff=Depends(require_staff)):
+    """Pedidos de la persona de este chat (estatus, guía, artículos), para consultarlos sin salir de la conversación."""
+    try:
+        filas = _pedidos_por_telefono(
+            telefono,
+            "id,created_at,status,total,forma_pago,canal,tipo,numero_guia,paqueteria,tracking_url,enviado_at,fecha_pago,oculto,nombre_cliente,"
+            "ml_order_id,walmart_order_id,shein_order_id,amazon_order_id",
+            "&status=neq.borrador", 10)
+        filas = [p for p in filas if not p.get("oculto")]
+        if filas:
+            ids = ",".join(str(p["id"]) for p in filas)
+            por = {}
+            for it in supabase_get(f"pedido_items?pedido_id=in.({ids})&select=pedido_id,nombre,color,talla,cantidad") or []:
+                por.setdefault(it["pedido_id"], []).append(it)
+            for p in filas:
+                p["articulos"] = [
+                    {"nombre": (i.get("nombre") or "")[:70], "color": i.get("color") or "", "talla": i.get("talla") or "", "cantidad": i.get("cantidad") or 1}
+                    for i in por.get(p["id"], [])
+                ]
+        return filas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

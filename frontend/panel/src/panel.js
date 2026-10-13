@@ -13,6 +13,7 @@ import './atencion-hoy.js'
 import './ml-devoluciones.js'
 import './shein-revision.js'
 import './existencias-chat.js'
+import './chat-pedidos.js'
 import './novedades-modelos.js'
 import './campana-avisos.js'
 
@@ -18744,7 +18745,7 @@ area.style.minHeight = '0'
         ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
       ${chat.origen ? `<span title="De dónde llegó esta conversación (página del sitio · fuente de la visita)" style="background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:100px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis">📍 Viene de: ${_e(String(chat.origen).replace(/\s*\|\s*/g, ' · '))}</span>` : ''}
-      ${_esWhatsappChat ? `<span id="wa-reg-${telefono}" style="font-size:0.72rem;color:#94a3b8">Revisando si ya es clienta…</span>` : ''}
+      ${_esWhatsappChat ? `<span id="wa-reg-${telefono}" style="font-size:0.72rem;color:#94a3b8">Revisando si ya es clienta…</span><span id="wa-ped-${telefono}"></span>` : ''}
       <select onchange="cambiarEtiqueta('${_ja(telefono)}', this.value)" class="wa-label-select-sm">
         <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>Sin etiqueta</option>
         <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>Pregunta</option>
@@ -18849,7 +18850,7 @@ area.style.minHeight = '0'
   `
 
   window._ajustarAlturaChat()
-  if (_esWhatsappChat) window.waCargarRegistro(telefono, chat)
+  if (_esWhatsappChat) { window.waCargarRegistro(telefono, chat); window.waCargarPedidos?.(telefono) }
   // Si se está repintando la conversación que ya estaba abierta, no perder lo escrito ni el foco
   if (_borradorPrevio != null) {
     const ti = document.getElementById('msg-input-' + telefono)
