@@ -9281,7 +9281,7 @@ window.mostrarFormProducto = (datos) => {
               <span>Meta titulo <span style="color:#888;font-size:0.72rem">(SEO)</span></span>
               <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
             </label>
-            <input class="form-input" id="f-metatitulo" placeholder="se genera solo al guardar: tipo + detalle + tacón, sin el código del modelo" value="${d.meta_titulo || ''}" oninput="this.dataset.autofilled='false'">
+            <input class="form-input" id="f-metatitulo" placeholder="Se llena solo al escribir el nombre (o con ✨ Generar SEO)" value="${d.meta_titulo || ''}" oninput="this.dataset.autofilled='false'">
           </div>
           <div>
             <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -9289,9 +9289,9 @@ window.mostrarFormProducto = (datos) => {
               <span id="metadesc-counter" style="font-size:0.72rem;color:${d.meta_descripcion && d.meta_descripcion.length > 140 ? '#e65100' : '#888'}">${d.meta_descripcion ? d.meta_descripcion.length + '/160' : '0/160'}</span>
             </label>
             <textarea class="form-input" id="f-metadesc" rows="3"
-                      placeholder="Usa ✨ Generar SEO para crear una descripcion optimizada para Google (max 160 caracteres)"
+                      placeholder="Se llena sola al escribir el nombre (o con ✨ Generar SEO). Máximo 160 caracteres"
                       style="resize:vertical"
-                      oninput="var c=document.getElementById('metadesc-counter');if(c){c.textContent=this.value.length+'/160';c.style.color=this.value.length>160?'#c62828':this.value.length>140?'#e65100':'#888'}">${d.meta_descripcion || ''}</textarea>
+                      oninput="this.dataset.autofilled='false';var c=document.getElementById('metadesc-counter');if(c){c.textContent=this.value.length+'/160';c.style.color=this.value.length>160?'#c62828':this.value.length>140?'#e65100':'#888'}">${d.meta_descripcion || ''}</textarea>
           </div>
         </div>
       </div>
@@ -9457,7 +9457,20 @@ function _aplicarMetaDesc(desc) {
   }
 }
 
-window.generarSEO = async () => {
+// Modo automático (silencioso): se llama solo al escribir nombre, categoría, tacón, material o precio. Llena título y descripción de Google
+// SOLO si están vacíos o los puso este mismo código; nunca pisa lo que la dueña escribió a mano. El botón "✨ Generar SEO" sí los rehace siempre.
+let _seoPeticion = 0
+let _seoTimer = null
+window._autoSEO = () => { clearTimeout(_seoTimer); _seoTimer = setTimeout(() => window.generarSEO(true), 900) }
+if (!window._autoSeoListener) {
+  window._autoSeoListener = true
+  const _ids = new Set(['f-nombre', 'f-categoria', 'f-tacon', 'f-tipotacon', 'f-material', 'f-menudeo', 'f-descripcion'])
+  const _h = (e) => { if (e.target && _ids.has(e.target.id) && document.getElementById('btn-generar-seo')) window._autoSEO() }
+  document.addEventListener('input', _h)
+  document.addEventListener('change', _h)
+}
+window.generarSEO = async (silencioso) => {
+  silencioso = silencioso === true
   const nombre     = (document.getElementById('f-nombre')?.value || '').trim()
   const descripcion = (document.getElementById('f-descripcion')?.value || '').trim()
   const categoria  = (document.getElementById('f-categoria')?.value || '').trim()
@@ -9467,12 +9480,15 @@ window.generarSEO = async () => {
   const precio     = (document.getElementById('f-menudeo')?.value || '').trim()
   const horma      = (document.getElementById('f-horma')?.value || '').trim()
 
-  if (!nombre && !descripcion) {
+  if (silencioso) {
+    if (nombre.length < 6 && descripcion.length < 12) return        // todavía está escribiendo
+  } else if (!nombre && !descripcion) {
     alert('Escribe el nombre o la descripción del producto primero')
     return
   }
 
-  const btn = document.getElementById('btn-generar-seo')
+  const yo = ++_seoPeticion
+  const btn = silencioso ? null : document.getElementById('btn-generar-seo')
   if (btn) {
     btn.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite">⏳</span> Analizando...'
     btn.disabled = true
@@ -9488,14 +9504,24 @@ window.generarSEO = async () => {
     const data = await res.json()
 
     if (data.error) throw new Error(data.error)
+    if (silencioso && yo !== _seoPeticion) return                   // llegó tarde: ya hay una petición más reciente
 
-    // Aplicar resultados de la IA
+    // Aplicar resultados
     const slugInput = document.getElementById('f-slug')
     const metaTituloInput = document.getElementById('f-metatitulo')
+    const metaDescInput = document.getElementById('f-metadesc')
+    const libre = (el) => el && (!el.value.trim() || el.dataset.autofilled === 'true')
 
-    if (slugInput && data.slug) slugInput.value = data.slug
-    if (metaTituloInput && data.meta_titulo) metaTituloInput.value = data.meta_titulo
-    if (data.meta_descripcion) _aplicarMetaDesc(data.meta_descripcion)
+    if (!silencioso && slugInput && data.slug) slugInput.value = data.slug
+    if (metaTituloInput && data.meta_titulo && (!silencioso || libre(metaTituloInput))) {
+      metaTituloInput.value = data.meta_titulo
+      metaTituloInput.dataset.autofilled = 'true'
+    }
+    if (metaDescInput && data.meta_descripcion && (!silencioso || libre(metaDescInput))) {
+      _aplicarMetaDesc(data.meta_descripcion)
+      metaDescInput.dataset.autofilled = 'true'
+    }
+    if (silencioso) return
 
     // Si la IA sugirió un nombre de producto más descriptivo, mostrarlo sutilmente
     if (data.nombre_producto && nombre !== data.nombre_producto) {
@@ -9526,6 +9552,7 @@ window.generarSEO = async () => {
     }
 
   } catch(e) {
+    if (silencioso) return                                           // en automático, un fallo no molesta: queda el botón o el guardado
     // Fallback a plantilla
     _generarSEOTemplate(nombre, descripcion, categoria, material, tacon, tipoTacon, precio)
     if (btn) {
