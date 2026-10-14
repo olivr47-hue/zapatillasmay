@@ -9396,11 +9396,8 @@ window.actualizarSKU = async () => {
       slugInput.value = _slugify(nombre)
       slugInput.dataset.autofilled = 'true'
     }
-    const metaTitulo = document.getElementById('f-metatitulo')
-    if (metaTitulo && (!metaTitulo.value || metaTitulo.dataset.autofilled === 'true')) {
-      metaTitulo.value = nombre.trim() + ' | Zapatillas May'
-      metaTitulo.dataset.autofilled = 'true'
-    }
+    // El título de Google NO se rellena aquí: se genera con el botón "✨ Generar SEO" o, si queda vacío, el servidor lo arma al guardar
+    // con la fórmula (tipo + detalle + tacón). Antes se ponía "nombre | Zapatillas May" y el servidor ya no lo corregía.
   }
 }
 
@@ -9519,7 +9516,7 @@ window.generarSEO = async () => {
     }
 
     if (btn) {
-      btn.innerHTML = '✅ SEO generado con IA'
+      btn.innerHTML = '✅ SEO generado'
       btn.style.background = '#e8f5e9'
       btn.style.color = '#2e7d32'
       btn.style.borderColor = '#a5d6a7'
@@ -9532,7 +9529,7 @@ window.generarSEO = async () => {
     // Fallback a plantilla
     _generarSEOTemplate(nombre, descripcion, categoria, material, tacon, tipoTacon, precio)
     if (btn) {
-      btn.innerHTML = '✅ SEO generado'
+      btn.innerHTML = '⚠️ Solo la descripción; el título de Google se arma al guardar'
       btn.style.background = '#fff8e1'
       btn.style.color = '#f57f17'
       btn.style.borderColor = '#ffe082'

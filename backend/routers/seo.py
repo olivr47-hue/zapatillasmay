@@ -52,75 +52,31 @@ def _img_web(url: str, w: int) -> str:
 
 @router.post("/productos/generar-seo")
 def generar_seo(datos: dict):
-    """Genera slug, meta título y meta descripción SEO usando IA a partir de los datos del producto."""
-    api_key = _get_api_key()
-
-    nombre     = (datos.get("nombre") or "").strip()
+    """Genera slug, meta título y meta descripción de Google con la MISMA fórmula que usa el servidor al guardar el producto
+    (seo_titulos.py + _completar_seo): lo que se ve en el formulario es exactamente lo que se guardaría. No depende de la IA."""
+    nombre      = (datos.get("nombre") or "").strip()
     descripcion = (datos.get("descripcion") or "").strip()
-    categoria  = (datos.get("categoria") or "").strip()
-    material   = (datos.get("material") or "").strip()
-    tacon      = (datos.get("tacon") or "").strip()
-    tipo_tacon = (datos.get("tipo_tacon") or "").strip()
-    precio     = (datos.get("precio") or "").strip()
-    horma      = (datos.get("horma") or "").strip()
-
     if not nombre and not descripcion:
         return {"error": "sin_datos"}
-
-    # ── Si no hay API key, fallback a plantilla ──
-    if not api_key:
-        return {"error": "no_api_key"}
-
-    prompt = f"""Eres un experto en SEO para e-commerce de calzado femenino mexicano.
-
-Dado los datos de un producto de Zapatillas May (tienda en León, Guanajuato), genera campos SEO optimizados.
-
-DATOS DEL PRODUCTO:
-- Nombre/código interno: {nombre}
-- Descripción: {descripcion if descripcion else "(sin descripción)"}
-- Categoría: {categoria if categoria else "(sin categoría)"}
-- Material: {material if material else "(sin especificar)"}
-- Tacón: {tipo_tacon + " " + tacon + " cm" if tacon else "(sin especificar)"}
-- Horma: {horma if horma else "(sin especificar)"}
-- Precio menudeo: {"$" + precio + " MXN" if precio else "(sin especificar)"}
-
-INSTRUCCIONES:
-- El nombre interno puede ser un código o abreviatura — infiere el nombre real del producto a partir de la descripción.
-- El slug debe ser descriptivo y con palabras clave de búsqueda real (ej: "sandalia-tacon-aguja-nude-plataforma").
-- El meta título debe tener máximo 60 caracteres, incluir la palabra clave principal y terminar en "| Zapatillas May".
-- La meta descripción debe tener entre 140 y 155 caracteres, incluir precio si está disponible, una llamada a acción, y enfocarse en lo que busca la compradora (comodidad, ocasión, estilo).
-- nombre_producto es el nombre bonito y legible para mostrar en la tienda (no el código interno).
-
-Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
-{{"slug":"...","meta_titulo":"...","meta_descripcion":"...","nombre_producto":"..."}}"""
-
     try:
-        body = json.dumps({
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 400,
-            "messages": [{"role": "user", "content": prompt}]
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
-            data=body,
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json"
-            },
-            method="POST"
-        )
-
-        with urllib.request.urlopen(req, timeout=20) as response:
-            result = json.loads(response.read().decode("utf-8"))
-
-        text = result["content"][0]["text"].strip()
-        # Strip markdown fences if model wraps in ```json
-        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE).strip()
-        seo = json.loads(text)
-        return seo
-
+        from routers.productos import _completar_seo        # import tardío: productos.py ya depende de otros módulos
+        p = {"nombre": nombre or " ".join(descripcion.split()[:8])}
+        for campo, clave in (("categoria", "categoria"), ("material", "material"), ("tipo_tacon", "tipo_tacon")):
+            v = (datos.get(clave) or "").strip()
+            if v:
+                p[campo] = v
+        try:
+            if str(datos.get("tacon") or "").strip():
+                p["altura_tacon"] = float(str(datos["tacon"]).replace(",", "."))
+        except ValueError:
+            pass
+        try:
+            if str(datos.get("precio") or "").strip():
+                p["precio_menudeo"] = float(str(datos["precio"]).replace(",", ""))
+        except ValueError:
+            pass
+        r = _completar_seo(p) or {}
+        return {"slug": r.get("slug"), "meta_titulo": r.get("meta_titulo"), "meta_descripcion": r.get("meta_descripcion")}
     except Exception as e:
         return {"error": str(e)}
 
