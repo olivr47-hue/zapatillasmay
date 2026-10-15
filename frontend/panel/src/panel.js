@@ -16652,6 +16652,10 @@ window.mostrarFormLinkPago = async (prefill) => {
         <label id="lp-yapago-box" style="display:none;align-items:center;gap:8px;margin-top:8px;font-size:0.84rem;font-weight:600;color:#1b5e20;background:#e8f5e9;border-radius:8px;padding:7px 10px;cursor:pointer">
           <input type="checkbox" id="lp-yapago"> ✅ Ya depositó (marcar pagado y descontar inventario)
         </label>
+        <div id="lp-envio-box" style="display:none;margin-top:8px">
+          <label class="form-label" style="margin:0 0 4px;display:block">Envío ($) <span style="color:#888;font-weight:400">— vacío = automático; 0 = envío gratis (ej. entrega en León)</span></label>
+          <input class="form-input" id="lp-envio" type="number" min="0" step="1" placeholder="Automático" oninput="recalcularTotalLinkPago()">
+        </div>
       </div>
 
       <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:1rem">
@@ -16790,6 +16794,8 @@ window.recalcularTotalLinkPago = () => {
   if (subtotal >= 1299) envio = 0
   else if (pares >= 3) envio = 199
   else if (pares >= 2) envio = 150
+  const _ov = document.getElementById('lp-envio')
+  if (_ov && window._lpForma !== 'mp' && _ov.value.trim() !== '') envio = Math.max(0, parseFloat(_ov.value) || 0)
   const total = subtotal + envio
   const el = document.getElementById('lp-total')
   if (el) el.innerHTML = items.length ? `Subtotal $${subtotal.toFixed(2)} + envío $${envio.toFixed(2)} = <strong style="color:#E91E8C">$${total.toFixed(2)}</strong>` : ''
@@ -16801,6 +16807,9 @@ window.cambiarFormaLinkPago = (forma) => {
   const el = (id) => document.getElementById(id)
   if (el('lp-yapago-box')) el('lp-yapago-box').style.display = (sinLink && forma !== 'efectivo') ? 'flex' : 'none'
   if (el('lp-yapago') && !sinLink) el('lp-yapago').checked = false
+  if (el('lp-envio-box')) el('lp-envio-box').style.display = sinLink ? 'block' : 'none'
+  if (el('lp-envio') && !sinLink) el('lp-envio').value = ''
+  window.recalcularTotalLinkPago()
   if (el('lp-btn')) el('lp-btn').textContent = sinLink ? 'Crear pedido' : 'Generar link de pago'
   if (el('lp-titulo')) el('lp-titulo').textContent = sinLink ? '🛍️ Crear pedido de WhatsApp' : '💳 Crear link de pago'
   if (el('lp-forma-ayuda')) el('lp-forma-ayuda').textContent = sinLink
@@ -16822,6 +16831,8 @@ window.generarPedidoSinLink = async () => {
   try {
     const cuerpo = { telefono: tel, nombre, direccion: v('lp-dir'), forma_pago: forma, empleado: (window._empleadoActual && window._empleadoActual.nombre) || '',
       items: items.map(i => ({ variante_id: i.variante_id, nombre: i.nombre, cantidad: i.cantidad, precio_unitario: i.precio_unitario })) }
+    const _envioIn = ((document.getElementById('lp-envio') || {}).value || '').trim()
+    if (_envioIn !== '') cuerpo.envio = Math.max(0, parseFloat(_envioIn) || 0)      // vacío = el servidor calcula el envío automático
     let res = await fetch(API + '/chatbot/pedido-manual-whatsapp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
     let data = await res.json().catch(() => ({}))
     if (res.status === 409 && data.faltantes) {
