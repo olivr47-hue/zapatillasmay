@@ -16612,6 +16612,7 @@ window.pedirResena = (telefono, nombre, sku) => {
 
 // ── Crear link de pago manual (precio personalizado) ──────────────────────
 window.mostrarFormLinkPago = async (prefill) => {
+  window._bloquearScrollChat && window._bloquearScrollChat(false)
   prefill = prefill || {}
   const _volver = prefill.volver === 'chat' ? 'cargarConversaciones()' : 'cargarPedidos()'
   const content = document.getElementById('content')
@@ -18953,6 +18954,11 @@ window._bloquearScrollChat = (on) => {
     window._scrollBloqueado = []
   }
 }
+// Red de seguridad: cualquier pantalla que se abra desde el chat (pedido, link de pago, ficha...) reemplaza el contenido sin pasar por cargarModulo,
+// y el bloqueo de scroll del celular se quedaba puesto («no puedo bajar»). Si el chat ya no está, se libera solo.
+setInterval(() => {
+  if (window._scrollBloqueado && window._scrollBloqueado.length && !document.getElementById('wa-container')) window._bloquearScrollChat(false)
+}, 500)
 window._ajustarAlturaChat = () => {
   const c = document.getElementById('wa-container')
   if (!c || !window.matchMedia('(max-width: 900px)').matches) return
