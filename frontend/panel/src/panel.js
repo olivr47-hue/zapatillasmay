@@ -25794,7 +25794,7 @@ async function _sheinRenderVentasTab() {
           <tbody>
             ${lista.map(p => `
               <tr style="border-bottom:1px solid #f5f5f5">
-                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};font-family:monospace">${p.shein_order_id || '—'}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};font-family:monospace">${p.shein_order_id ? `<a href="#" title="Ver qué dice SHEIN de esta orden (estado, envío, guía)" onclick="event.preventDefault();_sheinVerEstado('${p.shein_order_id}')" style="color:inherit;text-decoration:underline dotted">${p.shein_order_id} 🔍</a>` : '—'}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
                 <td style="padding:0.4rem 0.5rem">${window._estadoVentaBadge(p.status)}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', window.innerWidth < 640 ? {dateStyle:'short'} : {dateStyle:'short',timeStyle:'short'}) : '—'}</td>
@@ -25808,6 +25808,37 @@ async function _sheinRenderVentasTab() {
   }
 }
 
+window._sheinVerEstado = async (orden) => {
+  document.getElementById('shein-estado-modal')?.remove()
+  const m = document.createElement('div')
+  m.id = 'shein-estado-modal'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px'
+  m.onclick = (e) => { if (e.target === m) m.remove() }
+  m.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow:auto;padding:1.1rem 1.2rem;box-shadow:0 20px 50px rgba(0,0,0,0.25)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="font-size:0.95rem">Estado en SHEIN · <span style="font-family:monospace;font-size:0.82rem">${_e(orden)}</span></strong>
+    <button onclick="document.getElementById('shein-estado-modal').remove()" style="border:none;background:none;font-size:1.3rem;cursor:pointer;color:#64748b">✕</button></div>
+    <div id="shein-estado-cuerpo" style="font-size:0.8rem;color:#475569">Consultando a SHEIN…</div></div>`
+  document.body.appendChild(m)
+  const cuerpo = document.getElementById('shein-estado-cuerpo')
+  try {
+    const res = await fetch(`${API}/shein/ordenes/estado?orden=${encodeURIComponent(orden)}`)
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { cuerpo.innerHTML = `<p style="color:#c62828">No se pudo consultar (${res.status}): ${_e(d.detail || d.error || '')}</p>`; return }
+    if (!d.encontrada) { cuerpo.innerHTML = `<p>SHEIN no devolvió esa orden.</p><pre style="white-space:pre-wrap;font-size:0.72rem">${_e(JSON.stringify(d.respuesta || {}, null, 1))}</pre>`; return }
+    const det = d.detalle || {}
+    const fila = (k, v) => `<tr><td style="padding:3px 8px 3px 0;color:#64748b;vertical-align:top;white-space:nowrap">${_e(k)}</td><td style="padding:3px 0;word-break:break-word;color:#0f172a">${_e(v === null || v === undefined || v === '' ? '—' : (typeof v === 'object' ? JSON.stringify(v) : v))}</td></tr>`
+    const escalares = Object.entries(det).filter(([k, v]) => typeof v !== 'object' || v === null)
+    const clave = /status|state|express|track|logist|deliver|ship|pick|waybill|label|carrier|time|date|warehouse/i
+    const importantes = escalares.filter(([k]) => clave.test(k)), otros = escalares.filter(([k]) => !clave.test(k))
+    const lista = (det.orderGoodsInfoList || []).map(g => `<li>${_e(g.goodsTitle || g.skuName || '')} · <span style="font-family:monospace">${_e(g.sellerSku || '')}</span></li>`).join('')
+    cuerpo.innerHTML = `<table style="width:100%;border-collapse:collapse">${importantes.map(([k, v]) => fila(k, v)).join('')}</table>
+      ${lista ? `<p style="margin:10px 0 2px;font-weight:700;color:#334155">Productos</p><ul style="margin:0;padding-left:18px">${lista}</ul>` : ''}
+      <details style="margin-top:10px"><summary style="cursor:pointer;color:#64748b">Otros datos de la orden</summary><table style="width:100%;border-collapse:collapse;margin-top:4px">${otros.map(([k, v]) => fila(k, v)).join('')}</table></details>
+      <p style="margin:10px 0 0;color:#94a3b8;font-size:0.72rem">Se omiten los datos personales de la compradora. Solo lectura: no cambia nada en SHEIN.</p>`
+  } catch (e) {
+    cuerpo.innerHTML = '<p style="color:#c62828">Error de conexión</p>'
+  }
+}
 window._sheinSincronizarVentas = async (btn) => {
   const orig = btn.innerHTML
   btn.innerHTML = '⏳ Sincronizando...'
