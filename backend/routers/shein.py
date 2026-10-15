@@ -986,6 +986,32 @@ def ordenes_diagnostico():
     return {"lista": lista, "detalle": detalle}
 
 
+@router.get("/ordenes/estado")
+def ordenes_estado(orden: str, _admin=Depends(require_admin)):
+    """Solo lectura: lo que SHEIN dice de UNA orden (estado, envío, guía, recolección, fechas), sin datos personales de la compradora
+    (nombre, domicilio, teléfono, correo). Sirve para saber por qué un envío «no se ha confirmado»."""
+    detalle = shein_post("/open-api/order/order-detail", {"orderNoList": [orden.strip()]})
+    infos = detalle.get("info") or []
+    if not infos:
+        return {"orden": orden, "encontrada": False, "respuesta": {k: v for k, v in detalle.items() if k != "info"}}
+    PII = ("name", "address", "phone", "mail", "buyer", "consignee", "receiver", "zip", "postal", "city", "state", "street", "tel", "email", "consumer", "customer")
+    def limpio(o, prof=0):
+        if isinstance(o, dict):
+            salida = {}
+            for k, v in o.items():
+                kl = str(k).lower()
+                # los nombres de PRODUCTO (goodsTitle, skuName...) se dejan; lo personal se quita
+                if any(x in kl for x in PII) and not any(y in kl for y in ("goods", "sku", "product", "spu", "skc", "title", "logistic", "express", "carrier", "warehouse", "company")):
+                    continue
+                salida[k] = limpio(v, prof + 1)
+            return salida
+        if isinstance(o, list):
+            return [limpio(x, prof + 1) for x in o[:30]]
+        return o
+    o = infos[0]
+    return {"orden": orden, "encontrada": True, "campos": sorted(o.keys()), "detalle": limpio(o)}
+
+
 @router.get("/producto/buscar-skc")
 def buscar_skc_en_listado(skc: str):
     """Diagnóstico de solo lectura: recorre SOLO el paginado inicial de
