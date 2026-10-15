@@ -1979,6 +1979,30 @@ def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/{id}/volver-a-pendiente")
+def volver_a_pendiente(id: str, datos: dict = Body(default=None), _staff=Depends(require_staff)):
+    """Regresa un pedido confirmado/pagado a «pendiente de pago» (ej. se confirmó antes de que la clienta pagara).
+    El inventario NO se devuelve: los pares quedan APARTADOS (reservado=true) para ese pedido. Así, cuando llegue el pago y se vuelva a confirmar,
+    el sistema no los descuenta por segunda vez, y si se cancela sí se devuelven. No se permite si ya salió (enviado/entregado), si tiene pagos
+    registrados (anticipo o pago de MercadoPago) o está cancelado."""
+    try:
+        motivo = ((datos or {}).get("motivo") or "").strip()[:300] if isinstance(datos, dict) else ""
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        p = pedido[0]
+        st = p.get("status")
+        if st not in ("confirmado", "pagado"):
+            return JSONResponse(status_code=409, content={"error": f"Solo un pedido confirmado o pagado puede volver a pendiente (este está {st})."})
+        if float(p.get("anticipo") or 0) > 0 or p.get("mp_payment_id"):
+            return JSONResponse(status_code=409, content={"error": "Este pedido ya tiene un pago registrado (anticipo o MercadoPago): no se regresa a pendiente."})
+        supabase_patch(f"pedido_items?pedido_id=eq.{id}", {"reservado": True})
+        supabase_patch(f"pedidos?id=eq.{id}", {"status": "pendiente_pago", "confirmado_at": None})
+        _historial(id, "volvio_a_pendiente", (f"Motivo: {motivo}. " if motivo else "") + "Pares apartados (el inventario no se devolvió).", _quien(_staff))
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.post("/{id}/reconfirmar")
 def reconfirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
     try:

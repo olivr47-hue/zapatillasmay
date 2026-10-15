@@ -11751,6 +11751,7 @@ window.verPedido = async (id) => {
               ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${p.id}')">✏️ Editar pedido</button>` : ''}
               ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? `<button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px" onclick="confirmarPedidoAdmin('${p.id}')">✅ Confirmar</button>` : ''}
               ${p.status === 'cancelado' ? `<button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:0.8rem;padding:4px 12px" onclick="reconfirmarPedido('${p.id}')">✅ Reconfirmar pedido</button>` : ''}
+              ${(p.status === 'confirmado' || p.status === 'pagado') && !(parseFloat(p.anticipo) > 0) && !p.mp_payment_id ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#b26a00;border-color:#b26a00" onclick="volverAPendientePedido('${p.id}')">↩️ Regresar a pendiente de pago</button>` : ''}
               ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#c62828;border-color:#c62828" onclick="cancelarPedido('${p.id}')">❌ Cancelar pedido</button>` : ''}
               <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>
               <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="imprimirTicketPOS('${p.id}',${p.total},${p.pedido_items ? p.pedido_items.reduce((s,i)=>s+i.cantidad,0) : 0},'${p.forma_pago||'efectivo'}')">Reimprimir ticket</button>
@@ -12343,6 +12344,20 @@ window.cancelarPedido = async (id) => {
       alert('Error: ' + JSON.stringify(data))
     }
   } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.volverAPendientePedido = async (id) => {
+  if (!confirm('¿Regresar este pedido a «pendiente de pago»? \n\nLos pares quedan apartados (el inventario NO se devuelve). Cuando la clienta pague, lo confirmas de nuevo y no se vuelve a descontar. Si lo cancelas, el inventario sí se devuelve.')) return
+  const motivo = prompt('¿Por qué lo regresas a pendiente? (queda en el historial; puedes dejarlo vacío)', 'Aún no paga')
+  if (motivo === null) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/volver-a-pendiente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }) })
+    const data = await res.json().catch(() => ({}))
+    if (data.ok) { alert('Listo: el pedido quedó pendiente de pago, con los pares apartados.'); verPedido(id) }
+    else alert('No se pudo: ' + (data.error || JSON.stringify(data)))
+  } catch (e) {
     alert('Error conectando con el servidor')
   }
 }
