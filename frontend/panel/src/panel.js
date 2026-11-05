@@ -12478,6 +12478,7 @@ async function cargarPOS() {
     // Restaurar carrito guardado en el navegador para que no se pierda al recargar
     window._posCarrito = cargarCarritoLocal()
     window._posClienteId = null
+    window._posCat = ''; window._posNuevos = false; window._posOcasion = ''
 
     content.innerHTML = `
       <div id="pos-layout" style="display:grid;grid-template-columns:1fr 380px;gap:1rem;height:calc(100vh - 80px)">
@@ -12499,6 +12500,10 @@ async function cargarPOS() {
               ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `
                 <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('${c}')">${c.charAt(0).toUpperCase() + c.slice(1)}</button>
               `).join('')}
+              <select class="form-input" id="pos-ocasion" title="Filtrar por ocasión" onchange="cambiarOcasionPOS(this.value)" style="width:auto;min-width:150px;padding:4px 10px;font-size:0.8rem;min-height:0;height:auto">
+                <option value="">Ocasión: todas</option>
+                ${(window.OCASION_OPTS || []).map(o => `<option value="${o.v}">${o.l}</option>`).join('')}
+              </select>
             </div>
           </div>
           <div id="pos-productos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;padding-bottom:80px">
@@ -12988,14 +12993,34 @@ window.buscarPOS = (texto) => {
   clearTimeout(window._posBuscarT)
   window._posBuscarT = setTimeout(() => _buscarPOSAhora(texto), 120)
 }
+// La ocasión (Casual, Formal, Trabajo, Fiesta, Urbano) se combina con lo que ya hay: categoría elegida o texto de búsqueda
+function _posPasaOcasion(p) {
+  const o = window._posOcasion
+  return !o || (Array.isArray(p.ocasion) && p.ocasion.includes(o))
+}
+function _posProductosVisibles() {
+  const { productos } = window._posData
+  const texto = (document.getElementById('pos-buscar')?.value || '').toLowerCase().split(' ').filter(t => t)
+  return productos.filter(p => {
+    if (window._posNuevos ? !esNuevo(p) : (window._posCat && p.categoria !== window._posCat)) return false
+    if (!_posPasaOcasion(p)) return false
+    const completo = p.nombre.toLowerCase() + ' ' + (p.sku_interno || '').toLowerCase() + ' ' + (p.categoria || '').toLowerCase()
+    return texto.every(t => completo.includes(t))
+  })
+}
+window.cambiarOcasionPOS = (valor) => {
+  window._posOcasion = valor || ''
+  renderProductosPOS(_posProductosVisibles())
+}
 function _buscarPOSAhora(texto) {
   const { productos } = window._posData
   if (!texto) {
-    renderProductosPOS(productos)
+    renderProductosPOS(window._posOcasion ? _posProductosVisibles() : productos)
     return
   }
   const terminos = texto.toLowerCase().split(' ').filter(t => t)
   const filtrados = productos.filter(p => {
+    if (!_posPasaOcasion(p)) return false
     const nombre = p.nombre.toLowerCase()
     const sku = (p.sku_interno || '').toLowerCase()
     const cat = (p.categoria || '').toLowerCase()
@@ -13007,7 +13032,9 @@ function _buscarPOSAhora(texto) {
 
 window.filtrarPOS = (categoria) => {
   const { productos } = window._posData
-  const filtrados = categoria ? productos.filter(p => p.categoria === categoria) : productos
+  window._posCat = categoria || ''
+  window._posNuevos = false
+  const filtrados = productos.filter(p => (!categoria || p.categoria === categoria) && _posPasaOcasion(p))
   renderProductosPOS(filtrados)
 
   document.querySelectorAll('#pos-categorias button').forEach(btn => {
@@ -13020,7 +13047,9 @@ window.filtrarPOS = (categoria) => {
 
 window.filtrarPOSNuevos = () => {
   const { productos } = window._posData
-  renderProductosPOS(productos.filter(esNuevo))
+  window._posCat = ''
+  window._posNuevos = true
+  renderProductosPOS(productos.filter(p => esNuevo(p) && _posPasaOcasion(p)))
 
   document.querySelectorAll('#pos-categorias button').forEach(btn => {
     btn.className = 'btn btn-secondary'
