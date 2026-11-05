@@ -617,6 +617,59 @@ def crear_preferencia(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+_MOTIVOS_RECHAZO_MP = {
+    "cc_rejected_insufficient_amount": "fondos o límite insuficiente en la tarjeta",
+    "cc_rejected_bad_filled_card_number": "número de tarjeta mal capturado",
+    "cc_rejected_bad_filled_date": "fecha de vencimiento mal capturada",
+    "cc_rejected_bad_filled_security_code": "código de seguridad (CVV) mal capturado",
+    "cc_rejected_bad_filled_other": "datos de la tarjeta mal capturados",
+    "cc_rejected_high_risk": "rechazada por el antifraude de Mercado Pago (riesgo alto)",
+    "cc_rejected_call_for_authorize": "el banco pide autorizar la compra por teléfono",
+    "cc_rejected_card_disabled": "tarjeta inactiva o bloqueada para compras en línea",
+    "cc_rejected_card_error": "no se pudo procesar la tarjeta",
+    "cc_rejected_duplicated_payment": "pago duplicado",
+    "cc_rejected_max_attempts": "demasiados intentos con esa tarjeta",
+    "cc_rejected_blacklist": "tarjeta en lista de bloqueo",
+    "cc_rejected_invalid_installments": "meses sin intereses no disponibles para esa tarjeta",
+    "cc_rejected_other_reason": "el banco la rechazó sin dar motivo",
+    "rejected_by_bank": "el banco rechazó el pago",
+    "rejected_insufficient_data": "faltaron datos para procesar el pago",
+    "cc_amount_rate_limit_exceeded": "monto por encima del límite permitido para la tarjeta",
+    "expired": "el pago venció",
+}
+
+
+def _registrar_rechazo_tarjeta(pedido_id, payment, status):
+    """Guarda en el historial del pedido por qué Mercado Pago rechazó un intento con tarjeta y avisa al panel. El pedido NO se cancela:
+    la clienta puede volver a intentar con otra tarjeta (antes el primer rechazo cancelaba el pedido y en el portal ya no podía pagarlo)."""
+    try:
+        pid = str(payment.get("id") or "")
+        try:
+            previo = supabase_get(f"pedido_historial?pedido_id=eq.{pedido_id}&accion=eq.pago_rechazado&detalle=ilike.*pago%20{pid}*&select=id&limit=1") if pid else []
+        except Exception:
+            previo = []
+        if previo:
+            return   # Mercado Pago repite el aviso: ya quedó registrado
+        det = payment.get("status_detail") or status or ""
+        motivo = _MOTIVOS_RECHAZO_MP.get(det, det or "sin motivo")
+        tarjeta = payment.get("card") or {}
+        quien = " ".join(x for x in [payment.get("payment_method_id"), ("terminación " + tarjeta["last_four_digits"]) if tarjeta.get("last_four_digits") else ""] if x)
+        monto = float(payment.get("transaction_amount") or 0)
+        detalle = f"Tarjeta rechazada: {motivo}" + (f" · {quien}" if quien else "") + (f" · ${monto:,.0f}" if monto else "") + f" [pago {pid}] ({det})"
+        supabase_post("pedido_historial", {"pedido_id": pedido_id, "accion": "pago_rechazado", "detalle": detalle[:500], "usuario": "Mercado Pago"})
+        try:
+            ped = supabase_get(f"pedidos?id=eq.{pedido_id}&select=nombre_cliente,total,clientes(nombre)") or [{}]
+            nombre = ((ped[0].get("clientes") or {}).get("nombre") or ped[0].get("nombre_cliente") or "Una clienta")
+            from routers.push import enviar_push
+            enviar_push(titulo="💳 Tarjeta rechazada",
+                        cuerpo=f"{nombre} — pedido {str(pedido_id)[:8].upper()} (${float(ped[0].get('total') or 0):,.0f}): {motivo}. El pedido sigue abierto; puede reintentar.",
+                        url="/?modulo=pedidos", sitio="panel")
+        except Exception as e_push:
+            print(f"[pagos] aviso de tarjeta rechazada: {e_push}")
+    except Exception as e:
+        print(f"[pagos] no se pudo registrar el rechazo de tarjeta: {e}")
+
+
 def _total_validado(pedido_id):
     """Total autoritativo del pedido. Usa el total guardado, pero NUNCA por debajo
     del valor real de los productos (validado contra catálogo) — anti-manipulación."""
@@ -1005,15 +1058,20 @@ async def webhook_mercadopago(request: Request):
                         # (saber que fue un intento de OXXO/SPEI aunque no se haya concretado).
                         # Un webhook viejo (intento anterior rechazado) puede llegar DESPUÉS de uno
                         # aprobado: nunca degradar un pedido ya pagado/confirmado/enviado.
-                        supabase_patch(
-                            f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
-                            {"status": "cancelado", "forma_pago": _forma}
-                        )
-                        try:
-                            from routers.marketplace import on_pedido_negocio_cancelado
-                            on_pedido_negocio_cancelado(pedido_id)
-                        except Exception as e_mp:
-                            print(f"[webhook] marketplace (cancelado): {e_mp}")
+                        if _forma == "tarjeta" and status in ("rejected", "cancelled"):
+                            # Un intento con tarjeta rechazado NO cancela el pedido: se registra el motivo y la clienta puede reintentar
+                            # (con otra tarjeta, o por transferencia). Antes el primer rechazo lo cancelaba y ya no podía pagarlo.
+                            _registrar_rechazo_tarjeta(pedido_id, payment, status)
+                        else:
+                            supabase_patch(
+                                f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
+                                {"status": "cancelado", "forma_pago": _forma}
+                            )
+                            try:
+                                from routers.marketplace import on_pedido_negocio_cancelado
+                                on_pedido_negocio_cancelado(pedido_id)
+                            except Exception as e_mp:
+                                print(f"[webhook] marketplace (cancelado): {e_mp}")
 
                     elif status in ["refunded", "charged_back"]:
                         # Antes ni se enteraba nadie: avisar al panel para revisar el pedido/stock.

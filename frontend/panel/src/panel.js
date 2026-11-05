@@ -31382,7 +31382,7 @@ window._wmSincronizarInventario = async (btn) => {
       const filas = res.ok ? await res.json() : []
       const content = document.getElementById('content')
       if (!content || !Array.isArray(filas)) return
-      const etiqueta = { enviado: '🚚 Enviado', entregado: '🎉 Entregado', cancelado: '❌ Cancelado', confirmado: '✅ Confirmado', estado: '🔄 Cambio de estado' }
+      const etiqueta = { enviado: '🚚 Enviado', entregado: '🎉 Entregado', cancelado: '❌ Cancelado', confirmado: '✅ Confirmado', estado: '🔄 Cambio de estado', pago_rechazado: '💳 Tarjeta rechazada' }
       const html = `<div class="table-card" style="padding:1.25rem;margin-top:1rem">
         <p style="font-weight:700;color:#0f172a;margin:0 0 10px">🕘 Historial del pedido</p>
         ${filas.length === 0 ? '<p style="color:#94a3b8;font-size:0.82rem;margin:0">Todavía no hay movimientos registrados (solo se guardan los hechos desde hoy).</p>' : filas.map(f => `
