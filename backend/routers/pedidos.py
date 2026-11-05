@@ -1131,7 +1131,14 @@ def agregar_item(id: str, item: dict, credentials: HTTPAuthorizationCredentials 
 def obtener_items(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     _exigir_dueno_pedido(id, credentials)
     try:
-        return supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre,sku_interno,imagen_principal))")
+        base = f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre,sku_interno,imagen_principal))"
+        try:
+            # En el orden en que se fueron agregando (lo nuevo al final). Sin orden la base los devolvía como le saliera
+            # y al agregar un par aparecía en medio de la lista.
+            return supabase_get(base + "&order=created_at.asc,id.asc")
+        except Exception as e_orden:
+            print(f"[pedidos] items sin orden por fecha (¿esquema sin recargar?): {e_orden}")
+            return supabase_get(base)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
