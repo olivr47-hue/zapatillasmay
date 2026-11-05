@@ -112,9 +112,13 @@ def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None),
             return {"url": url, "public_url": url, "public_id": resultado.get("public_id", "")}
 
         elif content_type == "application/pdf" or archivo.filename.lower().endswith(".pdf"):
+            import uuid
             safe_name = archivo.filename.replace(" ", "_")
-            url = _subir_pdf_supabase(contenido, safe_name)
-            return {"url": url, "public_url": url, "public_id": safe_name}
+            # Cada envío lleva una dirección propia: antes dos PDFs con el mismo nombre (p. ej. el catálogo sin precios y luego el de precios,
+            # el mismo día) se subían a la MISMA dirección, se pisaban, y WhatsApp/la caché seguían entregando el primero.
+            guardado = f"{uuid.uuid4().hex[:10]}_{safe_name}"
+            url = _subir_pdf_supabase(contenido, guardado)
+            return {"url": url, "public_url": url, "public_id": guardado}
 
         else:
             resultado = cloudinary.uploader.upload(
