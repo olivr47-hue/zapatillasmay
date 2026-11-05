@@ -21450,6 +21450,14 @@ window.verTuUtilidadDesglose = async () => {
           ${d.filas.map(f => fila(f)).join('') || '<tr><td colspan="6" style="color:#94a3b8;padding:10px 0">Sin ventas de este tipo en el mes.</td></tr>'}
           ${tot('Total — Tu utilidad del mes', d.total, 'background:#f3e5f5;border-top:2px solid #ce93d8')}
         </tbody></table></div>
+      ${(d.devueltas || []).length ? `
+      <h4 style="margin:18px 0 4px;color:#b91c1c">↩️ Ventas de MercadoLibre devueltas — ya descontadas</h4>
+      <p style="margin:0 0 8px;font-size:0.76rem;color:#64748b;line-height:1.5">Estas ventas se hicieron este mes pero el paquete regresó, así que NO suman a la tabla de arriba. Se descuentan en el mes de la venta.</p>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+        <thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th>Orden ML</th><th>Fecha venta</th><th>Producto</th><th style="text-align:right">Cobrado</th><th style="text-align:right">Corrida</th><th style="text-align:right">Utilidad descontada</th><th>Estado</th></tr></thead>
+        <tbody>${d.devueltas.map(x => `<tr><td>${x.ml_order_id || '—'}</td><td>${x.fecha_venta ? new Date(x.fecha_venta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '—'}</td><td>${(x.productos || []).join(', ') || '—'}</td><td style="text-align:right">${mon(x.cobrado)}</td><td style="text-align:right">${mon(x.corrida)}</td><td style="text-align:right;font-weight:700;color:#b91c1c">−${mon(x.utilidad_descontada)}</td><td>${({ por_confirmar: 'Llegó, por confirmar', sumada: 'Regresó al inventario', descartada: 'Llegó, no se sumó', historica: 'Devuelta' })[x.estado] || x.estado}</td></tr>`).join('')}
+          <tr style="background:#fef2f2;border-top:2px solid #fca5a5"><td colspan="5"><b>Total descontado de tu utilidad</b></td><td style="text-align:right;color:#b91c1c"><b>−${mon(d.total_descontado)}</b></td><td></td></tr>
+        </tbody></table></div>` : ''}
       <p style="margin:12px 0 0;font-size:0.72rem;color:#94a3b8">Solo cuenta lo que llega solo y lo que vendes con el cliente «TikTok». No cuenta: mostrador, lo que capturas tú ni las clientas que registraste tú, ni SHEIN.</p>`
     caja.querySelectorAll('td,th').forEach(td => { td.style.padding = '7px 8px' })
   } catch (e) { caja.innerHTML = `<p style="color:#b91c1c">No se pudo calcular: ${e.message}</p><button class="btn btn-secondary" onclick="document.getElementById('modal-tu-utilidad').remove()">Cerrar</button>` }

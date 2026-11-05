@@ -112,6 +112,27 @@ def _pedidos_a_precio_sitio(pedidos) -> set:
     return a_sitio - otro
 
 
+def _devueltos_ml(pedidos) -> dict:
+    """{pedido_id: estado} de los pedidos de MercadoLibre cuyo paquete ya regresó (ml_devoluciones: por_confirmar, sumada, descartada o
+    historica; 'en_camino' todavía no cuenta)."""
+    ids = [p['id'] for p in pedidos if (p.get('canal') or '').lower() == 'mercadolibre']
+    devueltos = {}
+    try:
+        for k in range(0, len(ids), 150):
+            for f in supabase_get(f"ml_devoluciones?pedido_id=in.({','.join(ids[k:k + 150])})&estado=in.(por_confirmar,sumada,descartada,historica)&select=pedido_id,estado") or []:
+                devueltos[f.get('pedido_id')] = f.get('estado')
+    except Exception as e:
+        print(f"[finanzas] No se pudieron leer las devoluciones de ML: {e}")
+    return devueltos
+
+
+def _sin_devueltos_ml(pedidos):
+    """Quita de las ventas los pedidos de MercadoLibre devueltos. Esa venta se reembolsó al comprador, así que no deja utilidad: ni en
+    «Tu utilidad» ni en la utilidad general. Se descuenta en el mes en que se hizo la venta."""
+    devueltos = _devueltos_ml(pedidos)
+    return [p for p in pedidos if p['id'] not in devueltos] if devueltos else pedidos
+
+
 def _externas_rango(ini, fin) -> dict:
     """Ventas de otros canales cargadas aparte (tabla ventas_externas: pedidos de TikTok importados de su archivo). NO son ventas del sistema
     ni mueven inventario: solo suman a la utilidad del mes (la general, con costo real, y «Tu utilidad», con precio de corrida).
@@ -569,7 +590,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
             f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&confirmado_at=lt.{fin_mes}"
             f"&select=id,total,canal,cliente_id"
         ) or []
-        pedidos = pedidos_sucursal + pedidos_online
+        pedidos = _sin_devueltos_ml(pedidos_sucursal + pedidos_online)
 
         gastos = supabase_get(
             f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}&created_at=lt.{fin_mes}"
@@ -729,6 +750,9 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
         pedidos = supabase_get_all(
             f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)"
             f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id,total,canal,cliente_id") or []
+        _dev = _devueltos_ml(pedidos)
+        pedidos_dev = [p for p in pedidos if p['id'] in _dev]
+        pedidos = [p for p in pedidos if p['id'] not in _dev]
         origen = _origenes_clientes([p.get('cliente_id') for p in pedidos])
         _sitio = _pedidos_a_precio_sitio(pedidos)   # mostrador cobrado a panel+$80
 
@@ -791,7 +815,49 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
             filas.append({"grupo": "tiktok_importado", "nombre": "TikTok (pedidos importados del archivo, no son ventas del sistema)", "pedidos": ext["pedidos"],
                           "pares": ext["pares"], "cobrado": ext["venta"], "venta_productos": ext["venta"], "corrida": ext["corrida"], "utilidad": ext["tu_utilidad"]})
         total = {k: sum(f[k] for f in filas) for k in ("pedidos", "pares", "cobrado", "venta_productos", "corrida", "utilidad")}
-        return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas, "total": total}
+        # Ventas de MercadoLibre devueltas del mes: ya NO están en las filas de arriba; aquí se ve cuánto se descontó
+        devueltas = []
+        if pedidos_dev:
+            ids_d = [p['id'] for p in pedidos_dev]
+            info = {}
+            for k in range(0, len(ids_d), 150):
+                for x in supabase_get(f"pedidos?id=in.({','.join(ids_d[k:k + 150])})&select=id,ml_order_id,nombre_cliente,confirmado_at") or []:
+                    info[x['id']] = x
+            items_d = []
+            for k in range(0, len(ids_d), 150):
+                items_d += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids_d[k:k + 150])})&select=pedido_id,cantidad,variante_id,precio_unitario,nombre") or []
+            vids_d = list({i['variante_id'] for i in items_d if i.get('variante_id')})
+            vmap_d = {}
+            for k in range(0, len(vids_d), 150):
+                for v in supabase_get(f"variantes?id=in.({','.join(vids_d[k:k + 150])})&select=id,producto_id,color,talla") or []:
+                    vmap_d[v['id']] = v
+            pids_d = list({v.get('producto_id') for v in vmap_d.values() if v.get('producto_id')})
+            pmap_d = {}
+            for k in range(0, len(pids_d), 150):
+                for pr in supabase_get(f"productos?id=in.({','.join(pids_d[k:k + 150])})&select=id,nombre,sku_interno,costo,precio_corrida,precio_menudeo") or []:
+                    pmap_d[pr['id']] = pr
+            for p in pedidos_dev:
+                venta = corrida = 0.0
+                pares = 0
+                prods = []
+                for i in items_d:
+                    if i['pedido_id'] != p['id'] or int(i.get('cantidad') or 0) <= 0:
+                        continue
+                    cant = int(i['cantidad'])
+                    var = vmap_d.get(i.get('variante_id')) or {}
+                    pr = pmap_d.get(var.get('producto_id')) or {}
+                    venta += float(i.get('precio_unitario') or 0) * cant
+                    corrida += _costo_unitario(pr, "corrida") * cant
+                    pares += cant
+                    prods.append(f"{pr.get('sku_interno') or pr.get('nombre') or i.get('nombre') or ''} {var.get('color') or ''} {var.get('talla') or ''}".strip() + (f" ×{cant}" if cant > 1 else ""))
+                x = info.get(p['id'], {})
+                devueltas.append({"pedido_id": p['id'], "ml_order_id": x.get('ml_order_id'), "cliente": x.get('nombre_cliente'),
+                                  "fecha_venta": x.get('confirmado_at'), "productos": prods, "pares": pares, "cobrado": float(p.get('total') or 0),
+                                  "venta_productos": venta, "corrida": corrida, "utilidad_descontada": venta - corrida,
+                                  "estado": _dev.get(p['id'])})
+            devueltas.sort(key=lambda r: r.get('fecha_venta') or '')
+        return {"mes": mes_id, "mes_etiqueta": etiqueta, "filas": filas, "total": total, "devueltas": devueltas,
+                "total_descontado": sum(r["utilidad_descontada"] for r in devueltas)}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -826,6 +892,7 @@ def estado_resultados(sucursal_id: str):
             # Sucursal + ventas en línea/marketplaces (sin sucursal): antes faltaban estas últimas y el estado de resultados
             # daba menos ventas que el reporte de 30 días.
             pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=id,total,canal,cliente_id")
+            pedidos = _sin_devueltos_ml(pedidos)
             gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
