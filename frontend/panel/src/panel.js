@@ -28209,7 +28209,8 @@ window.abrirCarrito = async (pedidoId) => {
       productos: resProductos,
       inventario: resInv,
       sucursalId: p.sucursal_id,
-      envioMayoreoTiers: resEnvioCfg?.mayoreo_tiers || null
+      envioMayoreoTiers: resEnvioCfg?.mayoreo_tiers || null,
+      _tierForzado: (() => { try { return localStorage.getItem('zm_tier_carrito_' + pedidoId) || null } catch (e) { return null } })()   // precio elegido a mano para este carrito (clientes frecuentes)
     }
 
     renderCarritoAbierto(p)
@@ -28282,6 +28283,15 @@ function renderCarritoAbierto(p) {
             <button id="c-modo-corrida" onclick="carritoModo('corrida')"
               style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:white;color:#888">Corrida completa</button>
           </div>
+        </div>
+
+        <!-- Precio con el que se agregan los pares (antes de tocar la talla) -->
+        <div id="c-tier-barra" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span style="font-size:0.78rem;color:#666;font-weight:600">Precio por par:</span>
+          ${[[null, 'Automático'], ['menudeo', 'Menudeo'], ['mayoreo3', 'Mayoreo ×3'], ['mayoreo6', 'Mayoreo ×6']].map(([t, l]) => {
+            const act = (window._carritoActivo._tierForzado || null) === t
+            return `<button type="button" data-tier="${t || ''}" onclick="carritoSetTier(${t ? `'${t}'` : 'null'})" style="padding:5px 12px;font-size:0.78rem;border-radius:100px;cursor:pointer;border:1.5px solid ${act ? '#E91E8C' : '#ddd'};background:${act ? '#E91E8C' : '#fff'};color:${act ? '#fff' : '#555'};font-weight:${act ? 700 : 500}">${l}</button>`
+          }).join('')}
         </div>
 
         <!-- Modo par suelto -->
@@ -28914,6 +28924,7 @@ window.buscarProductoCarrito = (texto) => {
           .filter(i => i.variante_id === v.id)
           .reduce((s, i) => s + (i.cantidad || 0), 0)
         const enCarrito = window._carritoActivo.items.filter(i => i.variante_id === v.id && !i.es_corrida).reduce((s, i) => s + i.cantidad, 0)
+          + ((window._carritoActivo._pend || {})[v.id] || 0)   // pares recién tocados que el servidor todavía está guardando
         return `
           <button onmousedown="event.preventDefault()" onclick="quickAddCarrito('${v.id}')" ${stock <= 0 ? 'disabled' : ''}
                   style="position:relative;min-width:50px;min-height:48px;padding:5px 9px;border:1.5px solid ${enCarrito > 0 ? '#E91E8C' : '#ddd'};border-radius:10px;background:${enCarrito > 0 ? '#fce4f3' : '#fff'};font-family:inherit;cursor:${stock <= 0 ? 'not-allowed' : 'pointer'};${stock <= 0 ? 'opacity:0.45' : ''};display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;touch-action:manipulation">
@@ -28929,6 +28940,7 @@ window.buscarProductoCarrito = (texto) => {
           ${g.hex ? `<span style="width:13px;height:13px;border-radius:50%;background:${g.hex};border:1px solid #ddd;flex-shrink:0"></span>` : ''}
           <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${g.nombre}</span>
           <span style="font-size:0.78rem;color:#888">· ${g.color}</span>
+          <span style="margin-left:auto;font-size:0.8rem;font-weight:700;color:#E91E8C;white-space:nowrap">$${_precioTierCarrito(productos.find(p => p.id === g.vars[0].producto_id), _tierActualCarrito(1))}/par</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:7px">${chips}</div>
       </div>`
@@ -28936,39 +28948,105 @@ window.buscarProductoCarrito = (texto) => {
 }
 
 // Toca una talla en el buscador = agregar 1 par al carrito del cliente (refresca y deja el buscador abierto)
-window.quickAddCarrito = async (varianteId) => {
+// Precio de un modelo en un nivel (mismas reglas que recalcularPreciosCarrito)
+window._precioTierCarrito = (prod, tier) => {
+  if (!prod) return 0
+  const base = parseFloat(prod.precio_menudeo) || 0
+  if (tier === 'mayoreo6') return parseFloat(prod.precio_mayoreo6) || (base > 0 ? Math.round(base - 70) : base)
+  if (tier === 'mayoreo3') return parseFloat(prod.precio_mayoreo3) || (base > 0 ? Math.round(base - 30) : base)
+  return base
+}
+// Nivel con el que se cobra: el elegido a mano o, en automático, el que toca por cantidad de pares (+ los que se van a agregar)
+window._tierActualCarrito = (extra = 0) => {
+  const ca = window._carritoActivo
+  if (ca?._tierForzado) return ca._tierForzado
+  const pend = Object.values(ca?._pend || {}).reduce((s, n) => s + n, 0)
+  const pares = (ca?.items || []).reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0) + pend + extra
+  return pares >= 6 ? 'mayoreo6' : pares >= 3 ? 'mayoreo3' : 'menudeo'
+}
+const _precioTierCarrito = (p, t) => window._precioTierCarrito(p, t)
+const _tierActualCarrito = (n) => window._tierActualCarrito(n)
+
+// Elegir el precio del carrito (Automático / Menudeo / Mayoreo ×3 / ×6): se guarda para este carrito y se aplica a todos los pares
+window.carritoSetTier = async (tier) => {
+  const ca = window._carritoActivo
+  if (!ca) return
+  ca._tierForzado = tier || null
+  try { tier ? localStorage.setItem('zm_tier_carrito_' + ca.pedidoId, tier) : localStorage.removeItem('zm_tier_carrito_' + ca.pedidoId) } catch (e) {}
+  document.querySelectorAll('#c-tier-barra button[data-tier]').forEach(b => {
+    const act = (b.dataset.tier || null) === (tier || null)
+    b.style.borderColor = act ? '#E91E8C' : '#ddd'; b.style.background = act ? '#E91E8C' : '#fff'; b.style.color = act ? '#fff' : '#555'; b.style.fontWeight = act ? 700 : 500
+  })
+  if (ca.items.length) {
+    ca._tier = '__aplicar__'   // distinto de cualquier nivel real: obliga a recalcular los precios de lo que ya está en el carrito
+    await recalcularPreciosCarrito()
+    renderCarritoAbierto(ca.pedidoData)
+  }
+  const q = document.getElementById('c-buscar-prod')?.value
+  if (q) buscarProductoCarrito(q)
+}
+
+// Toca una talla: respuesta inmediata (el par se ve ya en la talla y en el aviso) y el guardado va en fila, uno tras otro,
+// para que dos toques seguidos no se pisen ni se pierda ninguno.
+window._qaCola = Promise.resolve()
+window.quickAddCarrito = (varianteId) => {
   const ca = window._carritoActivo
   if (!ca) return
   const v = ca.variantes.find(x => x.id === varianteId)
   const prod = v ? ca.productos.find(p => p.id === v.producto_id) : null
-  const precio = parseFloat(prod?.precio_mayoreo6 || prod?.precio_mayoreo3 || prod?.precio_menudeo) || 0
+  ca._pend = ca._pend || {}
+  const paresAntes = ca.items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0) + Object.values(ca._pend).reduce((s, n) => s + n, 0)
+  ca._pend[varianteId] = (ca._pend[varianteId] || 0) + 1
+  mostrarToastPanel('✓ ' + (prod?.nombre || '') + ' T' + (v?.talla || '') + ' · ' + (paresAntes + 1) + ' pares')
+  const q = document.getElementById('c-buscar-prod')?.value
+  if (q) buscarProductoCarrito(q)   // la talla se marca al instante
+  window._qaCola = window._qaCola.then(() => _quickAddReal(varianteId)).catch(() => {})
+}
+
+async function _quickAddReal(varianteId) {
+  const ca = window._carritoActivo
+  if (!ca) return
+  const v = ca.variantes.find(x => x.id === varianteId)
+  const prod = v ? ca.productos.find(p => p.id === v.producto_id) : null
+  // precio del nivel con el que se cobra (el elegido a mano o el que toca por cantidad)
+  const pares = ca.items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0)
+  const precio = window._precioTierCarrito(prod, ca._tierForzado || (pares + 1 >= 6 ? 'mayoreo6' : pares + 1 >= 3 ? 'mayoreo3' : 'menudeo')) || 0
   const existente = ca.items.find(i => i.variante_id === varianteId && !i.es_corrida)
   const queryActual = document.getElementById('c-buscar-prod') ? document.getElementById('c-buscar-prod').value : ''
+  let falloMsg = null
   try {
+    let rAdd
     if (existente) {
-      await fetch(API + '/pedidos/' + ca.pedidoId + '/items/' + existente.id, {
+      rAdd = await fetch(API + '/pedidos/' + ca.pedidoId + '/items/' + existente.id, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cantidad: existente.cantidad + 1, precio_unitario: existente.precio_unitario })
       })
     } else {
-      await fetch(API + '/pedidos/' + ca.pedidoId + '/items', {
+      rAdd = await fetch(API + '/pedidos/' + ca.pedidoId + '/items', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ variante_id: varianteId, cantidad: 1, precio_unitario: precio, subtotal: precio, nombre: prod?.nombre || '', color: v?.color || '', talla: v?.talla || '' })
       })
     }
+    if (!rAdd.ok) { const eAdd = await rAdd.json().catch(() => ({})); throw new Error(eAdd.error || eAdd.detail || ('HTTP ' + rAdd.status)) }
     const its = await fetch(API + '/pedidos/' + ca.pedidoId + '/items').then(r => r.json())
     ca.items = Array.isArray(its) ? its : []
     ca._tier = null
     await recalcularPreciosCarrito()
-    renderCarritoAbierto(ca.pedidoData)
-    const pares = ca.items.reduce((s, i) => s + i.cantidad, 0)
-    mostrarToastPanel('✓ ' + (prod?.nombre || '') + ' T' + (v?.talla || '') + ' · ' + pares + ' pares')
-    // Reabrir el buscador con la misma búsqueda para seguir agregando tallas (outlast del timer de blur)
-    if (queryActual) setTimeout(() => {
-      const inp = document.getElementById('c-buscar-prod')
-      if (inp) { inp.value = queryActual; buscarProductoCarrito(queryActual) }
-    }, 300)
-  } catch(e) { alert('Error: ' + e.message) }
+  } catch(e) { falloMsg = e.message }
+  ca._pend[varianteId] = Math.max(0, (ca._pend[varianteId] || 0) - 1)
+  const quedan = Object.values(ca._pend).reduce((s, n) => s + n, 0)
+  if (falloMsg) {
+    try { ca.items = await fetch(API + '/pedidos/' + ca.pedidoId + '/items').then(r => r.json()) } catch (e2) {}
+    alert('No se pudo agregar T' + (v?.talla || '') + ': ' + falloMsg)
+  }
+  if (quedan > 0 && !falloMsg) return   // todavía hay toques en fila: se redibuja con el último
+  if (window._carritoActivo !== ca) return   // mientras tanto abrió otro carrito
+  renderCarritoAbierto(ca.pedidoData)
+  // Reabrir el buscador con la misma búsqueda para seguir agregando tallas (outlast del timer de blur)
+  if (queryActual) setTimeout(() => {
+    const inp = document.getElementById('c-buscar-prod')
+    if (inp) { inp.value = queryActual; buscarProductoCarrito(queryActual) }
+  }, 300)
 }
 
 window.seleccionarVarianteCarrito = (varianteId) => {
@@ -29060,7 +29138,8 @@ window.recalcularPreciosCarrito = async () => {
   const totalPares = items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0)
 
   // Determinar tier
-  const tier = totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo'
+  // El precio elegido a mano para este carrito (clientes frecuentes: mayoreo ×6 aunque lleven 5) manda sobre el automático
+  const tier = window._carritoActivo._tierForzado || (totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo')
   const tierAnterior = window._carritoActivo._tier || 'menudeo'
   if (tier === tierAnterior) return  // no cambió, nada que hacer
 
