@@ -19113,13 +19113,13 @@ window.mostrarCatalogosChat = async (telefono) => {
         <button onclick="document.getElementById('modal-catalogos-chat').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
       </div>
       <p style="font-size:0.78rem;color:#888;margin:0 0 10px">Elige la categoría: se arma el PDF con los modelos y fotos de hoy y después lo descargas o lo mandas a este chat.</p>
-      <label class="form-label" style="margin:0 0 4px;display:block">Precios en el PDF</label>
-      <select id="cp-precio" class="form-input" style="margin-bottom:10px">
-        <option value="ninguno">Sin precios</option>
-        <option value="sitio">Precio de menudeo del sitio web</option>
-        <option value="mayoreo3">Precio de mayoreo 3-5 pares</option>
-        <option value="mayoreo6">Precio de mayoreo 6+ pares</option>
-      </select>
+      <label class="form-label" style="margin:0 0 6px;display:block">Precios en el PDF</label>
+      <input type="hidden" id="cp-precio" value="ninguno">
+      <div id="cp-precio-botones" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        ${[['ninguno', '🚫 Sin precios'], ['sitio', '🌐 Menudeo (sitio web)'], ['mayoreo3', 'Mayoreo 3-5 pares'], ['mayoreo6', 'Mayoreo 6+ pares'], ['corrida', '📦 Precio de corrida']].map(([v, l]) =>
+          `<button type="button" data-v="${v}" onclick="cpElegirPrecio('${v}')" style="padding:7px 12px;font-size:0.8rem;border-radius:100px;cursor:pointer;border:1.5px solid ${v === 'ninguno' ? '#E91E8C' : '#ddd'};background:${v === 'ninguno' ? '#E91E8C' : '#fff'};color:${v === 'ninguno' ? '#fff' : '#555'};font-weight:${v === 'ninguno' ? 700 : 500}">${l}</button>`).join('')}
+      </div>
+      <p id="cp-precio-aviso" style="font-size:0.74rem;color:#64748b;margin:0 0 10px">El PDF saldrá <b>sin precios</b>.</p>
       <div id="cp-categorias"><p style="color:#888;font-size:0.85rem">Cargando categorías...</p></div>
       <div id="cp-estado" style="margin-top:10px"></div>
     </div>`
@@ -19142,6 +19142,22 @@ window.mostrarCatalogosChat = async (telefono) => {
   }
 }
 
+const _CP_MODOS = {
+  ninguno: ['sin precios', 'sin_precios'], sitio: ['con precios de menudeo (sitio web)', 'precios_sitio'],
+  mayoreo3: ['con precios de mayoreo 3-5 pares', 'mayoreo_3a5'], mayoreo6: ['con precios de mayoreo 6+ pares', 'mayoreo_6mas'],
+  corrida: ['con precios de corrida', 'precios_corrida'],
+}
+window.cpElegirPrecio = (v) => {
+  const h = document.getElementById('cp-precio'); if (h) h.value = v
+  document.querySelectorAll('#cp-precio-botones button').forEach(b => {
+    const act = b.dataset.v === v
+    b.style.borderColor = act ? '#E91E8C' : '#ddd'; b.style.background = act ? '#E91E8C' : '#fff'; b.style.color = act ? '#fff' : '#555'; b.style.fontWeight = act ? 700 : 500
+  })
+  const av = document.getElementById('cp-precio-aviso'); if (av) av.innerHTML = `El PDF saldrá <b>${(_CP_MODOS[v] || _CP_MODOS.ninguno)[0]}</b>.`
+  const est = document.getElementById('cp-estado'); if (est) est.innerHTML = ''   // un PDF ya armado con otros precios no se debe mandar por error
+  window._cpArchivo = null
+}
+
 window.generarCatalogoChat = async (telefono, cat, label) => {
   const est = document.getElementById('cp-estado'); if (!est) return
   const modo = (document.getElementById('cp-precio') || {}).value || 'ninguno'
@@ -19149,6 +19165,7 @@ window.generarCatalogoChat = async (telefono, cat, label) => {
   const precioFn = modo === 'ninguno' ? null : (p) => {
     const base = parseFloat(p.precio_menudeo) || 0
     if (modo === 'sitio') return base > 0 ? (p.es_oferta ? base : base + 80) : 0
+    if (modo === 'corrida') return parseFloat(p.precio_corrida) || (base > 0 ? Math.round(base - 100) : 0)
     if (modo === 'mayoreo3') return parseFloat(p.precio_mayoreo3) || Math.max(0, base - 30)
     return parseFloat(p.precio_mayoreo6) || Math.max(0, base - 70)
   }
@@ -19161,15 +19178,17 @@ window.generarCatalogoChat = async (telefono, cat, label) => {
       items, titulo: label, negocio: 'Zapatillas May', tel: '4792244560', conPrecio: !!precioFn,
       progreso: (n, t) => { est.innerHTML = `<p style="font-size:0.85rem;color:#555">⏳ Armando el catálogo: página ${n} de ${t}...</p>` },
     })
-    const nombre = `Catalogo_${label.replace(/[^A-Za-z0-9]+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`
+    const [modoTxt, modoArch] = _CP_MODOS[modo] || _CP_MODOS.ninguno
+    const nombre = `Catalogo_${label.replace(/[^A-Za-z0-9]+/g, '_')}_${modoArch}_${new Date().toISOString().slice(0, 10)}.pdf`
     const url = URL.createObjectURL(blob)
     window._cpArchivo = new File([blob], nombre, { type: 'application/pdf' })
+    window._cpModoTxt = modoTxt
     est.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px">
-        <p style="margin:0 0 8px;font-weight:700;color:#16a34a;font-size:0.9rem">✅ Catálogo de ${_e(label)} listo — ${(blob.size / 1048576).toFixed(1)} MB</p>
+        <p style="margin:0 0 8px;font-weight:700;color:#16a34a;font-size:0.9rem">✅ Catálogo de ${_e(label)} <u>${_e(modoTxt)}</u> listo — ${(blob.size / 1048576).toFixed(1)} MB</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn btn-secondary" href="${url}" download="${_e(nombre)}">⬇ Descargar</a>
-          <button class="btn btn-primary" id="cp-enviar" onclick="enviarCatalogoAlChat('${_ja(telefono)}','${_ja(label)}')">📤 Enviar a este chat</button>
+          <button class="btn btn-primary" id="cp-enviar" onclick="enviarCatalogoAlChat('${_ja(telefono)}','${_ja(label)}')">📤 Enviar a este chat (${_e(modoTxt)})</button>
         </div>
       </div>`
   } catch (e) {
