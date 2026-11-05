@@ -10824,6 +10824,7 @@ function _renderFilaPedido(p) {
       <td data-label="Estado">
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${semaforo}${guiaInfo}${avisoEnvioPendiente}
+        ${(window._pedCompPend || {})[p.id] > 0 ? `<br><span onclick="verPedido('${p.id}')" title="Abrir el pedido para ver el comprobante" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 9px;border-radius:100px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc">📎 ${window._pedCompPend[p.id]} comprobante${window._pedCompPend[p.id] === 1 ? '' : 's'} por revisar</span>` : ''}
       </td>
       <td data-label="Fecha">${(p.confirmado_at || p.created_at) ? new Date(p.confirmado_at || p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}${p.confirmado_at && p.created_at && window._pedDias(p.created_at) - window._pedDias(p.confirmado_at) >= 1 ? `<br><span style="font-size:0.66rem;color:#94a3b8">abierto hace ${window._pedDias(p.created_at) - window._pedDias(p.confirmado_at)} día(s) antes</span>` : ''}</td>
       <td class="acciones-ped" style="white-space:nowrap">
@@ -10942,6 +10943,9 @@ async function cargarPedidos() {
     window._cxcMap = cxcLista ? Object.fromEntries(cxcLista.map(c => [c.id, c])) : null
     const saldoCxC = (cxcLista || []).reduce((t, c) => t + (parseFloat(c.saldo) || 0), 0)
     const vencidosCxC = (cxcLista || []).filter(c => c.vencido).length
+    // Comprobantes de pago que subieron las clientas desde el portal y nadie ha revisado ({pedido_id: cuántos})
+    window._pedCompPend = await fetch(API + '/pedidos/comprobantes-pendientes').then(r => r.json()).then(d => (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}).catch(() => ({}))
+    const conComprobante = data.filter(p => window._pedCompPend[p.id] > 0).length
 
     const hoy = new Date()
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
@@ -11006,6 +11010,7 @@ async function cargarPedidos() {
             ? kpiCard(porEnviar, 'Por enviar', porEnviarRojos > 0 ? `🔴 ${porEnviarRojos} con 3+ días` : 'Confirmados sin guía', porEnviarRojos > 0 ? '#b91c1c' : '#1d4ed8', porEnviarRojos > 0 ? '#fff1f2' : '#eff6ff', porEnviarRojos > 0 ? '#fda4af' : '#93c5fd', "cargarPedidosFiltro('por_enviar')")
             : verde('0', 'Por enviar', 'Sin pendientes')}
           ${apartados > 0 ? kpiCard(apartados, 'Apartados', 'Esperando cierre', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('apartado')") : ''}
+          ${conComprobante > 0 ? kpiCard(conComprobante, '📎 Comprobantes por revisar', 'La clienta subió su pago', '#075985', '#e0f2fe', '#7dd3fc', "cargarPedidosFiltro('comprobantes')") : ''}
           ${pendienteSPEI > 0
             ? kpiCard(pendienteSPEI, 'SPEI/OXXO pendiente', 'Eligió método, falta pagar', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
             : verde('0', 'SPEI/OXXO pendiente', 'Todo al corriente')}
@@ -11037,6 +11042,7 @@ async function cargarPedidos() {
           ${pill('', `Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span>`, 'pill-active')}
           ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}
           ${pill('pendiente_pago', 'SPEI/OXXO pendiente', 'pill-warning')}
+          ${pill('comprobantes', `📎 Comprobantes por revisar ${conComprobante > 0 ? `<span style="opacity:0.75;font-weight:400">${conComprobante}</span>` : ''}`, 'pill-info')}
           ${pill('abandonado', `Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}`, 'pill-danger')}
           ${pill('por_enviar', `Por enviar ${porEnviar > 0 ? `<span style="opacity:0.75;font-weight:400">${porEnviar}</span>` : ''}`, 'pill-info')}
           ${pill('credito', 'Crédito', 'pill-success')}
@@ -11066,6 +11072,7 @@ function _pedFiltrados() {
   let l = data
   switch (F.pill) {
     case 'pendiente_pago': l = data.filter(p => p.status === 'pendiente_pago'); break
+    case 'comprobantes': l = data.filter(p => (window._pedCompPend || {})[p.id] > 0); break
     case 'abandonado': l = data.filter(p => p.status === 'checkout_iniciado'); break
     case 'credito': l = data.filter(p => p.forma_pago === 'credito'); break
     case 'por_enviar': l = data.filter(window._pedEsPorEnviar); break
@@ -28001,7 +28008,7 @@ async function cargarCarritos() {
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
                         ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
                         ${anticipo > 0 ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">💵 Anticipo $${Math.round(anticipo).toLocaleString('es-MX')}</span>` : ''}
-                        ${p._compPend > 0 ? `<span style="display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compPend} comprobante${p._compPend === 1 ? '' : 's'} por revisar</span>` : ''}
+                        ${p._compPend > 0 ? `<span onclick="event.stopPropagation();editarAnticipoCarrito('${p.id}', true)" title="Toca para ver el comprobante" style="cursor:pointer;display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compPend} comprobante${p._compPend === 1 ? '' : 's'} por revisar · ver</span>` : ''}
                         ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
                       </div>
                     </div>
@@ -31387,6 +31394,47 @@ window._wmSincronizarInventario = async (btn) => {
       </div>`
       content.insertAdjacentHTML('beforeend', html)
     } catch (e) {}
+  }
+})()
+
+// ═══ Pedido → comprobantes de pago (capturas/PDF que sube la clienta desde el portal o se adjuntan en el panel) ═══
+// Antes solo se veían en Carritos: un pedido por SPEI quedaba en Pedidos y el comprobante no aparecía en ningún lado.
+;(() => {
+  const original = window.verPedido
+  const pintar = async (id) => {
+    const content = document.getElementById('content')
+    if (!content) return
+    let filas = []
+    try { const r = await fetch(API + '/pedidos/' + id + '/comprobantes'); const d = r.ok ? await r.json() : {}; filas = d.comprobantes || [] } catch (e) { return }
+    document.getElementById('ped-comprobantes-card')?.remove()
+    if (!filas.length) return
+    const total = parseFloat(window._currentPedido?.total || 0)
+    const porRevisar = filas.filter(c => c.revisado === false).length
+    const html = `<div id="ped-comprobantes-card" class="table-card" style="padding:1.25rem;margin-bottom:1rem;border:1.5px solid ${porRevisar ? '#7dd3fc' : '#e2e8f0'};background:${porRevisar ? '#f0f9ff' : '#fff'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <p style="font-weight:700;color:#0f172a;margin:0">📎 Comprobantes de pago${porRevisar ? ` <span style="background:#0284c7;color:#fff;border-radius:100px;padding:1px 9px;font-size:0.68rem">${porRevisar} por revisar</span>` : ''}</p>
+        <span style="font-size:0.78rem;color:#475569">Total del pedido: <strong>$${total.toLocaleString('es-MX', { maximumFractionDigits: 2 })}</strong></span>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">${filas.map(c => `
+        <div style="width:150px;font-size:0.74rem;color:#475569">
+          <a href="${_e(c.url)}" target="_blank" rel="noopener" style="display:block;margin-bottom:6px">${c.tipo === 'pdf'
+            ? '<span style="display:flex;align-items:center;justify-content:center;height:150px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:700;color:#b91c1c">📄 PDF</span>'
+            : `<img src="${_e(c.url)}" alt="Comprobante" loading="lazy" style="width:150px;height:150px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0">`}</a>
+          <div>${c.monto ? `<strong style="color:#0f172a">Dice que pagó $${parseFloat(c.monto).toLocaleString('es-MX', { maximumFractionDigits: 2 })}</strong><br>` : ''}${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${c.origen === 'portal' ? 'subido por la clienta' : 'subido en el panel'}${c.nota ? `<br><em>${_e(c.nota)}</em>` : ''}</div>
+          ${c.revisado === false ? `<button class="btn btn-secondary" style="margin-top:6px;padding:4px 9px;font-size:0.72rem" onclick="pedComprobanteRevisado('${id}','${c.id}')">✓ Ya lo revisé</button>` : '<span style="color:#16a34a;font-weight:600">✓ Revisado</span>'}
+        </div>`).join('')}
+      </div>
+    </div>`
+    content.insertAdjacentHTML('afterbegin', html)
+  }
+  window.pedComprobanteRevisado = async (pedidoId, cid) => {
+    await fetch(API + '/pedidos/' + pedidoId + '/comprobantes/' + cid, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revisado: true }) })
+    if (window._pedCompPend && window._pedCompPend[pedidoId] > 0) window._pedCompPend[pedidoId]--
+    pintar(pedidoId)
+  }
+  window.verPedido = async (id) => {
+    await original(id)
+    pintar(id)
   }
 })()
 

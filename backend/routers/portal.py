@@ -635,8 +635,13 @@ def subir_mi_comprobante(pedido_id: str, archivo: UploadFile = File(...), monto:
     try:
         cli = supabase_get(f"clientes?id=eq.{cid}&select=nombre") or [{}]
         from routers.push import enviar_push
-        enviar_push("📎 Comprobante de pago nuevo", f"{cli[0].get('nombre') or 'Una clienta'} subió un comprobante" + (f" de ${m:,.0f}" if m else "") + ". Revisa Carritos.",
-                    url="/?modulo=carritos", sitio="panel")
+        try:
+            total_ped = float(ped.get("total") or 0)
+        except (TypeError, ValueError):
+            total_ped = 0
+        ref = f"pedido #{str(pedido_id)[:8].upper()}" + (f" por ${total_ped:,.0f}" if total_ped else "")
+        enviar_push("📎 Comprobante de pago nuevo", f"{cli[0].get('nombre') or 'Una clienta'} subió un comprobante" + (f" de ${m:,.0f}" if m else "") + f" ({ref}). Revisa Pedidos.",
+                    url="/?modulo=pedidos", sitio="panel")
     except Exception as e:
         print(f"[portal] aviso de comprobante: {e}")
     return {"ok": True, "comprobante": res[0] if isinstance(res, list) and res else None}
