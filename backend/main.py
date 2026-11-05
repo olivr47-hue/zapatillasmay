@@ -107,7 +107,7 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
     ("*",   r"/emails(/.*)?"),                                   # buzón corporativo (contacto-web es público: se evalúa antes)
     ("*",   r"/push/(enviar|suscriptores|lista|historial|diagnostico)"),
     ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
-    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada)"),
+    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada|editar)"),
     ("POST|PATCH|DELETE", r"/sucursales(/.*)?"),
     ("POST", r"/(seo|config)(/.*)?"),
     ("*",   r"/resenas/admin/.*"),
@@ -121,7 +121,7 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
 # «ver Finanzas» (se quita desde Empleados a quien administra pero no debe ver las finanzas).
 _SOLO_FINANZAS = [(m, _re.compile(r)) for m, r in (
     ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
-    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada)"),
+    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada|editar)"),
 )]
 
 

@@ -1448,6 +1448,71 @@ def registrar_abono_orden(id: str, datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.patch("/ordenes/{id}/editar")
+def editar_nota_proveedor(id: str, datos: dict):
+    """Corrige una nota de proveedor ya capturada: proveedor, notas, días de crédito, fecha y (solo notas sin productos capturados) el total.
+    Si cambia el total, el saldo se recalcula con lo ya abonado. No toca inventario ni los abonos registrados."""
+    try:
+        import re as _re
+        from datetime import datetime
+        orden = supabase_get(f"ordenes_compra?id=eq.{id}")
+        if not orden:
+            return JSONResponse(status_code=404, content={"error": "Nota no encontrada"})
+        orden = orden[0]
+        cambios = {}
+
+        if datos.get("proveedor_id"):
+            prov = supabase_get(f"proveedores?id=eq.{datos['proveedor_id']}&select=id")
+            if not prov:
+                return JSONResponse(status_code=400, content={"error": "Ese proveedor no existe"})
+            cambios["proveedor_id"] = datos["proveedor_id"]
+
+        if "notas" in datos:
+            cambios["notas"] = str(datos.get("notas") or "").strip()[:1000]
+
+        if "dias_credito" in datos:
+            dc = datos.get("dias_credito")
+            if dc in (None, ""):
+                cambios["dias_credito"] = None
+            else:
+                dc = int(dc)
+                if dc < 0 or dc > 365:
+                    return JSONResponse(status_code=400, content={"error": "Los días de crédito deben estar entre 0 y 365"})
+                cambios["dias_credito"] = dc
+
+        fecha = str(datos.get("fecha") or "").strip()
+        if fecha:
+            if not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", fecha):
+                return JSONResponse(status_code=400, content={"error": "La fecha debe ser AAAA-MM-DD"})
+            datetime.strptime(fecha, "%Y-%m-%d")
+            cambios["created_at"] = f"{fecha}T12:00:00+00:00"
+
+        if datos.get("total") not in (None, ""):
+            nuevo_total = round(float(datos["total"]), 2)
+            total_actual = round(float(orden.get("total") or 0), 2)
+            if abs(nuevo_total - total_actual) > 0.001:
+                if orden.get("status") == "pagada":
+                    return JSONResponse(status_code=409, content={"error": "La nota ya está pagada: no se puede cambiar su total"})
+                if nuevo_total <= 0:
+                    return JSONResponse(status_code=400, content={"error": "El total debe ser mayor a 0"})
+                if supabase_get(f"ordenes_compra_items?orden_id=eq.{id}&select=id&limit=1"):
+                    return JSONResponse(status_code=409, content={"error": "Esta nota tiene productos capturados: su total sale de ellos y no se cambia aquí"})
+                pagos = supabase_get(f"ordenes_compra_pagos?orden_id=eq.{id}&select=monto") or []
+                abonado = round(sum(float(p.get("monto") or 0) for p in pagos), 2)
+                if nuevo_total < abonado:
+                    return JSONResponse(status_code=409, content={"error": f"Ya se abonaron ${abonado:,.2f}: el total no puede ser menor"})
+                cambios["total"] = nuevo_total
+                cambios["saldo_pendiente"] = round(nuevo_total - abonado, 2)
+
+        if not cambios:
+            return {"ok": True, "sin_cambios": True}
+        supabase_patch(f"ordenes_compra?id=eq.{id}", cambios)
+        return {"ok": True, "cambios": list(cambios.keys())}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": f"Dato inválido: {e}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.post("/ordenes/{id}/marcar-cancelada")
 def marcar_orden_cancelada(id: str):
     try:

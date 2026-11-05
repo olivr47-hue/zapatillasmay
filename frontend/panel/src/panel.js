@@ -2897,6 +2897,7 @@ window.verOrdenDetalle = async (ordenId) => {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
           <button class="btn btn-secondary" style="background:#fce4ec;border-color:#E91E8C;color:#c2185b" onclick="window.generarPDFOrdenGuardada()">📄 Generar PDF</button>
+          ${window._veFinanzas && window._veFinanzas() ? `<button class="btn btn-secondary" onclick="window.editarNotaProveedor('${orden.id}')">✏️ Editar nota</button>` : ''}
           ${orden.status === 'borrador' ? `
             <button class="btn btn-secondary" style="color:#c62828;border-color:#ef9a9a" onclick="window._ordenDetalleCancelar('${orden.id}')">✕ Cancelar</button>
             <button class="btn btn-primary" onclick="window._ordenDetalleMarcarRecibida('${orden.id}')">📥 Marcar como recibida</button>
@@ -3015,6 +3016,7 @@ window.cxpBuscar = (q) => {
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px" onclick="window.cxpVerNota('${o.id}')">📋 Ver nota</button>
+                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px" onclick="window.editarNotaProveedor('${o.id}')">✏️ Editar nota</button>
                 ${o.pagada ? '' : `<button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#1565c0;border-color:#90caf9" onclick='window.mostrarFormAbono(${JSON.stringify(o.id)}, ${saldo}, ${JSON.stringify(o.proveedor_nombre)})'>💵 Abonar</button>
                 <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="marcarOrdenPagada('${o.id}')">✅ Marcar pagada</button>
                 <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#c62828;border-color:#ef9a9a" onclick="marcarOrdenCancelada('${o.id}')">✕ Cancelar</button>`}
@@ -3068,6 +3070,64 @@ window.cxpAlternarPagadas = async () => {
   window.mostrarCxP()
 }
 // Contenido de la nota: qué llegó (productos, tallas, cantidades y costos). Las notas capturadas a mano no traen productos: se muestra su texto.
+// Corregir una nota de proveedor ya capturada (proveedor equivocado, fecha, crédito, notas y, en notas sin productos, el total)
+window.editarNotaProveedor = async (id) => {
+  const todas = [...(window._finanzasData?.cxp || []), ...(window._cxpHist || [])]
+  let o = todas.find(x => x.id === id)
+  const det = window._ordenDetalleActual?.orden
+  if (!o && det && det.id === id) o = { ...det, proveedor_nombre: det.proveedores?.nombre, fecha_orden: String(det.created_at || '').slice(0, 10), dias_credito: det.dias_credito != null ? det.dias_credito : (det.proveedores?.dias_credito || 0) }
+  if (!o) { alert('No encontré esa nota. Recarga la pantalla e intenta de nuevo.'); return }
+  let provs = []
+  try { const r = await fetch(API + '/finanzas/proveedores'); const d = await r.json(); provs = Array.isArray(d) ? d : [] } catch (e) {}
+  if (!provs.length) { alert('No se pudo cargar la lista de proveedores. Intenta de nuevo.'); return }
+  document.getElementById('modal-editar-nota')?.remove()
+  const modal = document.createElement('div'); modal.id = 'modal-editar-nota'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto'
+  const pagada = !!o.pagada || o.status === 'pagada'
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:1.5rem;max-width:480px;width:100%">
+    <h3 style="margin:0 0 4px">✏️ Editar nota${o.numero != null ? ' #' + _e(o.numero) : ''}</h3>
+    <p style="color:#888;font-size:0.8rem;margin:0 0 14px">Cambia lo que quedó mal capturado. No toca el inventario ni los abonos ya registrados.</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div><label class="form-label">Proveedor</label>
+        <select class="form-input" id="en-prov">${provs.map(p => `<option value="${_e(p.id)}" ${p.id === o.proveedor_id ? 'selected' : ''}>${_e(p.nombre)}</option>`).join('')}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="form-label">Fecha de la nota</label><input class="form-input" type="date" id="en-fecha" value="${_e(String(o.fecha_orden || '').slice(0, 10))}"></div>
+        <div><label class="form-label">Días de crédito</label><input class="form-input" type="number" min="0" max="365" id="en-dias" value="${o.dias_credito != null ? _e(o.dias_credito) : ''}"></div>
+      </div>
+      <div><label class="form-label">Total $ ${pagada ? '<span style="color:#94a3b8;font-weight:400">(nota pagada: no se cambia)</span>' : '<span style="color:#94a3b8;font-weight:400">(solo si la nota no tiene productos capturados)</span>'}</label>
+        <input class="form-input" type="number" step="0.01" min="0" id="en-total" value="${_e(parseFloat(o.total || 0))}" ${pagada ? 'disabled' : ''}></div>
+      <div><label class="form-label">Notas / folio</label><textarea class="form-input" id="en-notas" rows="3">${_e(o.notas || '')}</textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('modal-editar-nota').remove()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" id="en-guardar" onclick="window.guardarNotaProveedor('${_e(id)}')">Guardar cambios</button>
+    </div></div>`
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  window._enOriginal = { proveedor_id: o.proveedor_id, fecha: String(o.fecha_orden || '').slice(0, 10), dias: o.dias_credito, total: parseFloat(o.total || 0), notas: o.notas || '' }
+}
+window.guardarNotaProveedor = async (id) => {
+  const v = (x) => document.getElementById(x)?.value
+  const orig = window._enOriginal || {}
+  const body = { proveedor_id: v('en-prov'), notas: v('en-notas'), fecha: v('en-fecha') }
+  const dias = v('en-dias'); body.dias_credito = dias === '' ? null : parseInt(dias)
+  const tot = parseFloat(v('en-total'))
+  if (!document.getElementById('en-total')?.disabled && !isNaN(tot) && Math.abs(tot - (orig.total || 0)) > 0.001) body.total = tot
+  const btn = document.getElementById('en-guardar'); if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
+  try {
+    const r = await fetch(API + '/finanzas/ordenes/' + id + '/editar', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error) throw new Error(d.error || ('Error ' + r.status))
+    document.getElementById('modal-editar-nota')?.remove()
+    if (document.getElementById('cxp-lista')) await window.irACuentasPorPagar()
+    else if (window._ordenDetalleActual?.orden?.id === id) window.verOrdenDetalle(id)
+    mostrarToastPanel('✓ Nota actualizada')
+  } catch (e) {
+    alert('No se pudo guardar: ' + e.message)
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar cambios' }
+  }
+}
+
 window.cxpVerNota = async (id) => {
   const todas = (window._cxpPagadas ? window._cxpHist : window._finanzasData.cxp) || []
   const o = todas.find(x => x.id === id) || {}
