@@ -28210,6 +28210,7 @@ window.abrirCarrito = async (pedidoId) => {
       inventario: resInv,
       sucursalId: p.sucursal_id,
       envioMayoreoTiers: resEnvioCfg?.mayoreo_tiers || null,
+      _fijos: (() => { try { return JSON.parse(localStorage.getItem('zm_precios_fijos_' + pedidoId) || '[]') } catch (e) { return [] } })(),
       _tierForzado: (() => { try { return localStorage.getItem('zm_tier_carrito_' + pedidoId) || null } catch (e) { return null } })()   // precio elegido a mano para este carrito (clientes frecuentes)
     }
 
@@ -28967,6 +28968,14 @@ window._tierActualCarrito = (extra = 0) => {
 const _precioTierCarrito = (p, t) => window._precioTierCarrito(p, t)
 const _tierActualCarrito = (n) => window._tierActualCarrito(n)
 
+// Pares con precio fijo (elegido al agregarlos o escrito a mano): la lista se guarda por carrito y el cálculo automático no los toca
+window._marcarPrecioFijo = (itemId) => {
+  const ca = window._carritoActivo
+  if (!ca || !itemId) return
+  ca._fijos = ca._fijos || []
+  if (!ca._fijos.includes(itemId)) ca._fijos.push(itemId)
+  try { localStorage.setItem('zm_precios_fijos_' + ca.pedidoId, JSON.stringify(ca._fijos)) } catch (e) {}
+}
 // Elegir el precio del carrito (Automático / Menudeo / Mayoreo ×3 / ×6): se guarda para este carrito y se aplica a todos los pares
 window.carritoSetTier = async (tier) => {
   const ca = window._carritoActivo
@@ -28977,11 +28986,7 @@ window.carritoSetTier = async (tier) => {
     const act = (b.dataset.tier || null) === (tier || null)
     b.style.borderColor = act ? '#E91E8C' : '#ddd'; b.style.background = act ? '#E91E8C' : '#fff'; b.style.color = act ? '#fff' : '#555'; b.style.fontWeight = act ? 700 : 500
   })
-  if (ca.items.length) {
-    ca._tier = '__aplicar__'   // distinto de cualquier nivel real: obliga a recalcular los precios de lo que ya está en el carrito
-    await recalcularPreciosCarrito()
-    renderCarritoAbierto(ca.pedidoData)
-  }
+  // Solo vale para los pares que se agreguen de aquí en adelante: lo que ya está en el carrito conserva su precio
   const q = document.getElementById('c-buscar-prod')?.value
   if (q) buscarProductoCarrito(q)
 }
@@ -29012,6 +29017,7 @@ async function _quickAddReal(varianteId) {
   const pares = ca.items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0)
   const precio = window._precioTierCarrito(prod, ca._tierForzado || (pares + 1 >= 6 ? 'mayoreo6' : pares + 1 >= 3 ? 'mayoreo3' : 'menudeo')) || 0
   const existente = ca.items.find(i => i.variante_id === varianteId && !i.es_corrida)
+  ca._idsAntes = ca.items.map(i => i.id)
   const queryActual = document.getElementById('c-buscar-prod') ? document.getElementById('c-buscar-prod').value : ''
   let falloMsg = null
   try {
@@ -29030,6 +29036,11 @@ async function _quickAddReal(varianteId) {
     if (!rAdd.ok) { const eAdd = await rAdd.json().catch(() => ({})); throw new Error(eAdd.error || eAdd.detail || ('HTTP ' + rAdd.status)) }
     const its = await fetch(API + '/pedidos/' + ca.pedidoId + '/items').then(r => r.json())
     ca.items = Array.isArray(its) ? its : []
+    // Con un precio elegido (no Automático), el par nuevo queda con ESE precio y ya no se mueve al agregar otros
+    if (ca._tierForzado && !existente) {
+      const idsAntes = new Set((ca._idsAntes || []))
+      ca.items.filter(i => !idsAntes.has(i.id) && i.variante_id === varianteId && !i.es_corrida).forEach(i => window._marcarPrecioFijo(i.id))
+    }
     ca._tier = null
     await recalcularPreciosCarrito()
   } catch(e) { falloMsg = e.message }
@@ -29138,8 +29149,7 @@ window.recalcularPreciosCarrito = async () => {
   const totalPares = items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0)
 
   // Determinar tier
-  // El precio elegido a mano para este carrito (clientes frecuentes: mayoreo ×6 aunque lleven 5) manda sobre el automático
-  const tier = window._carritoActivo._tierForzado || (totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo')
+  const tier = totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo'
   const tierAnterior = window._carritoActivo._tier || 'menudeo'
   if (tier === tierAnterior) return  // no cambió, nada que hacer
 
@@ -29150,7 +29160,7 @@ window.recalcularPreciosCarrito = async () => {
   // Actualizar precio de cada ítem con el precio del tier correspondiente
   let algoActualizado = false
   for (const item of items) {
-    if (item._precio_manual) continue  // no tocar precios que el usuario modificó a mano
+    if (item._precio_manual || (window._carritoActivo._fijos || []).includes(item.id)) continue  // no tocar precios que el usuario modificó a mano ni los pares agregados con un precio elegido
     const v = variantes.find(x => x.id === item.variante_id)
     const prod = v ? productos.find(p => p.id === v.producto_id) : null
     if (!prod) continue
@@ -29197,6 +29207,7 @@ window.actualizarPrecioCarrito = async (idx, nuevoPrecio) => {
   const precio = parseFloat(nuevoPrecio) || 0
   if (!precio || !item) return
   item._precio_manual = true  // no sobreescribir con tier automático
+  window._marcarPrecioFijo(item.id)   // y que tampoco lo pise al recargar el carrito
   try {
     await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + item.id, {
       method: 'PATCH',
