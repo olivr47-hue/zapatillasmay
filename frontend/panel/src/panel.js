@@ -120,7 +120,7 @@ const modulos = [
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
   { id: 'finanzas', icon: '💰', label: 'Finanzas', section: 'Finanzas', soloAdmin: true, soloFinanzas: true },
-  { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true, soloFinanzas: true },
+  { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true },   // el directorio no muestra dinero: lo ven y dan de alta también quienes no tienen «ver Finanzas»
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
