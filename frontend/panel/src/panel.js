@@ -3106,6 +3106,11 @@ window.editarNotaProveedor = async (id) => {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
   window._enOriginal = { proveedor_id: o.proveedor_id, fecha: String(o.fecha_orden || '').slice(0, 10), dias: o.dias_credito, total: parseFloat(o.total || 0), notas: o.notas || '' }
 }
+// Recarga Finanzas ya estando en ella y vuelve a la pestaña de Cuentas por pagar (irACuentasPorPagar desde aquí dejaba la pestaña de Gastos)
+window._refrescarCxp = async () => {
+  await cargarFinanzas()
+  window.mostrarTabFinanzas('cxp')
+}
 window.guardarNotaProveedor = async (id) => {
   const v = (x) => document.getElementById(x)?.value
   const orig = window._enOriginal || {}
@@ -3119,7 +3124,7 @@ window.guardarNotaProveedor = async (id) => {
     const d = await r.json().catch(() => ({}))
     if (!r.ok || d.error) throw new Error(d.error || ('Error ' + r.status))
     document.getElementById('modal-editar-nota')?.remove()
-    if (document.getElementById('cxp-lista')) await window.irACuentasPorPagar()
+    if (document.getElementById('cxp-lista')) await window._refrescarCxp()
     else if (window._ordenDetalleActual?.orden?.id === id) window.verOrdenDetalle(id)
     mostrarToastPanel('✓ Nota actualizada')
   } catch (e) {
