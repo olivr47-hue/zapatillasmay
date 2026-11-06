@@ -2097,6 +2097,13 @@ def save_config(datos: dict):
     except Exception as e:
         return {"error": str(e)}
 
+def _url_producto_feed(p: dict, sku) -> str:
+    """Enlace de un producto en los feeds (Google, Meta, TikTok): la dirección FINAL con slug. Con el SKU el enlace redirige (301) y Google lo
+    marca como «página con redirección». Si el producto aún no tiene slug se usa el SKU (esa dirección sigue funcionando)."""
+    clave = (p.get("slug") or "").strip() or str(sku)
+    return "https://zapatillasmay.mx/producto/" + urllib.parse.quote(clave, safe="-_.~")
+
+
 @router.get("/feed/meta.xml")
 def feed_meta():
     cached = cache_get("feed_meta")
@@ -2126,7 +2133,7 @@ def feed_meta():
 
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
-            url = f"https://zapatillasmay.mx/producto/{sku}"
+            url = _url_producto_feed(p, sku)   # dirección final (slug): con el SKU Google recibía una redirección 301
             vars_prod = variantes_por_producto.get(p['id'], [])
 
             if vars_prod:
@@ -2401,7 +2408,7 @@ def feed_google():
         xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
-            url = f"https://zapatillasmay.mx/producto/{sku}"
+            url = _url_producto_feed(p, sku)   # dirección final (slug): con el SKU Google recibía una redirección 301
             vars_prod = variantes_por_producto.get(p['id'], [])
 
             if vars_prod:
@@ -2605,7 +2612,7 @@ def feed_google_local():
 @router.get("/feed/tiktok.json")
 def feed_tiktok():
     try:
-        productos  = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,material,tipo_tacon,altura_tacon"))
+        productos  = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon"))
         variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
@@ -2623,7 +2630,7 @@ def feed_tiktok():
             precio = base if es_oferta else round(base + 80)
             titulo = _titulo_feed(p)
             desc = (p.get("descripcion") or p.get("nombre") or "").strip()
-            url_base = f"https://zapatillasmay.mx/producto/{sku}"
+            url_base = _url_producto_feed(p, sku)   # dirección final (slug), sin redirección
 
             pvars = vars_map.get(pid, [])
             if pvars:
