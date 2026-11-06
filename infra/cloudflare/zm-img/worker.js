@@ -10,6 +10,13 @@ function formato(accept) {
   return 'otro'
 }
 
+// JPEG XL (image/jxl): con f_auto, Cloudinary lo manda a quien lo anuncia (p. ej. Safari). Como la clave de caché solo
+// distinguía avif/webp/otro, una copia JXL quedaba guardada en el grupo «avif» y se servía a Chrome y otros navegadores
+// que NO lo decodifican: la foto salía rota. Se quita de lo que se anuncia a Cloudinary y de la clave.
+function sinJxl(accept) {
+  return accept.split(',').filter(p => !/image\/jxl/i.test(p)).join(',')
+}
+
 function comunes(h) {
   h.set('Access-Control-Allow-Origin', '*')
   h.set('Timing-Allow-Origin', '*')
@@ -33,9 +40,10 @@ export default {
       return new Response('No encontrado', { status: 404, headers: { 'Cache-Control': 'no-store' } })
     }
 
-    const accept = request.headers.get('Accept') || ''
+    const accept = sinJxl(request.headers.get('Accept') || '')
     const claveUrl = new URL(url.toString())
-    claveUrl.searchParams.set('_zf', formato(accept))
+    // _zf2 (antes _zf): clave nueva a propósito, para dejar atrás las copias JXL que ya estaban guardadas
+    claveUrl.searchParams.set('_zf2', formato(accept))
     const clave = new Request(claveUrl.toString(), { method: 'GET' })
     const cache = caches.default
 
