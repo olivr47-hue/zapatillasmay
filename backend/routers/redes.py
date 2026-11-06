@@ -7,15 +7,17 @@ página (FB_PAGE_ACCESS_TOKEN, el mismo que ya usa Maya para Messenger/Instagram
 import os
 import json
 import time
+import base64
+import threading
 import urllib.request
 import urllib.error
 import urllib.parse
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 
 from database import supabase_get, supabase_post
-from security import require_staff
+from security import require_staff, create_token, verify_token
 
 router = APIRouter(prefix="/redes", tags=["Redes sociales"])
 
@@ -24,9 +26,78 @@ _PIN = "https://api.pinterest.com/v5"
 _cache_tableros = {"t": 0, "d": None}
 
 
+_PIN_SANDBOX = "https://api-sandbox.pinterest.com/v5"
+_PIN_SCOPES = "boards:read,pins:read,pins:write,user_accounts:read"
+_API_PUBLICA = os.environ.get("PUBLIC_API_URL") or "https://zapatillasmay-production.up.railway.app"
+_PIN_REDIRECT = _API_PUBLICA.rstrip("/") + "/redes/pinterest/callback"
+_pin_lock = threading.Lock()
+
+
+def _pin_base() -> str:
+    # Mientras la app de Pinterest esté en acceso «Trial», las escrituras solo funcionan en su entorno de pruebas (sandbox).
+    return _PIN_SANDBOX if os.environ.get("PINTEREST_SANDBOX", "") == "1" else _PIN
+
+
+def _pin_oauth(campos: dict) -> dict:
+    """Pide o renueva el token en Pinterest (necesita el ID y la clave secreta de la app)."""
+    app_id, secreto = os.environ.get("PINTEREST_APP_ID", ""), os.environ.get("PINTEREST_APP_SECRET", "")
+    if not app_id or not secreto:
+        raise _GraphError(None, "Faltan el ID y la clave secreta de la app de Pinterest (Conexiones → Pinterest)")
+    basico = base64.b64encode(f"{app_id}:{secreto}".encode()).decode()
+    req = urllib.request.Request("https://api.pinterest.com/v5/oauth/token", data=urllib.parse.urlencode(campos).encode(), method="POST",
+                                 headers={"Authorization": f"Basic {basico}", "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        crudo = e.read().decode("utf-8", errors="replace")
+        try:
+            j = json.loads(crudo)
+        except Exception:
+            j = {}
+        raise _GraphError(e.code, j.get("message") or crudo[:200])
+    except Exception as e:
+        raise _GraphError(None, str(e))
+
+
+def _pin_guardar_tokens(d: dict, quien: str = "Pinterest (automático)"):
+    import integraciones_cfg as cfg
+    if d.get("access_token"):
+        cfg.guardar("PINTEREST_PUBLISH_TOKEN", d["access_token"], quien)
+    if d.get("refresh_token"):
+        cfg.guardar("PINTEREST_REFRESH_TOKEN", d["refresh_token"], quien)
+    cfg.guardar("PINTEREST_TOKEN_EXPIRA", str(int(time.time()) + int(d.get("expires_in") or 2592000)), quien)
+    _cache_tableros.update({"t": 0, "d": None})
+
+
+def _pin_renovar_si_hace_falta(forzar: bool = False):
+    """Si la cuenta se conectó con el botón «Conectar Pinterest», el token dura ~30 días: se renueva solo con el refresh token."""
+    refresco = os.environ.get("PINTEREST_REFRESH_TOKEN", "")
+    if not refresco:
+        return
+    try:
+        vence = float(os.environ.get("PINTEREST_TOKEN_EXPIRA") or 0)
+    except ValueError:
+        vence = 0
+    if not forzar and vence and vence - time.time() > 3 * 86400:
+        return
+    with _pin_lock:
+        try:   # otro hilo pudo haberlo renovado mientras esperábamos
+            vence = float(os.environ.get("PINTEREST_TOKEN_EXPIRA") or 0)
+        except ValueError:
+            vence = 0
+        if not forzar and vence and vence - time.time() > 3 * 86400:
+            return
+        try:
+            _pin_guardar_tokens(_pin_oauth({"grant_type": "refresh_token", "refresh_token": os.environ.get("PINTEREST_REFRESH_TOKEN", ""), "scope": _PIN_SCOPES}))
+        except _GraphError as e:
+            print(f"[pinterest] no se pudo renovar el token: {e.mensaje}")
+
+
 def _pin_token() -> str:
     # Para publicar pines hace falta un token con permisos boards:read, pins:read y pins:write (el de la API de conversiones, PINTEREST_ACCESS_TOKEN, puede no
     # traerlos). Si existe PINTEREST_PUBLISH_TOKEN se usa ese; si no, el de siempre.
+    _pin_renovar_si_hace_falta()
     return os.environ.get("PINTEREST_PUBLISH_TOKEN", "") or os.environ.get("PINTEREST_ACCESS_TOKEN", "")
 
 
@@ -34,7 +105,7 @@ def _pin_api(ruta: str, metodo: str = "GET", datos: dict = None):
     t = _pin_token()
     if not t:
         raise _GraphError(None, "Falta el token de Pinterest (PINTEREST_PUBLISH_TOKEN o PINTEREST_ACCESS_TOKEN)")
-    req = urllib.request.Request(f"{_PIN}/{ruta}", data=(json.dumps(datos).encode("utf-8") if datos is not None else None), method=metodo,
+    req = urllib.request.Request(f"{_pin_base()}/{ruta}", data=(json.dumps(datos).encode("utf-8") if datos is not None else None), method=metodo,
                                  headers={"Authorization": f"Bearer {t}", "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=45) as r:
@@ -156,6 +227,69 @@ def _cuentas() -> dict:
     d = _graph("me?fields=id,name,instagram_business_account{id,username}")
     ig = d.get("instagram_business_account") or {}
     return {"page_id": d.get("id"), "page_name": d.get("name"), "ig_id": ig.get("id"), "ig_user": ig.get("username")}
+
+
+@router.get("/pinterest/info")
+def pinterest_info(_staff=Depends(require_staff)):
+    """Datos para el botón «Conectar Pinterest» de Conexiones (nada secreto)."""
+    try:
+        vence = float(os.environ.get("PINTEREST_TOKEN_EXPIRA") or 0)
+    except ValueError:
+        vence = 0
+    return {"redirect_uri": _PIN_REDIRECT, "tiene_app_id": bool(os.environ.get("PINTEREST_APP_ID")), "tiene_secreto": bool(os.environ.get("PINTEREST_APP_SECRET")),
+            "conectado_con_boton": bool(os.environ.get("PINTEREST_REFRESH_TOKEN")), "token_vence": int(vence) or None,
+            "sandbox": os.environ.get("PINTEREST_SANDBOX", "") == "1", "permisos": _PIN_SCOPES}
+
+
+@router.get("/pinterest/autorizar")
+def pinterest_autorizar(_staff=Depends(require_staff)):
+    """URL de Pinterest para que el administrador autorice la app (leer tableros y crear pines). El `state` va firmado y vence en 1 hora."""
+    app_id = os.environ.get("PINTEREST_APP_ID", "")
+    if not app_id or not os.environ.get("PINTEREST_APP_SECRET"):
+        return JSONResponse(status_code=400, content={"error": "Primero guarda el ID y la clave secreta de la app de Pinterest en Conexiones → Pinterest."})
+    estado_firmado = create_token({"fin": "pinterest"}, expires_hours=1)
+    params = {"client_id": app_id, "redirect_uri": _PIN_REDIRECT, "response_type": "code", "scope": _PIN_SCOPES, "state": estado_firmado}
+    return {"url": "https://www.pinterest.com/oauth/?" + urllib.parse.urlencode(params), "redirect_uri": _PIN_REDIRECT}
+
+
+@router.get("/pinterest/callback")
+def pinterest_callback(code: str = None, state: str = None, error: str = None):
+    """Pinterest regresa aquí con el código; se canjea por el token y se guarda cifrado (público: lo valida el `state` firmado)."""
+    def pagina(ok, titulo, detalle):
+        color = "#2e7d32" if ok else "#b3261e"
+        return HTMLResponse(f"<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                            f"<body style='font-family:system-ui;max-width:520px;margin:12vh auto;padding:0 20px;text-align:center'>"
+                            f"<h2 style='color:{color}'>{titulo}</h2><p>{detalle}</p>"
+                            f"<p><a href='https://zapatillasmay-panel.vercel.app/' style='color:#E91E8C;font-weight:700'>Volver al panel</a></p></body>",
+                            status_code=200 if ok else 400)
+    try:
+        if error or not code:
+            return pagina(False, "Pinterest no autorizó la conexión", f"Motivo: {urllib.parse.quote(str(error or 'sin código'))[:120]}")
+        try:
+            if (verify_token(state or "") or {}).get("fin") != "pinterest":
+                raise ValueError()
+        except Exception:
+            return pagina(False, "El enlace de autorización venció o no es válido", "Vuelve al panel (Conexiones → Pinterest) y presiona «Conectar Pinterest» otra vez.")
+        d = _pin_oauth({"grant_type": "authorization_code", "code": code, "redirect_uri": _PIN_REDIRECT, "continuous_refresh": "true"})
+        if not d.get("access_token"):
+            return pagina(False, "Pinterest no entregó el token", "Intenta de nuevo.")
+        _pin_guardar_tokens(d, "Pinterest (botón Conectar)")
+        return pagina(True, "✅ Pinterest conectado", "Ya puedes publicar pines desde el panel. Puedes cerrar esta ventana.")
+    except _GraphError as e:
+        return pagina(False, "No se pudo completar la conexión", (e.mensaje or "")[:200].replace("<", "‹"))
+    except Exception as e:
+        print(f"[pinterest] callback: {e}")
+        return pagina(False, "No se pudo completar la conexión", "Error interno. Intenta de nuevo.")
+
+
+@router.get("/pinterest/ping")
+def pinterest_ping(_staff=Depends(require_staff)):
+    """Prueba de solo lectura (botón «Probar conexión» de Conexiones)."""
+    tabs, problema = _tableros_pinterest(forzar=True)
+    modo = " (modo de pruebas)" if os.environ.get("PINTEREST_SANDBOX", "") == "1" else ""
+    if tabs:
+        return {"ok": True, "mensaje": f"Conectado{modo}: {len(tabs)} tablero(s) disponibles."}
+    return {"ok": False, "mensaje": problema or "Sin tableros"}
 
 
 @router.get("/estado")

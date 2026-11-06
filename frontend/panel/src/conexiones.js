@@ -37,8 +37,40 @@ function pintar() {
   }).join('')}</div>`
 }
 
+let _pinInfo = null
+
+// Bloque propio de Pinterest: dirección de redirección para registrar en Pinterest Developers + botón «Conectar Pinterest»
+function pinBloque() {
+  const i = _pinInfo
+  if (!i) return '<p style="font-size:0.78rem;color:#94a3b8;margin:0 0 12px">Cargando datos de Pinterest…</p>'
+  const listo = i.tiene_app_id && i.tiene_secreto
+  const fecha = i.token_vence ? new Date(i.token_vence * 1000).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }) : ''
+  return `<div style="background:#fff5f9;border:1px solid #f9c6dc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+    <p style="margin:0 0 8px;font-weight:700;font-size:0.86rem">📌 Conectar tu cuenta de Pinterest para publicar pines</p>
+    <ol style="margin:0 0 10px 18px;padding:0;font-size:0.78rem;color:#475569;line-height:1.6">
+      <li>En <b>Pinterest Developers → tu app → Configurar → URI de redireccionamiento</b>, agrega esta dirección:
+        <div style="display:flex;gap:6px;align-items:center;margin:4px 0"><code id="pin-redirect" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.72rem;word-break:break-all">${esc(i.redirect_uri)}</code>
+        <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px" onclick="navigator.clipboard.writeText(document.getElementById('pin-redirect').innerText).then(()=>alert('Copiada'))">Copiar</button></div></li>
+      <li>Guarda abajo el <b>ID de la app</b> ${i.tiene_app_id ? '✅' : '❌'} y la <b>clave secreta</b> ${i.tiene_secreto ? '✅' : '❌'}.</li>
+      <li>Presiona <b>Conectar Pinterest</b>, entra con la cuenta de empresa y acepta los permisos (ver tableros, ver y crear pines).</li>
+    </ol>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" style="font-size:0.8rem" ${listo ? '' : 'disabled title="Falta guardar el ID y la clave secreta"'} onclick="conPinterestConectar()">📌 ${i.conectado_con_boton ? 'Reconectar' : 'Conectar'} Pinterest</button>
+      <span style="font-size:0.74rem;color:${i.conectado_con_boton ? '#2e7d32' : '#64748b'}">${i.conectado_con_boton ? '✅ Conectada' + (fecha ? ' · el acceso se renueva solo (vence ' + fecha + ')' : '') : 'Aún no conectada con el botón'}</span>
+      ${i.sandbox ? '<span style="font-size:0.72rem;background:#fff4e5;color:#b26a00;border-radius:100px;padding:2px 9px;font-weight:700">Modo de pruebas</span>' : ''}</div></div>`
+}
+
+window.conPinterestConectar = async () => {
+  try {
+    const d = await api('/redes/pinterest/autorizar')
+    window.open(d.url, '_blank')
+    alert('Se abrió Pinterest en otra pestaña. Acepta los permisos y, al terminar, regresa aquí y presiona «Probar conexión».')
+  } catch (e) { alert(e.message) }
+}
+
 function cuerpo(g) {
   return `<div style="margin-top:12px;border-top:1px solid #f1f5f9;padding-top:12px">
+    ${g.id === 'pinterest' ? pinBloque() : ''}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${g.campos.map(f => {
       const json = f.clave.endsWith('_JSON')
       const origen = f.origen === 'panel' ? '<span style="color:#2e7d32">● desde el panel</span>' : f.origen === 'servidor' ? '<span style="color:#1565c0">● desde Railway</span>' : '<span style="color:#94a3b8">○ sin valor</span>'
@@ -54,7 +86,11 @@ function cuerpo(g) {
       <span id="con-res-${g.id}" style="font-size:0.78rem;color:#475569"></span></div></div>`
 }
 
-window.conAbrir = (id) => { _abierta = _abierta === id ? null : id; pintar() }
+window.conAbrir = (id) => {
+  _abierta = _abierta === id ? null : id
+  pintar()
+  if (_abierta === 'pinterest') api('/redes/pinterest/info').then(d => { _pinInfo = d; if (_abierta === 'pinterest') pintar() }).catch(() => {})
+}
 
 window.conGuardar = async (clave) => {
   const el = document.getElementById('con-' + clave); if (!el) return
@@ -66,7 +102,10 @@ window.conQuitar = async (clave) => {
   if (!confirm('¿Quitar el valor guardado en el panel? Se volverá a usar el de Railway (si existe).')) return
   try { await api('/config/integraciones/' + clave, { method: 'DELETE' }); await recargar() } catch (e) { alert(e.message) }
 }
-async function recargar() { const d = await api('/config/integraciones'); _con = d.integraciones; pintar() }
+async function recargar() {
+  const d = await api('/config/integraciones'); _con = d.integraciones; pintar()
+  if (_abierta === 'pinterest') api('/redes/pinterest/info').then(i => { _pinInfo = i; pintar() }).catch(() => {})
+}
 
 window.conProbar = async (id) => {
   const g = _con.find(x => x.id === id); const out = document.getElementById('con-res-' + id); if (!g || !out) return

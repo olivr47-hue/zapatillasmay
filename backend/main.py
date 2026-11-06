@@ -69,7 +69,7 @@ _PREFIJOS_PROTEGIDOS = (
 _PUBLICAS = [(m, _re.compile(r)) for m, r in (
     ("*",    r"/chatbot/whatsapp"), ("*", r"/chatbot/meta"),                 # webhooks Meta (validan firma)
     ("*",    r"/ml/(auth|callback)"), ("POST", r"/ml/notificaciones"),       # OAuth + webhook ML
-    ("*",    r"/shein/(auth|callback)"), ("*", r"/tiktok/(authorize|callback)"),
+    ("*",    r"/shein/(auth|callback)"), ("*", r"/tiktok/(authorize|callback)"), ("GET", r"/redes/pinterest/callback"),
     ("*",    r"/analytics/(setup|setup/callback)"), ("GET", r"/analytics/producto-popularidad"),
     ("GET",  r"/catalogos(/(?!todos$).*)?"),   # /catalogos/todos (incluye inactivos) solo personal
     ("POST", r"/emails/contacto-web"),
