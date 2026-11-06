@@ -1550,22 +1550,43 @@ cargarConfigSEO()
         try { fotos = JSON.parse(decodeURIComponent(wrap.dataset.fotos || '[]')) } catch(e) {}
         if (fotos.length < 2) return
         let idx = 0
+        let _ocupada = false
         const rotar = () => {
-          idx = (idx + 1) % fotos.length
           const img = wrap.querySelector('img')
-          if (!img) return
-          img.style.opacity = '0'
-          setTimeout(() => {
-            // El <img> trae srcset/sizes para elegir resolución -- si se
-            // deja, el navegador ignora el src nuevo y regresa solo a la
-            // imagen original del srcset (por eso "parpadeaba y volvía a
-            // aparecer la misma"). Se quitan al rotar; ya no hacen falta,
-            // la tarjeta se queda en un tamaño fijo de todos modos.
-            img.removeAttribute('srcset')
-            img.removeAttribute('sizes')
-            img.src = zmImg(fotos[idx], 600)
-            img.style.opacity = '1'
-          }, 180)
+          if (!img || _ocupada || fotos.length < 2) return
+          // La foto siguiente se descarga ANTES de mostrarse. Antes se cambiaba el src de golpe: mientras bajaba
+          // (red lenta, muchas tarjetas rotando a la vez) la tarjeta se quedaba en blanco con el texto alternativo.
+          // Si una foto falla, se descarta y la tarjeta conserva la que ya tenía.
+          _ocupada = true
+          const sig = (idx + 1) % fotos.length
+          const url = zmImg(fotos[sig], 600)
+          const pre = new Image()
+          let _fin = false
+          const terminar = () => { _fin = true; _ocupada = false }
+          pre.onload = () => {
+            if (_fin) return
+            terminar()
+            idx = sig
+            img.style.opacity = '0'
+            setTimeout(() => {
+              // El <img> trae srcset/sizes para elegir resolución -- si se deja, el navegador ignora el src nuevo
+              // y regresa solo a la imagen original del srcset. Se quitan al rotar.
+              img.removeAttribute('srcset')
+              img.removeAttribute('sizes')
+              img.src = url
+              img.style.opacity = '1'
+            }, 180)
+          }
+          pre.onerror = () => {
+            if (_fin) return
+            terminar()
+            // foto que no carga: se quita de la lista para no volver a intentarla
+            fotos.splice(sig, 1)
+            if (idx >= fotos.length) idx = 0
+          }
+          // si en 6 s no llegó, se abandona este intento (la tarjeta no se toca)
+          setTimeout(() => { if (!_fin) { terminar(); pre.onload = pre.onerror = null } }, 6000)
+          pre.src = url
         }
         // Arranque con retraso al azar -- si no, todas las tarjetas que
         // entran a pantalla juntas (ej. al cargar la página) cambian de
