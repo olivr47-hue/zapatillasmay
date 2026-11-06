@@ -263,7 +263,10 @@ def pares_vendidos_total():
 
 
 def _enviar_confirmacion_wa(pedido_data, items_data):
-    """Envia confirmacion de venta por WhatsApp al cliente. Nunca lanza excepcion al caller."""
+    """Envia confirmacion de venta por WhatsApp al cliente. Nunca lanza excepcion al caller.
+    APAGADA por defecto (cada plantilla de confirmación se cobra): solo se manda si WA_CONFIRMACION_PEDIDO=1 (Conexiones → WhatsApp)."""
+    if os.environ.get("WA_CONFIRMACION_PEDIDO", "").strip() != "1":
+        return
     try:
         cliente_id = pedido_data.get("cliente_id")
         if not cliente_id:
