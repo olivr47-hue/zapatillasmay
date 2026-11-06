@@ -10889,7 +10889,8 @@ function _renderFilaPedido(p) {
       <td data-label="Estado">
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${semaforo}${guiaInfo}${avisoEnvioPendiente}
-        ${(window._pedCompPend || {})[p.id] > 0 ? `<br><span onclick="verPedido('${p.id}')" title="Abrir el pedido para ver el comprobante" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 9px;border-radius:100px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc">📎 ${window._pedCompPend[p.id]} comprobante${window._pedCompPend[p.id] === 1 ? '' : 's'} por revisar</span>` : ''}
+        ${(window._pedCompPend || {})[p.id] > 0 ? `<br><span onclick="verPedido('${p.id}')" title="Abrir el pedido para ver el comprobante" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 9px;border-radius:100px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc">📎 ${window._pedCompPend[p.id]} comprobante${window._pedCompPend[p.id] === 1 ? '' : 's'} por revisar</span>`
+          : (((window._pedCompResumen || {})[p.id] || {}).total > 0 ? `<br><span onclick="verPedido('${p.id}')" title="Abrir el pedido para ver el comprobante" style="cursor:pointer;display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 9px;border-radius:100px;background:#f0fdf4;color:#166534;border:1px solid #86efac">📎 ${window._pedCompResumen[p.id].total} comprobante${window._pedCompResumen[p.id].total === 1 ? '' : 's'} · revisado${window._pedCompResumen[p.id].total === 1 ? '' : 's'} ✓</span>` : '')}
       </td>
       <td data-label="Fecha">${(p.confirmado_at || p.created_at) ? new Date(p.confirmado_at || p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}${p.confirmado_at && p.created_at && window._pedDias(p.created_at) - window._pedDias(p.confirmado_at) >= 1 ? `<br><span style="font-size:0.66rem;color:#94a3b8">abierto hace ${window._pedDias(p.created_at) - window._pedDias(p.confirmado_at)} día(s) antes</span>` : ''}</td>
       <td class="acciones-ped" style="white-space:nowrap">
@@ -11010,6 +11011,8 @@ async function cargarPedidos() {
     const vencidosCxC = (cxcLista || []).filter(c => c.vencido).length
     // Comprobantes de pago que subieron las clientas desde el portal y nadie ha revisado ({pedido_id: cuántos})
     window._pedCompPend = await fetch(API + '/pedidos/comprobantes-pendientes').then(r => r.json()).then(d => (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}).catch(() => ({}))
+    // Historial: todos los comprobantes por pedido (revisados y por revisar), para el botón «Ver todos los anteriores»
+    window._pedCompResumen = await fetch(API + '/pedidos/comprobantes-resumen').then(r => r.json()).then(d => (d && typeof d === 'object' && !Array.isArray(d)) ? d : {}).catch(() => ({}))
     const conComprobante = data.filter(p => window._pedCompPend[p.id] > 0).length
 
     const hoy = new Date()
@@ -11108,6 +11111,7 @@ async function cargarPedidos() {
           ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}
           ${pill('pendiente_pago', 'SPEI/OXXO pendiente', 'pill-warning')}
           ${pill('comprobantes', `📎 Comprobantes por revisar ${conComprobante > 0 ? `<span style="opacity:0.75;font-weight:400">${conComprobante}</span>` : ''}`, 'pill-info')}
+          ${pill('comprobantes_todos', `📎 Todos los comprobantes <span style="opacity:0.75;font-weight:400">${data.filter(p => (window._pedCompResumen[p.id] || {}).total > 0).length}</span>`, 'pill-info')}
           ${pill('abandonado', `Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}`, 'pill-danger')}
           ${pill('por_enviar', `Por enviar ${porEnviar > 0 ? `<span style="opacity:0.75;font-weight:400">${porEnviar}</span>` : ''}`, 'pill-info')}
           ${pill('credito', 'Crédito', 'pill-success')}
@@ -11138,6 +11142,7 @@ function _pedFiltrados() {
   switch (F.pill) {
     case 'pendiente_pago': l = data.filter(p => p.status === 'pendiente_pago'); break
     case 'comprobantes': l = data.filter(p => (window._pedCompPend || {})[p.id] > 0); break
+    case 'comprobantes_todos': l = data.filter(p => ((window._pedCompResumen || {})[p.id] || {}).total > 0); break
     case 'abandonado': l = data.filter(p => p.status === 'checkout_iniciado'); break
     case 'credito': l = data.filter(p => p.forma_pago === 'credito'); break
     case 'por_enviar': l = data.filter(window._pedEsPorEnviar); break
@@ -11173,7 +11178,18 @@ function _pedRender() {
     : visibles.map(_renderFilaPedido).join('') +
       (l.length > hasta ? `<tr><td colspan="8" style="text-align:center;padding:14px"><button class="btn btn-secondary" onclick="window._pedPagina+=100;_pedRender()">Mostrar más (${l.length - hasta} restantes)</button></td></tr>` : '')
   const c = document.getElementById('ped-contador')
-  if (c) c.textContent = `${l.length} pedido${l.length === 1 ? '' : 's'}`
+  if (c) {
+    c.textContent = `${l.length} pedido${l.length === 1 ? '' : 's'}`
+    // En la vista de comprobantes: botón para pasar de «por revisar» a todos los anteriores (y de regreso)
+    const pillAct = window._pedF.pill
+    if (pillAct === 'comprobantes' || pillAct === 'comprobantes_todos') {
+      const b = document.createElement('button')
+      b.className = 'btn btn-secondary'; b.style.cssText = 'margin-left:10px;font-size:0.72rem;padding:3px 10px'
+      b.textContent = pillAct === 'comprobantes' ? 'Ver todos los comprobantes anteriores →' : '← Ver solo los por revisar'
+      b.onclick = () => cargarPedidosFiltro(pillAct === 'comprobantes' ? 'comprobantes_todos' : 'comprobantes')
+      c.appendChild(b)
+    }
+  }
   document.querySelectorAll('#ped-filtros .pill-filter').forEach(b => b.classList.toggle('pill-active', b.dataset.pill === window._pedF.pill))
 }
 
@@ -27913,7 +27929,7 @@ async function cargarCarritos() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
-    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig, resSinEx, resCompPend] = await Promise.all([
+    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig, resSinEx, resCompPend, resCompRes] = await Promise.all([
       fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/apartados').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/solicitudes-liberacion').then(r => r.json()).catch(() => ({ total: 0 })),
@@ -27921,9 +27937,10 @@ async function cargarCarritos() {
       fetch(API + '/sucursales/').then(r => r.json()),
       fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/carritos-sin-existencia').then(r => r.json()).catch(() => []),
-      fetch(API + '/pedidos/comprobantes-pendientes').then(r => r.json()).catch(() => ({}))
+      fetch(API + '/pedidos/comprobantes-pendientes').then(r => r.json()).catch(() => ({})),
+      fetch(API + '/pedidos/comprobantes-resumen').then(r => r.json()).catch(() => ({}))
     ])
-    // Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
+// Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
     // en su portal (canal portal_mayoreo con la marca [carrito-respaldo]). Estos
     // últimos son el MISMO carrito que el cliente ve en su portal: editarlos aquí
     // se le refleja allá, y lo que él agregue aparece aquí (carrito compartido).
@@ -27953,6 +27970,7 @@ async function cargarCarritos() {
       p._pares = items.reduce((s, i) => s + Math.max(0, parseInt(i.cantidad) || 0), 0)
       p._sinTel = !(p.clientes && p.clientes.telefono)
       p._compPend = (resCompPend && resCompPend[p.id]) || 0   // comprobantes que subió la clienta y nadie ha revisado
+      p._compTotal = (resCompRes && resCompRes[p.id] && resCompRes[p.id].total) || 0   // todos (revisados y por revisar)
       window._carrPedidos[p.id] = p
     })
     const kApartados = todos.filter(p => p.status === 'apartado')
@@ -28064,6 +28082,7 @@ async function cargarCarritos() {
             <button class="pill-filter" data-chip="borradores" onclick="carrChip('borradores')">📝 Borradores</button>
             <button class="pill-filter" data-chip="anticipo" onclick="carrChip('anticipo')">💵 Con anticipo (${conAnticipo.length})</button>
             <button class="pill-filter" data-chip="comprobantes" onclick="carrChip('comprobantes')">📎 Comprobantes por revisar (${todos.filter(p => p._compPend > 0).length})</button>
+            <button class="pill-filter" data-chip="compTodos" onclick="carrChip('compTodos')" title="Incluye los que ya revisaste">📎 Todos los comprobantes (${todos.filter(p => p._compTotal > 0).length})</button>
             <button class="pill-filter" data-chip="solicitudes" onclick="carrChip('solicitudes')">🙋 Con solicitudes</button>
             <button class="pill-filter" data-chip="vencidos" onclick="carrChip('vencidos')">⏰ Vencidos</button>
             <button class="pill-filter" data-chip="agotados" onclick="carrChip('agotados')">⚠️ Sin existencia</button>
@@ -28079,7 +28098,7 @@ async function cargarCarritos() {
               const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
               const nQuitar = (p.pedido_items || []).filter(i => i.reservado && i.solicitud_liberar).length
               return `
-                <div class="carr-card" data-id="${p.id}" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" data-estado="${p.status}" data-vencido="${p._vencido ? 1 : 0}" data-solic="${p._solic}" data-agot="${p._agotados}" data-sintel="${p._sinTel ? 1 : 0}" data-anticipo="${anticipo > 0 ? 1 : 0}" data-comp="${p._compPend}" data-total="${parseFloat(p.total) || 0}" data-creado="${p.created_at || ''}" data-vence="${p.status === 'apartado' && p._vence !== null ? p._vence : 9999}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div class="carr-card" data-id="${p.id}" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" data-estado="${p.status}" data-vencido="${p._vencido ? 1 : 0}" data-solic="${p._solic}" data-agot="${p._agotados}" data-sintel="${p._sinTel ? 1 : 0}" data-anticipo="${anticipo > 0 ? 1 : 0}" data-comp="${p._compPend}" data-comptotal="${p._compTotal}" data-total="${parseFloat(p.total) || 0}" data-creado="${p.created_at || ''}" data-vence="${p.status === 'apartado' && p._vence !== null ? p._vence : 9999}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
@@ -28092,7 +28111,7 @@ async function cargarCarritos() {
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
                         ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
                         ${anticipo > 0 ? `<span style="display:inline-block;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">💵 Anticipo $${Math.round(anticipo).toLocaleString('es-MX')}</span>` : ''}
-                        ${p._compPend > 0 ? `<span onclick="event.stopPropagation();editarAnticipoCarrito('${p.id}', true)" title="Toca para ver el comprobante" style="cursor:pointer;display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compPend} comprobante${p._compPend === 1 ? '' : 's'} por revisar · ver</span>` : ''}
+                        ${p._compPend > 0 ? `<span onclick="event.stopPropagation();editarAnticipoCarrito('${p.id}', true)" title="Toca para ver el comprobante" style="cursor:pointer;display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compPend} comprobante${p._compPend === 1 ? '' : 's'} por revisar · ver</span>`  : (p._compTotal > 0 ? `<span onclick="event.stopPropagation();editarAnticipoCarrito('${p.id}', true)" title="Toca para ver los comprobantes" style="cursor:pointer;display:inline-block;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">📎 ${p._compTotal} comprobante${p._compTotal === 1 ? '' : 's'} · revisado${p._compTotal === 1 ? '' : 's'} ✓ · ver</span>` : '')}
                         ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
                       </div>
                     </div>
@@ -31812,6 +31831,7 @@ window.filtrarCarritosLista = () => {
       else if (F.chip === 'solicitudes') ok = n(c, 'solic') > 0
       else if (F.chip === 'anticipo') ok = n(c, 'anticipo') > 0
       else if (F.chip === 'comprobantes') ok = n(c, 'comp') > 0
+      else if (F.chip === 'compTodos') ok = n(c, 'comptotal') > 0
       else if (F.chip === 'vencidos') ok = c.dataset.vencido === '1'
       else if (F.chip === 'agotados') ok = n(c, 'agot') > 0
       else if (F.chip === 'sintel') ok = c.dataset.sintel === '1'

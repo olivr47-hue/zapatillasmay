@@ -477,6 +477,19 @@ def comprobantes_pendientes(_staff=Depends(require_staff)):
     return cuenta
 
 
+@router.get("/comprobantes-resumen")
+def comprobantes_resumen(_staff=Depends(require_staff)):
+    """Todos los comprobantes de pago por pedido, revisados y por revisar: {pedido_id: {"total": n, "pendientes": m}} (para ver el historial)."""
+    filas = supabase_get_all("pedido_comprobantes?select=pedido_id,revisado&order=created_at.desc") or []
+    res = {}
+    for f in filas:
+        r = res.setdefault(f["pedido_id"], {"total": 0, "pendientes": 0})
+        r["total"] += 1
+        if f.get("revisado") is False:
+            r["pendientes"] += 1
+    return res
+
+
 @router.get("/carritos-sin-existencia")
 def carritos_sin_existencia(_staff=Depends(require_staff)):
     """Carritos (borrador o apartado) con pares SIN apartar que ya no hay en existencia, diciendo cuáles pares son:
