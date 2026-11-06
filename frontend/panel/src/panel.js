@@ -15633,9 +15633,18 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
 })()}
       <div class="divider"></div>
       <div class="row">
-        <span>Total pares:</span>
+        <span>Total pares comprados:</span>
         <span>${totalPares}</span>
       </div>
+      ${(() => {
+        // Pares devueltos (cambios): se muestran aparte, sin restarlos de los pares comprados.
+        const dev = items.filter(i => (i.cantidad || 0) < 0)
+        if (!dev.length) return ''
+        const paresDev = dev.reduce((s, i) => s + Math.abs(i.cantidad || 0), 0)
+        const montoDev = dev.reduce((s, i) => s + Math.abs(parseFloat(i.subtotal) || ((i.cantidad || 0) * (i.precio_unitario || 0))), 0)
+        return `<div class="row"><span>Pares devueltos:</span><span>${paresDev}</span></div>
+      <div class="row"><span>Total devuelto:</span><span>-$${montoDev.toFixed(2)}</span></div>`
+      })()}
       ${parseFloat(pedido.costo_envio || 0) > 0 ? `
       <div class="row">
         <span>Envío 📦</span>

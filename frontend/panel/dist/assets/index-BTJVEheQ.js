@@ -6152,9 +6152,11 @@ Revísala en Pedidos (puedes reimprimir el ticket desde ahí).`),[e,t].forEach(g
       </table>`}return b})()}
       <div class="divider"></div>
       <div class="row">
-        <span>Total pares:</span>
+        <span>Total pares comprados:</span>
         <span>${o}</span>
       </div>
+      ${(()=>{const m=d.filter(g=>(g.cantidad||0)<0);if(!m.length)return"";const u=m.reduce((g,y)=>g+Math.abs(y.cantidad||0),0),f=m.reduce((g,y)=>g+Math.abs(parseFloat(y.subtotal)||(y.cantidad||0)*(y.precio_unitario||0)),0);return`<div class="row"><span>Pares devueltos:</span><span>${u}</span></div>
+      <div class="row"><span>Total devuelto:</span><span>-$${f.toFixed(2)}</span></div>`})()}
       ${parseFloat(s.costo_envio||0)>0?`
       <div class="row">
         <span>Envío 📦</span>
