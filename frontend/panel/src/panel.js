@@ -10979,7 +10979,7 @@ window.confirmarEnvio = async function(pedidoId) {
     // El aviso por WhatsApp (plantilla aviso_envio) ahora lo manda el SERVIDOR al marcar el envío: así también les llega a los
     // mayoristas (teléfono en su ficha) y funciona al registrar varios envíos a la vez.
     document.getElementById('modal-envio').remove()
-    window.mostrarToastPanel(data.whatsapp ? '✅ Pedido enviado — aviso por WhatsApp mandado al cliente' : '✅ Pedido enviado (sin WhatsApp: el cliente no tiene teléfono)')
+    window.mostrarToastPanel(data.whatsapp ? '✅ Pedido enviado — aviso por WhatsApp mandado al cliente' : (data.whatsapp_apagado ? '✅ Pedido enviado (el aviso por WhatsApp está apagado)' : '✅ Pedido enviado (sin WhatsApp: el cliente no tiene teléfono)'))
     await cargarPedidos()
   } catch(e) {
     errEl.textContent = e.message

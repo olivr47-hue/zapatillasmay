@@ -93,10 +93,17 @@ def _historial(pedido_id, accion, detalle=None, quien=None):
         print(f"[pedidos] no se pudo guardar el historial: {e}")
 
 
+def _aviso_envio_activo() -> bool:
+    return os.environ.get("WA_AVISO_ENVIO", "").strip() == "1"
+
+
 def _avisar_envio_whatsapp(p, paqueteria, guia):
     """Plantilla aprobada 'aviso_envio' al cliente. Se manda DESDE EL SERVIDOR: antes la mandaba el panel solo si el pedido traía
     teléfono propio, así que a los mayoristas (cuyo teléfono está en su ficha de cliente) nunca les llegaba, y tampoco
-    habría funcionado al marcar varios pedidos a la vez."""
+    habría funcionado al marcar varios pedidos a la vez.
+    APAGADO por defecto (cada plantilla se cobra): solo se manda si WA_AVISO_ENVIO=1 (Conexiones → WhatsApp)."""
+    if not _aviso_envio_activo():
+        return False
     try:
         tel = (p.get("telefono_cliente") or "").strip()
         nombre = (p.get("nombre_cliente") or "").strip()
@@ -1601,7 +1608,7 @@ def _marcar_enviado(id, paqueteria, numero_guia, tracking_extra, quien):
     except Exception as e:
         print(f"[pedidos] Error push envio: {e}")
     wa = _avisar_envio_whatsapp(p, paqueteria, numero_guia)
-    return {"ok": True, "tracking_url": tracking_url, "whatsapp": wa}, 200
+    return {"ok": True, "tracking_url": tracking_url, "whatsapp": wa, "whatsapp_apagado": not _aviso_envio_activo()}, 200
 
 
 @router.post("/{id}/marcar-enviado")
