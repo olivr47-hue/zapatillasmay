@@ -30,6 +30,7 @@ OTP_EXP_MIN = 10
 OTP_COOLDOWN_SEG = 60   # mínimo entre códigos pedidos para el mismo destino
 _UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 OTP_MAX_INTENTOS = 5
+OTP_MAX_DIA = 3          # códigos por número/correo en 24 h (cada uno por WhatsApp se cobra)
 
 # Campos del cliente seguros para exponer al propio cliente (sin notas internas, etc.)
 _CAMPOS_CLIENTE = (
@@ -277,6 +278,13 @@ def otp_solicitar(request: Request, datos: dict):
                 return JSONResponse(status_code=429, content={"error": "Ya te enviamos un código hace un momento. Espera un minuto para pedir otro."})
         except Exception:
             pass
+
+    # Tope de OTP_MAX_DIA códigos por número/correo en 24 h: cada código por WhatsApp se cobra (plantilla de autenticación),
+    # y sin tope alguien podía pedir códigos al número de una clienta una y otra vez (decisión del dueño, 2026-11-07).
+    desde = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    del_dia = supabase_get(f"portal_otp?destino=eq.{_up.quote(destino, safe='')}&created_at=gte.{desde}&select=id&limit={OTP_MAX_DIA}") or []
+    if len(del_dia) >= OTP_MAX_DIA:
+        return JSONResponse(status_code=429, content={"error": f"Ya pediste {OTP_MAX_DIA} códigos hoy. Intenta mañana o escríbenos por WhatsApp al 477 247 2285 y te ayudamos."})
 
     codigo = f"{secrets.randbelow(1000000):06d}"
     expira = (datetime.now(timezone.utc) + timedelta(minutes=OTP_EXP_MIN)).isoformat()
