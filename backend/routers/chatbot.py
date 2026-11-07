@@ -4150,6 +4150,37 @@ def crear_plantilla_pedido_confirmado():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/crear-plantilla-codigo-portal")
+def crear_plantilla_codigo_portal():
+    """Crea en Meta la plantilla de AUTENTICACIÓN 'codigo_portal_mayoreo' (código de entrada al portal, vence en 10 min, botón Copiar código).
+    Sin ella el código por WhatsApp solo llega a quien escribió en las últimas 24 h. Al aprobarse, poner WA_OTP_TEMPLATE=codigo_portal_mayoreo
+    en Conexiones. El texto de las plantillas de autenticación lo fija Meta (no se puede redactar libre)."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    if not wa_token or not waba_id:
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID"})
+    plantilla = {
+        "name": "codigo_portal_mayoreo", "language": "es_MX", "category": "AUTHENTICATION",
+        "components": [
+            {"type": "BODY", "add_security_recommendation": True},
+            {"type": "FOOTER", "code_expiration_minutes": 10},
+            {"type": "BUTTONS", "buttons": [{"type": "OTP", "otp_type": "COPY_CODE", "text": "Copiar código"}]},
+        ],
+    }
+    req = urllib.request.Request(f"https://graph.facebook.com/v21.0/{waba_id}/message_templates", data=json.dumps(plantilla).encode(),
+                                 headers={"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return {"ok": True, "respuesta": json.loads(r.read())}
+    except urllib.error.HTTPError as e:
+        cuerpo = e.read().decode(errors="replace")
+        try:
+            err = json.loads(cuerpo).get("error") or {}
+        except Exception:
+            err = {}
+        return JSONResponse(status_code=502, content={"ok": False, "error": err.get("error_user_msg") or err.get("message") or cuerpo[:300]})
+
+
 @router.post("/crear-plantilla-pago")
 def crear_plantilla_pago():
     """Crea la plantilla 'recordatorio_pago_pendiente' en Meta WA Business para recordatorios OXXO/SPEI."""

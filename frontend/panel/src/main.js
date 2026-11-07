@@ -308,6 +308,11 @@ function renderLogin() {
                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
               ¿Olvidaste tu contraseña?
             </a>
+            <a href="#" onclick="mostrarCodigo(event)"
+               style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85;font-weight:700"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+              Entrar con código
+            </a>
             <a href="#" onclick="mostrarRegistroMayoreo(event)"
                style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
@@ -328,6 +333,27 @@ function renderLogin() {
               style="width:100%;padding:11px;background:transparent;color:#E91E8C;border:1.5px solid #E91E8C;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">
               Enviar enlace
             </button>
+          </div>
+
+          <!-- Sección entrar con código (clientas de mayoreo: sin contraseña, el código llega por WhatsApp o correo) -->
+          <div id="codigo-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid #1e1e30">
+            <p style="font-size:0.8rem;color:#8888aa;margin:0 0 12px;text-align:center">Escribe tu WhatsApp (10 dígitos) o tu correo y te mandamos un código para entrar. No necesitas contraseña.</p>
+            <input type="text" id="codigo-dato" placeholder="WhatsApp o correo" autocomplete="username"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;margin-bottom:10px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <button onclick="pedirCodigo()" id="btn-pedir-codigo"
+              style="width:100%;padding:11px;background:transparent;color:#E91E8C;border:1.5px solid #E91E8C;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">
+              Enviarme el código
+            </button>
+            <div id="codigo-paso2" style="display:none;margin-top:12px">
+              <input type="text" id="codigo-numero" placeholder="Código de 6 dígitos" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+                style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:1.1rem;letter-spacing:0.3em;text-align:center;outline:none;box-sizing:border-box;margin-bottom:10px"
+                onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'" onkeydown="if(event.key==='Enter')verificarCodigo()">
+              <button onclick="verificarCodigo()" id="btn-verificar-codigo"
+                style="width:100%;padding:12px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer">
+                Entrar
+              </button>
+            </div>
           </div>
 
           <!-- Sección crear cuenta mayorista (oculta por defecto) -->
@@ -444,6 +470,59 @@ function renderLogin() {
     if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none'
     const inp = document.getElementById('recuperar-email')
     if (inp) inp.value = document.getElementById('login-email').value || ''
+  }
+
+  // ── Entrar con código (WhatsApp o correo) ─────────────────────
+  let _codigoMetodo = null, _codigoValor = null
+  window.mostrarCodigo = (e) => {
+    e.preventDefault()
+    const sec = document.getElementById('codigo-section')
+    if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none'
+    const inp = document.getElementById('codigo-dato')
+    const em = document.getElementById('login-email')?.value || ''
+    if (inp && !inp.value && em) inp.value = em
+  }
+  window.pedirCodigo = async () => {
+    const dato = (document.getElementById('codigo-dato').value || '').trim()
+    const digitos = dato.replace(/\D/g, '')
+    if (dato.includes('@')) { _codigoMetodo = 'correo'; _codigoValor = dato.toLowerCase() }
+    else if (digitos.length >= 10) { _codigoMetodo = 'telefono'; _codigoValor = digitos.slice(-10) }
+    else { mostrarError('Escribe tu WhatsApp de 10 dígitos o tu correo'); return }
+    const btn = document.getElementById('btn-pedir-codigo')
+    btn.disabled = true; btn.textContent = 'Enviando…'
+    try {
+      const r = await fetch('/api/portal/otp/solicitar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metodo: _codigoMetodo, valor: _codigoValor }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { mostrarError(d.error || 'No se pudo enviar el código'); return }
+      if (d.enviado === false) {
+        mostrarError(_codigoMetodo === 'telefono'
+          ? 'No pudimos mandarte el código por WhatsApp. Intenta con tu correo, o escríbenos por WhatsApp al 477 247 2285 y te ayudamos.'
+          : 'No pudimos mandarte el código por correo. Intenta con tu WhatsApp.')
+        return
+      }
+      mostrarOk(`Te mandamos un código por ${d.canal || (_codigoMetodo === 'telefono' ? 'WhatsApp' : 'correo')} a ${d.destino || 'tu ' + _codigoMetodo}. Vence en 10 minutos.`)
+      document.getElementById('codigo-paso2').style.display = 'block'
+      document.getElementById('codigo-numero').focus()
+    } catch (e) { mostrarError('Error de conexión. Intenta de nuevo.') }
+    finally { btn.disabled = false; btn.textContent = 'Enviarme otro código' }
+  }
+  window.verificarCodigo = async () => {
+    const codigo = (document.getElementById('codigo-numero').value || '').replace(/\D/g, '')
+    if (codigo.length !== 6) { mostrarError('El código tiene 6 dígitos'); return }
+    const btn = document.getElementById('btn-verificar-codigo')
+    btn.disabled = true; btn.textContent = 'Verificando…'
+    try {
+      const r = await fetch('/api/portal/otp/verificar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metodo: _codigoMetodo, valor: _codigoValor, codigo }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.token) { mostrarError(d.error || d.detail || 'Código incorrecto'); return }
+      const c = d.cliente || {}
+      // misma forma que la sesión por contraseña; sin usuario (id) porque se entró con código
+      const sesionCliente = { token: d.token, id: null, nombre: c.nombre, email: c.email || '', telefono: c.telefono || '', tipo: c.tipo, cliente_id: c.id, por_codigo: true }
+      localStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+      localStorage.setItem('erp_token', d.token)
+      renderPortalCliente(sesionCliente)
+    } catch (e) { mostrarError('Error de conexión. Intenta de nuevo.') }
+    finally { if (btn) { btn.disabled = false; btn.textContent = 'Entrar' } }
   }
 
   window.enviarRecuperar = async () => {

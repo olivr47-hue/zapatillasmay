@@ -230,7 +230,14 @@ def _enviar_wa_codigo(tel10: str, codigo: str) -> bool:
     idioma = os.getenv("WA_OTP_TEMPLATE_LANG", "es_MX").strip() or "es_MX"
     try:
         if plantilla:
-            wamid = enviar_whatsapp_plantilla(destino, plantilla, idioma, [codigo])
+            # Plantilla de AUTENTICACIÓN de Meta: el código va en el cuerpo y también en el botón «Copiar código»
+            from routers.chatbot import _wa_send
+            wamid = _wa_send({"messaging_product": "whatsapp", "to": destino, "type": "template",
+                              "template": {"name": plantilla, "language": {"code": idioma}, "components": [
+                                  {"type": "body", "parameters": [{"type": "text", "text": codigo}]},
+                                  {"type": "button", "sub_type": "url", "index": "0", "parameters": [{"type": "text", "text": codigo}]}]}})
+            if not wamid:   # plantilla sin botón: solo cuerpo
+                wamid = enviar_whatsapp_plantilla(destino, plantilla, idioma, [codigo])
             if wamid:
                 return True
         texto = (
