@@ -648,6 +648,44 @@ def _loop_ritmo_mayoristas():
         _time.sleep(30 * 60)
 
 
+def resumen_reabasto() -> dict | None:
+    """Lo que hay que resurtir según las sugerencias de recompra (las mismas de Análisis → Compras) de la sucursal principal."""
+    sucs = supabase_get("sucursales?activa=eq.true&select=id&order=created_at.asc&limit=1") or []
+    if not sucs:
+        return None
+    sug = finanzas.sugerencias_recompra(sucs[0]["id"])
+    if not isinstance(sug, list):
+        return None
+    urgentes = [s for s in sug if s.get("urgente")]
+    orden = sorted(sug, key=lambda s: (not s.get("urgente"), s.get("dias_efectivos") if s.get("dias_efectivos") is not None else 9999))
+    return {"modelos": len(sug), "urgentes": len(urgentes), "pares": sum(int(s.get("cantidad_sugerida") or 0) for s in sug),
+            "top": [((s.get("nombre") or "").split(" ")[0] or s.get("sku") or "") for s in orden[:4]]}
+
+
+def _loop_reabasto_semanal():
+    """Cada lunes (~9am México) avisa por push qué hay que resurtir (Análisis → Compras arma la orden al proveedor con un clic).
+    No crea órdenes solo: una orden guardada cuenta como deuda en Cuentas por pagar."""
+    _time.sleep(320)
+    ultimo_aviso = None
+    while True:
+        try:
+            ahora_mx = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if ahora_mx.weekday() == 0 and 9 <= ahora_mx.hour < 10 and ultimo_aviso != ahora_mx.date():
+                ultimo_aviso = ahora_mx.date()
+                r = resumen_reabasto()
+                if r and r["modelos"]:
+                    push.enviar_push(
+                        "🔁 Reabasto de la semana",
+                        f"{r['modelos']} modelo(s) por resurtir ({r['urgentes']} urgentes, ~{r['pares']} pares). "
+                        f"Primero: {', '.join(x for x in r['top'] if x)}. Abre Análisis → Compras para armar la orden.",
+                        url="/?modulo=analisis", sitio="panel",
+                    )
+                    print(f"[reabasto] aviso: {r}")
+        except Exception as e:
+            print(f"[reabasto] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
+
 def _loop_chats_sin_responder():
     """Cada mañana (~9am México) avisa por push cuántas clientas llevan más de 24 h sin que nadie (ni Maya) les
     conteste. Hoy hay chats donde la clienta esperó días sin que nadie se enterara."""
@@ -805,6 +843,8 @@ def _iniciar_hilos():
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()
+    # Aviso de reabasto cada lunes
+    threading.Thread(target=_loop_reabasto_semanal, daemon=True).start()
     # Lectura automática de comprobantes de pago (semáforo, modo «solo sugerir»)
     threading.Thread(target=_loop_comprobantes_ia, daemon=True).start()
     print("[limpieza-cache] Hilo de limpieza de caché iniciado (cada 10 min)")
