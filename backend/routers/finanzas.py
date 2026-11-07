@@ -333,10 +333,11 @@ def _materializar_gastos_recurrentes(sucursal_id):
     vez como 'plantilla' (es_recurrente=true, plantilla_id=null) y aqui se
     clona automaticamente una copia para el mes actual si todavia no existe,
     para no tener que capturarlos a mano cada mes."""
-    import calendar
-    try:
-        hoy = _hoy_mx()
-        mes_actual = hoy.strftime("%Y-%m")
+    return   # desde 2026-11 ya no se copian solos: cada mes esperan confirmación (ver gastos_fijos_pendientes / Finanzas → Gastos fijos)
+    import calendar
+    try:
+        hoy = _hoy_mx()
+        mes_actual = hoy.strftime("%Y-%m")
         plantillas = supabase_get(
             f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
         ) or []
@@ -1727,3 +1728,227 @@ def proyeccion_flujo(sucursal_id: str, dias: int = 60):
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+
+# ═══ GASTOS FIJOS: se dan de alta cuando el dueño se acuerda y cada mes esperan su CONFIRMACIÓN (monto editable) ═══
+# La «plantilla» es el gasto con es_recurrente=true y plantilla_id=null (así funcionaba ya); cada mes confirmado es una copia con
+# plantilla_id y mes_generado. Antes las copias se creaban solas sin preguntar (ver _materializar_gastos_recurrentes).
+import re as _re_fin
+_UUID_FIN = _re_fin.compile(r"^[0-9a-fA-F-]{36}$")
+_MES_RE = _re_fin.compile(r"^\d{4}-\d{2}$")
+
+
+def _mes_anterior(mes_id: str) -> str:
+    a, m = (int(x) for x in mes_id.split("-"))
+    return f"{a - 1}-12" if m == 1 else f"{a}-{m - 1:02d}"
+
+
+def _plantillas_fijas(sucursal_id: str) -> list:
+    return supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
+                        f"&select=id,concepto,monto,categoria,dia_mes,created_at,mes_generado&order=dia_mes.asc") or []
+
+
+def _vence(mes: str, dia: int) -> date:
+    import calendar
+    a, m = (int(x) for x in mes.split("-"))
+    return date(a, m, min(max(1, int(dia or 1)), calendar.monthrange(a, m)[1]))
+
+
+def gastos_fijos_pendientes(sucursal_id: str) -> list:
+    """Gastos fijos cuyo día de pago ya llegó (este mes o el anterior) y que nadie ha confirmado ni saltado."""
+    hoy = _hoy_mx()
+    actual = hoy.strftime("%Y-%m")
+    anterior = _mes_anterior(actual)
+    plantillas = _plantillas_fijas(sucursal_id)
+    if not plantillas:
+        return []
+    ids = ",".join(p["id"] for p in plantillas)
+    hechos = {(c["plantilla_id"], c["mes_generado"]) for c in (supabase_get(
+        f"gastos?plantilla_id=in.({ids})&mes_generado=in.({anterior},{actual})&select=plantilla_id,mes_generado") or [])}
+    omitidos = {(o["plantilla_id"], o["mes"]) for o in (supabase_get(
+        f"gastos_fijos_omitidos?plantilla_id=in.({ids})&mes=in.({anterior},{actual})&select=plantilla_id,mes") or [])}
+    out = []
+    for p in plantillas:
+        alta = str(p.get("created_at") or "")[:7]          # el mes en que se dio de alta ya cuenta: la plantilla misma es ese gasto
+        for mes in (anterior, actual):
+            if (alta and mes <= alta) or p.get("mes_generado") == mes or (p["id"], mes) in hechos or (p["id"], mes) in omitidos:
+                continue
+            v = _vence(mes, p.get("dia_mes"))
+            if v > hoy:
+                continue
+            out.append({"plantilla_id": p["id"], "concepto": p["concepto"], "monto": float(p.get("monto") or 0),
+                        "categoria": p.get("categoria") or "general", "mes": mes, "vence": v.isoformat()})
+    return sorted(out, key=lambda x: x["vence"])
+
+
+@router.get("/gastos-fijos/{sucursal_id}")
+def listar_gastos_fijos(sucursal_id: str):
+    if not _UUID_FIN.match(sucursal_id):
+        return JSONResponse(status_code=400, content={"error": "Sucursal inválida"})
+    return {"fijos": _plantillas_fijas(sucursal_id), "pendientes": gastos_fijos_pendientes(sucursal_id)}
+
+
+def _plantilla(plantilla_id: str):
+    if not _UUID_FIN.match(plantilla_id or ""):
+        return None
+    return (supabase_get(f"gastos?id=eq.{plantilla_id}&es_recurrente=eq.true&plantilla_id=is.null&select=*") or [None])[0]
+
+
+@router.post("/gastos-fijos/{plantilla_id}/confirmar")
+def confirmar_gasto_fijo(plantilla_id: str, datos: dict):
+    t = _plantilla(plantilla_id)
+    if not t:
+        return JSONResponse(status_code=404, content={"error": "Gasto fijo no encontrado"})
+    mes = str(datos.get("mes") or "")
+    if not _MES_RE.match(mes):
+        return JSONResponse(status_code=400, content={"error": "Mes inválido"})
+    try:
+        monto = round(float(datos.get("monto") if datos.get("monto") not in (None, "") else t.get("monto") or 0), 2)
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=400, content={"error": "Monto inválido"})
+    if monto <= 0 or monto > 10_000_000:
+        return JSONResponse(status_code=400, content={"error": "Monto inválido"})
+    if supabase_get(f"gastos?plantilla_id=eq.{plantilla_id}&mes_generado=eq.{mes}&select=id"):
+        return {"ok": True, "ya_estaba": True}
+    v = _vence(mes, t.get("dia_mes"))
+    # created_at en el mes que corresponde: los reportes suman los gastos por created_at
+    supabase_post("gastos", {"sucursal_id": t["sucursal_id"], "concepto": t["concepto"], "monto": monto, "categoria": t.get("categoria") or "general",
+                             "empleado": str(datos.get("empleado") or "Gasto fijo confirmado")[:80], "fecha": v.isoformat(),
+                             "created_at": f"{v.isoformat()}T18:00:00Z", "es_recurrente": True, "dia_mes": t.get("dia_mes"),
+                             "plantilla_id": plantilla_id, "mes_generado": mes})
+    return {"ok": True}
+
+
+@router.post("/gastos-fijos/{plantilla_id}/saltar")
+def saltar_gasto_fijo(plantilla_id: str, datos: dict):
+    if not _plantilla(plantilla_id):
+        return JSONResponse(status_code=404, content={"error": "Gasto fijo no encontrado"})
+    mes = str(datos.get("mes") or "")
+    if not _MES_RE.match(mes):
+        return JSONResponse(status_code=400, content={"error": "Mes inválido"})
+    if not supabase_get(f"gastos_fijos_omitidos?plantilla_id=eq.{plantilla_id}&mes=eq.{mes}&select=mes"):
+        supabase_post("gastos_fijos_omitidos", {"plantilla_id": plantilla_id, "mes": mes})
+    return {"ok": True}
+
+
+@router.patch("/gastos-fijos/{plantilla_id}")
+def editar_gasto_fijo(plantilla_id: str, datos: dict):
+    if not _plantilla(plantilla_id):
+        return JSONResponse(status_code=404, content={"error": "Gasto fijo no encontrado"})
+    cambios = {}
+    if str(datos.get("concepto") or "").strip():
+        cambios["concepto"] = str(datos["concepto"]).strip()[:120]
+    if datos.get("categoria"):
+        cambios["categoria"] = str(datos["categoria"])[:40]
+    try:
+        if datos.get("monto") not in (None, ""):
+            m = round(float(datos["monto"]), 2)
+            if m <= 0:
+                raise ValueError
+            cambios["monto"] = m
+        if datos.get("dia_mes") not in (None, ""):
+            d = int(datos["dia_mes"])
+            if not 1 <= d <= 31:
+                raise ValueError
+            cambios["dia_mes"] = d
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=400, content={"error": "Monto o día inválido"})
+    if not cambios:
+        return JSONResponse(status_code=400, content={"error": "Nada que cambiar"})
+    supabase_patch(f"gastos?id=eq.{plantilla_id}", cambios)
+    return {"ok": True}
+
+
+@router.post("/gastos-fijos/{plantilla_id}/quitar")
+def quitar_gasto_fijo(plantilla_id: str):
+    """Deja de pedir confirmación cada mes (lo ya registrado se queda)."""
+    if not _plantilla(plantilla_id):
+        return JSONResponse(status_code=404, content={"error": "Gasto fijo no encontrado"})
+    supabase_patch(f"gastos?id=eq.{plantilla_id}", {"es_recurrente": False})
+    return {"ok": True}
+
+
+# ═══ REPORTES automáticos y Excel para el contador ═══
+_CANAL_ETQ = {"sucursal": "Mostrador", "web": "Tienda en línea", "online": "Tienda en línea", "whatsapp": "WhatsApp", "portal_mayoreo": "Portal mayoreo",
+              "mercadolibre": "MercadoLibre", "shein": "SHEIN", "walmart": "Walmart", "amazon": "Amazon", "tiktok": "TikTok"}
+_ESTADOS_VENTA_FIN = "confirmado,pagado,entregado,enviado"
+
+
+def ventas_rango(sucursal_id: str, ini: str, fin: str) -> dict:
+    peds = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.({_ESTADOS_VENTA_FIN})"
+                            f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=total,canal") or []
+    por = {}
+    for p in peds:
+        k = _CANAL_ETQ.get((p.get("canal") or "").lower(), (p.get("canal") or "Otro").title())
+        por[k] = por.get(k, 0.0) + float(p.get("total") or 0)
+    return {"pedidos": len(peds), "ventas": round(sum(por.values()), 2),
+            "por_canal": sorted(({"canal": k, "ventas": round(v, 2)} for k, v in por.items()), key=lambda x: -x["ventas"])}
+
+
+@router.get("/exportar-contador/{sucursal_id}")
+def exportar_contador(sucursal_id: str, mes: str = None, tipo: str = "ventas"):
+    """CSV (se abre directo en Excel) con las ventas o los gastos de un mes, para el contador."""
+    import csv
+    import io
+    from fastapi.responses import Response
+    if not _UUID_FIN.match(sucursal_id):
+        return JSONResponse(status_code=400, content={"error": "Sucursal inválida"})
+    ini, fin, _etq, mes_id = _rango_mes(mes)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    if tipo == "gastos":
+        filas = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{ini}&created_at=lt.{fin}"
+                                 f"&select=created_at,fecha,concepto,categoria,monto,empleado&order=created_at.asc") or []
+        w.writerow(["Fecha", "Concepto", "Categoría", "Monto", "Registró"])
+        for g in filas:
+            w.writerow([str(g.get("fecha") or g.get("created_at") or "")[:10], g.get("concepto") or "", g.get("categoria") or "",
+                        f"{float(g.get('monto') or 0):.2f}", g.get("empleado") or ""])
+    else:
+        tipo = "ventas"
+        filas = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.({_ESTADOS_VENTA_FIN})"
+                                 f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}"
+                                 f"&select=id,confirmado_at,canal,forma_pago,costo_envio,total,nombre_cliente,clientes(nombre)&order=confirmado_at.asc") or []
+        w.writerow(["Fecha", "Folio", "Canal", "Cliente", "Forma de pago", "Envío", "Total"])
+        for p in filas:
+            cli = (p.get("clientes") or {}).get("nombre") if isinstance(p.get("clientes"), dict) else None
+            w.writerow([str(p.get("confirmado_at") or "")[:10], str(p.get("id") or "")[:8].upper(),
+                        _CANAL_ETQ.get((p.get("canal") or "").lower(), p.get("canal") or ""), cli or p.get("nombre_cliente") or "",
+                        p.get("forma_pago") or "", f"{float(p.get('costo_envio') or 0):.2f}", f"{float(p.get('total') or 0):.2f}"])
+    return Response(content="﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{tipo}_{mes_id}.csv"'})
+
+
+def alertas_rentabilidad(sucursal_id: str, dia: date) -> dict:
+    """Pares vendidos ese día por DEBAJO del precio de corrida (sin contar ofertas), y cuántos productos activos no tienen costo."""
+    ini, fin = _inicio_dia_mx(dia), _inicio_dia_mx(dia + timedelta(days=1))
+    peds = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.({_ESTADOS_VENTA_FIN})"
+                            f"&confirmado_at=gte.{ini}&confirmado_at=lt.{fin}&select=id") or []
+    bajo = []
+    if peds:
+        ids = [p["id"] for p in peds]
+        items = []
+        for k in range(0, len(ids), 150):
+            items += supabase_get_all(f"pedido_items?pedido_id=in.({','.join(ids[k:k + 150])})&select=cantidad,precio_unitario,variante_id,nombre") or []
+        items = [i for i in items if i.get("variante_id") and int(i.get("cantidad") or 0) > 0 and float(i.get("precio_unitario") or 0) > 0]
+        vids = list({i["variante_id"] for i in items})
+        vmap, pmap = {}, {}
+        for k in range(0, len(vids), 150):
+            for v in supabase_get(f"variantes?id=in.({','.join(vids[k:k + 150])})&select=id,producto_id") or []:
+                vmap[v["id"]] = v.get("producto_id")
+        pids = list({x for x in vmap.values() if x})
+        for k in range(0, len(pids), 150):
+            for pr in supabase_get(f"productos?id=in.({','.join(pids[k:k + 150])})&select=id,nombre,es_oferta,precio_corrida,precio_menudeo,costo") or []:
+                pmap[pr["id"]] = pr
+        for i in items:
+            pr = pmap.get(vmap.get(i["variante_id"]))
+            if not pr or pr.get("es_oferta"):
+                continue
+            corrida = _costo_unitario(pr, "corrida")
+            precio = float(i.get("precio_unitario") or 0)
+            if corrida and precio < corrida - 0.5:
+                bajo.append({"modelo": (pr.get("nombre") or i.get("nombre") or "").split(" ")[0], "precio": precio, "corrida": corrida,
+                             "pares": int(i.get("cantidad") or 0)})
+    sin_costo = len([p for p in (supabase_get_all("productos?activo=eq.true&select=id,costo,precio_corrida") or [])
+                     if not float(p.get("costo") or 0) and not float(p.get("precio_corrida") or 0)])
+    return {"bajo_corrida": bajo, "sin_costo": sin_costo}

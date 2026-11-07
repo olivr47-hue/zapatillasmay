@@ -2291,6 +2291,7 @@ window.mostrarTabFinanzas = (tab) => {
         </div>
       </div>
     `
+    window._pintarGastosFijos && window._pintarGastosFijos(container, sucursalId)
   } else if (tab === 'estado') {
     container.innerHTML = `
       <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
@@ -32657,4 +32658,84 @@ window.sugerirFrecuentes = async () => {
     await cargarClientes()
     window.mostrarToastPanel && window.mostrarToastPanel(`⭐ ${cand.length} clientas marcadas como frecuentes`)
   } catch (e) { alert('Error: ' + e.message) }
+}
+
+// ═══ Finanzas → Gastos: gastos fijos (alta cuando te acuerdes, confirmación cada mes con monto editable) y Excel para el contador ═══
+window._pintarGastosFijos = async (container, sucursalId) => {
+  const esc = window._escWA
+  const caja = document.createElement('div')
+  caja.id = 'gastos-fijos-card'
+  caja.style.cssText = 'background:white;border-radius:12px;border:1px solid #eee;padding:1rem 1.25rem;margin-bottom:1rem'
+  caja.innerHTML = '<p style="color:#888;font-size:0.82rem;margin:0">Cargando gastos fijos…</p>'
+  container.prepend(caja)
+  let d = { fijos: [], pendientes: [] }
+  try { const r = await fetch(API + '/finanzas/gastos-fijos/' + sucursalId); if (r.ok) d = await r.json() } catch (e) {}
+  const $ = (n) => '$' + Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+  const mesTxt = (m) => { const [a, mm] = String(m).split('-'); return ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][parseInt(mm) - 1] + ' ' + a }
+  const hoy = new Date(); const mesPasado = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)
+  const mesDef = mesPasado.getFullYear() + '-' + String(mesPasado.getMonth() + 1).padStart(2, '0')
+  caja.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <p style="font-weight:700;font-size:0.95rem;margin:0">🔁 Gastos fijos <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">(renta, luz, sueldos… cada mes te piden confirmación)</span></p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" style="padding:5px 12px;font-size:0.78rem" onclick="agregarGastoFijo('${sucursalId}')">＋ Agregar gasto fijo</button>
+        <input type="month" id="gf-mes-contador" class="form-input" value="${mesDef}" style="max-width:150px;padding:4px 8px;font-size:0.78rem">
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="descargarContador('${sucursalId}','ventas')">📥 Ventas (Excel)</button>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="descargarContador('${sucursalId}','gastos')">📥 Gastos (Excel)</button>
+      </div>
+    </div>
+    ${d.pendientes.length ? `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:8px 12px;margin-bottom:10px">
+      <p style="font-weight:700;font-size:0.82rem;color:#9a3412;margin:0 0 6px">⏳ Por confirmar (${d.pendientes.length})</p>
+      ${d.pendientes.map(p => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #fed7aa">
+        <span style="flex:1;min-width:150px;font-size:0.82rem"><b>${esc(p.concepto)}</b> · ${mesTxt(p.mes)} <span style="color:#94a3b8">(vencía ${esc(p.vence)})</span></span>
+        <input type="number" step="0.01" min="0" id="gfm-${p.plantilla_id}-${p.mes}" class="form-input" value="${p.monto}" style="max-width:110px;padding:4px 8px;font-size:0.8rem">
+        <button class="btn btn-primary" style="padding:4px 10px;font-size:0.75rem" onclick="confirmarGastoFijo('${p.plantilla_id}','${p.mes}')">✓ Confirmar</button>
+        <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="saltarGastoFijo('${p.plantilla_id}','${p.mes}')">Saltar este mes</button>
+      </div>`).join('')}</div>` : ''}
+    ${d.fijos.length ? `<div style="display:grid;gap:4px">${d.fijos.map(f => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.82rem;padding:4px 0;border-bottom:1px solid #f5f5f5">
+        <span style="flex:1;min-width:150px"><b>${esc(f.concepto)}</b> <span style="color:#94a3b8">· ${esc(f.categoria || '')} · día ${f.dia_mes || 1}</span></span>
+        <span style="font-weight:700">${$(f.monto)}</span>
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:0.72rem" onclick="editarGastoFijo('${f.id}')">Editar</button>
+        <button class="btn btn-secondary" style="padding:3px 8px;font-size:0.72rem;color:#b91c1c;border-color:#fca5a5" onclick="quitarGastoFijo('${f.id}')">Quitar</button>
+      </div>`).join('')}</div>`
+      : '<p style="color:#94a3b8;font-size:0.8rem;margin:0">Todavía no tienes gastos fijos. Agrégalos cuando te acuerdes de cada uno.</p>'}`
+}
+window.agregarGastoFijo = (sucursalId) => {
+  if (!window.agregarGasto) return
+  window.agregarGasto(sucursalId)
+  setTimeout(() => { const c = document.getElementById('gasto-recurrente'); if (c) { c.checked = true; c.dispatchEvent(new Event('change')) } }, 50)
+}
+const _gfRecargar = async () => { try { await cargarFinanzas() } catch (e) {} ; if (window.mostrarTabFinanzas) window.mostrarTabFinanzas('gastos') }
+window.confirmarGastoFijo = async (pid, mes) => {
+  const monto = document.getElementById(`gfm-${pid}-${mes}`)?.value
+  const r = await fetch(API + '/finanzas/gastos-fijos/' + pid + '/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mes, monto, empleado: window._empleadoActual?.nombre || 'Admin' }) })
+  if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo confirmar'); return }
+  _gfRecargar()
+}
+window.saltarGastoFijo = async (pid, mes) => {
+  if (!confirm('¿Saltar este gasto este mes? (no se registra nada)')) return
+  await fetch(API + '/finanzas/gastos-fijos/' + pid + '/saltar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mes }) })
+  _gfRecargar()
+}
+window.editarGastoFijo = async (pid) => {
+  const monto = prompt('Nuevo monto aproximado (déjalo vacío para no cambiarlo):'); if (monto === null) return
+  const dia = prompt('Día del mes en que se paga (1-31, vacío para no cambiarlo):'); if (dia === null) return
+  const r = await fetch(API + '/finanzas/gastos-fijos/' + pid, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monto, dia_mes: dia }) })
+  if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo editar'); return }
+  _gfRecargar()
+}
+window.quitarGastoFijo = async (pid) => {
+  if (!confirm('¿Quitar este gasto fijo? Ya no te pedirá confirmación cada mes (lo ya registrado se queda).')) return
+  await fetch(API + '/finanzas/gastos-fijos/' + pid + '/quitar', { method: 'POST' })
+  _gfRecargar()
+}
+window.descargarContador = async (sucursalId, tipo) => {
+  const mes = document.getElementById('gf-mes-contador')?.value || ''
+  try {
+    const r = await fetch(API + '/finanzas/exportar-contador/' + sucursalId + '?tipo=' + tipo + '&mes=' + encodeURIComponent(mes))
+    if (!r.ok) throw new Error('error ' + r.status)
+    const blob = await r.blob(); const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob); a.download = `${tipo}_${mes}.csv`; document.body.appendChild(a); a.click(); a.remove()
+  } catch (e) { alert('No se pudo descargar: ' + e.message) }
 }

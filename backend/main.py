@@ -112,7 +112,7 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
     ("*",   r"/(ml|shein|walmart|amazon|tiktok)(/.*)?"),
     ("*",   r"/emails(/.*)?"),                                   # buzón corporativo (contacto-web es público: se evalúa antes)
     ("*",   r"/push/(enviar|suscriptores|lista|historial|diagnostico)"),
-    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
+    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|gastos-fijos|exportar-contador|caja)(/.*)?"),
     ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada|editar)"),
     ("POST|PATCH|DELETE", r"/sucursales(/.*)?"),
     ("POST", r"/(seo|config)(/.*)?"),
@@ -126,7 +126,7 @@ _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
 # Lo de dinero del negocio (reportes, cuentas por pagar/cobrar, deudas, caja...): además de ser administrador, hay que tener el permiso
 # «ver Finanzas» (se quita desde Empleados a quien administra pero no debe ver las finanzas).
 _SOLO_FINANZAS = [(m, _re.compile(r)) for m, r in (
-    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
+    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|gastos-fijos|exportar-contador|caja)(/.*)?"),
     ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada|editar)"),
 )]
 
@@ -686,6 +686,67 @@ def _loop_reabasto_semanal():
         _time.sleep(30 * 60)
 
 
+def _loop_finanzas_avisos():
+    """Reportes y avisos de dinero por push (hora de México):
+    - diario 9am: gastos fijos por confirmar y pares vendidos ayer por debajo del precio de corrida (sin ofertas)
+    - lunes 9am: ventas de la semana pasada contra la anterior + productos sin costo
+    - día 1, 9am: resumen del mes anterior (ventas, gastos, utilidad, tu utilidad) y aviso del Excel para el contador
+    - diario 9pm: ventas del día y «Tu utilidad» del mes en curso"""
+    _time.sleep(340)
+    hechos = {}
+    while True:
+        try:
+            ahora = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            hoy = ahora.date()
+            sucs = supabase_get("sucursales?activa=eq.true&select=id&order=created_at.asc&limit=1") or []
+            sid = sucs[0]["id"] if sucs else None
+
+            def una_vez(clave):
+                if hechos.get(clave) == hoy:
+                    return False
+                hechos[clave] = hoy
+                return True
+
+            if sid and 9 <= ahora.hour < 10 and una_vez("manana"):
+                pend = finanzas.gastos_fijos_pendientes(sid)
+                if pend:
+                    push.enviar_push("🔁 Gastos fijos por confirmar",
+                                     f"{len(pend)}: " + ", ".join(p["concepto"] for p in pend[:4]) + ". Confírmalos en Finanzas → Gastos.",
+                                     url="/?modulo=finanzas", sitio="panel")
+                al = finanzas.alertas_rentabilidad(sid, hoy - _dt.timedelta(days=1))
+                if al["bajo_corrida"]:
+                    pares = sum(x["pares"] for x in al["bajo_corrida"])
+                    det = ", ".join(f"{x['modelo']} a ${x['precio']:,.0f} (corrida ${x['corrida']:,.0f})" for x in al["bajo_corrida"][:3])
+                    push.enviar_push("⚠️ Ventas bajo el precio de corrida",
+                                     f"Ayer se vendieron {pares} par(es) por debajo de la corrida: {det}.", url="/?modulo=finanzas", sitio="panel")
+                if ahora.weekday() == 0:
+                    lun = hoy - _dt.timedelta(days=7)
+                    a = finanzas.ventas_rango(sid, finanzas._inicio_dia_mx(lun), finanzas._inicio_dia_mx(hoy))
+                    b = finanzas.ventas_rango(sid, finanzas._inicio_dia_mx(lun - _dt.timedelta(days=7)), finanzas._inicio_dia_mx(lun))
+                    cambio = f" ({(a['ventas'] - b['ventas']) / b['ventas'] * 100:+.0f}% contra la anterior)" if b["ventas"] else ""
+                    extra = f" Ojo: {al['sin_costo']} producto(s) activos sin costo capturado." if al["sin_costo"] else ""
+                    push.enviar_push("📈 Tu semana", f"Vendiste ${a['ventas']:,.0f} en {a['pedidos']} pedidos{cambio}.{extra}",
+                                     url="/?modulo=finanzas", sitio="panel")
+                if hoy.day == 1:
+                    prev = (hoy - _dt.timedelta(days=1)).strftime("%Y-%m")
+                    r = finanzas.reporte_financiero(sid, prev)
+                    if isinstance(r, dict):
+                        push.enviar_push(f"🗓️ Cierre de {r.get('mes_etiqueta', prev)}",
+                                         f"Ventas ${r.get('total_ventas', 0):,.0f} · gastos ${r.get('total_gastos', 0):,.0f} · utilidad ${r.get('utilidad', 0):,.0f} · "
+                                         f"tu utilidad ${r.get('tu_utilidad', 0):,.0f}. El Excel para tu contador está en Finanzas.",
+                                         url="/?modulo=finanzas", sitio="panel")
+            if sid and 21 <= ahora.hour < 22 and una_vez("noche"):
+                d = finanzas.ventas_rango(sid, finanzas._inicio_dia_mx(hoy), finanzas._inicio_dia_mx(hoy + _dt.timedelta(days=1)))
+                r = finanzas.reporte_financiero(sid)
+                tu = f" · Tu utilidad del mes: ${r.get('tu_utilidad', 0):,.0f}" if isinstance(r, dict) else ""
+                canales = ", ".join(f"{c['canal']} ${c['ventas']:,.0f}" for c in d["por_canal"][:3])
+                push.enviar_push("📊 Tu día", f"Hoy: ${d['ventas']:,.0f} en {d['pedidos']} pedidos" + (f" ({canales})" if canales else "") + tu,
+                                 url="/?modulo=finanzas", sitio="panel")
+        except Exception as e:
+            print(f"[finanzas-avisos] {e}")
+        _time.sleep(20 * 60)
+
+
 def _loop_chats_sin_responder():
     """Cada mañana (~9am México) avisa por push cuántas clientas llevan más de 24 h sin que nadie (ni Maya) les
     conteste. Hoy hay chats donde la clienta esperó días sin que nadie se enterara."""
@@ -843,6 +904,8 @@ def _iniciar_hilos():
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()
+    # Reportes y avisos de dinero (gastos fijos, rentabilidad, día/semana/mes)
+    threading.Thread(target=_loop_finanzas_avisos, daemon=True).start()
     # Aviso de reabasto cada lunes
     threading.Thread(target=_loop_reabasto_semanal, daemon=True).start()
     # Lectura automática de comprobantes de pago (semáforo, modo «solo sugerir»)
