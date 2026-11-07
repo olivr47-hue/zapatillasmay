@@ -69,7 +69,7 @@ _PREFIJOS_PROTEGIDOS = (
     "/campanas", "/crm", "/emails", "/catalogos", "/merchant", "/businessprofile",
     "/searchconsole", "/push", "/imagenes", "/sucursales", "/carrito-abandonado",
     "/resenas", "/sugerencias", "/referidos", "/pinterest", "/catalogo",
-    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal", "/novedades", "/redes",
+    "/seo", "/config", "/feed", "/productos/generar-seo", "/productos/ia-desde-fotos", "/pagos/terminal", "/novedades", "/redes",
 )
 # (método o "*", regex del path completo)
 _PUBLICAS = [(m, _re.compile(r)) for m, r in (

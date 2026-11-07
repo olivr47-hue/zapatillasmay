@@ -50,6 +50,17 @@ def _img_web(url: str, w: int) -> str:
     return _cdn_img(f"{cabeza}/upload/w_{w},f_auto,q_auto/{cola}")
 
 
+@router.post("/productos/ia-desde-fotos")
+def productos_ia_desde_fotos(datos: dict):
+    """Claude propone los datos de la ficha (nombre, descripción, categoría, tacón, material, temporada, colores) a partir de las fotos.
+    Solo propone: el panel llena los campos vacíos y el equipo revisa antes de guardar. Protegida por la puerta de personal (main.py)."""
+    from ia_productos import sugerir_desde_fotos
+    r = sugerir_desde_fotos(datos.get("urls") or [], str(datos.get("codigo") or ""), str(datos.get("texto") or ""), datos.get("opciones") or {})
+    if r.get("error"):
+        return JSONResponse(status_code=400, content=r)
+    return r
+
+
 @router.post("/productos/generar-seo")
 def generar_seo(datos: dict):
     """Genera slug, meta título y meta descripción de Google con la MISMA fórmula que usa el servidor al guardar el producto

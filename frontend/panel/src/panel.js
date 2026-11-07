@@ -9324,10 +9324,16 @@ window.mostrarFormProducto = (datos) => {
             <p style="font-weight:600;color:#333;margin-bottom:2px">Logistica y SEO</p>
             <p style="font-size:0.75rem;color:#aaa">Los campos de SEO se llenan automaticamente, pero puedes editarlos.</p>
           </div>
+          <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" id="btn-ia-fotos" onclick="llenarConClaudeDesdeFotos()" title="Claude mira las fotos que ya subiste y propone nombre, descripción, categoría, tacón, material y temporada. Solo llena los campos vacíos."
+                  style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600">
+            📸 Llenar con Claude desde la foto
+          </button>
           <button type="button" id="btn-generar-seo" onclick="generarSEO()"
                   style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f3e5f5;border:1px solid #ce93d8;color:#6a1b9a;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:all 0.2s">
             ✨ Generar SEO
           </button>
+          </span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
           <div>
@@ -9534,6 +9540,64 @@ if (!window._autoSeoListener) {
   document.addEventListener('input', _h)
   document.addEventListener('change', _h)
 }
+// Alta asistida: Claude mira las fotos ya subidas y propone la ficha. Solo llena campos VACÍOS (no pisa lo que el equipo ya escribió).
+window.llenarConClaudeDesdeFotos = async () => {
+  // fotos del formulario: las ya subidas van por su dirección; las nuevas (aún en la computadora) se reducen a 1000 px JPEG
+  const fotos = []
+  Object.keys(window._variantesFotos || {}).sort((a, b) => a - b).forEach(k => (window._variantesFotos[k] || []).slice(0, 2).forEach(f => fotos.push(f)))
+  const reducir = (file) => new Promise((ok) => {
+    const img = new Image()
+    img.onload = () => { const e = Math.min(1, 1000 / Math.max(img.width, img.height)); const c = document.createElement('canvas')
+      c.width = Math.round(img.width * e); c.height = Math.round(img.height * e); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+      ok({ media_type: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.82).split(',')[1] }) }
+    img.onerror = () => ok(null)
+    img.src = URL.createObjectURL(file)
+  })
+  const urls = []
+  for (const f of fotos.slice(0, 4)) {
+    if (f.type === 'url' && f.value) urls.push(f.value)
+    else if (f.type === 'file' && f.value) { const b = await reducir(f.value); if (b) urls.push(b) }
+  }
+  if (!urls.length) { alert('Primero agrega al menos una foto del modelo'); return }
+  const opts = (id) => Array.from(document.getElementById(id)?.options || []).map(o => o.value).filter(Boolean)
+  const nombre = (document.getElementById('f-nombre')?.value || '').trim()
+  const codigo = (nombre.split(/\s+/)[0] || '').match(/^[A-Za-z]{0,4}\d+[A-Za-z0-9]*$/) ? nombre.split(/\s+/)[0] : ''
+  const btn = document.getElementById('btn-ia-fotos')
+  const txt0 = btn ? btn.innerHTML : ''
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Claude está viendo las fotos…' }
+  try {
+    const r = await fetch(API + '/productos/ia-desde-fotos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: urls.slice(0, 4), codigo, texto: (document.getElementById('f-descripcion')?.value || ''),
+        opciones: { categorias: opts('f-categoria'), tipos_tacon: opts('f-tipotacon'), temporadas: opts('f-temporada') } }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || d.error) throw new Error(d.error || 'No se pudo')
+    const llenados = []
+    const poner = (id, valor, etiqueta) => {
+      const el = document.getElementById(id)
+      if (!el || valor == null || valor === '') return
+      if (String(el.value || '').trim()) return                               // ya tenía algo: no se pisa
+      if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => o.value === String(valor))) return
+      el.value = String(valor)
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+      el.style.background = '#fff7ed'
+      llenados.push(etiqueta)
+    }
+    poner('f-nombre', d.nombre, 'nombre'); poner('f-descripcion', d.descripcion, 'descripción'); poner('f-categoria', d.categoria, 'categoría')
+    poner('f-tipotacon', d.tipo_tacon, 'tipo de tacón'); poner('f-tacon', d.altura_tacon_cm, 'altura de tacón'); poner('f-material', d.material, 'material')
+    poner('f-temporada', d.temporada, 'temporada')
+    const esc = window._escWA
+    let caja = document.getElementById('ia-fotos-resumen')
+    if (!caja && btn) { caja = document.createElement('div'); caja.id = 'ia-fotos-resumen'; btn.closest('div[style*="justify-content:space-between"]')?.after(caja) }
+    if (caja) caja.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.78rem;color:#7c2d12">
+      <b>📸 Propuesta de Claude</b> — ${llenados.length ? 'llené: ' + esc(llenados.join(', ')) + ' (en naranja). Revísalos antes de guardar.' : 'no había campos vacíos que llenar; abajo está lo que propone.'}
+      ${(d.colores || []).length ? '<br>Colores que veo: <b>' + esc(d.colores.join(', ')) + '</b>' : ''}${d.ocasion ? ' · Ocasión: ' + esc(d.ocasion) : ''}
+      ${d.notas ? '<br>⚠ ' + esc(d.notas) : ''}${d.altura_tacon_cm ? '<br>La altura de tacón es aproximada: mídela.' : ''}
+      ${!llenados.includes('nombre') && d.nombre ? '<br>Nombre propuesto: <b>' + esc(d.nombre) + '</b>' : ''}</div>`
+    if (llenados.length && window.generarSEO) window.generarSEO(true)
+  } catch (e) { alert('Claude no pudo proponer la ficha: ' + e.message) }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = txt0 } }
+}
+
 window.generarSEO = async (silencioso) => {
   silencioso = silencioso === true
   const nombre     = (document.getElementById('f-nombre')?.value || '').trim()
