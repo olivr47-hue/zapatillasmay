@@ -258,6 +258,8 @@ def _hacer_sync_ventas_amazon() -> dict:
                         "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
                         "color": it["color"], "talla": it["talla"],
                     })
+                from routers.push import avisar_venta_canal
+                avisar_venta_canal("amazon", items_pedido, datos["total"], orden.get("PurchaseDate"))
             for it in items_pedido:
                 try:
                     _descontar_inventario_variante_amazon(it["variante_id"], it["cantidad"])

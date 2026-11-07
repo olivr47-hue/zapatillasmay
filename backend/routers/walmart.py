@@ -577,6 +577,8 @@ def _hacer_sync_ventas_walmart_inner() -> dict:
                         "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
                         "color": it["color"], "talla": it["talla"],
                     })
+                from routers.push import avisar_venta_canal
+                avisar_venta_canal("walmart", items_pedido, total, datos_pedido.get("created_at"))
             for it in items_pedido:
                 try:
                     _descontar_inventario_variante_walmart(it["variante_id"], it["cantidad"])

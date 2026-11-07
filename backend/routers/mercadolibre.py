@@ -933,6 +933,8 @@ def _hacer_sync_ventas_inner():
                             "color":           it["color"],
                             "talla":           it["talla"],
                         })
+                    from routers.push import avisar_venta_canal
+                    avisar_venta_canal("mercadolibre", items_pedido, datos_pedido["total"], fecha_orden)
                 for it in items_pedido:
                     try:
                         _descontar_inventario_variante(it["variante_id"], it["cantidad"])

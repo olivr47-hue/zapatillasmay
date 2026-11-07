@@ -1244,6 +1244,8 @@ def _hacer_sync_ventas_shein_inner() -> dict:
                             "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
                             "color": it["color"], "talla": it["talla"],
                         })
+                    from routers.push import avisar_venta_canal
+                    avisar_venta_canal("shein", items_pedido, total, fecha_orden)
                 for it in items_pedido:
                     try:
                         _descontar_inventario_variante_shein(it["variante_id"], it["cantidad"])

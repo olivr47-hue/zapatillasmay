@@ -205,6 +205,42 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
     return {"enviadas": enviadas, "fallidas": fallidas, "codigos_error": codigos}
 
 
+_NOMBRE_CANAL = {"mercadolibre": "MercadoLibre", "amazon": "Amazon", "shein": "SHEIN", "walmart": "Walmart"}
+
+
+def avisar_venta_canal(canal: str, items: list, total: float, fecha=None):
+    """Aviso al panel cuando entra una venta de un marketplace (ML, Amazon, SHEIN, Walmart). Esos pedidos se crean
+    directo en la sincronización y antes no avisaban: el equipo se enteraba solo si abría Pedidos.
+    Si la orden es vieja (ej. la primera sincronización trae historial) no se avisa."""
+    try:
+        if fecha:
+            import datetime as _dt
+            f = None
+            try:
+                if isinstance(fecha, (int, float)) or str(fecha).isdigit():   # milisegundos (Walmart/SHEIN a veces)
+                    n = float(fecha)
+                    f = _dt.datetime.fromtimestamp(n / 1000 if n > 1e11 else n, _dt.timezone.utc)
+                else:
+                    f = _dt.datetime.fromisoformat(str(fecha).replace("Z", "+00:00"))
+                    if f.tzinfo is None:
+                        f = f.replace(tzinfo=_dt.timezone.utc)
+            except Exception:
+                f = None   # fecha rara: mejor avisar que quedarse callado
+            if f and (_dt.datetime.now(_dt.timezone.utc) - f).total_seconds() > 48 * 3600:
+                return
+        pares = sum(int(i.get("cantidad") or 0) for i in items)
+        primero = items[0] if items else {}
+        detalle = " ".join(str(primero.get("nombre") or "").split()[:5])
+        extra = " · ".join(x for x in [f"{primero.get('color')}" if primero.get("color") else "", f"talla {primero.get('talla')}" if primero.get("talla") else ""] if x)
+        cuerpo = f"{pares} par{'es' if pares != 1 else ''} · ${float(total or 0):,.0f}"
+        if detalle:
+            cuerpo += f" · {detalle}" + (f" ({extra})" if extra else "") + (" y más" if len(items) > 1 else "")
+        enviar_push(f"🛒 Venta en {_NOMBRE_CANAL.get(canal, canal)}", cuerpo + ". Prepáralo para envío.",
+                    url="/?modulo=pedidos", sitio="panel")
+    except Exception as e:
+        print(f"[push] Error avisando venta de {canal}: {e}")
+
+
 @router.post("/enviar")
 def enviar_notificacion(body: dict):
     """
