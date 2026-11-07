@@ -872,6 +872,57 @@ def _resolver_carrusel(productos, claves, mayorista=False, vistos=None, maximo=8
     return tarjetas
 
 
+_MARCADORES_ACCION = ("ENVIAR_FOTO", "ENVIAR_CARRUSEL", "GENERAR_PAGO", "LINK_PAGO", "BUSCAR_COLORES")
+
+
+def _asegurar_foto_modelo(telefono, mensaje, respuesta, productos):
+    """Red de seguridad: si la clienta pregunta por UN modelo concreto (código como EF1627, o el mensaje del botón de WhatsApp del sitio)
+    y Maya contestó solo con texto -- sin foto, carrusel ni cobro --, se le agrega la foto del modelo. Antes dependía de que la IA se
+    acordara de escribir ENVIAR_FOTO: contestaba «aquí los tienes» y la foto nunca llegaba. No repite una foto que ya se le mandó."""
+    try:
+        if not respuesta or any(m in respuesta for m in _MARCADORES_ACCION):
+            return respuesta
+        codigos = _cat_rel._codigos_en(mensaje or "")
+        if not codigos:
+            return respuesta
+        hallados = []
+        for p in productos or []:
+            claves = {_cat_rel._codigo_de(p), _cat_rel._norm(p.get("sku_interno") or "").replace(" ", "")}
+            claves.discard("")
+            if codigos & claves and p.get("imagen_principal"):
+                hallados.append(p)
+        if len(hallados) != 1:
+            return respuesta          # sin modelo claro (o varios): no se adivina
+        foto = hallados[0]["imagen_principal"]
+        # id público de la foto (p. ej. p9xyhs9dus5kpxlxsuzv): si ya se le mandó antes, no se repite
+        m = re.search(r"/([A-Za-z0-9_-]{8,})\.[A-Za-z0-9]+$", foto)
+        if m:
+            try:
+                previas = supabase_get(
+                    f"conversaciones_whatsapp?telefono=eq.{telefono}&tipo=in.(imagen_saliente,carrusel_saliente)"
+                    f"&mensaje=ilike.*{m.group(1)}*&select=id&limit=1") or []
+                if previas:
+                    return respuesta
+            except Exception as e:
+                print(f"[maya] no se pudo revisar fotos previas: {e}")
+        print(f"[maya] la IA no mandó la foto del modelo {_cat_rel._codigo_de(hallados[0])}: se agrega automáticamente")
+        return respuesta.rstrip() + f" ENVIAR_FOTO:[{foto}]"
+    except Exception as e:
+        print(f"[maya] _asegurar_foto_modelo: {e}")
+        return respuesta
+
+
+def _registrar_foto_enviada(telefono, url, wamid):
+    """Guarda en la conversación la foto que mandó Maya: así se ve en el panel, y la IA sabe qué fotos ya enviaste."""
+    try:
+        supabase_post("conversaciones_whatsapp", {
+            "wa_message_id": wamid or None, "telefono": telefono,
+            "mensaje": f"[Maya]: [Imagen] {url}", "respuesta": None, "tipo": "imagen_saliente", "leido": True,
+        })
+    except Exception as e:
+        print(f"[maya] no se pudo registrar la foto enviada: {e}")
+
+
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
 
@@ -984,7 +1035,11 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     if texto_final:
         enviar_whatsapp_texto(from_number, texto_final)
     for url in fotos[:5]:  # máx 5 fotos de producto
-        enviar_whatsapp_imagen(from_number, url)
+        _wamid_foto = enviar_whatsapp_imagen(from_number, url)
+        if _wamid_foto:
+            _registrar_foto_enviada(from_number, url, _wamid_foto)
+        else:
+            print(f"[maya] la foto NO se envió a {from_number}: {_WA_ULTIMO_ERROR}")
     return texto_final or respuesta_claude
 
 def obtener_historial(telefono, limite=10):
@@ -2112,6 +2167,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
             print(f"[chatbot] FATAL para {from_number}: {ultimo_error}")
             return {"status": "ok"}
 
+        respuesta_claude = _asegurar_foto_modelo(from_number, mensaje_final, respuesta_claude, productos)
         texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
         # Actualizar la fila existente con la respuesta (evita duplicar el mensaje del cliente)
         try:
