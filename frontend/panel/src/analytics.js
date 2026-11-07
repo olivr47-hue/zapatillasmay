@@ -445,8 +445,14 @@ async function tabVentas() {
         <div class="an-lista-i"><span>Retorno real (ventas ÷ gasto)</span><span class="an-chip ${me.roas_erp >= 2 ? 'an-chip-ok' : me.roas_erp >= 1 ? 'an-chip-warn' : 'an-chip-mal'}">${me.roas_erp == null ? '—' : me.roas_erp + 'x'}</span></div>
         <div class="an-lista-i"><span>Costo por pedido</span><b>${me.costo_por_pedido ? dinero(me.costo_por_pedido) : '—'}</b></div>
         <div class="an-lista-i"><span style="color:#999">Lo que Meta dice de sí mismo</span><span style="color:#999">${me.roas_reportado_por_meta ?? '—'}x · ${me.compras_reportadas_por_meta ?? 0} compras</span></div>`
+    const googleAds = !ga.conectado
+      ? `<div class="an-lista-i"><span>Ventas reales con clic de anuncio</span><b>${dinero(ga.ventas_erp)} (${nf(ga.pedidos_erp)} pedido${ga.pedidos_erp === 1 ? '' : 's'})</b></div><div class="an-lista-i"><span>Ticket promedio</span><b>${ga.ticket ? dinero(ga.ticket) : '—'}</b></div><div class="an-aviso an-aviso-warn" style="margin:10px 0 0;font-size:0.8rem">${esc(ga.nota || '')}</div>`
+      : `<div class="an-lista-i"><span>Gasto en Google Ads</span><b>${dinero(ga.gasto)}</b></div><div class="an-lista-i"><span>Ventas reales que llegaron de Google Ads</span><b>${dinero(ga.ventas_erp)} (${nf(ga.pedidos_erp)} pedido${ga.pedidos_erp === 1 ? '' : 's'})</b></div>
+        <div class="an-lista-i"><span>Retorno real (ventas ÷ gasto)</span><span class="an-chip ${ga.roas_erp >= 2 ? 'an-chip-ok' : ga.roas_erp >= 1 ? 'an-chip-warn' : 'an-chip-mal'}">${ga.roas_erp == null ? '—' : ga.roas_erp + 'x'}</span></div>
+        <div class="an-lista-i"><span>Costo por pedido</span><b>${ga.costo_por_pedido ? dinero(ga.costo_por_pedido) : '—'}</b></div>
+        <div class="an-lista-i"><span style="color:#999">Lo que Google Analytics registra</span><span style="color:#999">${ga.roas_ga4 ?? '—'}x · ${ga.compras_ga4 ?? 0} compras · ${nf(ga.clics || 0)} clics</span></div>`
     anuncios = `<div class="an-g2">${tarjeta('📣 Meta (Facebook / Instagram)', meta)}
-      ${tarjeta('🔍 Google Ads', `<div class="an-lista-i"><span>Ventas reales con clic de anuncio</span><b>${dinero(ga.ventas_erp)} (${nf(ga.pedidos_erp)} pedido${ga.pedidos_erp === 1 ? '' : 's'})</b></div><div class="an-lista-i"><span>Ticket promedio</span><b>${ga.ticket ? dinero(ga.ticket) : '—'}</b></div><div class="an-aviso an-aviso-warn" style="margin:10px 0 0;font-size:0.8rem">${esc(ga.nota)}</div>`)}</div>`
+      ${tarjeta('🔍 Google Ads', googleAds)}</div>`
   }
   // google vs erp
   let gve = falla(g)
@@ -459,5 +465,6 @@ async function tabVentas() {
   }
   // campañas de meta
   const camp = (!m.__error && !m.__noconf && (m.campanas || []).length) ? tarjeta('Campañas de Meta', `<div class="an-scroll"><table class="an-tabla"><thead><tr><th>Campaña</th><th class="num">Gasto</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Compras</th></tr></thead><tbody>${m.campanas.map(c => `<tr><td>${esc(c.nombre)}</td><td class="num">${dinero(c.gasto)}</td><td class="num">${nf(c.clics)}</td><td class="num">${pct(c.ctr, 2)}</td><td class="num">${nf(c.compras)}</td></tr>`).join('')}</tbody></table></div>`) : ''
-  return { html: kpis + tarjeta('De dónde vienen tus ventas reales', tablaOrigen) + '<div style="height:14px"></div>' + anuncios + gve + '<div style="height:14px"></div>' + camp }
+  const campG = (!r.__error && r.google_ads && (r.google_ads.campanas || []).length) ? tarjeta('Campañas de Google Ads', `<div class="an-scroll"><table class="an-tabla"><thead><tr><th>Campaña</th><th class="num">Gasto</th><th class="num">Clics</th><th class="num">CTR</th><th class="num">Costo por clic</th><th class="num">Compras</th></tr></thead><tbody>${r.google_ads.campanas.map(c => `<tr><td>${esc(c.nombre)}</td><td class="num">${dinero(c.gasto)}</td><td class="num">${nf(c.clics)}</td><td class="num">${pct(c.ctr, 2)}</td><td class="num">${c.cpc ? dinero(c.cpc) : '—'}</td><td class="num">${nf(c.compras)}</td></tr>`).join('')}</tbody></table></div>`) : ''
+  return { html: kpis + tarjeta('De dónde vienen tus ventas reales', tablaOrigen) + '<div style="height:14px"></div>' + anuncios + gve + '<div style="height:14px"></div>' + camp + (campG ? '<div style="height:14px"></div>' + campG : '') }
 }

@@ -1508,6 +1508,61 @@ def google_vs_erp(dias: int = 30):
     return _con_cache(f"gve:{dias}", _calc)
 
 
+@router.get("/google-ads")
+def google_ads(dias: int = 30):
+    """Gasto, clics, impresiones y compras de las campañas de Google Ads, para verlas en el panel igual que las de Meta.
+    No usa la API de Google Ads (pide token de desarrollador y aprobación de Google): lee lo que Google Ads le manda a GA4 al estar
+    vinculadas la cuenta de anuncios y la propiedad de Analytics (con etiquetado automático). Si la vinculación no existe, o las campañas no
+    tuvieron clics en el periodo, regresa la lista vacía con una nota que dice qué revisar."""
+    if not _esta_configurado():
+        return _no_credenciales()
+    dias = _dias_ok(dias)
+
+    def _calc():
+        dim = "sessionGoogleAdsCampaignName"
+        met_ads = ["advertiserAdCost", "advertiserAdClicks", "advertiserAdImpressions"]
+        resp = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in met_ads], "dimensions": [{"name": dim}],
+            "orderBys": [{"metric": {"metricName": "advertiserAdCost"}, "desc": True}], "limit": 50,
+        })
+        if not resp:
+            return _error_ga({"campanas": []})
+        por = {}
+        for f in _filas(resp, [dim], met_ads):
+            nombre = (f[dim] or "").strip()
+            if nombre in ("", "(not set)") and not f["advertiserAdCost"] and not f["advertiserAdClicks"]:
+                continue
+            por[nombre or "(sin nombre)"] = {"nombre": nombre or "(sin nombre)", "gasto": round(f["advertiserAdCost"], 2),
+                                              "clics": int(f["advertiserAdClicks"]), "impresiones": int(f["advertiserAdImpressions"]),
+                                              "sesiones": 0, "compras": 0, "ingreso": 0.0}
+        # lo que pasó en el sitio con esas visitas (compras e ingreso que Analytics registró)
+        met_sitio = ["sessions", "transactions", "purchaseRevenue"]
+        r2 = _ga4_post("runReport", {
+            "dateRanges": [_rango_n(dias)], "metrics": [{"name": m} for m in met_sitio], "dimensions": [{"name": dim}],
+            "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": 50,
+        })
+        for f in _filas(r2, [dim], met_sitio) if r2 else []:
+            c = por.get((f[dim] or "").strip() or "(sin nombre)")
+            if c:
+                c["sesiones"], c["compras"], c["ingreso"] = int(f["sessions"]), int(f["transactions"]), round(f["purchaseRevenue"], 2)
+        campanas = list(por.values())
+        for c in campanas:
+            c["ctr"] = round(c["clics"] / c["impresiones"] * 100, 2) if c["impresiones"] else 0.0
+            c["cpc"] = round(c["gasto"] / c["clics"], 2) if c["clics"] else 0.0
+            c["roas"] = round(c["ingreso"] / c["gasto"], 2) if c["gasto"] else 0.0
+        gasto = round(sum(c["gasto"] for c in campanas), 2)
+        ingreso = round(sum(c["ingreso"] for c in campanas), 2)
+        out = {"configurado": True, "dias": dias, "campanas": campanas, "total_gasto": gasto,
+               "total_clics": sum(c["clics"] for c in campanas), "total_impresiones": sum(c["impresiones"] for c in campanas),
+               "total_compras": sum(c["compras"] for c in campanas), "total_ingreso": ingreso,
+               "roas_ga4": round(ingreso / gasto, 2) if gasto else 0.0}
+        if not campanas or not gasto:
+            out["nota"] = ("Google Analytics no trae gasto de Google Ads en este periodo. Puede ser que las campañas no tuvieron clics, o que falte "
+                           "vincular Analytics con la cuenta de Google Ads (Analytics → Administrar → Vinculación con Google Ads) con el etiquetado automático activo.")
+        return out
+    return _con_cache(f"gads:{dias}", _calc)
+
+
 @router.get("/roas")
 def roas(dias: int = 30):
     """Cuánto se gasta en anuncios y cuánto se vende de verdad (ventas del ERP por origen). Meta: gasto real de la cuenta;
@@ -1524,6 +1579,11 @@ def roas(dias: int = 30):
             return next((o for o in erp["por_origen"] if o["origen"].startswith(prefijo)), {"pedidos": 0, "ventas": 0, "ticket": 0})
         m, g = buscar("Meta"), buscar("Google (anuncios)")
         gasto = float(meta.get("total_gasto") or 0) if meta.get("configurado") and not meta.get("error") else None
+        try:
+            ga_ads = google_ads(dias)
+        except Exception as e:
+            ga_ads = {"error": str(e)}
+        g_gasto = float(ga_ads.get("total_gasto") or 0) if ga_ads.get("configurado") and not ga_ads.get("error") else 0.0
         return {
             "dias": dias, "periodo_meta": preset,
             "meta": {"conectado": bool(meta.get("configurado")) and not meta.get("error"), "error": meta.get("error") or meta.get("mensaje"),
@@ -1531,7 +1591,13 @@ def roas(dias: int = 30):
                      "roas_erp": round(m["ventas"] / gasto, 2) if gasto else None,
                      "costo_por_pedido": round(gasto / m["pedidos"], 2) if gasto and m["pedidos"] else None,
                      "roas_reportado_por_meta": meta.get("roas_promedio"), "compras_reportadas_por_meta": meta.get("total_compras")},
-            "google_ads": {"conectado": False, "ventas_erp": g["ventas"], "pedidos_erp": g["pedidos"], "ticket": g["ticket"],
-                           "nota": "Google Ads no está conectado: se ven las ventas que llegaron con clic de anuncio, pero no su costo."},
+            "google_ads": {"conectado": g_gasto > 0, "ventas_erp": g["ventas"], "pedidos_erp": g["pedidos"], "ticket": g["ticket"],
+                           "gasto": round(g_gasto, 2) if g_gasto > 0 else None,
+                           "roas_erp": round(g["ventas"] / g_gasto, 2) if g_gasto else None,
+                           "costo_por_pedido": round(g_gasto / g["pedidos"], 2) if g_gasto and g["pedidos"] else None,
+                           "clics": ga_ads.get("total_clics"), "impresiones": ga_ads.get("total_impresiones"),
+                           "compras_ga4": ga_ads.get("total_compras"), "roas_ga4": ga_ads.get("roas_ga4") if g_gasto else None,
+                           "campanas": ga_ads.get("campanas") or [],
+                           "nota": ga_ads.get("nota") or ga_ads.get("error") or "Sin gasto de Google Ads en este periodo."},
         }
     return _con_cache(f"roas:{dias}", _calc)
