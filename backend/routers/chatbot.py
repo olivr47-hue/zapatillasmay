@@ -2294,6 +2294,69 @@ def _enviar_mensaje_meta(destinatario_id: str, texto: str):
         print(f"[meta webhook] Error enviando mensaje: {e}")
 
 
+# ── Suscripción de la página de Facebook a los mensajes (Messenger) ─────────
+# En toda la historia del sistema no había llegado ni un mensaje de Messenger (Instagram sí): la página no estaba suscrita a la app
+# para el evento «messages», así que Facebook nunca avisaba al servidor y nadie contestaba. Estas rutas muestran el estado y lo activan.
+def _graph_meta(url: str, metodo: str = "GET") -> dict:
+    req = urllib.request.Request(url, data=b"" if metodo == "POST" else None, method=metodo)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.loads(e.read().decode(errors="replace")).get("error") or {}
+        except Exception:
+            err = {}
+        return {"error": err.get("message") or f"HTTP {e.code}", "codigo": err.get("code")}
+
+
+def _token_pagina_meta() -> str:
+    return os.environ.get("FB_PAGE_ACCESS_TOKEN", "") or FB_PAGE_ACCESS_TOKEN
+
+
+@router.get("/meta/suscripcion")
+def meta_suscripcion_estado():
+    """¿La página de Facebook le manda a este servidor los mensajes de Messenger? (campos suscritos de la app en la página)."""
+    tok = _token_pagina_meta()
+    if not tok:
+        return {"ok": False, "error": "Falta FB_PAGE_ACCESS_TOKEN"}
+    q = urllib.parse.quote(tok, safe="")
+    pagina = _graph_meta(f"https://graph.facebook.com/v21.0/me?fields=id,name&access_token={q}")
+    if pagina.get("error"):
+        return {"ok": False, "error": pagina["error"]}
+    subs = _graph_meta(f"https://graph.facebook.com/v21.0/{pagina['id']}/subscribed_apps?access_token={q}")
+    if subs.get("error"):
+        return {"ok": False, "pagina": pagina.get("name"), "error": subs["error"]}
+    apps = [{"app": a.get("name"), "campos": a.get("subscribed_fields") or []} for a in subs.get("data") or []]
+    recibe = any("messages" in a["campos"] for a in apps)
+    return {"ok": True, "pagina": pagina.get("name"), "apps": apps, "recibe_messenger": recibe}
+
+
+@router.post("/meta/suscripcion")
+def meta_suscripcion_activar():
+    """Suscribe la página a los mensajes de Messenger (messages y messaging_postbacks). NO incluye 'feed' (comentarios públicos de Facebook)."""
+    tok = _token_pagina_meta()
+    if not tok:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Falta FB_PAGE_ACCESS_TOKEN"})
+    q = urllib.parse.quote(tok, safe="")
+    pagina = _graph_meta(f"https://graph.facebook.com/v21.0/me?fields=id,name&access_token={q}")
+    if pagina.get("error"):
+        return JSONResponse(status_code=502, content={"ok": False, "error": pagina["error"]})
+    # se conservan los campos que YA tuviera suscritos esta misma app (no los de otras apps de la página) y se agregan los de Messenger
+    app = _graph_meta(f"https://graph.facebook.com/v21.0/app?access_token={q}")
+    actuales = _graph_meta(f"https://graph.facebook.com/v21.0/{pagina['id']}/subscribed_apps?access_token={q}")
+    campos = set()
+    for a in (actuales.get("data") or []):
+        if app.get("id") and str(a.get("id")) == str(app.get("id")):
+            campos.update(a.get("subscribed_fields") or [])
+    campos.update({"messages", "messaging_postbacks"})
+    res = _graph_meta(f"https://graph.facebook.com/v21.0/{pagina['id']}/subscribed_apps?subscribed_fields={','.join(sorted(campos))}"
+                      f"&access_token={q}", metodo="POST")
+    if res.get("error"):
+        return JSONResponse(status_code=502, content={"ok": False, "error": res["error"], "codigo": res.get("codigo")})
+    return {"ok": bool(res.get("success")), "pagina": pagina.get("name"), "campos": sorted(campos)}
+
+
 # ── Comentarios públicos (Facebook feed / Instagram comments) ───────────────
 _META_IDS_CACHE: dict = {}
 
