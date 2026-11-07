@@ -535,6 +535,19 @@ def _loop_correo_nuevo():
             print(f"[correo-nuevo] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_comprobantes_ia():
+    """Cada 10 minutos lee con Claude los comprobantes recientes que se quedaron sin semáforo (máx. 5 por vuelta, para cuidar el costo)."""
+    _time.sleep(240)
+    while True:
+        try:
+            from comprobantes_ia import analizar_pendientes
+            n = analizar_pendientes(5)
+            if n:
+                print(f"[comprobantes-ia] {n} comprobante(s) leído(s)")
+        except Exception as e:
+            print(f"[comprobantes-ia] {e}")
+        _time.sleep(10 * 60)
+
 def _loop_limpieza_cache():
     """Purga entradas vencidas del caché en memoria cada 10 minutos. El
     caché (cache.py) solo se limpia solo cuando alguien vuelve a pedir la
@@ -792,6 +805,8 @@ def _iniciar_hilos():
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()
+    # Lectura automática de comprobantes de pago (semáforo, modo «solo sugerir»)
+    threading.Thread(target=_loop_comprobantes_ia, daemon=True).start()
     print("[limpieza-cache] Hilo de limpieza de caché iniciado (cada 10 min)")
 
 @app.get("/")

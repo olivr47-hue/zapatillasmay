@@ -30121,7 +30121,36 @@ window._compMiniatura = (c) => {
   const cuerpo = c.tipo === 'pdf'
     ? `<span style="display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:0.7rem;font-weight:700;color:#b91c1c">📄 PDF</span>`
     : `<img src="${u}" alt="Comprobante" loading="lazy" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">`
-  return `<a href="${u}" target="_blank" rel="noopener" title="${esc(c.nombre || 'Comprobante')}${c.monto ? ' · $' + c.monto : ''}" style="display:inline-block;position:relative;text-decoration:none">${cuerpo}${c.revisado === false ? '<span style="position:absolute;top:-4px;right:-4px;background:#0284c7;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center">!</span>' : ''}</a>`
+  const _pt = { verde: '#16a34a', amarillo: '#eab308', rojo: '#dc2626' }[c.ia_estado]
+  return `<a href="${u}" target="_blank" rel="noopener" title="${esc(c.nombre || 'Comprobante')}${c.monto ? ' · $' + c.monto : ''}" style="display:inline-block;position:relative;text-decoration:none">${cuerpo}${_pt ? `<span style="position:absolute;bottom:-3px;left:-3px;background:${_pt};border:2px solid #fff;border-radius:50%;width:12px;height:12px"></span>` : ''}${c.revisado === false ? '<span style="position:absolute;top:-4px;right:-4px;background:#0284c7;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center">!</span>' : ''}</a>`
+}
+// Semáforo del lector automático de comprobantes (Claude lee el comprobante; las reglas las pone el servidor). Modo «solo sugerir»:
+// ayuda a revisar, no marca nada como pagado.
+window._compIA = (c, pedidoId) => {
+  const esc = window._escWA
+  const COL = { verde: ['#dcfce7', '#166534', '🟢 Todo coincide'], amarillo: ['#fef9c3', '#854d0e', '🟡 Revisar'], rojo: ['#fee2e2', '#991b1b', '🔴 Alerta'],
+    error: ['#f1f5f9', '#475569', '⚠ No se pudo leer'], leyendo: ['#e0f2fe', '#075985', '⏳ Leyendo…'] }
+  const est = c.ia_estado || (c.created_at && (Date.now() - new Date(c.created_at)) < 15 * 60000 ? 'leyendo' : null)
+  if (!est) return `<div style="margin-top:4px"><a href="#" onclick="event.preventDefault();compVolverALeer('${esc(pedidoId)}','${esc(c.id)}')" style="font-size:0.66rem">🔎 Leer comprobante</a></div>`
+  const [bg, fg, txt] = COL[est] || COL.error
+  const d = c.ia_datos || {}
+  const motivos = (Array.isArray(c.ia_motivos) ? c.ia_motivos : []).map(m => esc(m)).join('<br>')
+  const datos = [d.monto != null ? 'Monto: <b>$' + Number(d.monto).toLocaleString('es-MX', { maximumFractionDigits: 2 }) + '</b>' : '', d.fecha ? 'Fecha: ' + esc(d.fecha) + (d.hora ? ' ' + esc(d.hora) : '') : '',
+    d.banco_emisor ? 'De: ' + esc(d.banco_emisor) : '', d.cuenta_destino ? 'A cuenta: ' + esc(d.cuenta_destino) : '', d.clave_rastreo ? 'Rastreo: ' + esc(d.clave_rastreo) : ''].filter(Boolean).join('<br>')
+  return `<div style="margin-top:5px;background:${bg};color:${fg};border-radius:8px;padding:5px 7px;font-size:0.68rem;line-height:1.35">
+    <b>${txt}</b>${motivos ? '<br>' + motivos : ''}${datos ? `<div style="color:#334155;margin-top:3px">${datos}</div>` : ''}
+    ${est !== 'leyendo' ? `<a href="#" onclick="event.preventDefault();compVolverALeer('${esc(pedidoId)}','${esc(c.id)}')" style="font-size:0.64rem;color:${fg}">↻ volver a leer</a>` : ''}</div>`
+}
+window.compVolverALeer = async (pedidoId, cid) => {
+  if (window.toast) toast('Leyendo el comprobante…')
+  try {
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/comprobantes/' + cid + '/analizar', { method: 'POST' })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || d.detail || 'No se pudo leer')
+    if (window.toast) toast(d.ia_estado === 'error' ? ((d.ia_motivos || [])[0] || 'No se pudo leer') : 'Listo')
+  } catch (e) { alert(e.message) }
+  if (document.getElementById('ped-comprobantes-card') && window.verPedido && window._currentPedido?.id === pedidoId) window.verPedido(pedidoId)
+  else if (window.editarAnticipoCarrito && window._antCtx) try { await window.editarAnticipoCarrito(pedidoId) } catch (e) {}
 }
 window._subirComprobantes = async (pedidoId, archivos, pagoId, monto) => {
   let fallos = []
@@ -30184,7 +30213,7 @@ window.editarAnticipoCarrito = async (pedidoId, desdeLista) => {
       ${sueltos.length ? sueltos.map(c => `
         <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #f8fafc">
           ${_compMiniatura(c)}
-          <span style="flex:1;font-size:0.76rem;color:#475569">${c.origen === 'portal' ? '🧑 La clienta lo subió' : esc(c.subido_por || 'Panel')}${c.monto ? ' · <strong>$' + parseFloat(c.monto).toLocaleString('es-MX') + '</strong>' : ''}${c.nota ? '<br>' + esc(c.nota) : ''}<br><span style="font-size:0.66rem;color:#94a3b8">${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span></span>
+          <span style="flex:1;font-size:0.76rem;color:#475569">${c.origen === 'portal' ? '🧑 La clienta lo subió' : esc(c.subido_por || 'Panel')}${c.monto ? ' · <strong>$' + parseFloat(c.monto).toLocaleString('es-MX') + '</strong>' : ''}${c.nota ? '<br>' + esc(c.nota) : ''}<br><span style="font-size:0.66rem;color:#94a3b8">${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>${window._compIA(c, pedidoId)}</span>
           ${c.revisado === false ? `<button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#166534;border-color:#86efac" onclick="antRevisado('${pedidoId}','${esc(c.id)}')">✔ Revisado</button>` : ''}
           <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="antQuitarComp('${pedidoId}','${esc(c.id)}')">Quitar</button>
         </div>`).join('') : '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Sin comprobantes sueltos. Los que suba la clienta desde su portal aparecen aquí.</p>'}
@@ -31533,6 +31562,7 @@ window._wmSincronizarInventario = async (btn) => {
             ? '<span style="display:flex;align-items:center;justify-content:center;height:150px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:700;color:#b91c1c">📄 PDF</span>'
             : `<img src="${_e(c.url)}" alt="Comprobante" loading="lazy" style="width:150px;height:150px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0">`}</a>
           <div>${c.monto ? `<strong style="color:#0f172a">Dice que pagó $${parseFloat(c.monto).toLocaleString('es-MX', { maximumFractionDigits: 2 })}</strong><br>` : ''}${new Date(c.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${c.origen === 'portal' ? 'subido por la clienta' : 'subido en el panel'}${c.nota ? `<br><em>${_e(c.nota)}</em>` : ''}</div>
+          ${window._compIA(c, id)}
           ${c.revisado === false ? `<button class="btn btn-secondary" style="margin-top:6px;padding:4px 9px;font-size:0.72rem" onclick="pedComprobanteRevisado('${id}','${c.id}')">✓ Ya lo revisé</button>` : '<span style="color:#16a34a;font-weight:600">✓ Revisado</span>'}
         </div>`).join('')}
       </div>

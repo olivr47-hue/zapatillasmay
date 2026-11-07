@@ -651,6 +651,11 @@ def subir_mi_comprobante(pedido_id: str, archivo: UploadFile = File(...), monto:
             "nota": (limpiar_texto(nota.strip())[:200] or None), "origen": "portal", "subido_por": "Clienta (portal)", "revisado": False}
     res = supabase_post("pedido_comprobantes", fila)
     try:
+        from comprobantes_ia import analizar_en_fondo
+        analizar_en_fondo((res[0] if isinstance(res, list) and res else {}).get("id"))
+    except Exception as e:
+        print(f"[portal] lector de comprobantes: {e}")
+    try:
         cli = supabase_get(f"clientes?id=eq.{cid}&select=nombre") or [{}]
         from routers.push import enviar_push
         try:

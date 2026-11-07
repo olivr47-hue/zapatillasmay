@@ -1724,7 +1724,23 @@ def subir_comprobante_pedido(id: str, archivo: UploadFile = File(...), pago_id: 
             "monto": m, "nota": (nota.strip()[:200] or None), "origen": "panel", "subido_por": _quien(_staff), "revisado": True}
     res = supabase_post("pedido_comprobantes", fila)
     _historial(id, "comprobante", f"Comprobante agregado ({sub['tipo']})", _quien(_staff))
+    try:
+        from comprobantes_ia import analizar_en_fondo
+        analizar_en_fondo((res[0] if isinstance(res, list) and res else {}).get("id"))
+    except Exception as e:
+        print(f"[pedidos] lector de comprobantes: {e}")
     return {"ok": True, "comprobante": res[0] if isinstance(res, list) and res else None}
+
+
+@router.post("/{id}/comprobantes/{cid}/analizar")
+def volver_a_leer_comprobante(id: str, cid: str, _staff=Depends(require_staff)):
+    """Vuelve a leer un comprobante con Claude (p. ej. si la primera vez falló por falta de saldo en la API)."""
+    if not (_UUID_RE.match(id) and _UUID_RE.match(cid)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    if not supabase_get(f"pedido_comprobantes?id=eq.{cid}&pedido_id=eq.{id}&select=id"):
+        return JSONResponse(status_code=404, content={"error": "Comprobante no encontrado"})
+    from comprobantes_ia import analizar
+    return analizar(cid)
 
 
 @router.patch("/{id}/comprobantes/{cid}")
