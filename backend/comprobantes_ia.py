@@ -125,7 +125,7 @@ def _cuentas_negocio() -> list:
     return [d for d in (_digitos(f.get("valor")) for f in filas if f.get("clave") in ("banco_clabe", "banco_cuenta", "banco_tarjeta_oxxo")) if len(d) >= 4]
 
 
-def evaluar(d: dict, pedido: dict, cuentas: list, clave_usada_en_otro: bool, subido_at=None, monto_declarado=None) -> tuple:
+def evaluar(d: dict, pedido: dict, cuentas: list, clave_usada_en_otro: bool, subido_at=None, monto_pago=None) -> tuple:
     """Reglas del semáforo. Devuelve (estado, motivos). Función pura: no consulta la base."""
     rojos, amarillos = [], []
     if not d.get("es_comprobante", True):
@@ -155,7 +155,8 @@ def evaluar(d: dict, pedido: dict, cuentas: list, clave_usada_en_otro: bool, sub
     monto = _num(d.get("monto"))
     total = _num(pedido.get("total")) or 0
     anticipo = _num(pedido.get("anticipo")) or 0
-    objetivos = [x for x in (total, round(total - anticipo, 2), _num(monto_declarado)) if x and x > 0]
+    # se compara SOLO contra lo que dice el sistema (total, saldo, o el anticipo al que se ligó el comprobante); nunca contra lo que escribió la clienta
+    objetivos = [x for x in (total, round(total - anticipo, 2), _num(monto_pago)) if x and x > 0]
     if monto is None:
         amarillos.append("No se pudo leer el monto")
     elif objetivos and not any(abs(monto - o) <= _TOLERANCIA_MONTO for o in objetivos):
@@ -194,7 +195,7 @@ def evaluar(d: dict, pedido: dict, cuentas: list, clave_usada_en_otro: bool, sub
 def analizar(comprobante_id: str) -> dict:
     """Lee un comprobante, aplica las reglas y guarda el resultado en pedido_comprobantes. Nunca lanza excepción."""
     try:
-        filas = supabase_get(f"pedido_comprobantes?id=eq.{comprobante_id}&select=id,pedido_id,url,tipo,monto,created_at") or []
+        filas = supabase_get(f"pedido_comprobantes?id=eq.{comprobante_id}&select=id,pedido_id,pago_id,url,tipo,monto,created_at") or []
         if not filas:
             return {"error": "no existe"}
         c = filas[0]
@@ -217,7 +218,10 @@ def analizar(comprobante_id: str) -> dict:
             subido = _dt.datetime.fromisoformat(str(c.get("created_at")).replace("Z", "+00:00"))
         except Exception:
             subido = None
-        estado, motivos = evaluar(d, ped, _cuentas_negocio(), usada, subido, c.get("monto"))
+        monto_pago = None
+        if c.get("pago_id"):
+            monto_pago = ((supabase_get(f"pedido_pagos?id=eq.{c['pago_id']}&select=monto") or [{}])[0]).get("monto")
+        estado, motivos = evaluar(d, ped, _cuentas_negocio(), usada, subido, monto_pago)
         res = {"ia_estado": estado, "ia_motivos": motivos, "ia_datos": d, "clave_rastreo": clave,
                "ia_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
         supabase_patch(f"pedido_comprobantes?id=eq.{comprobante_id}", res)
