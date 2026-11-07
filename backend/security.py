@@ -29,6 +29,57 @@ except ImportError:
             return decorator
     limiter = _NoOpLimiter()
 
+# ── Bloqueo por CUENTA tras muchos intentos fallidos ───────────────────────────
+# En producción el limitador por IP (slowapi) no frena nada: detrás del proxy de Railway todas las peticiones llegan con IPs que cambian,
+# así que probar contraseñas o códigos no tenía tope. Este bloqueo va por cuenta (correo/teléfono), que es lo que de verdad importa y no depende
+# de adivinar la IP real. Es temporal y NO bloquea a quien entra con la contraseña bien antes de acumular fallos. Vive en la memoria del servidor.
+import time as _time
+import threading as _threading
+_FALLOS_CUENTA: dict = {}          # clave -> [fallos, inicio_ventana, bloqueado_hasta]
+_FALLOS_LOCK = _threading.Lock()
+
+
+def segundos_bloqueo(clave: str) -> int:
+    """Segundos que faltan para poder intentar de nuevo (0 si no está bloqueada)."""
+    with _FALLOS_LOCK:
+        f = _FALLOS_CUENTA.get(clave)
+        if not f:
+            return 0
+        resto = int(f[2] - _time.time())
+        return resto if resto > 0 else 0
+
+
+def registrar_fallo(clave: str, max_fallos: int = 10, ventana: int = 900, bloqueo: int = 600) -> None:
+    """Cuenta un intento fallido; al pasar max_fallos dentro de la ventana se bloquea la cuenta `bloqueo` segundos."""
+    ahora = _time.time()
+    with _FALLOS_LOCK:
+        if len(_FALLOS_CUENTA) > 20000:      # limpieza para que no crezca sin límite
+            for k in [k for k, v in _FALLOS_CUENTA.items() if v[2] < ahora and ahora - v[1] > ventana]:
+                _FALLOS_CUENTA.pop(k, None)
+        f = _FALLOS_CUENTA.get(clave)
+        if not f or ahora - f[1] > ventana:
+            f = [0, ahora, 0.0]
+        f[0] += 1
+        if f[0] >= max_fallos:
+            f[2] = ahora + bloqueo
+            f[0], f[1] = 0, ahora
+        _FALLOS_CUENTA[clave] = f
+
+
+def limpiar_fallos(clave: str) -> None:
+    with _FALLOS_LOCK:
+        _FALLOS_CUENTA.pop(clave, None)
+
+
+def _clave_cuenta(prefijo: str, identificador) -> str:
+    return prefijo + ":" + str(identificador or "").strip().lower()[:120]
+
+
+def mensaje_bloqueo(segundos: int) -> str:
+    m = max(1, (segundos + 59) // 60)
+    return f"Demasiados intentos. Espera {m} minuto{'s' if m != 1 else ''} e intenta de nuevo, o usa «Olvidé mi contraseña»."
+
+
 # ── bcrypt (opcional; cae a pbkdf2_hmac que también es seguro) ────────────────
 try:
     import bcrypt as _bcrypt
@@ -67,6 +118,16 @@ def verify_password(plain: str, stored: str) -> bool:
             _, salt, dk_hex = stored.split(":", 2)
             dk = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt.encode(), _PBKDF2_ITERS)
             return _hmac.compare_digest(dk.hex(), dk_hex)
+        except Exception:
+            return False
+    # «bcsha:» = hash SHA-256 viejo (sin sal) ENVUELTO en bcrypt: se calcula igual que antes y el resultado se verifica con bcrypt. Así las cuentas con
+    # el hash débil quedan protegidas de una vez, sin pedirle nada a la clienta; al entrar se convierte a bcrypt normal (ver login).
+    if stored.startswith("bcsha:"):
+        if not _BCRYPT:
+            return False
+        try:
+            legado = hashlib.sha256(plain.encode()).hexdigest()
+            return _bcrypt.checkpw(legado.encode(), stored[6:].encode())
         except Exception:
             return False
     # SHA-256 legacy (migración automática)

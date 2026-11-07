@@ -29,6 +29,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, supabase_rpc
 from security import (hash_password, verify_password, create_token, verify_token, limiter, bearer_opcional,
                       require_admin, limpiar_texto)
+from security import segundos_bloqueo, registrar_fallo, limpiar_fallos, _clave_cuenta, mensaje_bloqueo
 from cache import cache_get, cache_set, cache_invalidate_prefix
 
 router_vendedor = APIRouter(prefix="/vendedor", tags=["Vendedor"])
@@ -201,9 +202,15 @@ def login_vendedor(request: Request, datos: dict):
     malo = JSONResponse(status_code=401, content={"error": "Correo o contraseña incorrectos."})
     if not email or not password:
         return malo
+    _ck = _clave_cuenta("vendedor", email)
+    _resto = segundos_bloqueo(_ck)
+    if _resto:
+        return JSONResponse(status_code=429, content={"error": mensaje_bloqueo(_resto)})
     filas = [x for x in (supabase_get(f"mp_vendedores?email=ilike.{_q(email)}&select=*&limit=5") or []) if (x.get("email") or "").lower() == email]
     if not filas or not verify_password(password, filas[0].get("password_hash", "")):
+        registrar_fallo(_ck)
         return malo
+    limpiar_fallos(_ck)
     v = filas[0]
     if v.get("estado") == "suspendido":
         return JSONResponse(status_code=403, content={"error": "Tu cuenta está suspendida. Escríbenos por WhatsApp."})

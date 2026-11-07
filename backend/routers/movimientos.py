@@ -148,7 +148,7 @@ def entrada_mercancia(datos: dict, _staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/cambios")
-def listar_cambios():
+def listar_cambios(_staff=Depends(require_staff)):   # antes estaba abierto: cualquiera veía los cambios de talla y sus motivos
     try:
         return supabase_get("cambios_producto?order=created_at.desc&select=*,variantes_origen:variante_origen_id(*,productos(nombre)),variantes_destino:variante_destino_id(*,productos(nombre)),sucursales(nombre)")
     except Exception as e:

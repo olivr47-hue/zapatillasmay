@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
 from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado, require_staff, TOKEN_CLIENTE_HORAS, verify_token, es_personal
+from security import segundos_bloqueo, registrar_fallo, limpiar_fallos, _clave_cuenta, mensaje_bloqueo
 from email_utils import enviar_email
 from security import limpiar_texto
 import os
@@ -77,8 +78,35 @@ def registro(request: Request, datos: dict):
         existente = _usuarios_por_email(email, "id", solo_activos=False)
         if existente:
             return JSONResponse(status_code=400, content={"error": "El email ya esta registrado"})
-        password_hash = hash_password(password)
         telefono = limpiar_texto(datos.get("telefono", ""))
+
+        # SEGURIDAD: al registrarse se LIGA la cuenta a la ficha de la clienta si ya existe (por correo exacto o por teléfono), para no duplicarla y que vea sus
+        # pedidos. Antes eso se hacía sin ningún límite: quien se registraba con el teléfono de otra clienta quedaba ligado a SU ficha aunque ya tuviera cuenta,
+        # y además se le cambiaban el correo y el origen de la ficha. Ahora:
+        #  - una ficha que YA tiene cuenta no se liga a una segunda (por correo: «ya registrado»; por teléfono: ficha nueva);
+        #  - por teléfono solo se liga si el teléfono identifica a UNA sola ficha, y nunca si la ficha tiene crédito (eso lo revisa el negocio);
+        #  - ya no se cambia el origen de la ficha (decide qué cuenta en «Tu utilidad») y el correo solo se pone si la ficha no tenía.
+        _cols = "id,tipo,nombre,email,limite_credito,credito_disponible"
+        cliente_existente = _clientes_por_email(email, _cols)
+        _via = "correo" if cliente_existente else None
+        _aviso_revisar = None
+        if not cliente_existente:
+            _t10 = _re_auth.sub(r"\D", "", telefono or "")[-10:]
+            if len(_t10) == 10:
+                _por_tel = supabase_get(f"clientes?telefono=like.*{_t10}&select={_cols}&limit=3") or []
+                if len(_por_tel) == 1:
+                    cliente_existente, _via = _por_tel, "teléfono"
+        if cliente_existente:
+            _c0 = cliente_existente[0]
+            _ya_tiene_cuenta = bool(supabase_get(f"usuarios?cliente_id=eq.{_c0['id']}&select=id&limit=1"))
+            _con_credito = float(_c0.get("limite_credito") or 0) > 0 or float(_c0.get("credito_disponible") or 0) > 0
+            if _ya_tiene_cuenta and _via == "correo":
+                return JSONResponse(status_code=400, content={"error": "El email ya esta registrado"})
+            if _ya_tiene_cuenta or (_via == "teléfono" and _con_credito):
+                _aviso_revisar = f"{nombre} se registró con el teléfono de la ficha de {_c0.get('nombre') or 'una clienta'}"
+                cliente_existente = []
+
+        password_hash = hash_password(password)
         usuario = supabase_post("usuarios", {
             "nombre": nombre,
             "email": email,
@@ -87,17 +115,17 @@ def registro(request: Request, datos: dict):
             "activo": True
         })
         u = usuario[0]
-        # Buscar si ya existe cliente con ese email o telefono para no duplicar
-        cliente_existente = _clientes_por_email(email)
-        if not cliente_existente and telefono:
-            cliente_existente = supabase_get(f"clientes?telefono=eq.{_q(telefono)}")
 
         if cliente_existente:
-            supabase_patch(f"clientes?id=eq.{cliente_existente[0]['id']}", {
-                "email": email,
-                "origen": "tienda"
-            })
             cliente = cliente_existente
+            if not (cliente_existente[0].get("email") or "").strip():
+                try:
+                    supabase_patch(f"clientes?id=eq.{cliente_existente[0]['id']}", {"email": email})
+                except Exception:
+                    pass
+            if cliente_existente[0].get("tipo") in ("mayoreo", "zapateria") or _via == "teléfono":
+                _aviso_revisar = (f"{nombre} creó su cuenta y se ligó a la ficha existente de "
+                                  f"{cliente_existente[0].get('nombre') or 'una clienta'} (por {_via}). Si no es ella, desactiva el usuario.")
         else:
             cliente = supabase_post("clientes", {
                 "nombre": nombre,
@@ -107,6 +135,12 @@ def registro(request: Request, datos: dict):
                 "activo": True,
                 "origen": "tienda"
             })
+        if _aviso_revisar:
+            try:
+                from routers.push import enviar_push
+                enviar_push("🔐 Revisa un registro", _aviso_revisar, url="/?modulo=clientes", sitio="panel")
+            except Exception as _e_push:
+                print(f"[auth/registro] no se pudo avisar: {_e_push}")
         cliente_id = cliente[0]["id"] if cliente else None
         if cliente_id:
             supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
@@ -145,6 +179,10 @@ def login(request: Request, datos: dict):
         password = datos.get("password")
         if not identificador or not password:
             return JSONResponse(status_code=400, content={"error": "Usuario y password requeridos"})
+        _ck = _clave_cuenta("login", identificador)
+        _resto = segundos_bloqueo(_ck)
+        if _resto:
+            return JSONResponse(status_code=429, content={"error": mensaje_bloqueo(_resto)})
 
         usuarios = None
         if "@" in identificador:
@@ -160,11 +198,14 @@ def login(request: Request, datos: dict):
                     usuarios = supabase_get(f"usuarios?cliente_id=eq.{cliente_id}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
 
         if not usuarios:
+            registrar_fallo(_ck)
             return JSONResponse(status_code=401, content={"error": "Email o password incorrectos"})
 
         u = usuarios[0]
         if not verify_password(password, u.get("password_hash", "")):
+            registrar_fallo(_ck)
             return JSONResponse(status_code=401, content={"error": "Email o password incorrectos"})
+        limpiar_fallos(_ck)
 
         # Migrar SHA-256 → bcrypt si aplica
         stored = u.get("password_hash", "")

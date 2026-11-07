@@ -37,10 +37,16 @@ from routers import sugerencias
 from routers import push
 from routers import emails
 
+# La documentación interactiva (/docs, /redoc, /openapi.json) listaba las 555 rutas de la API a cualquiera. En producción queda apagada;
+# se puede volver a encender con la variable EXPONER_DOCS=1 (en local sigue disponible).
+_DOCS_ABIERTAS = os.getenv("EXPONER_DOCS", "") == "1" or os.getenv("RAILWAY_ENVIRONMENT", "") == ""
 app = FastAPI(
     title="ERP Zapatillas May",
     description="Sistema de gestión para Zapatillas May",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs" if _DOCS_ABIERTAS else None,
+    redoc_url="/redoc" if _DOCS_ABIERTAS else None,
+    openapi_url="/openapi.json" if _DOCS_ABIERTAS else None,
 )
 try:
     from slowapi.errors import RateLimitExceeded

@@ -539,6 +539,9 @@ def crear_preferencia(datos: dict):
         # Precios validados contra el catálogo (anti-manipulación de precio).
         # Si no se puede validar, se usan los items del cliente (igual que antes).
         mp_items = _construir_items_validados(pedido_id, items)
+        if not mp_items and _total_guardado > 0:
+            # sin renglones guardados no hay con qué validar los precios del navegador: se cobra el TOTAL que el servidor ya guardó
+            mp_items = [{"title": "Pedido Zapatillas May", "quantity": 1, "unit_price": round(_total_guardado, 2), "currency_id": "MXN"}]
         if not mp_items:
             mp_items = [
                 {

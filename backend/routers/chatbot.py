@@ -541,8 +541,15 @@ def _resolver_items_wa(items_entrada: list, mayorista: bool = False) -> tuple:
         sku    = (it.get("sku") or "").strip()
         color  = (it.get("color") or "").strip().lower()
         talla  = str(it.get("talla") or "").strip().lower()
-        cantidad = int(it.get("cantidad") or 1)
+        try:
+            cantidad = int(it.get("cantidad") or 1)
+        except (TypeError, ValueError):
+            cantidad = 0
         etiqueta = f"{sku} {it.get('color','')} T{it.get('talla','')}".strip()
+        if cantidad < 1 or cantidad > 500:
+            # antes se aceptaba una cantidad negativa o cero: un renglón negativo RESTA del total y se podía bajar el cobro
+            faltantes.append(f"{etiqueta} (cantidad inválida)")
+            continue
 
         producto = prod_por_sku.get(sku)
         if not producto:
@@ -923,6 +930,25 @@ def _registrar_foto_enviada(telefono, url, wamid):
         print(f"[maya] no se pudo registrar la foto enviada: {e}")
 
 
+def _sanear_pago_maya(datos):
+    """El JSON de GENERAR_PAGO lo escribe la IA a partir de lo que dice la clienta. Solo se aceptan nombre, correo, dirección y renglones por
+    SKU+color+talla+cantidad: los precios SIEMPRE salen del catálogo en el servidor. Se descarta cualquier precio, variante, 'modelo', 'pares'
+    u otro formato que viniera en el texto (una clienta podía convencer a la IA de pedir un link por $1)."""
+    if not isinstance(datos, dict):
+        raise ValueError("formato de pago inválido")
+    items = datos.get("items")
+    if not isinstance(items, list) or not items:
+        raise ValueError("el pago no trae renglones por SKU")
+    limpios = []
+    for it in items:
+        if not isinstance(it, dict) or not str(it.get("sku") or "").strip():
+            raise ValueError("renglón sin SKU")
+        limpios.append({"sku": str(it["sku"]).strip(), "color": str(it.get("color") or "").strip(),
+                        "talla": str(it.get("talla") or "").strip(), "cantidad": it.get("cantidad") or 1})
+    return {"nombre": datos.get("nombre", "Cliente"), "email": datos.get("email", "") or "",
+            "direccion": datos.get("direccion", "") or "", "items": limpios}
+
+
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
 
@@ -933,7 +959,7 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
         if texto:
             enviar_whatsapp_texto(from_number, texto)
         try:
-            datos = json.loads(json_pago)
+            datos = _sanear_pago_maya(json.loads(json_pago))
             link, total, pedido_id, faltantes = generar_link_pago_wa(from_number, datos)
             time.sleep(1)
             if faltantes:

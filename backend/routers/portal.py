@@ -14,6 +14,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 import urllib.parse as _up
 from security import verify_password, hash_password, create_token, verify_token, limiter
+from security import segundos_bloqueo, registrar_fallo, limpiar_fallos, _clave_cuenta, mensaje_bloqueo
 from email_utils import enviar_email
 import os
 import re
@@ -83,12 +84,24 @@ def login(request: Request, datos: dict):
     password = datos.get("password") or ""
     if not email or not password:
         return JSONResponse(status_code=400, content={"error": "Correo y contraseña requeridos"})
+    _ck = _clave_cuenta("portal", email)
+    _resto = segundos_bloqueo(_ck)
+    if _resto:
+        return JSONResponse(status_code=429, content={"error": mensaje_bloqueo(_resto)})
 
     usuarios = supabase_get(
         f"usuarios?email=eq.{_up.quote(email, safe='')}&activo=eq.true&select=id,nombre,email,cliente_id,password_hash"
     )
     if not usuarios or not verify_password(password, usuarios[0].get("password_hash", "")):
+        registrar_fallo(_ck)
         return JSONResponse(status_code=401, content={"error": "Correo o contraseña incorrectos"})
+    limpiar_fallos(_ck)
+    _h = usuarios[0].get("password_hash", "") or ""
+    if not _h.startswith("$2"):   # hash viejo/envuelto: se convierte a bcrypt normal ahora que se conoce la contraseña
+        try:
+            supabase_patch(f"usuarios?id=eq.{usuarios[0]['id']}", {"password_hash": hash_password(password)})
+        except Exception:
+            pass
 
     u = usuarios[0]
     cliente_id = u.get("cliente_id")
@@ -284,6 +297,9 @@ def otp_verificar(request: Request, datos: dict):
     _cli, destino = _buscar_cliente_por(metodo, valor)
     if not destino:
         return JSONResponse(status_code=400, content={"error": "Dato inválido"})
+    _ck_otp = _clave_cuenta("otp", destino)
+    if segundos_bloqueo(_ck_otp):
+        return JSONResponse(status_code=429, content={"error": "Demasiados intentos con este código. Espera un rato y pide uno nuevo."})
 
     rows = supabase_get(f"portal_otp?destino=eq.{_up.quote(destino, safe='')}&usado=eq.false&order=created_at.desc&limit=1") or []
     if not rows:
@@ -299,7 +315,9 @@ def otp_verificar(request: Request, datos: dict):
         return JSONResponse(status_code=400, content={"error": "Demasiados intentos, pide un código nuevo"})
     if not verify_password(codigo, row.get("codigo_hash", "")):
         supabase_patch(f"portal_otp?id=eq.{row['id']}", {"intentos": (row.get("intentos") or 0) + 1})
+        registrar_fallo(_ck_otp, max_fallos=15, ventana=3600, bloqueo=3600)   # tope entre códigos distintos del mismo destino
         return JSONResponse(status_code=401, content={"error": "Código incorrecto"})
+    limpiar_fallos(_ck_otp)
 
     supabase_patch(f"portal_otp?id=eq.{row['id']}", {"usado": True})
     cli = (supabase_get(f"clientes?id=eq.{row['cliente_id']}&select=*") or [None])[0]
