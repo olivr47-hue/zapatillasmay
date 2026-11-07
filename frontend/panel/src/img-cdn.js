@@ -8,7 +8,7 @@ const CDN = 'https://img.zapatillasmay.mx/image/upload/'
 export function zmCdn(u) {
   if (typeof u !== 'string' || u.indexOf(CLD) !== 0) return u
   try { if (localStorage.getItem('zm_img') === 'cloudinary') return u } catch (e) {}
-  return CDN + u.slice(CLD.length)
+  return CDN + u.slice(CLD.length) + (u.indexOf('?') === -1 ? '?zv=2' : '&zv=2')   // zv=2: ver zmCdn() de la tienda
 }
 
 export function zmImg(url, w) {

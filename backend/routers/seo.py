@@ -35,7 +35,7 @@ def _cdn_img(u: str) -> str:
     Debe coincidir con zmCdn() del JavaScript de la tienda, para que la foto no se descargue dos veces.
     Variable ZM_IMG_HOST vacía = apagado (se sirve desde Cloudinary como antes)."""
     if _ZM_IMG_HOST and u.startswith(_CLD_PREFIJO):
-        return _ZM_IMG_HOST + "/image/upload/" + u[len(_CLD_PREFIJO):]
+        return _ZM_IMG_HOST + "/image/upload/" + u[len(_CLD_PREFIJO):] + ("&zv=2" if "?" in u else "?zv=2")  # zv=2: igual que zmCdn() de la tienda
     return u
 
 

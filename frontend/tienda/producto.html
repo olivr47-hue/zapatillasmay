@@ -728,7 +728,7 @@ const ZM_CDN = 'https://img.zapatillasmay.mx/image/upload/'
 function zmCdn(u) {
   if (typeof u !== 'string' || u.indexOf(ZM_CLD) !== 0) return u
   try { if (localStorage.getItem('zm_img') === 'cloudinary') return u } catch (e) {}
-  return ZM_CDN + u.slice(ZM_CLD.length)
+  return ZM_CDN + u.slice(ZM_CLD.length) + (u.indexOf('?') === -1 ? '?zv=2' : '&zv=2')   // zv=2: obliga a los navegadores a pedir de nuevo las fotos (algunos guardaron la copia JXL dañada 1 año)
 }
 window.addEventListener('error', function (e) {
   const t = e.target
