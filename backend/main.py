@@ -688,7 +688,7 @@ def _loop_reabasto_semanal():
 
 def _loop_finanzas_avisos():
     """Reportes y avisos de dinero por push (hora de México):
-    - diario 9am: gastos fijos por confirmar y pares vendidos ayer por debajo del precio de corrida (sin ofertas)
+    - diario 9am: registra los gastos fijos del mes y avisa de pares vendidos ayer por debajo del precio de corrida (sin ofertas)
     - lunes 9am: ventas de la semana pasada contra la anterior + productos sin costo
     - día 1, 9am: resumen del mes anterior (ventas, gastos, utilidad, tu utilidad) y aviso del Excel para el contador
     - diario 9pm: ventas del día y «Tu utilidad» del mes en curso"""
@@ -708,11 +708,7 @@ def _loop_finanzas_avisos():
                 return True
 
             if sid and 9 <= ahora.hour < 10 and una_vez("manana"):
-                pend = finanzas.gastos_fijos_pendientes(sid)
-                if pend:
-                    push.enviar_push("🔁 Gastos fijos por confirmar",
-                                     f"{len(pend)}: " + ", ".join(p["concepto"] for p in pend[:4]) + ". Confírmalos en Finanzas → Gastos.",
-                                     url="/?modulo=finanzas", sitio="panel")
+                finanzas._materializar_gastos_recurrentes(sid)   # gastos fijos del mes: se registran solos aunque nadie abra Finanzas
                 al = finanzas.alertas_rentabilidad(sid, hoy - _dt.timedelta(days=1))
                 if al["bajo_corrida"]:
                     pares = sum(x["pares"] for x in al["bajo_corrida"])

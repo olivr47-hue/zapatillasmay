@@ -333,7 +333,6 @@ def _materializar_gastos_recurrentes(sucursal_id):
     vez como 'plantilla' (es_recurrente=true, plantilla_id=null) y aqui se
     clona automaticamente una copia para el mes actual si todavia no existe,
     para no tener que capturarlos a mano cada mes."""
-    return   # desde 2026-11 ya no se copian solos: cada mes esperan confirmación (ver gastos_fijos_pendientes / Finanzas → Gastos fijos)
     import calendar
     try:
         hoy = _hoy_mx()
@@ -1786,7 +1785,9 @@ def gastos_fijos_pendientes(sucursal_id: str) -> list:
 def listar_gastos_fijos(sucursal_id: str):
     if not _UUID_FIN.match(sucursal_id):
         return JSONResponse(status_code=400, content={"error": "Sucursal inválida"})
-    return {"fijos": _plantillas_fijas(sucursal_id), "pendientes": gastos_fijos_pendientes(sucursal_id)}
+    # se registran solos cada mes (decisión del dueño, 2026-11-07): ya no hay «por confirmar»
+    _materializar_gastos_recurrentes(sucursal_id)
+    return {"fijos": _plantillas_fijas(sucursal_id), "pendientes": []}
 
 
 def _plantilla(plantilla_id: str):

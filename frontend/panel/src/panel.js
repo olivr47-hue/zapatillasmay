@@ -32676,7 +32676,7 @@ window._pintarGastosFijos = async (container, sucursalId) => {
   const mesDef = mesPasado.getFullYear() + '-' + String(mesPasado.getMonth() + 1).padStart(2, '0')
   caja.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <p style="font-weight:700;font-size:0.95rem;margin:0">🔁 Gastos fijos <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">(renta, luz, sueldos… cada mes te piden confirmación)</span></p>
+      <p style="font-weight:700;font-size:0.95rem;margin:0">🔁 Gastos fijos <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">(renta, luz, sueldos… se registran solos cada mes)</span></p>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="padding:5px 12px;font-size:0.78rem" onclick="agregarGastoFijo('${sucursalId}')">＋ Agregar gasto fijo</button>
         <input type="month" id="gf-mes-contador" class="form-input" value="${mesDef}" style="max-width:150px;padding:4px 8px;font-size:0.78rem">
