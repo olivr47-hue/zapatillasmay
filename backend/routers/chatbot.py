@@ -2270,12 +2270,45 @@ def _limpiar_respuesta_ia_meta(texto: str) -> str:
     return limpio.strip()
 
 
+_ENVIOS_MAYA_META: dict = {}   # destinatario -> [(timestamp, texto)] de lo que mandó Maya en los últimos minutos
+
+
+def _es_eco_de_maya(destinatario_id: str, texto: str) -> bool:
+    ahora = time.time()
+    recientes = [(t, x) for t, x in _ENVIOS_MAYA_META.get(destinatario_id, []) if ahora - t < 600]
+    _ENVIOS_MAYA_META[destinatario_id] = recientes
+    return any((x or "").strip() == (texto or "").strip() for _, x in recientes)
+
+
+def _eco_meta(evento: dict, canal: str, prefijo: str):
+    """Meta avisa (eco) de cada mensaje que sale de la página. Si NO lo mandó Maya, lo escribió alguien del equipo desde la bandeja de
+    Meta Business Suite: el chat pasa a control manual (Maya deja de contestar ahí y no hay respuestas dobles) y el mensaje queda en el
+    historial del panel. Antes estos ecos se ignoraban: el sistema no veía lo que el equipo contestaba desde Meta."""
+    try:
+        msg = evento.get("message") or {}
+        cliente = (evento.get("recipient") or {}).get("id", "")
+        texto = (msg.get("text") or "").strip()
+        if not cliente or _es_eco_de_maya(cliente, texto):
+            return
+        ident = f"{prefijo}:{cliente}"
+        if supabase_get(f"chats_control?telefono=eq.{urllib.parse.quote(ident, safe='')}&select=telefono"):
+            supabase_patch(f"chats_control?telefono=eq.{urllib.parse.quote(ident, safe='')}", {"en_control": True, "estado": "abierto"})
+        else:
+            supabase_post("chats_control", {"telefono": ident, "en_control": True, "estado": "abierto"})
+        supabase_post("conversaciones_whatsapp", {"telefono": ident, "mensaje": f"[Equipo (Meta)]: {texto or '[adjunto]'}",
+                                                  "respuesta": None, "tipo": "manual", "leido": True, "canal": canal})
+        cache_invalidate("chats_lista")
+    except Exception as e:
+        print(f"[meta webhook] no se pudo registrar la respuesta del equipo: {e}")
+
+
 def _enviar_mensaje_meta(destinatario_id: str, texto: str):
     """Manda un mensaje de texto por la Send API de Meta -- misma llamada para
     Messenger e Instagram cuando se usa el token de la pagina."""
     if not FB_PAGE_ACCESS_TOKEN:
         print("[meta webhook] FB_PAGE_ACCESS_TOKEN no configurado, no se pudo responder")
         return
+    _ENVIOS_MAYA_META.setdefault(destinatario_id, []).append((time.time(), texto))
     try:
         body = json.dumps({
             "recipient": {"id": destinatario_id},
@@ -2349,7 +2382,7 @@ def meta_suscripcion_activar():
     for a in (actuales.get("data") or []):
         if app.get("id") and str(a.get("id")) == str(app.get("id")):
             campos.update(a.get("subscribed_fields") or [])
-    campos.update({"messages", "messaging_postbacks"})
+    campos.update({"messages", "messaging_postbacks", "message_echoes"})
     res = _graph_meta(f"https://graph.facebook.com/v21.0/{pagina['id']}/subscribed_apps?subscribed_fields={','.join(sorted(campos))}"
                       f"&access_token={q}", metodo="POST")
     if res.get("error"):
@@ -2491,7 +2524,8 @@ async def _procesar_webhook_meta(datos: dict):
             for evento in entry.get("messaging", []):
                 mensaje_obj = evento.get("message") or {}
                 if mensaje_obj.get("is_echo"):
-                    continue  # eco de un mensaje que mando la pagina misma -- ignorar
+                    _eco_meta(evento, canal, prefijo)   # si lo escribió el equipo desde Meta, el chat pasa a control manual
+                    continue
                 sender_id = (evento.get("sender") or {}).get("id", "")
                 mid = mensaje_obj.get("mid", "")
                 texto = (mensaje_obj.get("text") or "").strip()
