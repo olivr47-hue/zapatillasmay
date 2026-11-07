@@ -549,3 +549,204 @@ def ids_publicados(_staff=Depends(require_staff)):
         for i in (f.get("producto_ids") or []):
             ids.add(i)
     return {"ids": list(ids)}
+
+
+# ═══ COLA DE PUBLICACIONES AUTOMÁTICAS (con aprobación) ═══
+# Cada mañana el sistema propone publicaciones de los modelos nuevos o resurtidos que aún no se han publicado (mismo formato de texto
+# que el panel + una frase de gancho de Claude). Quedan como «propuesta»: el dueño las aprueba (o edita/descarta) y se publican solas
+# a su hora. Con redes_auto_aprobar=1 en configuracion se aprueban solas (se puede activar cuando ya guste cómo quedan).
+from datetime import datetime as _dtm, timedelta as _td, timezone as _tz
+_TZ_MX_R = _tz(_td(hours=-6))
+_WA_PUB_TXT = "479 224 4560"
+_HASHTAGS = "#zapatillas #calzadodama #zapatosdemujer #leonguanajuato #modamexicana #nuevacoleccion #zapatillasmay #tacones #botines #sandalias"
+
+
+def _cfg_redes(clave: str, defecto: str) -> str:
+    try:
+        f = supabase_get(f"configuracion?clave=eq.{clave}&select=valor") or []
+        return str(f[0]["valor"]) if f and f[0].get("valor") not in (None, "") else defecto
+    except Exception:
+        return defecto
+
+
+def _frase_gancho(nombre: str) -> str:
+    """Una sola frase corta de Claude para abrir la publicación. Si no hay API o falla, se publica sin ella."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return ""
+    cuerpo = {"model": os.getenv("REDES_MODELO", "claude-sonnet-4-6"), "max_tokens": 80, "messages": [{"role": "user", "content":
+              f"Escribe UNA frase corta (máx. 12 palabras), cálida y sin exagerar, en español de México, para abrir una publicación de Instagram "
+              f"de una zapatería de dama sobre este modelo: «{nombre[:100]}». Solo la frase, sin comillas ni hashtags, puede llevar un emoji."}]}
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(cuerpo).encode(), method="POST",
+                                 headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            resp = json.loads(r.read())
+        t = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text").strip().strip('"“”')
+        return t.split("\n")[0][:140]
+    except Exception as e:
+        print(f"[redes-cola] sin frase de Claude: {e}")
+        return ""
+
+
+def _texto_publicacion(p: dict, colores: list, gancho: str) -> str:
+    from routers.chatbot import precios_web
+    precio = precios_web(p).get("menudeo")
+    l = []
+    if gancho:
+        l += [gancho, ""]
+    l.append("✨ NUEVO en Zapatillas May ✨" if (p.get("novedad") or "") != "resurtido" else "🔁 ¡De regreso! Ya lo resurtimos")
+    l.append("")
+    col = f" · {', '.join(colores[:4])}" if colores else ""
+    l.append(f"👠 {p.get('nombre') or ''}{f' — ${precio:,.0f} MXN' if precio else ''}{col}")
+    l.append(f"🔗 https://zapatillasmay.mx/producto/{urllib.parse.quote(str(p.get('slug') or p.get('sku_interno') or ''))}")
+    l += ["", "🚚 Envíos a todo México · 📍 León, Guanajuato", f"💬 Pídelos por WhatsApp: {_WA_PUB_TXT}", "", _HASHTAGS]
+    return "\n".join(l)
+
+
+def _siguiente_horario(ocupados: set) -> str:
+    """Próximo horario libre de publicación (hora de México), uno por franja."""
+    horas = [h.strip() for h in _cfg_redes("redes_horas", "13:00,19:30").split(",") if h.strip()]
+    ahora = _dtm.now(_TZ_MX_R)
+    for dias in range(0, 14):
+        d = (ahora + _td(days=dias)).date()
+        for h in horas:
+            try:
+                hh, mm = (int(x) for x in h.split(":"))
+            except ValueError:
+                continue
+            t = _dtm(d.year, d.month, d.day, hh, mm, tzinfo=_TZ_MX_R)
+            iso = t.astimezone(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if t > ahora + _td(minutes=20) and iso not in ocupados:
+                return iso
+    return (ahora + _td(days=1)).astimezone(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def generar_propuestas(maximo: int = None) -> int:
+    """Propone publicaciones de modelos nuevos/resurtidos con existencia que todavía no se publicaron ni están en la cola."""
+    if maximo is None:
+        try:
+            maximo = max(0, min(5, int(_cfg_redes("redes_por_dia", "1"))))
+        except ValueError:
+            maximo = 1
+    if not maximo:
+        return 0
+    publicados = set()
+    for f in supabase_get("redes_publicaciones?select=producto_ids&limit=2000") or []:
+        publicados.update(f.get("producto_ids") or [])
+    en_cola, ocupados = set(), set()
+    for f in supabase_get("redes_cola?estado=in.(propuesta,aprobada,publicada)&select=producto_ids,programado_para&limit=2000") or []:
+        en_cola.update(f.get("producto_ids") or [])
+        if f.get("programado_para"):
+            ocupados.add(str(f["programado_para"]).replace("+00:00", "Z")[:19] + "Z")
+    hace30 = (_dtm.now(_tz.utc) - _td(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cands = supabase_get(f"productos?activo=eq.true&imagen_principal=not.is.null&or=(created_at.gte.{hace30},novedad.in.(nuevo,resurtido))"
+                         f"&select=id,nombre,slug,sku_interno,precio_menudeo,es_oferta,imagen_principal,novedad,tallas_disponibles,created_at"
+                         f"&order=created_at.desc&limit=60") or []
+    hechos = 0
+    for p in cands:
+        if hechos >= maximo:
+            break
+        if p["id"] in publicados or p["id"] in en_cola or p.get("novedad") == "no":
+            continue
+        if p.get("tallas_disponibles") == []:
+            continue                                             # agotado: no se anuncia
+        vars_ = supabase_get(f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=color,foto_url") or []
+        colores, urls = [], [p["imagen_principal"]]
+        for v in vars_:
+            c = (v.get("color") or "").strip().title()
+            if c and c not in colores:
+                colores.append(c)
+                if v.get("foto_url") and v["foto_url"] not in urls and len(urls) < 4:
+                    urls.append(v["foto_url"])
+        cuando = _siguiente_horario(ocupados)
+        ocupados.add(cuando)
+        auto = _cfg_redes("redes_auto_aprobar", "0") == "1"
+        supabase_post("redes_cola", {"producto_ids": [p["id"]], "tipo": p.get("novedad") or "nuevo", "urls": urls,
+                                     "caption": _texto_publicacion(p, colores, _frase_gancho(p.get("nombre") or "")),
+                                     "destinos": ["instagram", "facebook"], "programado_para": cuando,
+                                     "estado": "aprobada" if auto else "propuesta", "aprobado_por": "automático" if auto else None})
+        hechos += 1
+    return hechos
+
+
+def publicar_pendientes_cola() -> int:
+    """Publica las aprobadas cuya hora ya llegó (una por vuelta, para no saturar)."""
+    ahora = _dtm.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    filas = supabase_get(f"redes_cola?estado=eq.aprobada&programado_para=lte.{ahora}&select=*&order=programado_para.asc&limit=1") or []
+    for f in filas:
+        supabase_patch_r(f"redes_cola?id=eq.{f['id']}&estado=eq.aprobada", {"estado": "publicando"})
+        try:
+            r = publicar({"urls": f.get("urls") or [], "caption": f.get("caption") or "", "destinos": f.get("destinos") or ["instagram", "facebook"],
+                          "producto_ids": f.get("producto_ids") or []}, {"nombre": "Automático (cola)"})
+            res = r if isinstance(r, dict) else json.loads(getattr(r, "body", b"{}") or b"{}")
+            ok = bool(res.get("ok"))
+            supabase_patch_r(f"redes_cola?id=eq.{f['id']}", {"estado": "publicada" if ok else "error", "resultado": res,
+                                                             "publicada_at": _dtm.now(_tz.utc).isoformat() if ok else None})
+        except Exception as e:
+            supabase_patch_r(f"redes_cola?id=eq.{f['id']}", {"estado": "error", "resultado": {"error": str(e)[:300]}})
+    return len(filas)
+
+
+def supabase_patch_r(ruta: str, datos: dict):
+    from database import supabase_patch
+    return supabase_patch(ruta, datos)
+
+
+@router.get("/cola")
+def ver_cola(_staff=Depends(require_staff)):
+    filas = supabase_get("redes_cola?estado=in.(propuesta,aprobada,publicando,error)&select=*&order=programado_para.asc&limit=50") or []
+    hechas = supabase_get("redes_cola?estado=eq.publicada&select=*&order=publicada_at.desc&limit=10") or []
+    return {"pendientes": filas, "publicadas": hechas, "auto_aprobar": _cfg_redes("redes_auto_aprobar", "0") == "1",
+            "por_dia": _cfg_redes("redes_por_dia", "1"), "horas": _cfg_redes("redes_horas", "13:00,19:30")}
+
+
+@router.post("/cola/generar")
+def cola_generar(_staff=Depends(require_staff)):
+    return {"ok": True, "nuevas": generar_propuestas()}
+
+
+@router.patch("/cola/{cid}")
+def cola_editar(cid: str, datos: dict, _staff=Depends(require_staff)):
+    if not (len(cid) == 36 and all(ch.isalnum() or ch == "-" for ch in cid)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    cambios = {}
+    if isinstance(datos.get("caption"), str):
+        cambios["caption"] = datos["caption"][:2100]
+    if datos.get("estado") in ("aprobada", "descartada", "propuesta"):
+        cambios["estado"] = datos["estado"]
+        if datos["estado"] == "aprobada":
+            cambios["aprobado_por"] = str((_staff or {}).get("nombre") or "panel")[:60]
+    if isinstance(datos.get("destinos"), list):
+        cambios["destinos"] = [d for d in datos["destinos"] if d in ("instagram", "facebook", "pinterest")] or ["instagram"]
+    if datos.get("ahora"):
+        cambios["programado_para"] = _dtm.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if not cambios:
+        return JSONResponse(status_code=400, content={"error": "Nada que cambiar"})
+    supabase_patch_r(f"redes_cola?id=eq.{cid}&estado=in.(propuesta,aprobada,error)", cambios)
+    return {"ok": True}
+
+
+@router.post("/cola/config")
+def cola_config(datos: dict, _staff=Depends(require_staff)):
+    """Ajustes de la cola: cuántas propuestas por día (0-5), horarios (HH:MM separados por coma) y si se aprueban solas."""
+    from database import supabase_patch
+    guardar = {}
+    if "por_dia" in datos:
+        try:
+            guardar["redes_por_dia"] = str(max(0, min(5, int(datos["por_dia"]))))
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=400, content={"error": "Número inválido"})
+    if "horas" in datos:
+        hs = [h.strip() for h in str(datos["horas"]).split(",") if h.strip()]
+        if not hs or any(len(h) != 5 or h[2] != ":" or not (h[:2] + h[3:]).isdigit() for h in hs):
+            return JSONResponse(status_code=400, content={"error": "Horarios inválidos (usa HH:MM separados por coma)"})
+        guardar["redes_horas"] = ",".join(hs[:4])
+    if "auto_aprobar" in datos:
+        guardar["redes_auto_aprobar"] = "1" if datos["auto_aprobar"] else "0"
+    for k, v in guardar.items():
+        if supabase_get(f"configuracion?clave=eq.{k}&select=clave"):
+            supabase_patch(f"configuracion?clave=eq.{k}", {"valor": v})
+        else:
+            supabase_post("configuracion", {"clave": k, "valor": v})
+    return {"ok": True, **guardar}

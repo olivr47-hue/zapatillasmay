@@ -747,6 +747,27 @@ def _loop_finanzas_avisos():
         _time.sleep(20 * 60)
 
 
+def _loop_redes_cola():
+    """Redes automáticas: cada mañana (~8am México) propone publicaciones de modelos nuevos/resurtidos (quedan para aprobar en el panel)
+    y cada 15 minutos publica las ya aprobadas cuya hora llegó."""
+    from routers import redes as _redes
+    _time.sleep(360)
+    ultimo = None
+    while True:
+        try:
+            ahora = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if 8 <= ahora.hour < 9 and ultimo != ahora.date():
+                ultimo = ahora.date()
+                n = _redes.generar_propuestas()
+                if n:
+                    push.enviar_push("📣 Publicaciones para aprobar", f"Te preparé {n} publicación(es) de modelos nuevos. Revísalas en Publicaciones.",
+                                     url="/?modulo=redes", sitio="panel")
+            _redes.publicar_pendientes_cola()
+        except Exception as e:
+            print(f"[redes-cola] {e}")
+        _time.sleep(15 * 60)
+
+
 def _loop_chats_sin_responder():
     """Cada mañana (~9am México) avisa por push cuántas clientas llevan más de 24 h sin que nadie (ni Maya) les
     conteste. Hoy hay chats donde la clienta esperó días sin que nadie se enterara."""
@@ -904,6 +925,8 @@ def _iniciar_hilos():
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()
+    # Redes automáticas (cola con aprobación)
+    threading.Thread(target=_loop_redes_cola, daemon=True).start()
     # Reportes y avisos de dinero (gastos fijos, rentabilidad, día/semana/mes)
     threading.Thread(target=_loop_finanzas_avisos, daemon=True).start()
     # Aviso de reabasto cada lunes

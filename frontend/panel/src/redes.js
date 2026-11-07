@@ -1233,3 +1233,87 @@ window.rsHistorial = async () => {
   } catch (e) { el.textContent = 'No se pudo cargar el historial.' }
 }
 
+// ═══ Cola automática: el sistema propone publicaciones de modelos nuevos/resurtidos y se publican solas a su hora cuando las apruebas ═══
+const _cargarRedesBase = window.cargarRedes
+window.cargarRedes = async function () {
+  await _cargarRedesBase()
+  await window._pintarColaRedes()
+}
+window._pintarColaRedes = async () => {
+  const content = document.getElementById('content')
+  if (!content) return
+  document.getElementById('rs-cola')?.remove()
+  let d = { pendientes: [], publicadas: [], auto_aprobar: false, por_dia: '1', horas: '13:00,19:30' }
+  try { const r = await fetch(API + '/redes/cola'); if (r.ok) d = await r.json() } catch (e) {}
+  const hora = (iso) => iso ? new Date(iso).toLocaleString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
+  const ETQ = { propuesta: ['#fff7ed', '#9a3412', 'Por aprobar'], aprobada: ['#e8f5e9', '#166534', 'Aprobada · se publica sola'], publicando: ['#e0f2fe', '#075985', 'Publicando…'], error: ['#fee2e2', '#991b1b', 'Error'] }
+  const tarjeta = (f) => {
+    const [bg, fg, t] = ETQ[f.estado] || ETQ.propuesta
+    const err = f.estado === 'error' ? Object.values((f.resultado || {}).resultados || {}).map(x => x && x.error).filter(Boolean).join(' · ') || (f.resultado || {}).error || '' : ''
+    const dest = f.destinos || []
+    return `<div style="border:1px solid #eef0f4;border-radius:12px;padding:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;gap:4px">${(f.urls || []).slice(0, 4).map(u => `<img src="${esc(u)}" style="width:62px;height:76px;object-fit:cover;border-radius:8px">`).join('')}</div>
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+          <span style="background:${bg};color:${fg};border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700">${t}</span>
+          <span style="font-size:0.74rem;color:#64748b">🕒 ${hora(f.programado_para)}</span>
+          <label style="font-size:0.74rem"><input type="checkbox" class="rsc-dest" data-id="${f.id}" value="instagram" ${dest.includes('instagram') ? 'checked' : ''}> Instagram</label>
+          <label style="font-size:0.74rem"><input type="checkbox" class="rsc-dest" data-id="${f.id}" value="facebook" ${dest.includes('facebook') ? 'checked' : ''}> Facebook</label>
+        </div>
+        <textarea id="rsc-cap-${f.id}" class="form-input" rows="5" style="font-size:0.78rem;width:100%">${esc(f.caption || '')}</textarea>
+        ${err ? `<p style="color:#991b1b;font-size:0.74rem;margin:4px 0 0">${esc(err)}</p>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          ${f.estado !== 'aprobada' ? `<button class="btn btn-primary" style="font-size:0.75rem;padding:4px 10px" onclick="colaRedes('${f.id}','aprobada')">✓ Aprobar</button>` : `<button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="colaRedes('${f.id}','propuesta')">Pausar</button>`}
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="colaRedes('${f.id}','aprobada',true)">🚀 Aprobar y publicar ya</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="colaRedes('${f.id}')">Guardar texto</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px;color:#b91c1c;border-color:#fca5a5" onclick="colaRedes('${f.id}','descartada')">Descartar</button>
+        </div>
+      </div></div>`
+  }
+  const card = document.createElement('div')
+  card.id = 'rs-cola'
+  card.style.cssText = 'background:#fff;border:1.5px solid #f9a8d4;border-radius:16px;padding:16px 18px;margin-bottom:14px;max-width:1100px'
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div><p style="font-size:0.78rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:.08em;margin:0">🤖 Cola automática</p>
+        <p style="font-size:0.76rem;color:#64748b;margin:2px 0 0">Cada mañana preparo publicaciones de tus modelos nuevos o resurtidos. Tú las apruebas y se publican solas a su hora.</p></div>
+      <button class="btn btn-secondary" style="font-size:0.78rem" onclick="colaRedesGenerar()">✨ Proponer ahora</button>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:0.78rem;background:#fdf2f8;border-radius:10px;padding:8px 12px;margin-bottom:10px">
+      <label>Propuestas por día <input id="rsc-pordia" type="number" min="0" max="5" value="${esc(d.por_dia)}" class="form-input" style="width:60px;padding:3px 6px;display:inline-block"></label>
+      <label>Horarios <input id="rsc-horas" value="${esc(d.horas)}" class="form-input" style="width:130px;padding:3px 6px;display:inline-block" title="HH:MM separados por coma"></label>
+      <label><input id="rsc-auto" type="checkbox" ${d.auto_aprobar ? 'checked' : ''}> Publicar sin pedirme aprobación</label>
+      <button class="btn btn-secondary" style="font-size:0.74rem;padding:3px 10px" onclick="colaRedesConfig()">Guardar ajustes</button>
+    </div>
+    ${(d.pendientes || []).length ? `<div style="display:grid;gap:8px">${d.pendientes.map(tarjeta).join('')}</div>`
+      : '<p style="color:#94a3b8;font-size:0.8rem;margin:0">No hay publicaciones en cola. Mañana a las 8:00 preparo las de tus modelos nuevos, o presiona «Proponer ahora».</p>'}
+    ${(d.publicadas || []).length ? `<p style="font-size:0.74rem;color:#64748b;margin:10px 0 0">Últimas publicadas solas: ${d.publicadas.slice(0, 5).map(f => hora(f.publicada_at)).join(' · ')}</p>` : ''}`
+  const wrap = content.querySelector('.rs-wrap') || content
+  wrap.prepend(card)
+}
+window.colaRedes = async (id, estado, ahora) => {
+  const caption = document.getElementById('rsc-cap-' + id)?.value
+  const destinos = Array.from(document.querySelectorAll(`.rsc-dest[data-id="${id}"]:checked`)).map(x => x.value)
+  if (estado === 'descartada' && !confirm('¿Descartar esta publicación?')) return
+  if (ahora && !confirm('¿Publicar ahora en ' + (destinos.join(' y ') || 'Instagram') + '?')) return
+  const body = { caption, destinos }
+  if (estado) body.estado = estado
+  if (ahora) body.ahora = true
+  const r = await fetch(API + '/redes/cola/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || 'No se pudo guardar'); return }
+  if (ahora) alert('Listo: se publica en los próximos minutos.')
+  window._pintarColaRedes()
+}
+window.colaRedesGenerar = async () => {
+  const r = await fetch(API + '/redes/cola/generar', { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  alert(d.nuevas ? `Preparé ${d.nuevas} publicación(es).` : 'No hay modelos nuevos sin publicar (o tienes 0 propuestas por día).')
+  window._pintarColaRedes()
+}
+window.colaRedesConfig = async () => {
+  const body = { por_dia: document.getElementById('rsc-pordia').value, horas: document.getElementById('rsc-horas').value, auto_aprobar: document.getElementById('rsc-auto').checked }
+  if (body.auto_aprobar && !confirm('Con esto las publicaciones se publican SOLAS sin que las revises. ¿Seguro?')) return
+  const r = await fetch(API + '/redes/cola/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const d = await r.json().catch(() => ({}))
+  alert(r.ok ? 'Ajustes guardados' : (d.error || 'No se pudo guardar'))
+}
