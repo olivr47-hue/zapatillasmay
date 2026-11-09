@@ -10926,12 +10926,20 @@ function _renderFilaPedido(p) {
   }
 
   const btn = (txt, onclick, estilo = '') => `<button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem;${estilo}" onclick="${onclick}">${txt}</button>`
+  // Marketplaces: guía de envío y el par exacto que pidieron, sin salir de Pedidos
+  const _gid = p.canal === 'mercadolibre' ? p.ml_order_id : (p.canal === 'shein' ? p.shein_order_id : '')
+  const btnGuia = _gid && (porEnviar || (p.canal === 'mercadolibre' && esEnviado))
+    ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
+  const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon'].includes(p.canal) ? (p.pedido_items || []) : []
+  const parPedido = _itemsMkt.length
+    ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => `👟 <strong>${_e(i.nombre || 'Producto')}</strong>${i.color ? ' · ' + _e(i.color) : ''}${i.talla ? ' · <strong>talla ' + _e(i.talla) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}`).join('<br>')}</div>` : ''
   let acciones = ''
   if (porEnviar) {
-    acciones = `${btn('🚚 Enviar', `abrirModalEnvio('${p.id}')`, 'background:#1565c0;border-color:#1565c0;color:#fff')}
+    acciones = `${btnGuia}
+      ${btn('🚚 Enviar', `abrirModalEnvio('${p.id}')`, 'background:#1565c0;border-color:#1565c0;color:#fff')}
       ${btn('🏪 Entrega directa', `marcarEntregadoPedido('${p.id}', true)`)}`
   } else if (esEnviado) {
-    acciones = `${p.tracking_url ? `<a href="${p.tracking_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem">📍 Rastrear</a>` : ''}`
+    acciones = `${btnGuia}${p.tracking_url ? `<a href="${p.tracking_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem">📍 Rastrear</a>` : ''}`
   }
 
   const guiaInfo = p.numero_guia && (esEnviado || p.status === 'entregado')
@@ -10953,6 +10961,7 @@ function _renderFilaPedido(p) {
         <strong>${_e(cli)}</strong>
         ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(p.email_cliente)}</span>` : ''}
         ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${_e(tel)}</span>` : ''}
+        ${parPedido}
       </td>
       <td data-label="Canal">${{
         web: '🌐 Web', sucursal: '🏬 Sucursal', whatsapp: '💬 WhatsApp', mercadolibre: '🛒 MercadoLibre',
@@ -10973,6 +10982,31 @@ function _renderFilaPedido(p) {
       </td>
     </tr>
   `
+}
+
+window._guiaMarketplace = async (canal, orderId, btn) => {
+  const ruta = canal === 'shein' ? `${API}/shein/guia/${encodeURIComponent(orderId)}` : `${API}/ml/guia/${encodeURIComponent(orderId)}`
+  const orig = btn.innerHTML
+  // la pestaña se abre antes de esperar al servidor para que el celular no la bloquee
+  const w = window.open('', '_blank')
+  btn.innerHTML = '⏳ Guía…'; btn.disabled = true
+  try {
+    if (w) w.document.write('<p style="font-family:sans-serif;padding:20px">Pidiendo la guía…</p>')
+    const res = await fetch(ruta)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      const det = typeof d.detail === 'string' ? d.detail : (d.detail && (d.detail.message || d.detail.msg)) || d.error || `Error ${res.status}`
+      throw new Error(det)
+    }
+    const url = URL.createObjectURL(await res.blob())
+    if (w) w.location.href = url; else window.location.href = url
+    setTimeout(() => URL.revokeObjectURL(url), 120000)
+  } catch (e) {
+    if (w) w.close()
+    alert('No se pudo obtener la guía: ' + e.message)
+  } finally {
+    btn.innerHTML = orig; btn.disabled = false
+  }
 }
 
 window.marcarEntregadoPedido = async (id, directa) => {
@@ -11298,23 +11332,84 @@ window.mostrarListaSurtido = () => {
     mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
   }))
   const filas = Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre) || a.color.localeCompare(b.color) || (parseFloat(a.talla) || 0) - (parseFloat(b.talla) || 0))
+  filas.forEach(f => { f.k = `${f.nombre}|${f.color}|${f.talla}`; f.refs = [...f.pedidos].map(x => '#' + x).join(' ') })
   const total = filas.reduce((s, f) => s + f.pares, 0)
-  const tabla = filas.length ? `
-    <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-      <thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th style="padding:6px">Modelo</th><th style="padding:6px">Color</th><th style="padding:6px">Talla</th><th style="padding:6px;text-align:right">Pares</th><th style="padding:6px">Pedidos</th></tr></thead>
-      <tbody>${filas.map(f => `<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px">${f.nombre}</td><td style="padding:6px">${f.color}</td><td style="padding:6px">${f.talla}</td><td style="padding:6px;text-align:right;font-weight:700">${f.pares}</td><td style="padding:6px;color:#94a3b8;font-size:0.72rem">${[...f.pedidos].map(x => '#' + x).join(' ')}</td></tr>`).join('')}</tbody>
-    </table>` : '<p style="color:#888;text-align:center;padding:1.5rem">No hay pedidos por enviar.</p>'
+
+  // Lo palomeado se recuerda en este dispositivo; solo vale si el renglón sigue con los mismos pares
+  // (si entra otro pedido del mismo modelo, vuelve a aparecer sin palomear para no olvidar el par nuevo)
+  const LS = 'zm_surtido_hechos'
+  let hechos = {}
+  try { hechos = JSON.parse(localStorage.getItem(LS) || '{}') || {} } catch (e) { hechos = {} }
+  const validas = {}
+  filas.forEach(f => { if (hechos[f.k] === f.pares) validas[f.k] = f.pares })
+  hechos = validas
+  const guardar = () => { try { localStorage.setItem(LS, JSON.stringify(hechos)) } catch (e) {} }
+  const hecho = f => hechos[f.k] === f.pares
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  let q = '', ocultar = false
+
+  const pintar = () => {
+    const lista = document.getElementById('sur-lista'), prog = document.getElementById('sur-prog')
+    if (!lista) return
+    const hechasN = filas.filter(hecho).length
+    const paresHechos = filas.filter(hecho).reduce((s, f) => s + f.pares, 0)
+    const pct = total ? Math.round(paresHechos * 100 / total) : 0
+    if (prog) prog.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:5px"><strong>${paresHechos} de ${total} par${total === 1 ? '' : 'es'} surtido${paresHechos === 1 ? '' : 's'}</strong><span style="color:#64748b">${hechasN} de ${filas.length} renglones</span></div>
+      <div style="height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct === 100 ? '#16a34a' : '#2563eb'};transition:width .2s"></div></div>
+      ${filas.length && hechasN === filas.length ? '<div style="margin-top:8px;font-weight:800;color:#166534;font-size:0.9rem">✅ ¡Todo surtido!</div>' : ''}`
+    const nq = norm(q)
+    const vis = filas.map((f, i) => ({ f, i })).filter(({ f }) => (!ocultar || !hecho(f)) && (!nq || norm(`${f.nombre} ${f.color} ${f.talla} ${f.refs}`).includes(nq)))
+    lista.innerHTML = vis.length ? vis.map(({ f, i }) => {
+      const d = hecho(f)
+      return `<div onclick="_surtidoMarcar(${i})" style="display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:2px solid ${d ? '#86efac' : '#e5e7eb'};background:${d ? '#f0fdf4' : '#fff'};margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;${d ? 'opacity:.7' : ''}">
+        <div style="flex:none;width:32px;height:32px;border-radius:9px;border:2px solid ${d ? '#16a34a' : '#94a3b8'};background:${d ? '#16a34a' : '#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800">${d ? '✓' : ''}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:0.92rem;line-height:1.25;${d ? 'text-decoration:line-through;' : ''}">${_e(f.nombre)}</div>
+          <div style="font-size:0.86rem;color:#334155;margin-top:3px">${f.color ? _e(f.color) : ''}${f.color && f.talla ? ' · ' : ''}${f.talla ? `<strong>Talla ${_e(f.talla)}</strong>` : ''}</div>
+          <div style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${_e(f.refs)}</div>
+        </div>
+        <div style="flex:none;text-align:center;min-width:48px;background:${f.pares > 1 ? '#fef3c7' : '#f1f5f9'};border-radius:10px;padding:6px 8px"><div style="font-size:1.25rem;font-weight:800;line-height:1.1">${f.pares}</div><div style="font-size:0.6rem;color:#64748b">${f.pares === 1 ? 'par' : 'pares'}</div></div>
+      </div>`
+    }).join('') : `<p style="color:#888;text-align:center;padding:1.5rem">${filas.length ? 'Nada coincide con la búsqueda.' : 'No hay pedidos por enviar.'}</p>`
+    // Para imprimir: misma lista con casillas
+    const tabla = filas.length ? `<table style="width:100%;border-collapse:collapse;font-size:0.85rem"><thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th></th><th style="padding:6px">Modelo</th><th style="padding:6px">Color</th><th style="padding:6px">Talla</th><th style="padding:6px;text-align:right">Pares</th><th style="padding:6px">Pedidos</th></tr></thead><tbody>${filas.map(f => `<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px;font-size:1.1rem">${hecho(f) ? '☑' : '☐'}</td><td style="padding:6px">${_e(f.nombre)}</td><td style="padding:6px">${_e(f.color)}</td><td style="padding:6px">${_e(f.talla)}</td><td style="padding:6px;text-align:right;font-weight:700">${f.pares}</td><td style="padding:6px;color:#94a3b8;font-size:0.72rem">${_e(f.refs)}</td></tr>`).join('')}</tbody></table>` : ''
+    window._surtidoHTML = `<h2 style="font-family:sans-serif">Lista de surtido — ${new Date().toLocaleDateString('es-MX')}</h2><p style="font-family:sans-serif;color:#555">${pedidos.length} pedidos · ${total} pares</p>${tabla}`
+  }
+  window._surtidoMarcar = (i) => {
+    const f = filas[i]; if (!f) return
+    if (hecho(f)) delete hechos[f.k]; else hechos[f.k] = f.pares
+    guardar(); pintar()
+  }
+  window._surtidoBuscar = (v) => { q = v || ''; pintar() }
+  window._surtidoOcultar = (v) => { ocultar = !!v; pintar() }
+  window._surtidoReiniciar = () => {
+    if (!Object.keys(hechos).length || !confirm('¿Quitar todas las palomas y empezar de nuevo?')) return
+    hechos = {}; guardar(); pintar()
+  }
+
+  document.getElementById('modal-surtido')?.remove()
+  const movil = window.innerWidth < 640
   const modal = document.createElement('div')
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px'
-  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:22px;max-width:760px;width:100%;max-height:88vh;overflow:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">📋 Lista de surtido</h3><button onclick="this.closest('div[style*=fixed]').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
-      <p style="font-size:0.78rem;color:#64748b;margin:0 0 12px">${pedidos.length} pedido${pedidos.length === 1 ? '' : 's'} por enviar · ${total} par${total === 1 ? '' : 'es'} en total. Sirve para sacar todo de una vez del almacén.</p>
-      ${tabla}
-      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" ${filas.length ? '' : 'disabled'} onclick="imprimirListaSurtido()">🖨️ Imprimir</button><button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cerrar</button></div>
+  modal.id = 'modal-surtido'
+  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:${movil ? 'stretch' : 'center'};justify-content:center;padding:${movil ? '0' : '16px'}`
+  modal.innerHTML = `<div style="background:#fff;border-radius:${movil ? '0' : '16px'};max-width:760px;width:100%;${movil ? 'height:100%;' : 'max-height:90vh;'}display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:14px 16px 10px;border-bottom:1px solid #eef0f3;flex:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:1.05rem">📋 Lista de surtido</h3><button onclick="document.getElementById('modal-surtido').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem">✕</button></div>
+        <p style="font-size:0.74rem;color:#64748b;margin:0 0 10px">${pedidos.length} pedido${pedidos.length === 1 ? '' : 's'} por enviar. Toca un renglón cuando ya lo sacaste del almacén.</p>
+        <div id="sur-prog" style="margin-bottom:10px"></div>
+        <input type="search" placeholder="🔍 Buscar modelo, color, talla o pedido" oninput="_surtidoBuscar(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;font-family:inherit">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:0.8rem;color:#475569;cursor:pointer"><input type="checkbox" onchange="_surtidoOcultar(this.checked)" style="width:18px;height:18px"> Ocultar los ya surtidos</label>
+      </div>
+      <div id="sur-lista" style="flex:1;overflow:auto;padding:12px 16px;-webkit-overflow-scrolling:touch"></div>
+      <div style="display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #eef0f3;flex:none;flex-wrap:wrap">
+        <button class="btn btn-primary" ${filas.length ? '' : 'disabled'} onclick="imprimirListaSurtido()">🖨️ Imprimir</button>
+        <button class="btn btn-secondary" ${filas.length ? '' : 'disabled'} onclick="_surtidoReiniciar()">↺ Quitar palomas</button>
+        <button class="btn btn-secondary" style="margin-left:auto" onclick="document.getElementById('modal-surtido').remove()">Cerrar</button>
+      </div>
     </div>`
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
   document.body.appendChild(modal)
-  window._surtidoHTML = `<h2 style="font-family:sans-serif">Lista de surtido — ${new Date().toLocaleDateString('es-MX')}</h2><p style="font-family:sans-serif;color:#555">${pedidos.length} pedidos · ${total} pares</p>${tabla}`
+  pintar()
 }
 window.imprimirListaSurtido = () => {
   const w = window.open('', '_blank')

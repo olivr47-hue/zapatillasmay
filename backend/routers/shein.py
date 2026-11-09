@@ -1012,6 +1012,61 @@ def ordenes_estado(orden: str, _admin=Depends(require_admin)):
     return {"orden": orden, "encontrada": True, "campos": sorted(o.keys()), "detalle": limpio(o)}
 
 
+@router.get("/guia/{orden}")
+def shein_guia(orden: str, _s=Depends(require_staff)):
+    """PDF de la guía de envío de una orden de SHEIN (paquetería designada por SHEIN, como en México).
+    Confirmado en la documentación oficial: POST /open-api/order/print-express-info con orderNo + packageNo[]
+    (los números de paquete salen de order-detail -> packageWaybillList). SHEIN regresa un link al PDF que vale
+    1 hora; aquí se descarga y se entrega directo para que el panel lo abra sin depender del link."""
+    from fastapi import Response
+    orden = (orden or "").strip()
+    if not orden:
+        raise HTTPException(400, "Falta el número de orden de SHEIN")
+    det = shein_post("/open-api/order/order-detail", {"orderNoList": [orden]})
+    infos = det.get("info") or []
+    if not infos:
+        raise HTTPException(404, "SHEIN no encontró esa orden")
+    o = infos[0]
+    paquetes = [p.get("packageNo") for p in (o.get("packageWaybillList") or []) if p.get("packageNo")]
+    if not paquetes:
+        raise HTTPException(409, "SHEIN todavía no genera el paquete de esta orden; intenta en unos minutos")
+    if o.get("orderStatus") not in (1, 2, 7):
+        raise HTTPException(409, "SHEIN solo deja imprimir la guía antes de que la recoja la paquetería (esta orden ya salió, se entregó o se canceló)")
+    if o.get("printOrderStatus") == 2:
+        raise HTTPException(409, "SHEIN marca esta orden como no procesable por ahora (puede estar en revisión de su servicio al cliente)")
+    r = shein_post("/open-api/order/print-express-info", {"orderNo": orden, "packageNo": paquetes})
+    if str(r.get("code", "0")) not in ("0", ""):
+        raise HTTPException(409, f"SHEIN no entregó la guía: {r.get('msg') or r.get('code')}")
+    urls = [i.get("filePdfUrl") for i in (r.get("info") or []) if i.get("filePdfUrl")]
+    if not urls:
+        raise HTTPException(409, "SHEIN no regresó la guía de esta orden; intenta de nuevo en un momento")
+    pdfs = []
+    for u in urls:
+        if not str(u).startswith("https://"):
+            continue
+        try:
+            with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as resp:
+                pdfs.append(resp.read())
+        except Exception as e:
+            raise HTTPException(502, f"No se pudo descargar la guía de SHEIN: {type(e).__name__}")
+    if not pdfs:
+        raise HTTPException(502, "SHEIN regresó un link de guía no válido")
+    contenido = pdfs[0]
+    if len(pdfs) > 1:
+        try:
+            import io
+            from pypdf import PdfWriter, PdfReader
+            w = PdfWriter()
+            for b in pdfs:
+                for pg in PdfReader(io.BytesIO(b)).pages:
+                    w.add_page(pg)
+            buf = io.BytesIO(); w.write(buf); contenido = buf.getvalue()
+        except Exception:
+            contenido = pdfs[0]  # sin librería para unir: se entrega el primer paquete
+    return Response(content=contenido, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="guia_shein_{orden}.pdf"'})
+
+
 @router.get("/producto/buscar-skc")
 def buscar_skc_en_listado(skc: str):
     """Diagnóstico de solo lectura: recorre SOLO el paginado inicial de
