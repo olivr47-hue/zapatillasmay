@@ -10928,7 +10928,7 @@ function _renderFilaPedido(p) {
   const btn = (txt, onclick, estilo = '') => `<button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem;${estilo}" onclick="${onclick}">${txt}</button>`
   // Marketplaces: guía de envío y el par exacto que pidieron, sin salir de Pedidos
   const _gid = p.canal === 'mercadolibre' ? p.ml_order_id : (p.canal === 'shein' ? p.shein_order_id : '')
-  const btnGuia = _gid && (porEnviar || (p.canal === 'mercadolibre' && esEnviado))
+  const btnGuia = _gid && !['entregado', 'cancelado', 'devuelto', 'reembolsado', 'borrador'].includes(p.status)
     ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
   const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon'].includes(p.canal) ? (p.pedido_items || []) : []
   const parPedido = _itemsMkt.length
@@ -26112,6 +26112,7 @@ async function _sheinRenderVentasTab() {
             <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
             <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Status</th>
             <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Fecha</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Guía</th>
           </tr></thead>
           <tbody>
             ${lista.map(p => `
@@ -26120,6 +26121,7 @@ async function _sheinRenderVentasTab() {
                 <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
                 <td style="padding:0.4rem 0.5rem">${window._estadoVentaBadge(p.status)}</td>
                 <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', window.innerWidth < 640 ? {dateStyle:'short'} : {dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+                <td style="padding:0.4rem 0.5rem">${p.shein_order_id && !['entregado', 'cancelado', 'devuelto', 'reembolsado'].includes(p.status) ? `<button onclick="_guiaMarketplace('shein','${p.shein_order_id}',this)" style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;background:#fff7ed;border:1px solid #fb923c;border-radius:6px;cursor:pointer;font-size:0.74rem;color:#9a3412;font-weight:700;font-family:inherit">🖨️ Guía</button>` : ''}</td>
               </tr>`).join('')}
           </tbody>
         </table>
