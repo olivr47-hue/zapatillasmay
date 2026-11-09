@@ -1062,7 +1062,7 @@ def shein_guia(orden: str, _s=Depends(require_staff)):
                     w.add_page(pg)
             buf = io.BytesIO(); w.write(buf); contenido = buf.getvalue()
         except Exception:
-            contenido = pdfs[0]  # sin librería para unir: se entrega el primer paquete
+            raise HTTPException(500, "La orden trae varios paquetes y no se pudieron unir las guías; imprímelas desde SHEIN")
     return Response(content=contenido, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="guia_shein_{orden}.pdf"'})
 
