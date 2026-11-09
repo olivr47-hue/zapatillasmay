@@ -62,9 +62,20 @@ def subir_comprobante(upload: UploadFile):
 # servidor ENTERO durante cada foto (varios segundos): las fotos de un producto se subían una por una y todo el sistema
 # se ponía lento mientras tanto. Como `def` corren en hilos y se pueden subir varias a la vez.
 @router.post("/subir")
-def subir(archivo: UploadFile = File(...), carpeta: str = "productos", _staff=Depends(require_staff)):
+def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: bool = False, sombra: bool = True, _staff=Depends(require_staff)):
     contenido = archivo.file.read()
+    extra = {}
+    if limpiar:
+        # Foto de cámara -> fondo blanco parejo + zapato centrado (2000x2000). Si la foto no se presta (fondo no liso,
+        # zapato en la orilla...) se sube ORIGINAL y se avisa el motivo: nunca se sube una foto dañada.
+        try:
+            from limpiar_foto import limpiar_foto
+            contenido = limpiar_foto(contenido, lado=2000, ocupa=0.90, sombra=sombra)
+            extra = {"limpia": True}
+        except Exception as e:
+            extra = {"limpia": False, "motivo": str(e)[:160]}
     resultado = subir_imagen(contenido, carpeta)
+    resultado.update(extra)
     return resultado
 
 

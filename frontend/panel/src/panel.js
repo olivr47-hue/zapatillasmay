@@ -8930,6 +8930,10 @@ function renderVariante(i, datos) {
             <input type="file" id="v${i}-imgs" multiple accept="image/*"
                    onchange="previsualizarImagenes(this,${i})" style="display:none">
           </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;padding:8px 10px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;font-size:0.76rem;color:#1e3a8a;cursor:pointer;line-height:1.35">
+            <input type="checkbox" id="v${i}-limpiar" ${(() => { try { return localStorage.getItem('zm_limpiar_fotos') === '1' ? 'checked' : '' } catch (e) { return '' } })()} onchange="try{localStorage.setItem('zm_limpiar_fotos',this.checked?'1':'0')}catch(e){}" style="margin-top:2px;width:16px;height:16px;flex:none">
+            <span><strong>✨ Limpiar fondo y centrar</strong> las fotos nuevas de este color (2000×2000, fondo blanco, sombra suave). Úsalo solo con fotos de cámara sobre fondo blanco; si una foto no se presta se sube tal cual.</span>
+          </label>
           <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap">
             ${fotosHTML || `<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>`}
           </div>
@@ -9819,11 +9823,11 @@ window.toggleTalla = (input) => {
 
 // Reduce la foto antes de subirla: las fotos del celular pesan 4-10 MB y subirlas completas era lo que hacía tardar tanto el guardado.
 // Máx. 2000 px por lado y JPEG de buena calidad (se ve igual en la tienda, que de todos modos las sirve más chicas).
-async function comprimirImagenParaSubir(file) {
+async function comprimirImagenParaSubir(file, maxPx = 2000) {
   try {
     if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size < 450 * 1024) return file
     const bmp = await createImageBitmap(file)
-    const escala = Math.min(1, 2000 / Math.max(bmp.width, bmp.height))
+    const escala = Math.min(1, maxPx / Math.max(bmp.width, bmp.height))
     const w = Math.round(bmp.width * escala), h = Math.round(bmp.height * escala)
     const canvas = document.createElement('canvas')
     canvas.width = w; canvas.height = h
@@ -9851,10 +9855,11 @@ async function subirImagenesVariantes() {
     const nombre = document.getElementById('v' + idx + '-nombre')
     if (!nombre || !nombre.value) continue
     const fotos = (window._variantesFotos || {})[idx] || []
+    const limpiar = !!document.getElementById('v' + idx + '-limpiar')?.checked   // «Limpiar fondo y centrar» de este color
     const entrada = { color: nombre.value.split(/\s+/).filter(Boolean).join(' '), hex: hex ? hex.value : '#000000', urls: new Array(fotos.length).fill(null) }
     fotos.forEach((foto, pos) => {
       if (foto.type === 'url') entrada.urls[pos] = foto.value
-      else trabajos.push({ entrada, pos, foto })
+      else trabajos.push({ entrada, pos, foto, limpiar })
     })
     porColor.push(entrada)
   }
@@ -9866,17 +9871,22 @@ async function subirImagenesVariantes() {
   avance()
   let fallidas = 0
   let siguiente = 0
+  const sinLimpiar = []   // fotos que se subieron originales porque no se pudieron limpiar (con el motivo)
   const operario = async () => {
     while (siguiente < trabajos.length) {
       const t = trabajos[siguiente++]
-      const archivo = await comprimirImagenParaSubir(t.foto.value)
+      const archivo = await comprimirImagenParaSubir(t.foto.value, t.limpiar ? 3000 : 2000)
       let url = null
       for (let intento = 1; intento <= 3 && !url; intento++) {
         try {
           const formData = new FormData()
           formData.append('archivo', archivo)
-          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
-          if (res.ok) { const data = await res.json(); if (data.url) url = data.url }
+          const res = await fetch(API + '/imagenes/subir' + (t.limpiar ? '?limpiar=true' : ''), { method: 'POST', body: formData })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.url) url = data.url
+            if (t.limpiar && data.limpia === false) sinLimpiar.push(`${t.entrada.color} (foto ${t.pos + 1}): ${data.motivo || 'no se pudo limpiar'}`)
+          }
         } catch (e) {}
         if (!url && intento < 3) await new Promise(r => setTimeout(r, 1200))
       }
@@ -9888,6 +9898,7 @@ async function subirImagenesVariantes() {
   }
   await Promise.all(Array.from({ length: Math.min(4, trabajos.length) }, operario))
   if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) no se pudieron subir. Revisa tu internet y vuelve a subirlas editando el producto.`)
+  if (sinLimpiar.length) alert(`ℹ️ ${sinLimpiar.length} foto(s) se subieron SIN limpiar (quedaron como las tomaste):\n\n${sinLimpiar.slice(0, 8).join('\n')}`)
   if (btn) btn.textContent = 'Guardando...'
 
   for (const e of porColor) {
