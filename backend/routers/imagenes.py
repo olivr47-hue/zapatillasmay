@@ -79,6 +79,18 @@ def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: 
     return resultado
 
 
+@router.post("/limpiar-vista")
+def limpiar_vista(archivo: UploadFile = File(...), sombra: bool = True, _staff=Depends(require_staff)):
+    """Limpia una foto (fondo blanco, zapato centrado 2000x2000) y la DEVUELVE para que el panel la muestre ANTES de subirla;
+    no guarda nada. Si la foto no se presta, 422 con el motivo."""
+    contenido = archivo.file.read()
+    try:
+        from limpiar_foto import limpiar_foto
+        return Response(content=limpiar_foto(contenido, lado=2000, ocupa=0.90, sombra=sombra), media_type="image/jpeg")
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"motivo": str(e)[:160]})
+
+
 @router.post("/videos/subir")
 def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video", _staff=Depends(require_staff)):
     contenido = archivo.file.read()

@@ -8932,7 +8932,7 @@ function renderVariante(i, datos) {
           </div>
           <label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;padding:8px 10px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;font-size:0.76rem;color:#1e3a8a;cursor:pointer;line-height:1.35">
             <input type="checkbox" id="v${i}-limpiar" ${(() => { try { return localStorage.getItem('zm_limpiar_fotos') === '1' ? 'checked' : '' } catch (e) { return '' } })()} onchange="try{localStorage.setItem('zm_limpiar_fotos',this.checked?'1':'0')}catch(e){}" style="margin-top:2px;width:16px;height:16px;flex:none">
-            <span><strong>✨ Limpiar fondo y centrar</strong> las fotos nuevas de este color (2000×2000, fondo blanco, sombra suave). Úsalo solo con fotos de cámara sobre fondo blanco; si una foto no se presta se sube tal cual.</span>
+            <span><strong>✨ Limpiar fondo y centrar</strong> las fotos que elijas de este color (2000×2000, fondo blanco, sombra suave). Antes de subirlas verás el antes y el después, y tú decides cuál se sube. Úsalo con fotos de cámara sobre fondo blanco.</span>
           </label>
           <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap">
             ${fotosHTML || `<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>`}
@@ -9015,6 +9015,15 @@ window.actualizarVistaPreviews = (idx) => {
                 style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
         ${fIdx > 0 ? btnFlecha('◀', fIdx - 1, 'left', 'Mover antes') : ''}
         ${fIdx < fotos.length - 1 ? btnFlecha('▶', fIdx + 1, 'right', 'Mover después') : ''}
+        ${(() => {
+          if (foto.type !== 'file') return ''
+          const lk = (txt, color, fn, tit = '') => `<div style="font-size:0.64rem;text-align:center;margin-top:4px;width:84px"><a title="${_e(tit)}" onclick="event.stopPropagation();${fn}" style="color:${color};cursor:pointer;font-weight:700;text-decoration:underline">${txt}</a></div>`
+          if (foto.estado === 'limpiando') return '<div style="font-size:0.64rem;text-align:center;margin-top:4px;width:84px;color:#1e40af;font-weight:700">⏳ Limpiando…</div>'
+          if (foto.estado === 'limpia') return lk('✨ Limpia · revisar', '#047857', `revisarFoto(${idx},${fIdx})`)
+          if (foto.estado === 'original') return lk('↩ Original · revisar', '#475569', `revisarFoto(${idx},${fIdx})`)
+          if (foto.estado === 'fallo') return lk('⚠ Sin limpiar', '#b45309', `revisarFoto(${idx},${fIdx})`, foto.motivo || '')
+          return lk('✨ Limpiar', '#1565c0', `limpiarFotoUna(${idx},${fIdx})`)
+        })()}
       </div>
     `
   }).join('')
@@ -9030,6 +9039,70 @@ window.actualizarVistaPreviews = (idx) => {
 }
 
 window.seleccionarPortadaClave = (idx, fIdx) => window.moverFotoClave(idx, fIdx, 0)
+
+// ── Limpieza de fotos con vista previa: nada se sube hasta que se guarda el producto, y lo que se sube es la versión elegida ──
+window._limpiarFotoPanel = async (idx, foto) => {
+  foto.estado = 'limpiando'; foto.motivo = ''
+  window.actualizarVistaPreviews(idx)
+  try {
+    const orig = foto.origFile || foto.value
+    const archivo = await comprimirImagenParaSubir(orig, 3000)
+    const fd = new FormData(); fd.append('archivo', archivo)
+    const res = await fetch(API + '/imagenes/limpiar-vista', { method: 'POST', body: fd })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.motivo || (d.detail && String(d.detail)) || ('Error ' + res.status)) }
+    const blob = await res.blob()
+    if (!foto.origFile) { foto.origFile = orig; foto.origUrl = foto.previewUrl }
+    if (foto.limpiaUrl) { try { URL.revokeObjectURL(foto.limpiaUrl) } catch (e) {} }
+    foto.limpiaFile = new File([blob], String(orig.name || 'foto').replace(/\.[^.]+$/, '') + '-limpia.jpg', { type: 'image/jpeg' })
+    foto.limpiaUrl = URL.createObjectURL(blob)
+    foto.value = foto.limpiaFile; foto.previewUrl = foto.limpiaUrl; foto.estado = 'limpia'
+  } catch (e) {
+    foto.estado = 'fallo'; foto.motivo = e.message || 'no se pudo limpiar'
+  }
+  window.actualizarVistaPreviews(idx)
+  if (document.getElementById('modal-revisar-foto')) window._pintarRevisarFoto && window._pintarRevisarFoto()
+}
+window.limpiarFotoUna = (idx, fIdx) => {
+  const f = ((window._variantesFotos || {})[idx] || [])[fIdx]
+  if (f && f.type === 'file' && f.estado !== 'limpiando') window._limpiarFotoPanel(idx, f)
+}
+// Elegir cuál versión se sube: 'limpia' u 'original'
+window.elegirVersionFoto = (idx, fIdx, cual) => {
+  const f = ((window._variantesFotos || {})[idx] || [])[fIdx]
+  if (!f) return
+  if (cual === 'limpia' && f.limpiaFile) { f.value = f.limpiaFile; f.previewUrl = f.limpiaUrl; f.estado = 'limpia' }
+  else if (cual === 'original' && f.origFile) { f.value = f.origFile; f.previewUrl = f.origUrl; f.estado = f.limpiaFile ? 'original' : 'fallo' }
+  window.actualizarVistaPreviews(idx)
+  window._pintarRevisarFoto && window._pintarRevisarFoto()
+}
+window.revisarFoto = (idx, fIdx) => {
+  document.getElementById('modal-revisar-foto')?.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-revisar-foto'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:12px'
+  m.onclick = (e) => { if (e.target === m) m.remove() }
+  document.body.appendChild(m)
+  window._pintarRevisarFoto = () => {
+    const f = ((window._variantesFotos || {})[idx] || [])[fIdx]
+    if (!f) { m.remove(); return }
+    const tieneLimpia = !!f.limpiaFile
+    const usando = f.value === f.limpiaFile ? 'limpia' : 'original'
+    const caja = (titulo, src, sel) => `<div style="flex:1;min-width:0;text-align:center"><div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;color:${sel ? '#047857' : '#475569'}">${titulo}${sel ? ' ✔ se subirá esta' : ''}</div><img src="${src}" style="width:100%;max-height:60vh;object-fit:contain;background:#fff;border-radius:10px;border:3px solid ${sel ? '#16a34a' : '#e5e7eb'}"></div>`
+    const btn = (txt, fn, estilo) => `<button type="button" onclick="${fn}" style="padding:10px 14px;border-radius:10px;border:1px solid #cbd5e1;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;${estilo || 'background:#fff;color:#334155'}">${txt}</button>`
+    m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:16px;max-width:980px;width:100%;max-height:94vh;overflow:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><strong>Revisar foto</strong><button type="button" onclick="document.getElementById('modal-revisar-foto').remove()" style="border:none;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer">✕</button></div>
+      ${f.estado === 'limpiando' ? '<p style="text-align:center;padding:30px;color:#1e40af;font-weight:700">⏳ Limpiando la foto…</p>' : `
+      <div style="display:flex;gap:12px;flex-wrap:wrap">${tieneLimpia ? caja('Original', f.origUrl, usando === 'original') + caja('Limpia', f.limpiaUrl, usando === 'limpia') : caja('Original', f.origUrl || f.previewUrl, true)}</div>
+      ${f.estado === 'fallo' ? `<p style="margin:10px 0 0;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:0.8rem;color:#92400e">⚠ No se pudo limpiar: ${_e(f.motivo || '')}. Se subirá como la tomaste, o quítala con ✕.</p>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        ${tieneLimpia ? btn('✅ Subir la limpia', `elegirVersionFoto(${idx},${fIdx},'limpia')`, usando === 'limpia' ? 'background:#16a34a;color:#fff;border-color:#16a34a' : '') + btn('↩ Subir la original', `elegirVersionFoto(${idx},${fIdx},'original')`, usando === 'original' ? 'background:#475569;color:#fff;border-color:#475569' : '') : ''}
+        ${btn('✨ ' + (tieneLimpia || f.estado === 'fallo' ? 'Volver a limpiar' : 'Limpiar'), `limpiarFotoUna(${idx},${fIdx})`)}
+        ${btn('Listo', "document.getElementById('modal-revisar-foto').remove()", 'background:#1565c0;color:#fff;border-color:#1565c0;margin-left:auto')}
+      </div>`}
+    </div>`
+  }
+  window._pintarRevisarFoto()
+}
 
 // Reordenar fotos de un color: mueve la foto `desde` a la posición `hasta` (0 = portada)
 window.moverFotoClave = (idx, desde, hasta) => {
@@ -9061,8 +9134,8 @@ window.eliminarFotoClave = (idx, fIdx) => {
   const fotos = window._variantesFotos[idx] || []
   const removed = fotos.splice(fIdx, 1)[0]
   
-  if (removed && removed.type === 'file' && removed.previewUrl) {
-    URL.revokeObjectURL(removed.previewUrl)
+  if (removed && removed.type === 'file') {
+    ;[removed.previewUrl, removed.origUrl, removed.limpiaUrl].filter(Boolean).forEach(u => { try { URL.revokeObjectURL(u) } catch (e) {} })
   }
 
   const nombreInput = document.getElementById('v' + idx + '-nombre')
@@ -9766,14 +9839,16 @@ window.previsualizarImagenes = (input, idx) => {
 
   const fotos = window._variantesFotos[idx]
 
+  const nuevas = []
   Array.from(input.files).forEach(file => {
-    fotos.push({
-      type: 'file',
-      value: file,
-      previewUrl: URL.createObjectURL(file),
-      isPortada: false
-    })
+    const f = { type: 'file', value: file, previewUrl: URL.createObjectURL(file), isPortada: false }
+    fotos.push(f); nuevas.push(f)
   })
+  // Con «Limpiar fondo y centrar» marcada, cada foto nueva se limpia AHORA (de una en una) y queda a la vista para revisarla
+  if (document.getElementById('v' + idx + '-limpiar')?.checked) {
+    nuevas.forEach(f => { f.estado = 'limpiando' })
+    ;(async () => { for (const f of nuevas) await window._limpiarFotoPanel(idx, f) })()
+  }
 
   // Si ninguna tiene portada, marcar la primera
   if (!fotos.some(f => f.isPortada) && fotos.length > 0) fotos[0].isPortada = true
@@ -9855,11 +9930,10 @@ async function subirImagenesVariantes() {
     const nombre = document.getElementById('v' + idx + '-nombre')
     if (!nombre || !nombre.value) continue
     const fotos = (window._variantesFotos || {})[idx] || []
-    const limpiar = !!document.getElementById('v' + idx + '-limpiar')?.checked   // «Limpiar fondo y centrar» de este color
     const entrada = { color: nombre.value.split(/\s+/).filter(Boolean).join(' '), hex: hex ? hex.value : '#000000', urls: new Array(fotos.length).fill(null) }
     fotos.forEach((foto, pos) => {
       if (foto.type === 'url') entrada.urls[pos] = foto.value
-      else trabajos.push({ entrada, pos, foto, limpiar })
+      else trabajos.push({ entrada, pos, foto })
     })
     porColor.push(entrada)
   }
@@ -9871,22 +9945,17 @@ async function subirImagenesVariantes() {
   avance()
   let fallidas = 0
   let siguiente = 0
-  const sinLimpiar = []   // fotos que se subieron originales porque no se pudieron limpiar (con el motivo)
   const operario = async () => {
     while (siguiente < trabajos.length) {
       const t = trabajos[siguiente++]
-      const archivo = await comprimirImagenParaSubir(t.foto.value, t.limpiar ? 3000 : 2000)
+      const archivo = await comprimirImagenParaSubir(t.foto.value)
       let url = null
       for (let intento = 1; intento <= 3 && !url; intento++) {
         try {
           const formData = new FormData()
           formData.append('archivo', archivo)
-          const res = await fetch(API + '/imagenes/subir' + (t.limpiar ? '?limpiar=true' : ''), { method: 'POST', body: formData })
-          if (res.ok) {
-            const data = await res.json()
-            if (data.url) url = data.url
-            if (t.limpiar && data.limpia === false) sinLimpiar.push(`${t.entrada.color} (foto ${t.pos + 1}): ${data.motivo || 'no se pudo limpiar'}`)
-          }
+          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+          if (res.ok) { const data = await res.json(); if (data.url) url = data.url }
         } catch (e) {}
         if (!url && intento < 3) await new Promise(r => setTimeout(r, 1200))
       }
@@ -9898,7 +9967,6 @@ async function subirImagenesVariantes() {
   }
   await Promise.all(Array.from({ length: Math.min(4, trabajos.length) }, operario))
   if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) no se pudieron subir. Revisa tu internet y vuelve a subirlas editando el producto.`)
-  if (sinLimpiar.length) alert(`ℹ️ ${sinLimpiar.length} foto(s) se subieron SIN limpiar (quedaron como las tomaste):\n\n${sinLimpiar.slice(0, 8).join('\n')}`)
   if (btn) btn.textContent = 'Guardando...'
 
   for (const e of porColor) {
