@@ -10399,6 +10399,7 @@ window.guardarCliente = async (id) => {
     prefijos_ocultos: document.getElementById('cli-prefijos-ocultos').value || null,
     canales_llegada: [...document.querySelectorAll('.cli-canal:checked')].map(x => x.value).join(',') || null,
     llego_solo: (() => {
+      if (!id) return true   // todo cliente nuevo cuenta en Tu utilidad, aunque se marque «Mostrador»
       const cs = [...document.querySelectorAll('.cli-canal:checked')].map(x => x.value)
       if (!cs.length) return document.getElementById('cli-canales')?.dataset.prev !== '0'   // sin elegir canal: se queda como estaba (los clientes nuevos cuentan como tuyos)
       return cs.includes('conversaciones') || cs.includes('sitio')

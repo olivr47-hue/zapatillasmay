@@ -142,6 +142,8 @@ def crear_cliente(cliente: dict, _staff=Depends(require_staff)):
                 return JSONResponse(status_code=409, content={"ok": False, "duplicado": True, "parecidos": parecidos,
                                     "error": "Ya existe un cliente con ese teléfono, correo o nombre"})
         _CACHE_DUP["data"] = None
+        # Todo cliente nuevo cuenta en «Tu utilidad» (precio cliente − precio de corrida), sin importar el canal que se marque al registrarlo.
+        cliente["llego_solo"] = True
         return supabase_post("clientes", cliente)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
