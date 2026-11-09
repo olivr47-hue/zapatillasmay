@@ -10932,7 +10932,7 @@ function _renderFilaPedido(p) {
     ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
   const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon'].includes(p.canal) ? (p.pedido_items || []) : []
   const parPedido = _itemsMkt.length
-    ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => `👟 <strong>${_e(i.nombre || 'Producto')}</strong>${i.color ? ' · ' + _e(i.color) : ''}${i.talla ? ' · <strong>talla ' + _e(i.talla) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}`).join('<br>')}</div>` : ''
+    ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => { const col = i.color_real || i.color, tal = i.talla_real || i.talla; return `👟 <strong>${_e(i.modelo_real || i.nombre || 'Producto')}</strong>${col ? ' · ' + _e(col) : ''}${tal ? ' · <strong>talla ' + _e(tal) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}` }).join('<br>')}</div>` : ''
   let acciones = ''
   if (porEnviar) {
     acciones = `${btnGuia}
@@ -11325,9 +11325,10 @@ window.mostrarListaSurtido = () => {
   const pedidos = (window._pedidosData || []).filter(window._pedEsPorEnviar)
   const mapa = {}
   pedidos.forEach(p => (p.pedido_items || []).forEach(i => {
-    const nombre = String(i.nombre || 'Producto').trim()
-    const k = `${nombre}|${i.color || ''}|${i.talla || ''}`
-    if (!mapa[k]) mapa[k] = { nombre, color: i.color || '', talla: i.talla || '', pares: 0, pedidos: new Set() }
+    const nombre = String(i.modelo_real || i.nombre || 'Producto').trim()
+    const color = i.color_real || i.color || '', talla = i.talla_real || i.talla || ''
+    const k = `${nombre}|${color}|${talla}`
+    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set() }
     mapa[k].pares += Number(i.cantidad) || 0
     mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
   }))

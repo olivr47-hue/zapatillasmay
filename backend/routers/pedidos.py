@@ -421,9 +421,41 @@ def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, c
         # Una venta cuenta el día que se CERRÓ, no el día que se abrió el carrito/apartado: así la venta de hoy sale hasta arriba
         # aunque el apartado tenga semanas. Los días de apartado se siguen contando desde created_at.
         filas.sort(key=lambda r: r.get("confirmado_at") or r.get("created_at") or "", reverse=True)
+        if not ligero:
+            _marcar_modelo_real(filas)
         return filas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _marcar_modelo_real(filas):
+    """En pedidos de marketplace (ML, SHEIN, Walmart, Amazon) el renglon trae el TITULO de la publicacion, que a veces ni lleva el
+    codigo. Aqui se agrega a cada renglon el modelo, color y talla REALES de la variante (igual que el ticket) como
+    modelo_real / color_real / talla_real. Si algo falla, la lista sale igual (sin esos campos)."""
+    try:
+        ids = set()
+        for p in filas:
+            if p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon") and p.get("status") not in ("entregado", "cancelado", "devuelto"):
+                for i in p.get("pedido_items") or []:
+                    if i.get("variante_id"):
+                        ids.add(i["variante_id"])
+        if not ids:
+            return
+        ids = sorted(ids)
+        info = {}
+        for k in range(0, len(ids), 80):
+            lote = ",".join(ids[k:k + 80])
+            for v in supabase_get(f"variantes?id=in.({lote})&select=id,color,talla,productos(nombre)") or []:
+                nombre = ((v.get("productos") or {}).get("nombre") or "").strip()
+                info[v["id"]] = (nombre.split(" ")[0] if nombre else "", v.get("color") or "", v.get("talla") or "")
+        for p in filas:
+            for i in p.get("pedido_items") or []:
+                d = info.get(i.get("variante_id"))
+                if d:
+                    i["modelo_real"], i["color_real"], i["talla_real"] = d
+    except Exception as e:
+        print(f"[pedidos] modelo real no disponible: {e}")
+
 
 @router.get("/por-enviar-resumen")
 def por_enviar_resumen(_staff=Depends(require_staff)):
