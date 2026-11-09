@@ -401,14 +401,23 @@ async function _pollPedidosPorEnviar() {
 
     // Detectar pedidos nuevos (que no estaban en el poll anterior)
     const idsActuales = new Set(porEnviar.map(p => p.id))
-    const nuevos = porEnviar.filter(p => !_ultimosPedidosPorEnviar.has(p.id))
-    if (nuevos.length > 0 && _ultimosPedidosPorEnviar.size > 0) {
-      // Solo notificar si no es la primera carga
-      nuevos.forEach(p => {
+    // Cada pedido se avisa UNA sola vez. Antes se comparaba contra la lista del sondeo anterior: si la lista cambiaba un
+    // momento (otra pestaña, una respuesta incompleta, un pedido que sale y vuelve a "por enviar") el mismo pedido
+    // aparecía como nuevo y el aviso se repetía una y otra vez. Ahora los ya avisados se guardan y no se vuelven a mostrar.
+    let avisados = null
+    try { const g = localStorage.getItem('zm_pedidos_avisados'); if (g) avisados = new Set(JSON.parse(g)) } catch (e) {}
+    const primeraVez = avisados === null   // dispositivo nuevo: se toman como vistos los que ya están, sin avisar
+    if (!avisados) avisados = new Set()
+    const nuevos = primeraVez ? [] : porEnviar.filter(p => !avisados.has(p.id))
+    porEnviar.forEach(p => avisados.add(p.id))
+    try { localStorage.setItem('zm_pedidos_avisados', JSON.stringify([...avisados].slice(-300))) } catch (e) {}
+    if (nuevos.length > 0) {
+      nuevos.slice(0, 3).forEach(p => {
         const nombre = p.nombre_cliente || 'Cliente'
         const total = parseFloat(p.total || 0).toLocaleString('es-MX', {maximumFractionDigits: 0})
         _mostrarNotifPedido(`🛍️ Nuevo pedido de ${nombre} — $${total} MXN`)
       })
+      if (nuevos.length > 3) _mostrarNotifPedido(`🛍️ ${nuevos.length - 3} pedidos nuevos más`)
     }
     _ultimosPedidosPorEnviar = idsActuales
   } catch(e) {}
