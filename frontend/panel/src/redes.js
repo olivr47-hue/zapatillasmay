@@ -700,6 +700,7 @@ window.cargarRedes = async function () {
       <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0;font-size:0.82rem">
         <label><input type="checkbox" id="rs-d-fb" ${e.facebook ? 'checked' : ''}> Publicar en Facebook</label>
         <label><input type="checkbox" id="rs-d-ig" ${e.instagram ? 'checked' : ''}> Publicar en Instagram</label>
+        <label title="Arma una versión vertical 9:16 de las mismas imágenes y la sube como Historia (cada imagen es una historia), además de la publicación normal"><input type="checkbox" id="rs-d-hist"> 📱 También como Historia de Instagram</label>
         ${pinOk ? `<label><input type="checkbox" id="rs-d-pin" onchange="document.getElementById('rs-pin-tab').style.display=this.checked?'inline-block':'none'"> Publicar en Pinterest</label>
           <select id="rs-pin-tab" class="form-input" style="display:none;width:auto;font-size:0.8rem;padding:3px 8px">${(e.pinterest.tableros || []).map(t => `<option value="${esc(t.id)}" ${t.id === e.pinterest.tablero_predeterminado ? 'selected' : ''}>${esc(t.nombre)}</option>`).join('')}</select>`
           : `<span style="color:#94a3b8" title="${esc((e.pinterest && e.pinterest.problema) || 'Sin conexión con Pinterest')}">📌 Pinterest sin conexión · configúralo en Conexiones</span>`}
@@ -1025,27 +1026,52 @@ window.rsPublicar = async () => {
   const esHistoria = OPT.formato === 'historia'
   if (esHistoria && (fb || pin)) { msg('Las historias solo se publican en Instagram: quita Facebook y Pinterest o cambia el formato.', false); return }
   if (pin && S.imgs.length > 5) { msg('Pinterest acepta hasta 5 imágenes por pin: deja 5 o menos para publicar ahí.', false); return }
-  if (!confirm(`¿Publicar ahora en ${destinos.map(d => NOM[d]).join(', ')}? ${S.imgs.length > 1 ? `(${S.imgs.length} imágenes)` : ''} Se publica de verdad.`)) return
+  // «También como Historia»: se arma una versión 9:16 de las mismas imágenes (solo si el formato elegido no es ya el de historia)
+  const conHistoria = !!(document.getElementById('rs-d-hist') && document.getElementById('rs-d-hist').checked) && ig && !esHistoria
+  if (!confirm(`¿Publicar ahora en ${destinos.map(d => NOM[d]).join(', ')}${conHistoria ? ' y como Historia de Instagram' : ''}? ${S.imgs.length > 1 ? `(${S.imgs.length} imágenes)` : ''} Se publica de verdad.`)) return
   btn.disabled = true
   try {
-    const urls = []
-    for (const [i, c] of S.imgs.entries()) {
-      btn.textContent = `Subiendo imágenes ${i + 1}/${S.imgs.length}...`
-      const b = await aBlob(c)
-      const fd = new FormData(); fd.append('archivo', new File([b], `post_${Date.now()}_${i}.jpg`, { type: 'image/jpeg' }))
-      const r = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: fd })
-      const d = await r.json().catch(() => ({}))
-      const u = d.url || d.public_url
-      if (!r.ok || !u) throw new Error('No se pudo subir una de las imágenes')
-      urls.push(u)
+    let imgsHist = []
+    if (conHistoria) {
+      btn.textContent = 'Armando la versión para Historias...'
+      const imgsPost = S.imgs.slice(), fOrig = OPT.formato
+      try { OPT.formato = 'historia'; await window.rsGenerar(); imgsHist = S.imgs.slice() }
+      finally { OPT.formato = fOrig; await window.rsGenerar() }
+      if (!imgsHist.length || imgsHist[0].height < 1500) throw new Error('No se pudo armar la versión de Historias. No se publicó nada.')
+      S.imgs = imgsPost
     }
+    const subir = async (lista, etiqueta) => {
+      const out = []
+      for (const [i, c] of lista.entries()) {
+        btn.textContent = `Subiendo imágenes ${etiqueta}${i + 1}/${lista.length}...`
+        const b = await aBlob(c)
+        const fd = new FormData(); fd.append('archivo', new File([b], `post_${Date.now()}_${i}.jpg`, { type: 'image/jpeg' }))
+        const r = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: fd })
+        const d = await r.json().catch(() => ({}))
+        const u = d.url || d.public_url
+        if (!r.ok || !u) throw new Error('No se pudo subir una de las imágenes')
+        out.push(u)
+      }
+      return out
+    }
+    const urls = await subir(S.imgs, ''), urlsHist = conHistoria ? await subir(imgsHist, 'de Historia ') : []
     btn.textContent = 'Publicando en Meta (puede tardar un minuto)...'
     const r = await fetch(API + '/redes/publicar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls, caption: document.getElementById('rs-caption').value, destinos, historia: esHistoria, producto_ids: S.sel, pinterest_board: pin ? document.getElementById('rs-pin-tab').value : undefined }) })
     const d = await r.json().catch(() => ({}))
     if (!d.resultados) throw new Error(d.error || `El servidor no contestó bien (código ${r.status}). Pudo haberse reiniciado o tardado demasiado. ANTES de volver a intentar, revisa en Facebook e Instagram si la publicación ya salió, para no duplicarla.`)
     const lineas = Object.entries(d.resultados).map(([k, v]) => `${v.ok ? '✅' : '❌'} <strong>${NOM[k] || k}:</strong> ${v.ok ? 'publicado' : esc(v.error)}${v.aviso ? '<br><small style="color:#b45309">⚠️ ' + esc(v.aviso) + '</small>' : ''}`)
-    msg(lineas.join('<br>'), d.ok)
+    let todoOk = d.ok
+    if (conHistoria) {
+      btn.textContent = 'Publicando la Historia...'
+      const rh = await fetch(API + '/redes/publicar', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: urlsHist, caption: '', destinos: ['instagram'], historia: true, producto_ids: S.sel }) })
+      const dh = await rh.json().catch(() => ({}))
+      const vh = (dh.resultados && dh.resultados.instagram) || { ok: false, error: dh.error || `no contestó bien (código ${rh.status}); revisa en Instagram antes de reintentar` }
+      lineas.push(`${vh.ok ? '✅' : '❌'} <strong>Historia de Instagram:</strong> ${vh.ok ? (urlsHist.length > 1 ? urlsHist.length + ' historias publicadas' : 'publicada') : esc(vh.error)}`)
+      todoOk = todoOk && vh.ok
+    }
+    msg(lineas.join('<br>'), todoOk)
     if (d.ok) { S.sel.forEach(id => S.publicados.add(id)); window.rsHistorial() }
   } catch (e) { msg('Error: ' + esc(e.message), false) }
   btn.disabled = false; btn.textContent = '🚀 Publicar ahora'

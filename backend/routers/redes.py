@@ -420,9 +420,13 @@ def _publicar_instagram(cuentas, urls, caption, historia=False, meta_id=None):
         return _graph(f"{ig}/media", "POST", datos)["id"]
 
     if historia:
-        c = crear({"image_url": urls[0], "media_type": "STORIES"})
-        _esperar_contenedor(c)
-        return _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id"), aviso
+        # una historia por cada imagen (antes solo subía la primera), en el orden en que vienen
+        ultimo = None
+        for u in urls[:10]:
+            c = crear({"image_url": u, "media_type": "STORIES"})
+            _esperar_contenedor(c)
+            ultimo = _graph(f"{ig}/media_publish", "POST", {"creation_id": c}).get("id")
+        return ultimo, aviso
     if len(urls) == 1:
         c = crear({"image_url": urls[0], "caption": caption})
     else:
