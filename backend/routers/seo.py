@@ -96,7 +96,13 @@ def generar_seo(datos: dict):
 _CC_SSR_PRODUCTO = {
     "Cache-Control": "public, max-age=0, s-maxage=120, stale-while-revalidate=600",
     # Vercel ignora Cache-Control en páginas que reenvía a otro servidor (rewrites): su memoria se controla con este encabezado propio.
-    "Vercel-CDN-Cache-Control": "max-age=120, stale-while-revalidate=600",
+    # stale-if-error: si Railway esta reiniciando (despliegue) o tarda, Vercel entrega la ultima copia en vez de un 5xx a Google.
+    "Vercel-CDN-Cache-Control": "max-age=300, stale-while-revalidate=3600, stale-if-error=86400",
+}
+# Mismo respaldo para sitemap y robots (Google los pide seguido y un 5xx ahi frena el rastreo de todo el sitio).
+_CC_VERCEL_RESPALDO = {
+    "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=3600",
+    "Vercel-CDN-Cache-Control": "max-age=300, stale-while-revalidate=3600, stale-if-error=86400",
 }
 
 
@@ -1546,7 +1552,7 @@ def save_config_pago_transferencia(datos: dict):
 def sitemap():
     cached = cache_get("seo_sitemap")
     if cached is not None:
-        return Response(content=cached, media_type="application/xml")
+        return Response(content=cached, media_type="application/xml", headers=_CC_VERCEL_RESPALDO)
     try:
         productos = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre,meta_titulo,categoria"))
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
@@ -1659,7 +1665,7 @@ def sitemap():
             print(f"[sitemap] marketplace: {e_mp}")
         xml += '</urlset>'
         cache_set("seo_sitemap", xml, ttl=TTL_FEEDS)
-        return Response(content=xml, media_type="application/xml")
+        return Response(content=xml, media_type="application/xml", headers=_CC_VERCEL_RESPALDO)
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
@@ -1699,7 +1705,7 @@ def robots():
     return Response(
         content=content,
         media_type="text/plain; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=300, s-maxage=300"}
+        headers=_CC_VERCEL_RESPALDO
     )
 
 
