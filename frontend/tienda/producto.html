@@ -772,6 +772,8 @@ const _slug = _path.replace('/producto/', '').replace(/^\/|\/$/g, '')
 // ── INIT ──────────────────────────────────────────────────────────
 
 async function init() {
+  // Buen Fin: saber si esta activa antes de pintar el precio (maximo 1.5 s de espera)
+  try { await Promise.race([window.zmBuenFin && window.zmBuenFin.listo, new Promise(r => setTimeout(r, 1500))]) } catch (e) {}
   // Mostrar badge del carrito existente desde sessionStorage
   try {
     const carritoExistente = JSON.parse(localStorage.getItem('zm_carrito') || '[]')
@@ -917,6 +919,7 @@ function renderProducto() {
 
   // SEO dinámico
   const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
+  const _bf = !p.es_oferta && !!(window.zmBuenFin && window.zmBuenFin.esModelo(p.id))   // Buen Fin: precio de 3+ pares desde 1 par
   document.title = construirTituloSeo(p)
 
   const sbNombre = document.getElementById('sb-nombre')
@@ -954,6 +957,8 @@ function renderProducto() {
   if (p.es_oferta && p.precio_antes) {
     const precioAntes = parseFloat(p.precio_antes) + 80
     precioHTML = `<span class="product-price-before">$${precioAntes} MXN</span><span class="product-price-offer">$${precioDisplay} MXN</span>`
+  } else if (_bf) {
+    precioHTML = `<span class="product-price-before">$${precioDisplay} MXN</span><span class="product-price-offer">$${precioDisplay - 60} MXN</span><span class="zm-bf-tag">Buen Fin</span>`
   } else {
     precioHTML = `$${precioDisplay} MXN`
   }
@@ -971,14 +976,14 @@ function renderProducto() {
     const _pM3 = precioDisplay - 60
     // Precio de este producto al tier que correspondería con el total de pares
     const precioEste = simular ? (
-      totalPares >= 3 ? _pM3 :
+      (totalPares >= 3 || _bf) ? _pM3 :
       precioDisplay
     ) : 0
 
     // Recalcular cada item del carrito al tier correcto (el precio baja al cruzar 3 pares)
     const subtotal = carritoActual.reduce((s, i) => {
       const pp = i.es_corrida ? i.cantidad * 6 : i.cantidad
-      const precio = totalPares >= 3
+      const precio = (totalPares >= 3 || (window.zmBuenFinPrecio && window.zmBuenFinPrecio(i)))
         ? parseFloat(i.precio_mayoreo3 || i.precio_menudeo)
         : parseFloat(i.precio_menudeo)
       return s + precio * pp
@@ -1015,7 +1020,9 @@ function renderProducto() {
   window._envioHTML = envioHTML  // exponer para irACarrito() y storage listener
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
-  if (!p.es_oferta) {
+  if (_bf) {
+    mayoreoHTML = `<div class="mayoreo-box" style="padding:8px 12px"><p style="font-size:0.76rem;margin:0;font-weight:600;color:var(--gray-light)">🏷️ Buen Fin: precio de mayoreo desde 1 par · <span style="color:#22c55e">ahorras $60/par</span></p></div>`
+  } else if (!p.es_oferta) {
     // Descuento de 3+ pares SI se queda en el sitio público (el de 6+ ya solo
     // vive en el panel y el portal de mayoristas -- por eso aquí ya no se muestra).
     const m3 = precioDisplay - 60
@@ -2987,6 +2994,7 @@ function renderSearchResults(data, containerId) {
   avisarPanel({ tipo: 'listo' })
 })()
 </script>
+<script src="/assets/buenfin.1b5feff0.js"></script>
 <script src="/push-subscribe.js" defer></script>
 <script defer src="/assets/migas.v2.js"></script>
 </body>

@@ -31,8 +31,10 @@ const esNuevo = (p) => p && p.created_at && (Date.now() - new Date(p.created_at)
 const money = (n) => '$' + Math.round(parseFloat(n) || 0).toLocaleString('es-MX')
 const esc   = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')
 // Calcula precio mayoreo con fallback a precio_menudeo - descuento
-const precioM3 = (p) => parseFloat(p.precio_mayoreo3) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 30)
-const precioM6 = (p) => parseFloat(p.precio_mayoreo6) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 70)
+// Buen Fin: los modelos de la promocion van a precio de corrida aunque la clienta lleve tallas y colores variados (el servidor aplica lo mismo)
+const pcEsBF = (id) => !!(typeof pc !== 'undefined' && pc.buenFin && pc.buenFin.activa && pc.buenFin.ids.has(String(id)))
+const precioM3 = (p) => pcEsBF(p.id) ? precioCorrida(p) : parseFloat(p.precio_mayoreo3) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 30)
+const precioM6 = (p) => pcEsBF(p.id) ? precioCorrida(p) : parseFloat(p.precio_mayoreo6) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 70)
 const precioCorrida = (p) => parseFloat(p.precio_corrida) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 100)
 
 // ── Herramientas de venta (precio al público y ganancia) ─────────────────────────────────────
@@ -92,6 +94,8 @@ const pc = {
   clienteData: null,
   filtroCat: '',
   filtroNuevos: false,
+  soloBuenFin: false,
+  buenFin: { activa: false, ids: new Set(), inicio: '', fin: '' },
   busqueda: '',
   filtroTallas: [],
   filtroColores: [],
@@ -279,7 +283,7 @@ function renderPC() {
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
         ${pcNavItem('sugerencias','💡', 'Sugerencias')}
         ${pcNavItem('cuenta',   '👤', 'Mi cuenta')}
-        <a class="pc-nav-item" target="_blank" rel="noopener" style="text-decoration:none;color:#E91E8C;font-weight:700" href="https://zapatillasmay.mx/buen-fin?utm_source=portal&utm_medium=menu&utm_campaign=buen_fin">🏷️ Buen Fin</a>
+        ${pc.buenFin.activa ? `<button id="pc-nav-bf" class="pc-nav-item" style="color:#E91E8C;font-weight:700" onclick="pcVerBuenFin()">🏷️ Buen Fin</button>` : ''}
         <a class="pc-nav-item" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/5214792244560?text=${encodeURIComponent('Hola, soy ' + (pc.sesion?.nombre || 'cliente') + ' del portal mayoreo y tengo una pregunta 👋')}">💬 WhatsApp (tu asesora)</a>
       </nav>
 
@@ -482,8 +486,9 @@ function renderPC() {
   window.pcCerrarSesion = pcCerrarSesion
   window.pcToggleSidebar = pcToggleSidebar
   window.pcQuitarDelCarrito = pcQuitarDelCarrito
-  window.pcFiltrarCat = (c) => { pc.filtroCat = c; pc.filtroNuevos = false; renderCatalogo() }
-  window.pcFiltrarNuevos = () => { pc.filtroNuevos = !pc.filtroNuevos; pc.filtroCat = ''; renderCatalogo() }
+  window.pcFiltrarCat = (c) => { pc.filtroCat = c; pc.filtroNuevos = false; pc.soloBuenFin = false; renderCatalogo() }
+  window.pcFiltrarNuevos = () => { pc.filtroNuevos = !pc.filtroNuevos; pc.filtroCat = ''; pc.soloBuenFin = false; renderCatalogo() }
+  window.pcVerBuenFin = () => { pc.soloBuenFin = true; pc.filtroNuevos = false; pc.filtroCat = ''; pcIrA('catalogo') }
   window.pcToggleFiltroTalla = (t) => {
     const i = pc.filtroTallas.indexOf(t)
     if (i === -1) pc.filtroTallas.push(t); else pc.filtroTallas.splice(i, 1)
@@ -648,7 +653,7 @@ async function cargarDatosPC() {
     }
   }
 
-  const [prod, vari, inv, ped, cli, masVend] = await Promise.all([
+  const [prod, vari, inv, ped, cli, masVend, bfEstado] = await Promise.all([
     _safeFetch(`${PC_API}/productos/`),
     // Sin SKU ni fecha de alta de las variantes y con el inventario ligero (solo variante_id + cantidad, que es lo único que el portal lee):
     // la carga inicial baja de ~1.3 MB a ~0.7 MB comprimidos. Un servidor viejo ignora `portal=1` y responde la lista completa; /inventario/slim existe desde hace tiempo.
@@ -657,7 +662,9 @@ async function cargarDatosPC() {
     cid ? _safeFetchCliente(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
     cid ? _safeFetchCliente(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
     _safeFetch(`${PC_API}/productos/mas-vendidos`),
+    _safeFetch(`${PC_API}/buen-fin/estado`),
   ])
+  if (bfEstado) pc.buenFin = { activa: !!bfEstado.activa, ids: new Set((bfEstado.ids || []).map(String)), inicio: bfEstado.inicio || '', fin: bfEstado.fin || '' }
 
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
   // Prefijos del nombre del modelo que este cliente en particular no debe
@@ -712,6 +719,16 @@ async function cargarDatosPC() {
   }
 
   pc.datosCargados = true
+  // El menu se dibuja antes de cargar los datos: si el Buen Fin esta activo, se agrega su boton ahora
+  try {
+    const nav = document.getElementById('pc-nav')
+    if (pc.buenFin.activa && nav && !document.getElementById('pc-nav-bf')) {
+      const b = document.createElement('button')
+      b.id = 'pc-nav-bf'; b.className = 'pc-nav-item'; b.style.cssText = 'color:#E91E8C;font-weight:700'; b.textContent = '🏷️ Buen Fin'
+      b.onclick = () => window.pcVerBuenFin()
+      nav.insertBefore(b, nav.querySelector('a.pc-nav-item'))
+    }
+  } catch {}
   try { pcActualizarBadgeNov() } catch {}
   // Re-renderizar la pestaña activa con datos
   pcIrA(pc.tab)
@@ -957,6 +974,7 @@ function renderCatalogo(el) {
   const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
 
   let prods = pc.productos
+  if (pc.soloBuenFin && pc.buenFin.activa) prods = prods.filter(p => pcEsBF(p.id))
   if (pc.filtroNuevos) prods = prods.filter(esNuevo)
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
@@ -974,17 +992,19 @@ function renderCatalogo(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
-      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">Productos</h1>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">${pc.soloBuenFin && pc.buenFin.activa ? '🏷️ Buen Fin' : 'Productos'}</h1>
       <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:6px 12px;font-size:0.75rem;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:100px">📲 ${window._pcModoCompartir ? 'Listo' : 'Compartir fotos (sin precios)'}</button>
     </div>
 
     <!-- Categorías -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;width:100%">
+      ${pc.buenFin.activa ? `<button onclick="pcVerBuenFin()" class="pc-btn ${pc.soloBuenFin ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.soloBuenFin ? '' : 'color:#E91E8C;border-color:#E91E8C'}">🏷️ Buen Fin</button>` : ''}
       <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:var(--pc-green);border-color:var(--pc-green)'}">✨ Nuevos</button>
-      <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
+      <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos && !pc.soloBuenFin ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
       ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
     </div>
 
+    ${pc.soloBuenFin && pc.buenFin.activa ? `<div style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:rgba(233,30,140,0.1);border:1px solid rgba(233,30,140,0.35);font-size:0.82rem;color:var(--pc-text)">🏷️ <b>Buen Fin:</b> estos modelos se cobran a <b>precio de corrida en todos los pares</b>, aunque lleves tallas y colores variados.</div>` : ''}
     <!-- Buscador -->
     <div style="margin-bottom:14px">
       <input id="pc-search-input" class="pc-input" style="width:100%" placeholder="🔍 Buscar modelo o SKU..."
@@ -1826,7 +1846,7 @@ function pcProductoCard(p) {
       <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--pc-bg-elev)">
         <img id="pc-card-img-${p.id}" src="${esc(zmImg(imgPrincipal, 400))}" alt="${esc(p.nombre)}" loading="lazy"
           style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
-        ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
+        ${pcEsBF(p.id) ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">BUEN FIN</span>' : p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
         ${esNuevo(p) ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
         ${enCarrito > 0 && !window._pcModoCompartir ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${enCarrito} par${enCarrito !== 1 ? 'es' : ''}</span>` : ''}
         
@@ -1861,8 +1881,9 @@ function pcProductoCard(p) {
         <p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;font-family:monospace">${esc(p.sku_interno||'')}</p>
         <p style="font-size:0.83rem;font-weight:600;color:var(--pc-text-2);margin:0 0 8px;line-height:1.3;flex:1">${esc(p.nombre)}</p>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-          ${m3 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">3-5: <strong style="color:var(--pc-text)">${money(m3)}</strong></span>` : ''}
-          ${m6 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
+          ${pcEsBF(p.id) ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">Corrida c/u: <strong style="color:#E91E8C">${money(m3)}</strong></span>` : ''}
+          ${!pcEsBF(p.id) && m3 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">3-5: <strong style="color:var(--pc-text)">${money(m3)}</strong></span>` : ''}
+          ${!pcEsBF(p.id) && m6 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
         </div>
         ${window._pcModoCompartir ? `
           <button class="pc-btn" style="width:100%;padding:7px;font-size:0.78rem;background:${seleccionado ? 'rgba(37,211,102,0.15)' : 'var(--pc-bg-elev)'};color:${seleccionado ? '#25D366' : 'var(--pc-text-3)'};border:1.5px solid ${seleccionado ? '#25D366' : 'var(--pc-border-2)'};font-weight:bold;cursor:pointer">

@@ -412,9 +412,12 @@ def enviar_carrito(datos: dict, auth: dict = Depends(require_cliente)):
     ) if prod_ids else []
     prod_by_id = {p["id"]: p for p in (productos or [])}
 
+    from routers.buenfin import producto_en_buen_fin
+
     def precio_unit(prod, es_corr, sueltos):
         menudeo = _num(prod.get("precio_menudeo"))
-        if es_corr:
+        # Buen Fin: los modelos de la promocion van a precio de corrida aunque sea mayoreo variado
+        if es_corr or producto_en_buen_fin(prod.get("id")):
             return _num(prod.get("precio_corrida")) or (menudeo - 100)
         if sueltos >= 6:
             return _num(prod.get("precio_mayoreo6")) or (menudeo - 70)

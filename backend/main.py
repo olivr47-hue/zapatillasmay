@@ -261,6 +261,8 @@ app.include_router(mcp_server.router)
 app.include_router(resenas.router)
 app.include_router(pinterest.router)
 app.include_router(portal.router)
+from routers import buenfin
+app.include_router(buenfin.router)
 app.include_router(sugerencias.router)
 app.include_router(push.router)
 app.include_router(emails.router)

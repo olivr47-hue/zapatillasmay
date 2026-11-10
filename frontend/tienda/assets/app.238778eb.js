@@ -1308,6 +1308,8 @@ cargarConfigSEO()
 
   async function inicializar() {
     try {
+      // Buen Fin: saber si esta activa ANTES de pintar precios (maximo 1.5 s de espera)
+      try { await Promise.race([window.zmBuenFin && window.zmBuenFin.listo, new Promise(r => setTimeout(r, 1500))]) } catch (e) {}
       // Verificar versión del catálogo en el servidor
       // (sin catálogo guardado en este navegador y en la home, esta consulta sobra: el primer pintado ya trae la versión)
       let serverVersion = 0
@@ -1488,6 +1490,7 @@ cargarConfigSEO()
     // Descuento de 3+ pares: se queda visible en la tarjeta (el de 6+ ya solo
     // vive en panel/portal, aquí no se muestra).
     const _precioMay3 = (_precioMenu && !p.es_oferta) ? _precioMenu - 60 : null
+    const _bf = !!(_precioMay3 && window.zmBuenFin && window.zmBuenFin.esModelo(p.id))
 
     // Fotos para ir rotando sola en la tarjeta (ver observador más abajo):
     // primero los ángulos extra del color de portada, luego una foto de
@@ -1533,9 +1536,9 @@ cargarConfigSEO()
         ${_estrellasHTML}
         <div class="product-prices">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${_precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
+            ${_bf ? `<span class="price-main">$${_precioMay3.toLocaleString('es-MX')} MXN</span><span style="text-decoration:line-through;color:#aaa;font-size:0.78rem">$${_precioMenu.toLocaleString('es-MX')}</span><span class="zm-bf-tag">Buen Fin</span>` : _precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
           </div>
-          ${_precioMay3 ? `<div class="price-mayoreo-hint" style="margin-top:2px">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
+          ${_precioMay3 && !_bf ? `<div class="price-mayoreo-hint" style="margin-top:2px">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
         </div>
         <span class="btn-elegir-talla">Elegir talla</span>
       </a>`
@@ -2220,6 +2223,8 @@ if (window.ttq) {
       // sitio, aunque haya 6+ pares, el precio no baja más allá de mayoreo3.
       if (item.es_corrida) {
         item.precio_unitario = item.precio_corrida
+      } else if (window.zmBuenFinPrecio && window.zmBuenFinPrecio(item)) {
+        item.precio_unitario = window.zmBuenFinPrecio(item)
       } else if (item.es_oferta) {
         item.precio_unitario = item.precio_menudeo
       } else if (totalPares >= 3) {
@@ -2951,7 +2956,8 @@ function zmBuscar(texto, productos, coloresPorProducto, tieneTalla) {
   // Buen Fin: los modelos que tienen marcada la oferta en el panel (sin porcentajes ni fechas escritos aqui)
   function mostrarBuenFin() {
     if (_enPausa(mostrarBuenFin, arguments)) return
-    mostrarConFiltros(productos.filter(p => p.es_oferta && p.activo), '<em>Buen Fin</em> Zapatillas May', '', '/buen-fin')
+    if (!(window.zmBuenFin && window.zmBuenFin.activa())) { mostrarInicio(); return }
+    mostrarConFiltros(productos.filter(p => p.activo && window.zmBuenFin.esModelo(p.id)), '<em>Buen Fin</em> Zapatillas May', '', '/buen-fin')
   }
 
   function mostrarInicio() {

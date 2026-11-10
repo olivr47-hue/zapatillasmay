@@ -381,6 +381,7 @@ if (!window.fbq){
   </div>
 </div>
 
+<script src="/assets/buenfin.1b5feff0.js"></script>
 <script src="/assets/mpcarrito.f3cb3abf.js"></script>
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
@@ -471,11 +472,15 @@ function authH(extra) { try { const t = (JSON.parse(localStorage.getItem('usuari
 function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } }
 
 function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
+window.addEventListener('zm-buenfin', function () { try { render() } catch (e) {} })
 function totalPares(c) { return c.reduce((s, i) => s + (i.es_corrida ? (i.cantidad * 6) : i.cantidad), 0) }
 // El descuento de 3+ pares SI se queda en el sitio público. El de 6+ pares
 // ya solo vive en el panel y el portal de mayoristas.
 function calcularPrecioUnitario(item, total) {
   if (item.es_oferta) return item.precio_unitario
+  // Buen Fin: precio de 3+ pares desde el primer par en los modelos de la promocion
+  var _bf = window.zmBuenFinPrecio && window.zmBuenFinPrecio(item)
+  if (_bf) return _bf
   if (item.es_corrida) return item.precio_corrida || item.precio_menudeo
   if (total >= 3) return item.precio_mayoreo3 || item.precio_menudeo
   return item.precio_menudeo

@@ -133,6 +133,7 @@ const modulos = [
   { id: 'marketplace', icon: '🛍️', label: 'Marketplace', section: 'Catalogo', soloAdmin: true },
   { id: 'prospectos', icon: '🧪', label: 'Renta del sistema', section: 'Catalogo', soloAdmin: true },
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
+  { id: 'buen-fin', icon: '🏷️', label: 'Buen Fin', section: 'Catalogo', soloAdmin: true },
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
@@ -752,6 +753,7 @@ async function cargarModulo(id) {
     case 'marketplace': await window.cargarMarketplace(); break
     case 'prospectos': await window.cargarProspectos(); break
     case 'conexiones': await window.cargarConexiones(); break
+    case 'buen-fin': await cargarBuenFin(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break
@@ -24817,6 +24819,61 @@ window.mlFiltrarPubs = (q) => {
 }
 
 // ═══════════════════════════════════════════════════════
+// ─── BUEN FIN: fechas y modelos de la promoción (tienda y portal) ─────────────────────────────────────────────────────────────
+// Tienda: todos los pares de estos modelos van al precio de 3+ pares desde el primer par. Portal: precio de corrida aunque lleve tallas y colores variados.
+async function cargarBuenFin() {
+  const el = document.getElementById('content')
+  const res = await fetch(`${API}/buen-fin/config`)
+  const d = await res.json().catch(() => ({}))
+  if (!res.ok) { el.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo cargar: ${_e(d.error || d.detail || res.status)}</p>`; return }
+  window._bf = { modelos: d.modelos_disponibles || [], sel: new Set((d.modelos_disponibles || []).filter(m => m.seleccionado).map(m => m.id)) }
+  const web = (m) => { const b = parseFloat(m.menudeo) || 0; return b + 80 }
+  el.innerHTML = `<div style="max-width:980px">
+    <h2 style="margin:0 0 4px">🏷️ Buen Fin</h2>
+    <p style="margin:0 0 16px;color:#888;font-size:0.85rem">Elige las fechas (hora de México) y los modelos de la promoción. <b>Tienda:</b> todos los pares de esos modelos se cobran al precio de 3+ pares desde el primer par; se muestra un aviso y el botón del Buen Fin solo dentro de las fechas. <b>Portal de mayoreo:</b> esos modelos se cobran a precio de corrida aunque la clienta lleve tallas y colores variados.</p>
+    <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="bf-activo" ${d.activo ? 'checked' : ''}> Promoción encendida</label>
+      <label style="font-size:0.8rem;color:#666">Inicio<br><input type="datetime-local" id="bf-inicio" value="${_e(d.inicio || '')}" style="padding:6px;border:1px solid #ddd;border-radius:6px"></label>
+      <label style="font-size:0.8rem;color:#666">Fin<br><input type="datetime-local" id="bf-fin" value="${_e(d.fin || '')}" style="padding:6px;border:1px solid #ddd;border-radius:6px"></label>
+      <span id="bf-estado" style="font-size:0.82rem;padding:5px 10px;border-radius:100px;background:${d.activa_ahora ? '#dcfce7' : '#f3f4f6'};color:${d.activa_ahora ? '#166534' : '#666'}">${d.activa_ahora ? '● Activa ahora' : '○ No está activa ahora'}</span>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <input id="bf-buscar" oninput="window._bfFiltrar()" placeholder="Buscar por nombre, SKU o categoría" style="flex:1;min-width:220px;padding:8px 10px;border:1px solid #ddd;border-radius:8px">
+      <label style="font-size:0.8rem;color:#666"><input type="checkbox" id="bf-solo-sel" onchange="window._bfFiltrar()"> Solo los elegidos</label>
+      <span id="bf-cont" style="font-size:0.82rem;color:#888"></span>
+      <button onclick="window._bfGuardar(this)" style="background:#111;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;cursor:pointer">Guardar</button>
+    </div>
+    <div id="bf-msg" style="margin-bottom:8px"></div>
+    <div id="bf-lista" style="background:#fff;border:1px solid #eee;border-radius:12px;max-height:60vh;overflow:auto"></div></div>`
+  window._bfPintar = (lista) => {
+    document.getElementById('bf-lista').innerHTML = lista.map(m => `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f3f3f3;cursor:pointer">
+      <input type="checkbox" ${window._bf.sel.has(m.id) ? 'checked' : ''} onchange="window._bfToggle('${m.id}', this.checked)">
+      ${m.foto ? `<img src="${_e(m.foto)}" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:6px">` : '<div style="width:42px;height:42px;background:#f3f3f3;border-radius:6px"></div>'}
+      <div style="flex:1;min-width:0"><div style="font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(m.nombre || '')}</div>
+      <div style="font-size:0.72rem;color:#999">${_e(m.sku || '')} · ${_e(m.categoria || '')}</div></div>
+      <div style="font-size:0.78rem;text-align:right;color:#555">Web hoy $${web(m)}<br><b style="color:#b5687a">Buen Fin $${web(m) - 60}</b>${m.corrida ? `<br><span style="color:#888">Portal $${m.corrida}</span>` : ''}</div></label>`).join('') || '<p style="padding:16px;color:#aaa">Sin resultados.</p>'
+    document.getElementById('bf-cont').textContent = `${window._bf.sel.size} modelos elegidos`
+  }
+  window._bfFiltrar = () => {
+    const q = (document.getElementById('bf-buscar').value || '').toLowerCase().trim(), solo = document.getElementById('bf-solo-sel').checked
+    window._bfPintar(window._bf.modelos.filter(m => (!solo || window._bf.sel.has(m.id)) && (!q || `${m.nombre} ${m.sku} ${m.categoria}`.toLowerCase().includes(q))).slice(0, 400))
+  }
+  window._bfToggle = (id, on) => { if (on) window._bf.sel.add(id); else window._bf.sel.delete(id); document.getElementById('bf-cont').textContent = `${window._bf.sel.size} modelos elegidos` }
+  window._bfGuardar = async (btn) => {
+    const msg = document.getElementById('bf-msg'); btn.disabled = true
+    try {
+      const r = await fetch(`${API}/buen-fin/config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: document.getElementById('bf-activo').checked, inicio: document.getElementById('bf-inicio').value, fin: document.getElementById('bf-fin').value, modelos: [...window._bf.sel] }) })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(j.error || j.detail || ('Error ' + r.status))
+      msg.innerHTML = `<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;color:#166534;font-size:0.84rem">✅ Guardado: ${j.modelos} modelos. ${j.activa_ahora ? 'La promoción está ACTIVA ahora.' : 'Aún no está activa (fuera de fechas o apagada).'} La tienda y el portal lo reflejan en menos de un minuto.</div>`
+      const s = document.getElementById('bf-estado'); s.textContent = j.activa_ahora ? '● Activa ahora' : '○ No está activa ahora'; s.style.background = j.activa_ahora ? '#dcfce7' : '#f3f4f6'; s.style.color = j.activa_ahora ? '#166534' : '#666'
+    } catch (e) { msg.innerHTML = `<div style="padding:8px 12px;border-radius:8px;background:#fef2f2;color:#991b1b;font-size:0.84rem">${_e(e.message)}</div>` }
+    btn.disabled = false
+  }
+  window._bfFiltrar()
+}
+
 // ─── TIKTOK SHOP (conectado por API: tienda, productos, fotos, existencias, pedidos, devoluciones y finanzas) ──────────────────
 // La conexión ya funciona (app «ERP MAY»). Lo que no se puede hacer por API sigue en la pestaña «Excel».
 const _TK_COLOR = '#fe2c55'
