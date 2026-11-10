@@ -24990,7 +24990,7 @@ window._tkVerProducto = async (id) => {
         <button onclick="document.getElementById('tk-modal').remove()" style="border:none;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer;flex:none">✕</button></div>
       <p style="font-size:0.8rem;color:#888;margin:0 0 4px">Fotos en TikTok (${(d.fotos || []).length})</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${fotosTk || '<span style="color:#aaa;font-size:0.82rem">Sin fotos</span>'}</div>
       ${erp ? `<p style="font-size:0.8rem;color:#888;margin:0 0 4px">Fotos en el ERP — ${_e(erp.sku_interno)} (${erp.total_fotos})</p>${fotosErp}
-        ${erp.total_fotos > (d.fotos || []).length && d.estado === 'ACTIVATE' ? `<div style="margin:8px 0 12px">${_tkBtn('star', 'Llevar las fotos del ERP a TikTok', `window._tkActualizarFotosUno('${d.id}', this)`, 'rosa')}</div>` : ''}` : '<p style="font-size:0.8rem;color:#b45309">No se encontró este modelo en el ERP por su SKU de vendedor.</p>'}
+        ${erp.total_fotos > (d.fotos || []).length && d.estado === 'ACTIVATE' ? `<div style="margin:8px 0 12px">${_tkBtn('star', 'Llevar las fotos del ERP a TikTok', `window._tkActualizarFotosUno('${d.id}', this)`, 'rosa')}</div>` : ''}${d.estado === 'ACTIVATE' ? `<div style="margin:8px 0 12px">${_tkBtn('plus', 'Agregar colores/tallas que faltan', `window._tkCompletarVariantes('${d.id}', this)`, 'rosa')}</div>` : ''}` : '<p style="font-size:0.8rem;color:#b45309">No se encontró este modelo en el ERP por su SKU de vendedor.</p>'}
       <p style="font-size:0.8rem;color:#888;margin:10px 0 4px">${_e(d.categoria.join(' › '))}</p>
       ${_tkTabla([{ t: 'SKU de vendedor' }, { t: 'Variante' }, { t: 'Precio', der: true }, { t: 'Existencias', der: true }],
         d.skus.map(s => `<tr>${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(s.seller_sku || '—')}</span>`)}${_tkTd(_e(s.atributos.map(a => a[1]).filter(Boolean).join(' · ')))}${_tkTd(_tkMXN(s.precio), true)}${_tkTd(`<span style="${s.existencias >= 9000 ? 'color:#b45309;font-weight:700' : ''}">${s.existencias}</span>`, true)}</tr>`), 'Sin SKUs')}
@@ -25154,6 +25154,22 @@ window._tkActualizarFotosUno = async (id, btn) => {
   const out = document.getElementById('tk-modal-res'); const orig = btn.innerHTML; btn.innerHTML = '⏳ Subiendo…'; btn.disabled = true
   try { const d = await _tkSubirFotosDe(id); out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;color:#166534">✅ Listo: ${d.fotos_subidas} fotos en TikTok.</div>` }
   catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
+window._tkCompletarVariantes = async (id, btn) => {
+  const out = document.getElementById('tk-modal-res'); const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '⏳ Revisando…'
+  try {
+    const url = `${API}/tiktok/producto/${id}/completar-variantes`
+    let res = await fetch(url, { method: 'POST' }); let d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || d.detail || ('Error ' + res.status))
+    if (!d.se_agregarian || !d.se_agregarian.length) { out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;color:#166534">✅ TikTok ya tiene todos los colores y tallas con existencias.</div>`; return }
+    const lista = d.se_agregarian.map(x => `${x.color} ${x.talla} (${x.cantidad})`).join(', ')
+    if (!confirm(`Se agregarían ${d.se_agregarian.length} variantes en TikTok:\n${lista}\n\nPrecio: $${d.precio_nuevos}. TikTok puede volver a revisar el producto. ¿Confirmas?`)) return
+    btn.innerHTML = '⏳ Agregando…'
+    res = await fetch(url + '?confirmar=true', { method: 'POST' }); d = await res.json().catch(() => ({}))
+    if (!res.ok || !d.hecho) throw new Error(d.mensaje ? `${d.error || 'Error'}: ${d.mensaje}` : (d.error || d.detail || ('Error ' + res.status)))
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;color:#166534">✅ Listo: ${d.agregados} variantes agregadas.</div>`
+  } catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
 }
 
 // ── Existencias ──

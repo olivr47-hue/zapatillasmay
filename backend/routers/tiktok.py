@@ -993,6 +993,113 @@ def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, por_color
             "respuesta_tiktok": e.get("data")}
 
 
+def _variantes_faltantes(d, prod, vs, inv):
+    """Variantes del ERP con existencias que TikTok todavia no tiene como SKU: [(color, talla, cantidad, variante)]."""
+    from routers.tiktok_excel import _clave_color, _clave_talla
+    tiene = set()
+    for s in d.get("skus") or []:
+        attrs = s.get("sales_attributes") or []
+        c = next((a for a in attrs if str(a.get("id")) == "100000"), None)
+        tl = next((a for a in attrs if str(a.get("id")) != "100000"), None)
+        if c and tl:
+            tiene.add((_clave_color(c.get("value_name")), _clave_talla(tl.get("value_name"))))
+    faltan, vistos = [], set()
+    for v in vs:
+        color = (v.get("color") or "Unico").strip()
+        talla = str(v.get("talla") or "Unica").strip()
+        k = (_clave_color(color), _clave_talla(talla))
+        cant = int(inv.get(v["id"], 0) or 0)
+        if k in tiene or k in vistos or cant < 1:
+            continue
+        vistos.add(k)
+        faltan.append((color, talla, cant, v))
+    return faltan
+
+
+@router.post("/producto/{producto_id}/completar-variantes")
+def tiktok_completar_variantes(producto_id: str, confirmar: bool = False, _staff=Depends(require_staff)):
+    """ESCRIBE EN TIKTOK (solo con confirmar=true). Agrega al producto los colores/tallas que ya existen con existencias en el ERP pero que
+    TikTok no tiene como SKU (por ejemplo, un modelo que se subio cuando solo habia un color). Reenvia TODOS los SKUs actuales (la edicion parcial
+    borra los que no se mencionan) y suma los nuevos, con la foto de su color, el mismo precio y las existencias del ERP. Sin confirmar solo muestra que se haria.
+    TikTok puede volver a revisar el producto."""
+    import tiktok_nuevos
+    from routers.tiktok_excel import _clave_color
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    r = _tiktok_api("GET", f"/product/202309/products/{producto_id}", access, extra_params={"shop_cipher": cipher})
+    if r.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el producto", "mensaje": r.get("message")})
+    d = r.get("data") or {}
+    if d.get("status") != "ACTIVATE":
+        return JSONResponse(status_code=409, content={"error": f"El producto no esta activo en TikTok (estado {d.get('status')})"})
+    cargado = _erp_cargado()
+    prod, vars_ = _producto_erp_de_tiktok(d, cargado)
+    if not prod:
+        return JSONResponse(status_code=404, content={"error": "No se encontro el modelo en el ERP por el SKU de vendedor"})
+    inv = cargado[2]
+    faltan = _variantes_faltantes(d, prod, vars_, inv)
+    resumen = {"producto": d.get("title"), "modelo_erp": prod.get("sku_interno"), "skus_actuales": len(d.get("skus") or []),
+               "se_agregarian": [{"color": c, "talla": tl, "cantidad": q} for c, tl, q, _v in faltan]}
+    if not faltan:
+        return {**resumen, "hecho": False, "mensaje": "TikTok ya tiene todas las variantes con existencias del ERP"}
+
+    def subir(url, uso="ATTRIBUTE_IMAGE"):
+        if not confirmar:
+            return "(uri)"
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as resp:
+                contenido = resp.read()
+            s = _tiktok_subir_imagen(access, contenido, uso)
+            return ((s.get("data") or {}).get("uri")) if s.get("code") == 0 else None
+        except Exception:
+            return None
+
+    # 1) los SKUs que ya existen, completos (si no se pueden armar sin riesgo, no se toca nada)
+    existentes, nota = _armar_skus_con_foto_color(d, vars_, subir)
+    if not existentes:
+        return JSONResponse(status_code=409, content={**resumen, "hecho": False, "error": f"No se puede reenviar los SKUs actuales sin riesgo: {nota}"})
+    base = existentes[0]
+    precio = base["price"]
+    talla_attr = next((a for a in (d["skus"][0].get("sales_attributes") or []) if str(a.get("id")) != "100000"), None)
+    if not talla_attr:
+        return JSONResponse(status_code=409, content={**resumen, "hecho": False, "error": "El producto no tiene atributo de talla"})
+    almacen = next((i.get("warehouse_id") for s in d["skus"] for i in (s.get("inventory") or []) if i.get("warehouse_id")), tiktok_nuevos.WAREHOUSE_ID)
+    fotos_color = _fotos_por_color_erp(vars_)
+    # nombre del color tal como ya esta en TikTok (para no duplicarlo con otra escritura)
+    nombre_tt = {}
+    for s in d["skus"]:
+        for a in s.get("sales_attributes") or []:
+            if str(a.get("id")) == "100000":
+                nombre_tt.setdefault(_clave_color(a.get("value_name")), a.get("value_name"))
+    uri_color, nuevos = {}, []
+    for color, talla, cant, _v in faltan:
+        clave = _clave_color(color)
+        sa_color = {"id": "100000", "name": "Color", "value_name": (nombre_tt.get(clave) or color)[:50]}
+        foto = fotos_color.get(clave)
+        if foto:
+            if clave not in uri_color:
+                uri_color[clave] = subir(foto)
+            if uri_color[clave]:
+                sa_color["sku_img"] = {"uri": uri_color[clave]}
+        sa_talla = {"id": talla_attr.get("id"), "name": talla_attr.get("name") or "Talla", "value_name": talla[:50]}
+        nuevos.append({"seller_sku": tiktok_nuevos._sku_vendedor(prod.get("sku_interno") or str(prod["id"]), color, talla),
+                       "sales_attributes": [sa_color, sa_talla], "price": dict(precio),
+                       "inventory": [{"warehouse_id": almacen, "quantity": cant}]})
+    resumen["precio_nuevos"] = precio.get("amount")
+    resumen["ejemplo_sku_nuevo"] = nuevos[0]
+    if not confirmar:
+        return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para agregarlas en TikTok"}
+    e = _tiktok_api("POST", f"/product/202309/products/{producto_id}/partial_edit", access, body={"skus": existentes + nuevos}, extra_params={"shop_cipher": cipher})
+    if e.get("code") != 0:
+        return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": "TikTok rechazo el cambio", "codigo": e.get("code"), "mensaje": e.get("message"), "detalle": e.get("data")})
+    from cache import cache_set
+    cache_set("tiktok_catalogo", None, ttl=1)
+    return {**resumen, "hecho": True, "agregados": len(nuevos), "respuesta_tiktok": e.get("data")}
+
+
 @router.get("/existencias/plan")
 def tiktok_existencias_plan(producto_id: str = "", refrescar: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Que cambiaria en TikTok para que muestre lo mismo que el ERP (solo productos activos)."""
