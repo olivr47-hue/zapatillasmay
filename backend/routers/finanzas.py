@@ -4,6 +4,7 @@ from database import supabase_get, supabase_get_all, supabase_post, supabase_pat
 from datetime import date, datetime, timedelta, timezone
 import json
 import math
+import threading
 
 # Railway corre en UTC: _hoy_mx() cambia de día a las 18:00 hora de México, así que
 # "hoy" para cierres de caja/reportes salía mal en las tardes-noches. Todo "día de negocio"
@@ -501,8 +502,50 @@ def recibir_orden_existente(id: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+_RECIBIENDO = {}          # huella de la recepción -> momento en que empezó (candado contra dobles clics a la vez)
+_RECIBIENDO_LOCK = threading.Lock()
+_VENTANA_DUPLICADO_SEG = 180
+
+
+def _huella_recepcion(datos):
+    import hashlib
+    items = sorted((str(i.get("variante_id")), int(i.get("cantidad") or 0), round(float(i.get("costo_unitario") or 0), 2))
+                   for i in (datos.get("items") or []) if i.get("variante_id") and int(i.get("cantidad") or 0) > 0)
+    base = json.dumps([str(datos.get("proveedor_id")), str(datos.get("sucursal_id")), items], sort_keys=True)
+    return hashlib.sha1(base.encode()).hexdigest()
+
+
 @router.post("/ordenes/recibir")
 def recibir_mercancia(datos: dict):
+    """Envoltura: evita que la MISMA recepción (mismo proveedor, sucursal y renglones) se registre dos veces en 3 minutos,
+    ya sea por un doble clic a la vez o por reintentos. Una recepción distinta pasa sin problema."""
+    try:
+        huella = _huella_recepcion(datos)
+    except Exception:
+        return _recibir_mercancia_interno(datos)
+    import time as _t
+    ahora = _t.time()
+    with _RECIBIENDO_LOCK:
+        for k in [k for k, v in _RECIBIENDO.items() if ahora - v > _VENTANA_DUPLICADO_SEG]:
+            _RECIBIENDO.pop(k, None)
+        if huella in _RECIBIENDO:
+            return JSONResponse(status_code=409, content={"ok": False, "duplicado": True,
+                                "error": "Esta misma recepción ya se está registrando o se registró hace menos de 3 minutos."})
+        _RECIBIENDO[huella] = ahora
+    try:
+        r = _recibir_mercancia_interno(datos)
+    except Exception:
+        with _RECIBIENDO_LOCK:
+            _RECIBIENDO.pop(huella, None)
+        raise
+    # si falló, se libera para poder reintentar; si salió bien, se queda bloqueada la ventana de 3 minutos
+    if isinstance(r, JSONResponse) and r.status_code >= 400:
+        with _RECIBIENDO_LOCK:
+            _RECIBIENDO.pop(huella, None)
+    return r
+
+
+def _recibir_mercancia_interno(datos: dict):
     """Registra una remision de mercancia que ya llego: sube el inventario
     de cada variante recibida Y crea la orden de compra (cuenta por pagar)
     en un solo paso, con la fecha de hoy y el dias_credito que se le haya
