@@ -2707,3 +2707,16 @@ def ml_igualar_atributos(datos: dict, _admin=Depends(require_admin)):
     despues = ml_get(f"/items/{item_id}")
     cache_invalidate("ml_items")
     return {**resumen, "hecho": True, "familia_despues": despues.get("family_id"), "ahora_en_la_misma_familia": despues.get("family_id") == ref.get("family_id")}
+
+
+@router.get("/consulta")
+def ml_consulta(ruta: str, _admin=Depends(require_admin)):
+    """SOLO LECTURA. Pasa una consulta GET a la API de MercadoLibre y devuelve la respuesta tal cual (para ver su formato).
+    Solo rutas de lectura conocidas; nunca escribe."""
+    ruta = (ruta or "").strip()
+    if not ruta.startswith("/") or ".." in ruta or not any(ruta.startswith(pre) for pre in ("/visits", "/items", "/item/", "/users", "/trends", "/orders/search", "/post-purchase/v1/claims/search")):
+        return JSONResponse(status_code=400, content={"error": "Ruta no permitida"})
+    try:
+        return _ml_abrir("GET", ruta)
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": _detalle_error(e)})
