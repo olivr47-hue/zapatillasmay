@@ -696,16 +696,20 @@ def _hacer_sync():
     if not _SYNC_STOCK_LOCK.acquire(blocking=False):
         return
     try:
-        _hacer_sync_inner()
+        return _hacer_sync_inner()
     finally:
         _SYNC_STOCK_LOCK.release()
 
 
 def _hacer_sync_inner():
+    paso = "leer los ids de las publicaciones"
     try:
         all_ids   = _get_all_item_ids()
+        paso = "leer el detalle de las publicaciones"
         items     = _get_items_with_sku(all_ids)
+        paso = "leer las existencias del ERP"
         stock_erp = _stock_erp()
+        paso = "actualizar publicaciones"
         actualizados, sin_match, errores, iguales, reactivados = [], [], [], [], []
 
         for it in items:
@@ -763,8 +767,11 @@ def _hacer_sync_inner():
             "detalle_errores":      errores,
             "detalle_sin_match":    sin_match[:20],
         }, ttl=3600)
+        return {"actualizados": len(actualizados), "reactivados": len(reactivados), "errores": [str(x.get("error"))[:120] for x in errores[:3]] or None}
     except Exception as e:
-        cache_set("ml_sync_log", {"ts": time.time(), "error": str(e)}, ttl=3600)
+        cache_set("ml_sync_log", {"ts": time.time(), "error": str(e), "paso": paso}, ttl=3600)
+        print(f"[ml-stock] fallo al {paso}: {e}")
+        return {"errores": [f"{paso}: {e}"]}
 
 
 @router.get("/sync/log")
