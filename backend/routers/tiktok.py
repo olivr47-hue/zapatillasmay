@@ -878,6 +878,34 @@ def tiktok_nuevos_preparacion(_staff=Depends(require_staff)):
     return sal
 
 
+@router.get("/nuevos/lista")
+def tiktok_nuevos_lista(refrescar: bool = False, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Modelos del ERP que todavia no estan en TikTok y que les falta para poder subirse."""
+    import tiktok_nuevos
+    from routers.tiktok_excel import _cargar_erp
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    catalogo, e = _catalogo_tiktok(access, tienda.get("cipher", ""), forzar=refrescar)
+    if catalogo is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    lista = tiktok_nuevos.lista_nuevos(catalogo, _cargar_erp())
+    return {"total": len(lista), "listos": sum(1 for x in lista if x["listo"]), "modelos": lista}
+
+
+@router.post("/nuevos/publicar")
+def tiktok_nuevos_publicar(sku_interno: str, modo: str = "borrador", titulo: str = "", precio: float = 0, solo_vista: bool = False, _admin=Depends(require_admin)):
+    """Sube UN modelo nuevo a TikTok. modo=borrador lo deja como borrador de prueba (no se publica); modo=publicar lo crea publicado (pasa a revision de TikTok).
+    solo_vista=true arma el producto sin subir nada. Una llamada por modelo."""
+    import tiktok_nuevos
+    m = "LISTING" if modo == "publicar" else "AS_DRAFT"
+    r = tiktok_nuevos.publicar_modelo(sku_interno, modo=m, titulo=titulo or None, precio=precio or None, solo_vista=solo_vista)
+    if not r.get("ok"):
+        return JSONResponse(status_code=409, content=r)
+    return r
+
+
 @router.get("/comparar-existencias")
 def comparar_existencias(limite_productos: int = 0, crudo: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Lee de TikTok las existencias de cada SKU publicado y las compara con las del ERP (mismo cruce por SKU de vendedor que

@@ -24823,6 +24823,7 @@ const _TK_COLOR = '#fe2c55'
 const _TK_TABS = [
   { id: 'resumen',      label: 'Resumen',      icon: 'list' },
   { id: 'productos',    label: 'Productos',    icon: 'cart' },
+  { id: 'nuevos',       label: 'Subir nuevos', icon: 'plusCircle' },
   { id: 'fotos',        label: 'Fotos',        icon: 'star' },
   { id: 'existencias',  label: 'Existencias',  icon: 'refresh' },
   { id: 'pedidos',      label: 'Pedidos',      icon: 'dollar' },
@@ -24899,6 +24900,7 @@ window._tkSwitchTab = async (tab) => {
   try {
     if (tab === 'resumen') await _tkTabResumen()
     else if (tab === 'productos') await _tkTabProductos()
+    else if (tab === 'nuevos') await _tkTabNuevos()
     else if (tab === 'fotos') await _tkTabFotos()
     else if (tab === 'existencias') await _tkTabExistencias()
     else if (tab === 'pedidos') await _tkTabPedidos()
@@ -24994,6 +24996,72 @@ window._tkVerProducto = async (id) => {
         d.skus.map(s => `<tr>${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(s.seller_sku || '—')}</span>`)}${_tkTd(_e(s.atributos.map(a => a[1]).filter(Boolean).join(' · ')))}${_tkTd(_tkMXN(s.precio), true)}${_tkTd(`<span style="${s.existencias >= 9000 ? 'color:#b45309;font-weight:700' : ''}">${s.existencias}</span>`, true)}</tr>`), 'Sin SKUs')}
       <div id="tk-modal-res" style="margin-top:10px"></div>`
   } catch (e) { c.innerHTML = _tkError(e) }
+}
+
+// ── Subir modelos nuevos ──
+async function _tkTabNuevos(refrescar = false) {
+  const d = await _tkGet('/nuevos/lista' + (refrescar ? '?refrescar=true' : ''))
+  window._tkNuevos = d.modelos || []
+  window._tkNuevosSel = new Set(window._tkNuevos.filter(m => m.listo).map(m => m.sku_interno))
+  const filas = window._tkNuevos.map(m => `<tr>
+    ${_tkTd(m.listo ? `<input type="checkbox" checked data-tkn="${_e(m.sku_interno)}" onchange="window._tkNuevosToggle('${_e(m.sku_interno)}', this.checked)">` : '')}
+    ${_tkTd(`<input data-tkn-titulo="${_e(m.sku_interno)}" value="${_e(m.nombre || '')}" style="width:100%;min-width:230px;padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;font-family:inherit"><span style="font-size:0.7rem;color:#aaa;font-family:monospace">${_e(m.sku_interno)}</span>`)}
+    ${_tkTd(_e(m.categoria_tiktok))}${_tkTd(`${m.colores} col · ${m.skus} SKUs`)}${_tkTd(m.fotos, true)}${_tkTd(m.stock, true)}
+    ${_tkTd(`<input data-tkn-precio="${_e(m.sku_interno)}" type="number" value="${m.precio_tiktok}" style="width:84px;padding:0.35rem 0.4rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;text-align:right">`, true)}
+    ${_tkTd(`<span id="tk-n-${_e(m.sku_interno)}" style="font-size:0.78rem">${m.listo ? _tkBadge('Listo', '#166534', '#dcfce7') : `<span style="color:#b45309">${m.problemas.map(_e).join(' · ')}</span>`}${m.estaba_eliminado ? ' ' + _tkBadge('Estaba eliminado en TikTok', '#555', '#e5e7eb') : ''}</span>`)}
+    ${_tkTd(`<a style="font-size:0.74rem;color:#1d4ed8;cursor:pointer;text-decoration:underline" onclick="window._tkNuevoVista('${_e(m.sku_interno)}')">ver</a>`)}</tr>`)
+  document.getElementById('tk-body').innerHTML =
+    _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="max-width:720px"><h3 style="margin:0 0 3px;font-size:1rem">Subir modelos nuevos a TikTok Shop</h3>
+      <p style="margin:0;font-size:0.82rem;color:#888">Modelos del ERP que todavía <b>no están en TikTok</b>. Al subir un modelo, el sistema sube sus fotos (hasta 9: la portada y una de cada color), crea el producto con su categoría, la marca ZAPATILLAS MAY, cada talla y color con su SKU, el precio y las existencias del ERP. Puedes cambiar el título y el precio de cada uno antes de subirlo.</p></div>
+      ${_tkBtn('refresh', 'Volver a revisar', 'window._tkNuevosRefrescar()', 'secondary')}</div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:0.9rem;font-size:0.84rem"><span>Sin subir: <b>${d.total}</b></span><span>Listos: <b style="color:#166534">${d.listos}</b></span><span>Con pendientes: <b style="color:#b45309">${d.total - d.listos}</b></span></div>`)
+    + (d.total ? _tkCard(`
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:0.9rem">
+        <label style="font-size:0.82rem;color:#555">Al subir:
+          <select id="tk-n-modo" style="padding:0.45rem;border:1px solid #ddd;border-radius:8px;font-size:0.82rem;margin-left:4px">
+            <option value="borrador">Dejar como BORRADOR (prueba, no se publica)</option><option value="publicar">PUBLICAR (pasa a revisión de TikTok)</option></select></label>
+        ${_tkBtn('star', 'Probar solo con el primero', 'window._tkNuevosSubir(true)', 'warning')}
+        ${_tkBtn('star', 'Subir los seleccionados', 'window._tkNuevosSubir(false)', 'rosa')}
+        <span id="tk-n-cont" style="font-size:0.8rem;color:#888">${window._tkNuevosSel.size} seleccionados</span></div>
+      <div id="tk-n-res" style="margin-bottom:0.8rem"></div>
+      ${_tkTabla([{ t: '' }, { t: 'Título (editable)' }, { t: 'Categoría en TikTok' }, { t: 'Variantes' }, { t: 'Fotos', der: true }, { t: 'Existencias', der: true }, { t: 'Precio TikTok', der: true }, { t: 'Estado' }, { t: '' }], filas, '')}
+      <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Empieza con «BORRADOR» y «Probar solo con el primero»: el producto queda guardado en TikTok sin publicarse, lo revisas en tu Seller Center y, si está bien, ya subes los demás. Precio = el de la tienda (+$80) más $65 por el IVA de TikTok.</p>`)
+      : _tkCard(`<p style="margin:0;color:#166534;font-size:0.88rem">✅ Todos los modelos del ERP ya están en TikTok.</p>`))
+}
+window._tkNuevosRefrescar = async () => { document.getElementById('tk-body').innerHTML = '<p style="padding:2rem;color:#aaa">Revisando…</p>'; try { await _tkTabNuevos(true) } catch (e) { document.getElementById('tk-body').innerHTML = _tkError(e) } }
+window._tkNuevosToggle = (sku, on) => { if (on) window._tkNuevosSel.add(sku); else window._tkNuevosSel.delete(sku); const c = document.getElementById('tk-n-cont'); if (c) c.textContent = `${window._tkNuevosSel.size} seleccionados` }
+window._tkNuevoVista = async (sku) => {
+  try {
+    const res = await fetch(`${API}/tiktok/nuevos/publicar?sku_interno=${encodeURIComponent(sku)}&solo_vista=true`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || d.detail || ('Error ' + res.status))
+    alert(`Así se subiría ${sku}:\n\nTítulo: ${d.producto.title}\nCategoría: ${d.producto.category_id}\nFotos: ${d.fotos}\nVariantes (SKUs): ${d.skus}\nEjemplo de SKU: ${d.ejemplo_sku.seller_sku}\nPrecio: $${d.ejemplo_sku.price.amount}\nPaquete: ${d.producto.package_weight.value} kg · ${d.producto.package_dimensions.length}×${d.producto.package_dimensions.width}×${d.producto.package_dimensions.height} cm`)
+  } catch (e) { alert('No se pudo armar la vista: ' + e.message) }
+}
+window._tkNuevosSubir = async (soloUno) => {
+  let skus = window._tkNuevos.filter(m => m.listo && window._tkNuevosSel.has(m.sku_interno)).map(m => m.sku_interno)
+  if (soloUno) skus = skus.slice(0, 1)
+  if (!skus.length) { alert('No hay modelos listos seleccionados.'); return }
+  const modo = document.getElementById('tk-n-modo').value
+  if (!confirm(modo === 'publicar' ? `Vas a PUBLICAR ${skus.length} modelo(s) en TikTok Shop (pasan a revisión). ¿Confirmas?` : `Vas a guardar ${skus.length} modelo(s) como BORRADOR en TikTok (no se publican). ¿Confirmas?`)) return
+  const res = document.getElementById('tk-n-res')
+  let ok = 0; const fallas = []
+  for (const sku of skus) {
+    const el = document.getElementById('tk-n-' + sku)
+    if (el) el.innerHTML = '<span style="color:#1d4ed8">⏳ subiendo fotos y creando…</span>'
+    const titulo = (document.querySelector(`[data-tkn-titulo="${sku}"]`) || {}).value || ''
+    const precio = (document.querySelector(`[data-tkn-precio="${sku}"]`) || {}).value || ''
+    try {
+      const r = await fetch(`${API}/tiktok/nuevos/publicar?sku_interno=${encodeURIComponent(sku)}&modo=${modo}&titulo=${encodeURIComponent(titulo)}&precio=${encodeURIComponent(precio)}`, { method: 'POST' })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.ok) throw new Error((d.error || d.detail || ('Error ' + r.status)) + (d.codigo ? ` (código ${d.codigo})` : '') + (d.detalle && JSON.stringify(d.detalle) !== '{}' ? ' ' + JSON.stringify(d.detalle).slice(0, 220) : ''))
+      ok++
+      if (el) el.innerHTML = `<span style="color:#166534">✓ ${modo === 'publicar' ? 'enviado a revisión' : 'guardado como borrador'} · ${d.skus} SKUs · ${d.fotos_subidas} fotos</span>`
+    } catch (e) { fallas.push(`${sku}: ${e.message}`); if (el) el.innerHTML = `<span style="color:#991b1b">✗ ${_e(e.message.slice(0, 160))}</span>` }
+    if (res) res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${fallas.length ? '#fffbeb' : '#f0fdf4'};color:${fallas.length ? '#92400e' : '#166534'}">${ok} de ${skus.length} subidos${fallas.length ? ` · ${fallas.length} con error` : ''}${fallas.length ? `<br><span style="font-family:monospace;font-size:0.72rem">${_e(fallas[0].slice(0, 300))}</span>` : ''}</div>`
+    await new Promise(r => setTimeout(r, 2000))
+  }
 }
 
 // ── Fotos ──
