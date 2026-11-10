@@ -1021,6 +1021,57 @@ def _variantes_faltantes(d, prod, vs, inv):
     return faltan
 
 
+@router.get("/variantes-faltantes")
+def tiktok_variantes_faltantes(refrescar: bool = False, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Productos ACTIVOS en TikTok a los que les faltan colores/tallas que el ERP si tiene con existencias."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    from cache import cache_get, cache_set
+    if refrescar:
+        cache_set("tiktok_erp_cargado", None, ttl=1)
+        cache_set("tiktok_variantes_faltantes", None, ttl=1)
+    else:
+        c = cache_get("tiktok_variantes_faltantes")
+        if c is not None:
+            return c
+    productos, e = _catalogo_tiktok(access, cipher, forzar=refrescar)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    activos = [p for p in productos if p.get("status") == "ACTIVATE"]
+    cargado = _erp_cargado()
+    inv = cargado[2]
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _uno(p):
+        try:
+            r = _tiktok_api("GET", f"/product/202309/products/{p.get('id')}", access, extra_params={"shop_cipher": cipher})
+            if r.get("code") != 0:
+                return {"id": p.get("id"), "titulo": p.get("title"), "error": r.get("message")}
+            d = r.get("data") or {}
+            prod, vars_ = _producto_erp_de_tiktok(d, cargado)
+            if not prod:
+                return {"id": p.get("id"), "titulo": d.get("title"), "sin_modelo_erp": True}
+            if not any(_es_color(a) for a in ((d.get("skus") or [{}])[0].get("sales_attributes") or [])):
+                return {"id": p.get("id"), "titulo": d.get("title"), "sin_color": True}
+            faltan = _variantes_faltantes(d, prod, vars_, inv)
+            return {"id": p.get("id"), "titulo": d.get("title"), "sku_interno": prod.get("sku_interno"), "skus_tiktok": len(d.get("skus") or []),
+                    "faltan": [{"color": c, "talla": tl, "cantidad": q} for c, tl, q, _v in faltan]}
+        except Exception as ex:
+            return {"id": p.get("id"), "titulo": p.get("title"), "error": str(ex)[:100]}
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        filas = list(ex.map(_uno, activos))
+    con_faltas = sorted([f for f in filas if f.get("faltan")], key=lambda f: -len(f["faltan"]))
+    salida = {"activos_revisados": len(filas), "con_variantes_faltantes": len(con_faltas), "variantes_en_total": sum(len(f["faltan"]) for f in con_faltas),
+              "sin_modelo_erp": sum(1 for f in filas if f.get("sin_modelo_erp")), "sin_atributo_color": sum(1 for f in filas if f.get("sin_color")),
+              "con_error": sum(1 for f in filas if f.get("error")), "productos": con_faltas}
+    cache_set("tiktok_variantes_faltantes", salida, ttl=600)
+    return salida
+
+
 @router.post("/producto/{producto_id}/completar-variantes")
 def tiktok_completar_variantes(producto_id: str, confirmar: bool = False, _staff=Depends(require_staff)):
     """ESCRIBE EN TIKTOK (solo con confirmar=true). Agrega al producto los colores/tallas que ya existen con existencias en el ERP pero que
@@ -1104,6 +1155,7 @@ def tiktok_completar_variantes(producto_id: str, confirmar: bool = False, _staff
         return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": "TikTok rechazo el cambio", "codigo": e.get("code"), "mensaje": e.get("message"), "detalle": e.get("data")})
     from cache import cache_set
     cache_set("tiktok_catalogo", None, ttl=1)
+    cache_set("tiktok_variantes_faltantes", None, ttl=1)
     return {**resumen, "hecho": True, "agregados": len(nuevos), "respuesta_tiktok": e.get("data")}
 
 

@@ -24825,6 +24825,7 @@ const _TK_TABS = [
   { id: 'productos',    label: 'Productos',    icon: 'cart' },
   { id: 'nuevos',       label: 'Subir nuevos', icon: 'plusCircle' },
   { id: 'fotos',        label: 'Fotos',        icon: 'star' },
+  { id: 'variantes',    label: 'Variantes',    icon: 'plusCircle' },
   { id: 'existencias',  label: 'Existencias',  icon: 'refresh' },
   { id: 'pedidos',      label: 'Pedidos',      icon: 'dollar' },
   { id: 'devoluciones', label: 'Devoluciones', icon: 'xCircle' },
@@ -24902,6 +24903,7 @@ window._tkSwitchTab = async (tab) => {
     else if (tab === 'productos') await _tkTabProductos()
     else if (tab === 'nuevos') await _tkTabNuevos()
     else if (tab === 'fotos') await _tkTabFotos()
+    else if (tab === 'variantes') await _tkTabVariantes()
     else if (tab === 'existencias') await _tkTabExistencias()
     else if (tab === 'pedidos') await _tkTabPedidos()
     else if (tab === 'devoluciones') await _tkTabDevoluciones()
@@ -25156,6 +25158,58 @@ window._tkActualizarFotosUno = async (id, btn) => {
   catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
 }
 
+// ── Variantes faltantes (todos los modelos) ──
+async function _tkTabVariantes(refrescar = false) {
+  const d = await _tkGet('/variantes-faltantes' + (refrescar ? '?refrescar=true' : ''))
+  window._tkVarLista = d.productos || []
+  window._tkVarSel = new Set(window._tkVarLista.map(p => p.id))
+  const filas = window._tkVarLista.map(p => `<tr>
+    ${_tkTd(`<input type="checkbox" checked onchange="window._tkVarToggle('${p.id}', this.checked)">`)}
+    ${_tkTd(`<b>${_e((p.titulo || '').slice(0, 64))}</b><br><span style="font-size:0.7rem;color:#aaa;font-family:monospace">${_e(p.sku_interno || '')}</span>`)}
+    ${_tkTd(`${p.skus_tiktok}`, true)}
+    ${_tkTd(`<b style="color:#166534">${p.faltan.length}</b> <span style="font-size:0.72rem;color:#888">${_e(p.faltan.slice(0, 6).map(x => x.color + ' ' + x.talla).join(', ') + (p.faltan.length > 6 ? '…' : ''))}</span>`)}
+    ${_tkTd(`<span id="tk-v-${p.id}" style="font-size:0.78rem;color:#888">pendiente</span>`)}</tr>`)
+  document.getElementById('tk-body').innerHTML =
+    _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><h3 style="margin:0 0 3px;font-size:1rem">Colores y tallas que faltan en TikTok</h3>
+      <p style="margin:0;font-size:0.82rem;color:#888">Modelos activos a los que les faltan colores o tallas que <b>el ERP sí tiene con existencias</b> (por ejemplo, un modelo que se subió cuando solo había un color). Se agregan con la foto de su color, el mismo precio y las existencias del ERP.</p></div>
+      ${_tkBtn('refresh', 'Volver a revisar', 'window._tkVarRefrescar()', 'secondary')}</div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:0.9rem;font-size:0.84rem">
+        <span>Activos revisados: <b>${d.activos_revisados}</b></span><span>Con faltantes: <b style="color:${_TK_COLOR}">${d.con_variantes_faltantes}</b></span><span>Variantes por agregar: <b>${d.variantes_en_total}</b></span>${d.sin_modelo_erp ? `<span style="color:#b45309">Sin modelo en el ERP: <b>${d.sin_modelo_erp}</b></span>` : ''}${d.con_error ? `<span style="color:#b45309">Con error al leer: <b>${d.con_error}</b></span>` : ''}</div>`)
+    + (d.con_variantes_faltantes ? _tkCard(`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.9rem">
+        ${_tkBtn('plusCircle', 'Probar solo con el primero', 'window._tkVarAplicar(true)', 'warning')}
+        ${_tkBtn('plusCircle', 'Agregar a los seleccionados', 'window._tkVarAplicar(false)', 'rosa')}
+        <label style="font-size:0.8rem;color:#666;cursor:pointer"><input type="checkbox" checked onchange="window._tkVarTodos(this.checked)"> Seleccionar todos</label>
+        <span id="tk-v-contador" style="font-size:0.8rem;color:#888">${d.con_variantes_faltantes} seleccionados</span>
+      </div>
+      <div id="tk-v-res" style="margin-bottom:0.8rem"></div>
+      ${_tkTabla([{ t: '' }, { t: 'Modelo' }, { t: 'SKUs en TikTok', der: true }, { t: 'Faltan' }, { t: 'Estado' }], filas, '')}
+      <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">TikTok puede volver a revisar cada producto después del cambio y tardar en mostrar las variantes nuevas. Los SKUs que ya existen se reenvían completos, sin cambios.</p>`)
+      : _tkCard(`<p style="margin:0;color:#166534;font-size:0.88rem">✅ Todos los modelos activos tienen ya todas las variantes con existencias del ERP.</p>`))
+}
+window._tkVarRefrescar = async () => { document.getElementById('tk-body').innerHTML = '<p style="padding:2rem;color:#aaa">Revisando los productos activos de TikTok… puede tardar un minuto.</p>'; try { await _tkTabVariantes(true) } catch (e) { document.getElementById('tk-body').innerHTML = _tkError(e) } }
+window._tkVarContar = () => { const c = document.getElementById('tk-v-contador'); if (c) c.textContent = `${window._tkVarSel.size} seleccionados` }
+window._tkVarToggle = (id, on) => { if (on) window._tkVarSel.add(id); else window._tkVarSel.delete(id); window._tkVarContar() }
+window._tkVarTodos = (on) => { window._tkVarSel = new Set(on ? window._tkVarLista.map(p => p.id) : []); document.querySelectorAll('#tk-body input[type=checkbox]').forEach(el => { if (el.getAttribute('onchange') && el.getAttribute('onchange').includes('_tkVarToggle')) el.checked = on }); window._tkVarContar() }
+window._tkVarAplicar = async (soloUno) => {
+  let ids = window._tkVarLista.filter(p => window._tkVarSel.has(p.id)).map(p => p.id)
+  if (soloUno) ids = ids.slice(0, 1)
+  if (!ids.length) { alert('No hay modelos seleccionados.'); return }
+  if (!confirm(`Vas a agregar las variantes que faltan en ${ids.length} producto(s) de TikTok Shop. TikTok puede volver a revisarlos. ¿Confirmas?`)) return
+  const res = document.getElementById('tk-v-res'); let ok = 0; const fallas = []
+  for (const id of ids) {
+    const el = document.getElementById('tk-v-' + id)
+    if (el) { el.textContent = '⏳ agregando…'; el.style.color = '#1d4ed8' }
+    try {
+      const r = await fetch(`${API}/tiktok/producto/${id}/completar-variantes?confirmar=true`, { method: 'POST' }); const d = await r.json().catch(() => ({}))
+      if (!r.ok || !d.hecho) throw new Error(d.mensaje ? `${d.error || 'Error'}: ${d.mensaje}` : (d.error || d.detail || d.mensaje || ('Error ' + r.status)))
+      ok++; if (el) { el.textContent = `✓ ${d.agregados} agregadas`; el.style.color = '#166534' }
+    } catch (e) { fallas.push(e.message); if (el) { el.textContent = '✗ ' + e.message.slice(0, 80); el.style.color = '#991b1b' } }
+    if (res) res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${fallas.length ? '#fffbeb' : '#f0fdf4'};color:${fallas.length ? '#92400e' : '#166534'}">${ok} de ${ids.length} listos${fallas.length ? ` · ${fallas.length} con error` : ''}</div>`
+    await new Promise(r => setTimeout(r, 1500))
+  }
+}
 window._tkCompletarVariantes = async (id, btn) => {
   const out = document.getElementById('tk-modal-res'); const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '⏳ Revisando…'
   try {
