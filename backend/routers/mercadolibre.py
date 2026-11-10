@@ -2094,7 +2094,8 @@ def _hacer_sync_devoluciones(forzar: bool = False) -> dict:
                 d = ml_get(f"/post-purchase/v2/claims/{claim_id}/returns")
             except HTTPException as e:
                 if e.status_code == 429:
-                    resultado["errores"].append({"claim": claim_id, "codigo": 429, "detalle": "ML pidió esperar; se continúa en la siguiente revisión"})
+                    # Pausa normal de MercadoLibre (límite de consultas), no una falla: se sigue en la siguiente revisión
+                    resultado["en_espera"] = f"ML pidió esperar (reclamo {claim_id}); se continúa en la siguiente revisión"
                     break
                 continue          # 404 u otros: ese reclamo no tiene devolución consultable
             envios = [s for s in (d.get("shipments") or []) if isinstance(s, dict) and s.get("type") == "return"]
