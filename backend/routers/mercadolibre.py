@@ -455,7 +455,10 @@ def _get_items_with_sku(all_ids: list) -> list:
     items = []
     for i in range(0, len(all_ids), 20):
         batch = ",".join(all_ids[i:i+20])
-        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
+        try:
+            resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
+        except HTTPException as e:
+            raise HTTPException(e.status_code, f"{e.detail} [lote {i // 20 + 1} de {(len(all_ids) + 19) // 20}: {batch[:60]}...]")
         for entry in resp:
             if entry.get("code") != 200:
                 continue
