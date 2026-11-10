@@ -233,6 +233,82 @@ def diagnostico(_staff=Depends(require_staff)):
     return salida
 
 
+@router.get("/comparar-existencias")
+def comparar_existencias(limite_productos: int = 0, crudo: bool = False, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Lee de TikTok las existencias de cada SKU publicado y las compara con las del ERP (mismo cruce por SKU de vendedor que
+    usa el Excel de existencias). No escribe nada en TikTok ni en el ERP.
+    - limite_productos: revisa solo los primeros N productos de TikTok (0 = todos).
+    - crudo=true: incluye el JSON del primer producto de TikTok para ver su estructura."""
+    from routers.tiktok_excel import _cargar_erp, _buscar_qty
+    access = _token_vigente()
+    if not access:
+        return JSONResponse(status_code=401, content={"error": "Sin token vigente de TikTok"})
+    r = _tiktok_api("GET", "/authorization/202309/shops", access)
+    tiendas = (r.get("data") or {}).get("shops") or []
+    if not tiendas:
+        return JSONResponse(status_code=502, content={"error": "TikTok no devolvio tiendas", "detalle": r.get("message")})
+    cipher = tiendas[0].get("cipher", "")
+
+    productos_tt, token_pag, paginas = [], "", 0
+    while True:
+        extra = {"page_size": "100", "shop_cipher": cipher}
+        if token_pag:
+            extra["page_token"] = token_pag
+        p = _tiktok_api("POST", "/product/202309/products/search", access, body={}, extra_params=extra)
+        if p.get("code") != 0:
+            return JSONResponse(status_code=502, content={"error": "TikTok rechazo la busqueda de productos", "codigo": p.get("code"), "mensaje": p.get("message")})
+        d = p.get("data") or {}
+        productos_tt.extend(d.get("products") or [])
+        paginas += 1
+        token_pag = d.get("next_page_token") or ""
+        if not token_pag or (limite_productos and len(productos_tt) >= limite_productos) or paginas >= 40:
+            break
+    if limite_productos:
+        productos_tt = productos_tt[:limite_productos]
+
+    salida = {"productos_revisados": len(productos_tt)}
+    if crudo and productos_tt:
+        salida["primer_producto_crudo"] = productos_tt[0]
+    _, _, _, inv_por_sku = _cargar_erp()
+
+    skus_total = sin_inventario = sin_sku = sin_match = iguales = 0
+    mas_en_tiktok, menos_en_tiktok = [], []
+    for prod in productos_tt:
+        for s in prod.get("skus") or []:
+            skus_total += 1
+            sv = (s.get("seller_sku") or "").strip()
+            inv = s.get("inventory")
+            if inv is None:
+                sin_inventario += 1
+                continue
+            qtt = sum(int(i.get("quantity") or 0) for i in inv)
+            if not sv:
+                sin_sku += 1
+                continue
+            qerp = _buscar_qty(sv, inv_por_sku)
+            if qerp is None:
+                sin_match += 1
+                continue
+            fila = {"sku": sv, "producto": (prod.get("title") or "")[:40], "tiktok": qtt, "erp": qerp}
+            if qtt == qerp:
+                iguales += 1
+            elif qtt > qerp:
+                mas_en_tiktok.append(fila)      # TikTok muestra MAS de lo que hay: riesgo de vender de mas
+            else:
+                menos_en_tiktok.append(fila)    # TikTok muestra MENOS de lo que hay: ventas perdidas
+    mas_en_tiktok.sort(key=lambda f: f["tiktok"] - f["erp"], reverse=True)
+    menos_en_tiktok.sort(key=lambda f: f["erp"] - f["tiktok"], reverse=True)
+    salida.update({
+        "skus_en_tiktok": skus_total, "sin_inventario_en_la_busqueda": sin_inventario, "sin_sku_vendedor": sin_sku,
+        "sin_match_en_erp": sin_match, "iguales": iguales,
+        "tiktok_muestra_mas_que_erp": len(mas_en_tiktok), "tiktok_muestra_menos_que_erp": len(menos_en_tiktok),
+        "pares_de_mas_en_tiktok": sum(f["tiktok"] - f["erp"] for f in mas_en_tiktok),
+        "pares_de_menos_en_tiktok": sum(f["erp"] - f["tiktok"] for f in menos_en_tiktok),
+        "ejemplos_de_mas": mas_en_tiktok[:25], "ejemplos_de_menos": menos_en_tiktok[:25],
+    })
+    return salida
+
+
 @router.post("/sync-stock")
 def sync_stock():
     """
