@@ -205,7 +205,7 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
     return {"enviadas": enviadas, "fallidas": fallidas, "codigos_error": codigos}
 
 
-_NOMBRE_CANAL = {"mercadolibre": "MercadoLibre", "amazon": "Amazon", "shein": "SHEIN", "walmart": "Walmart"}
+_NOMBRE_CANAL = {"mercadolibre": "MercadoLibre", "amazon": "Amazon", "shein": "SHEIN", "walmart": "Walmart", "tiktok": "TikTok Shop"}
 
 
 def avisar_venta_canal(canal: str, items: list, total: float, fecha=None):

@@ -70,7 +70,7 @@ def _cuenta_en_tu_utilidad(canal, origen_cliente):
         return True
     if origen_cliente == 'llego_solo':
         return canal != 'shein'
-    if canal in ('web', 'online', 'mercadolibre', 'whatsapp'):
+    if canal in ('web', 'online', 'mercadolibre', 'whatsapp', 'tiktok'):   # 'tiktok' = pedidos que el sistema importa solo de TikTok Shop
         return True
     if canal == 'portal_mayoreo':
         return origen_cliente in _ORIGEN_PROPIO

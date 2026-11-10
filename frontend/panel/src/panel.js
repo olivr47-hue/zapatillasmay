@@ -10989,7 +10989,7 @@ window.guardarTraspaso = async () => {
 // ¿Está esperando envío? Confirmado/pagado, sin guía, que no sea venta de sucursal ni "recoge en tienda".
 // Antes "Por enviar" solo contaba el estado `pagado` con pago en línea: los pedidos CONFIRMADOS sin guía (p. ej. los del portal
 // mayorista) no aparecían en ninguna lista de trabajo.
-const _CANALES_CON_ENVIO = ['web', 'online', 'whatsapp', 'mercadolibre', 'shein', 'walmart', 'amazon', 'portal_mayoreo', 'mayoreo']
+const _CANALES_CON_ENVIO = ['web', 'online', 'whatsapp', 'mercadolibre', 'shein', 'walmart', 'amazon', 'tiktok', 'portal_mayoreo', 'mayoreo']
 window._pedEsPorEnviar = (p) =>
   ['pagado', 'confirmado'].includes(p.status) && !p.numero_guia &&
   (_CANALES_CON_ENVIO.includes(p.canal) || p.mp_preference_id || p.mp_payment_id) &&
@@ -11024,7 +11024,7 @@ function _renderFilaPedido(p) {
   const _gid = p.canal === 'mercadolibre' ? p.ml_order_id : (p.canal === 'shein' ? p.shein_order_id : '')
   const btnGuia = _gid && !['entregado', 'cancelado', 'devuelto', 'reembolsado', 'borrador'].includes(p.status)
     ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
-  const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon'].includes(p.canal) ? (p.pedido_items || []) : []
+  const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon', 'tiktok'].includes(p.canal) ? (p.pedido_items || []) : []
   const parPedido = _itemsMkt.length
     ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => { const col = i.color_real || i.color, tal = i.talla_real || i.talla; return `👟 <strong>${_e(i.modelo_real || i.nombre || 'Producto')}</strong>${col ? ' · ' + _e(col) : ''}${tal ? ' · <strong>talla ' + _e(tal) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}` }).join('<br>')}</div>` : ''
   let acciones = ''
@@ -11059,7 +11059,7 @@ function _renderFilaPedido(p) {
       </td>
       <td data-label="Canal">${{
         web: '🌐 Web', sucursal: '🏬 Sucursal', whatsapp: '💬 WhatsApp', mercadolibre: '🛒 MercadoLibre',
-        portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart',
+        portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart', tiktok: '🎵 TikTok',
       }[p.canal] || p.canal || (p.mp_preference_id ? '🌐 Web' : '—')}</td>
       <td data-label="Total"><strong>$${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}</strong></td>
       <td data-label="Pago">${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}${chipCredito}</td>
@@ -11310,7 +11310,7 @@ async function cargarPedidos() {
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
           ${pill('', `Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span>`, 'pill-active')}
-          ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}
+          ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}${pill('tiktok', '🎵 TikTok')}
           ${pill('pendiente_pago', 'SPEI/OXXO pendiente', 'pill-warning')}
           ${pill('comprobantes', `📎 Comprobantes por revisar ${conComprobante > 0 ? `<span style="opacity:0.75;font-weight:400">${conComprobante}</span>` : ''}`, 'pill-info')}
           ${pill('comprobantes_todos', `📎 Todos los comprobantes <span style="opacity:0.75;font-weight:400">${data.filter(p => (window._pedCompResumen[p.id] || {}).total > 0).length}</span>`, 'pill-info')}
@@ -24874,6 +24874,17 @@ async function cargarTikTok() {
   window._tkSwitchTab(window._tkTabActivo || 'resumen')
 }
 
+window._tkSyncVentas = async (btn) => {
+  const out = document.getElementById('tk-sync-ventas-res'); const orig = btn.innerHTML; btn.innerHTML = '⏳ Sincronizando…'; btn.disabled = true
+  try {
+    const res = await fetch(`${API}/tiktok/sync-ventas`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
+    const ok = !(d.errores && d.errores.length)
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${ok ? '#f0fdf4' : '#fffbeb'};color:${ok ? '#166534' : '#92400e'}">${d.activo === false ? 'El registro de pedidos está apagado.' : `${d.revisadas} pedido(s) revisados · nuevos: ${d.procesadas} · enviados: ${d.enviados} · entregados: ${d.entregados} · cancelados: ${d.cancelados}`}${(d.sin_match || []).length ? `<br>Sin ligar al inventario: ${d.sin_match.map(x => _e(x.sku)).join(', ')}` : ''}${!ok ? `<br>${_e(JSON.stringify(d.errores[0]).slice(0, 200))}` : ''}</div>`
+  } catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
 window._tkSwitchTab = async (tab) => {
   window._tkTabActivo = tab
   document.querySelectorAll('#tk-tabs .tk-tab-btn').forEach(b => {
@@ -24889,7 +24900,7 @@ window._tkSwitchTab = async (tab) => {
     if (tab === 'resumen') await _tkTabResumen()
     else if (tab === 'productos') await _tkTabProductos()
     else if (tab === 'fotos') await _tkTabFotos()
-    else if (tab === 'existencias') _tkTabExistencias()
+    else if (tab === 'existencias') await _tkTabExistencias()
     else if (tab === 'pedidos') await _tkTabPedidos()
     else if (tab === 'devoluciones') await _tkTabDevoluciones()
     else if (tab === 'finanzas') await _tkTabFinanzas()
@@ -25049,27 +25060,64 @@ window._tkActualizarFotosUno = async (id, btn) => {
 }
 
 // ── Existencias ──
-function _tkTabExistencias() {
-  document.getElementById('tk-body').innerHTML = _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <div><h3 style="margin:0 0 3px;font-size:1rem">Existencias: TikTok contra el ERP</h3><p style="margin:0;font-size:0.82rem;color:#888">Compara cada SKU de tus productos <b>activos</b>. Solo lectura: no cambia nada.</p></div>
-    ${_tkBtn('search', 'Comparar ahora', 'window._tkComparar(this)', 'primary')}</div><div id="tk-cmp" style="margin-top:1rem"></div>`)
+async function _tkTabExistencias() {
+  let auto = { existencias: false, ventas_desde: null }
+  try { auto = await _tkGet('/automatico') } catch (e) {}
+  window._tkAuto = auto
+  document.getElementById('tk-body').innerHTML =
+    _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="max-width:640px"><h3 style="margin:0 0 3px;font-size:1rem">Existencias automáticas ${auto.existencias ? _tkBadge('Encendidas', '#166534', '#dcfce7') : _tkBadge('Apagadas', '#92400e', '#fef3c7')}</h3>
+      <p style="margin:0;font-size:0.82rem;color:#888">Cada 30 minutos el sistema compara cada talla y color <b>activo</b> de TikTok con el ERP y manda solo las que cambiaron. No toca los SKUs sin «SKU de vendedor» ni los que no encuentra en el ERP. Si de golpe quisiera cambiar más del 60% de los SKUs, se detiene y no manda nada.</p></div>
+      ${_tkBtn('refresh', auto.existencias ? 'Apagar' : 'Encender', `window._tkAutoCambiar('existencias','${auto.existencias ? 'off' : 'on'}')`, auto.existencias ? 'secondary' : 'rosa')}</div>`)
+    + _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><h3 style="margin:0 0 3px;font-size:1rem">Ver qué cambiaría en TikTok</h3><p style="margin:0;font-size:0.82rem;color:#888">Solo lectura. Te muestra cuántos SKUs subirían o bajarían antes de tocar nada.</p></div>
+      ${_tkBtn('search', 'Ver el plan', 'window._tkPlan(this)', 'primary')}</div><div id="tk-plan" style="margin-top:1rem"></div>`)
 }
-window._tkComparar = async (btn) => {
-  const out = document.getElementById('tk-cmp'); const orig = btn.innerHTML; btn.innerHTML = '⏳ Comparando…'; btn.disabled = true
-  out.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Leyendo existencias de TikTok (tarda unos 30 segundos)…</p>'
+window._tkAutoCambiar = async (cual, valor) => {
+  const q = cual === 'existencias' ? `existencias=${valor}` : `ventas=${valor}`
+  const msg = valor === 'on'
+    ? (cual === 'existencias' ? 'Vas a ENCENDER la actualización automática de existencias en TikTok (cada 30 min). Antes conviene haber probado «Ver el plan» y «Probar con 1 producto». ¿Encender?'
+       : 'Vas a ENCENDER el registro automático de pedidos de TikTok. Solo se importarán los pedidos nuevos desde este momento; los anteriores no se tocan. ¿Encender?')
+    : '¿Apagar esta sincronización?'
+  if (!confirm(msg)) return
   try {
-    const d = await _tkGet('/comparar-existencias')
-    const tabla = (lista) => _tkTabla([{ t: 'SKU' }, { t: 'Producto' }, { t: 'TikTok', der: true }, { t: 'ERP', der: true }],
-      lista.map(f => `<tr>${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(f.sku)}</span>`)}${_tkTd(_e(f.producto))}${_tkTd(f.tiktok, true, f.tiktok >= 9000 ? 'color:#b45309;font-weight:700' : '')}${_tkTd(f.erp, true)}</tr>`), 'Ninguno.')
+    const res = await fetch(`${API}/tiktok/automatico?${q}`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
+    window._tkSwitchTab(window._tkTabActivo)
+  } catch (e) { alert('No se pudo cambiar: ' + e.message) }
+}
+window._tkPlan = async (btn) => {
+  const out = document.getElementById('tk-plan'); const orig = btn.innerHTML; btn.innerHTML = '⏳ Calculando…'; btn.disabled = true
+  out.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Leyendo TikTok y el ERP (unos 30 segundos)…</p>'
+  try {
+    const d = await _tkGet('/existencias/plan?refrescar=true')
+    window._tkPlanDatos = d
+    const tabla = _tkTabla([{ t: 'SKU' }, { t: 'Producto' }, { t: 'TikTok hoy', der: true }, { t: 'Quedaría', der: true }],
+      d.ejemplos.map(f => `<tr>${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(f.sku)}</span>`)}${_tkTd(_e(f.titulo))}${_tkTd(f.de, true, f.de >= 9000 ? 'color:#b45309;font-weight:700' : '')}${_tkTd(f.a, true, 'font-weight:700')}</tr>`), 'TikTok ya coincide con el ERP.')
     out.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:1rem">
-      ${_tkStat(d.skus_en_tiktok.toLocaleString('es-MX'), 'SKUs activos en TikTok')}${_tkStat(d.iguales.toLocaleString('es-MX'), 'Coinciden con el ERP', '#166534')}
-      ${_tkStat(d.tiktok_muestra_mas_que_erp.toLocaleString('es-MX'), 'TikTok muestra MÁS', '#b45309', 'riesgo de vender lo que no hay')}${_tkStat(d.tiktok_muestra_menos_que_erp.toLocaleString('es-MX'), 'TikTok muestra MENOS', '#1d4ed8', 'ventas que se pierden')}
-      ${_tkStat(d.sin_match_en_erp.toLocaleString('es-MX'), 'Sin match en el ERP', '#888')}${_tkStat(d.sin_sku_vendedor.toLocaleString('es-MX'), 'Sin SKU de vendedor', '#888')}</div>
-      <h4 style="margin:0.5rem 0 6px;font-size:0.9rem">TikTok muestra más de lo que hay (los 25 con más diferencia)</h4>${tabla(d.ejemplos_de_mas)}
-      <h4 style="margin:1rem 0 6px;font-size:0.9rem">TikTok muestra menos de lo que hay (los 25 con más diferencia)</h4>${tabla(d.ejemplos_de_menos)}
-      <p style="margin:0.9rem 0 0;font-size:0.74rem;color:#aaa">Para corregirlo hoy se usa el Excel (pestaña «Excel»). La actualización automática de existencias todavía está apagada: primero hay que probarla con un producto.</p>`
+      ${_tkStat(d.revisados.toLocaleString('es-MX'), 'SKUs que se pueden comparar')}${_tkStat(d.iguales.toLocaleString('es-MX'), 'Ya coinciden', '#166534')}
+      ${_tkStat(d.cambios.toLocaleString('es-MX'), 'Cambiarían', _TK_COLOR, `en ${d.productos_afectados} producto(s)`)}
+      ${_tkStat(d.bajarian.toLocaleString('es-MX'), 'Bajarían', '#b45309', 'evita vender de más')}${_tkStat(d.subirian.toLocaleString('es-MX'), 'Subirían', '#1d4ed8', 'ventas que se pierden hoy')}
+      ${_tkStat(d.de_relleno_9000_o_mas.toLocaleString('es-MX'), 'Con número de relleno', '#b45309', '9,000 o más')}
+      ${_tkStat((d.sin_match + d.sin_sku + d.varias_bodegas).toLocaleString('es-MX'), 'No se tocan', '#888', `${d.sin_match} sin match · ${d.sin_sku} sin SKU · ${d.varias_bodegas} otras bodegas`)}</div>
+      ${d.cambios ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.9rem">${_tkBtn('refresh', 'Probar con 1 producto', 'window._tkAplicar(1, this)', 'warning')}${_tkBtn('refresh', 'Actualizar todo ahora', 'window._tkAplicar(0, this)', 'rosa')}</div><div id="tk-aplicar-res" style="margin-bottom:0.9rem"></div>` : ''}
+      <h4 style="margin:0.4rem 0 6px;font-size:0.9rem">Los ${d.ejemplos.length} cambios más grandes</h4>${tabla}`
   } catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
 }
+window._tkAplicar = async (limite, btn) => {
+  const d = window._tkPlanDatos || {}
+  const msg = limite ? 'Vas a cambiar las existencias de UN producto en TikTok (el primero con cambios). ¿Confirmas?' : `Vas a cambiar las existencias de ${d.cambios} SKU(s) en ${d.productos_afectados} producto(s) de TikTok. ¿Confirmas?`
+  if (!confirm(msg)) return
+  const out = document.getElementById('tk-aplicar-res'); const orig = btn.innerHTML; btn.innerHTML = '⏳ Actualizando…'; btn.disabled = true
+  try {
+    const res = await fetch(`${API}/tiktok/existencias/aplicar?confirmar=true&${limite ? 'limite_productos=1' : 'todo=true'}`, { method: 'POST' })
+    const r = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(r.detail || r.error || ('Error ' + res.status))
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${r.error ? '#fffbeb' : '#f0fdf4'};color:${r.error ? '#92400e' : '#166534'}">${r.mensaje ? _e(r.mensaje) : `✅ ${r.ok} SKU(s) actualizados${r.error ? ` · ${r.error} con error` : ''}.`}${(r.ejemplos || []).length && limite ? `<br>Producto: ${_e(r.ejemplos[0].titulo)} — revísalo en TikTok.` : ''}${r.errores && r.errores.length ? `<br><span style="font-family:monospace;font-size:0.72rem">${_e(JSON.stringify(r.errores[0]).slice(0, 220))}</span>` : ''}</div>`
+  } catch (e) { out.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+window._tkComparar = async (btn) => { window._tkPlan(btn) }
 
 // ── Pedidos ──
 async function _tkTabPedidos() {
@@ -25082,12 +25130,19 @@ async function _tkTabPedidos() {
     ${_tkTd(p.guia ? `<span style="font-family:monospace;font-size:0.74rem">${_e(p.guia)}</span>` : '<span style="color:#aaa">—</span>')}
     ${_tkTd(`<span style="color:#888">${_tkFecha(p.creado)}</span>`)}</tr>`)
   const cobrado = d.pedidos.filter(p => p.estado !== 'CANCELLED').reduce((s, p) => s + Number(p.total || 0), 0)
-  document.getElementById('tk-body').innerHTML = _tkCard(`
+  let auto = { ventas_desde: null }
+  try { auto = await _tkGet('/automatico') } catch (e) {}
+  const activo = !!auto.ventas_desde
+  document.getElementById('tk-body').innerHTML = _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="max-width:680px"><h3 style="margin:0 0 3px;font-size:1rem">Registrar pedidos de TikTok en tu sección de Pedidos ${activo ? _tkBadge('Encendido', '#166534', '#dcfce7') : _tkBadge('Apagado', '#92400e', '#fef3c7')}</h3>
+      <p style="margin:0;font-size:0.82rem;color:#888">Cada 10 minutos cada pedido <b>nuevo</b> de TikTok crea un pedido en el ERP, descuenta el inventario y te avisa con la notificación de venta; después lo pone al día (enviado, entregado o cancelado, y regresa el par al inventario si se cancela antes de enviarse). ${activo ? `Activo desde ${_tkFecha(auto.ventas_desde)}: los pedidos anteriores no se tocan.` : 'Al encenderlo solo se importan los pedidos que lleguen desde ese momento; los anteriores no se tocan.'}</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${activo ? _tkBtn('refresh', 'Sincronizar ahora', 'window._tkSyncVentas(this)', 'primary') : ''}${_tkBtn('refresh', activo ? 'Apagar' : 'Encender', `window._tkAutoCambiar('ventas','${activo ? 'off' : 'on'}')`, activo ? 'secondary' : 'rosa')}</div></div>
+      <div id="tk-sync-ventas-res" style="margin-top:0.8rem"></div>`) + _tkCard(`
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
       <select onchange="window._tkPedDias=Number(this.value);window._tkSwitchTab('pedidos')" style="padding:0.55rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem">${[7, 30, 60, 90].map(n => `<option value="${n}" ${window._tkPedDias === n ? 'selected' : ''}>Últimos ${n} días</option>`).join('')}</select>
       <span style="font-size:0.82rem;color:#888">${d.total_en_pagina} pedido(s) · sin contar cancelados: <b style="color:#166534">${_tkMXN(cobrado)}</b>${d.hay_mas ? ' · hay más de 100, se muestran los más recientes' : ''}</span></div>
     ${_tkTabla([{ t: 'Pedido' }, { t: 'Estado' }, { t: 'Modelo / variante' }, { t: 'Total', der: true }, { t: 'Paquetería' }, { t: 'Guía' }, { t: 'Fecha' }], filas, 'No hay pedidos en ese periodo.')}
-    <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Por ahora los pedidos de TikTok se ven aquí; todavía no se registran solos en Pedidos ni descuentan el inventario como los de MercadoLibre.</p>`)
+    <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Esta lista es lo que dice TikTok. Los pedidos ya registrados en el ERP se ven en la sección Pedidos con la etiqueta 🎵 TikTok.</p>`)
 }
 
 // ── Devoluciones ──

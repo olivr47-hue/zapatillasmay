@@ -112,7 +112,7 @@ def _avisar_envio_whatsapp(p, paqueteria, guia):
             c = (supabase_get(f"clientes?id=eq.{cid}&select=nombre,telefono") or [{}])[0]
             tel = tel or (c.get("telefono") or "").strip()
             nombre = nombre or (c.get("nombre") or "").strip()
-        if not tel or p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon"):
+        if not tel or p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon", "tiktok"):
             return False
         from telefonos import a_e164_mx
         from routers.chatbot import enviar_whatsapp_plantilla
@@ -435,7 +435,7 @@ def _marcar_modelo_real(filas):
     try:
         ids = set()
         for p in filas:
-            if p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon") and p.get("status") not in ("entregado", "cancelado", "devuelto"):
+            if p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon", "tiktok") and p.get("status") not in ("entregado", "cancelado", "devuelto"):
                 for i in p.get("pedido_items") or []:
                     if i.get("variante_id"):
                         ids.add(i["variante_id"])
@@ -465,7 +465,7 @@ def por_enviar_resumen(_staff=Depends(require_staff)):
     try:
         return supabase_get_all(
             "pedidos?status=eq.pagado"
-            "&or=(mp_preference_id.not.is.null,mp_payment_id.not.is.null,canal.eq.whatsapp,canal.eq.mercadolibre,canal.eq.shein,canal.eq.walmart,canal.eq.amazon)"
+            "&or=(mp_preference_id.not.is.null,mp_payment_id.not.is.null,canal.eq.whatsapp,canal.eq.mercadolibre,canal.eq.shein,canal.eq.walmart,canal.eq.amazon,canal.eq.tiktok)"
             "&select=id,nombre_cliente,total,canal&order=created_at.desc"
         )
     except Exception as e:

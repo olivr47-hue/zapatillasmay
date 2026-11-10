@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.error
 from dotenv import load_dotenv
 from database import supabase_get, supabase_patch, supabase_post
-from security import require_staff
+from security import require_staff, require_admin
 
 load_dotenv()
 
@@ -662,6 +662,87 @@ def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, _staff=De
     from cache import cache_set
     cache_set("tiktok_fotos_pendientes", None, ttl=1)
     return {**resumen, "hecho": True, "fotos_subidas": len(uris), "fallos": fallos, "respuesta_tiktok": e.get("data")}
+
+
+# ── Sincronizacion con el ERP (ver tiktok_sync.py): existencias hacia TikTok y pedidos hacia el ERP ───────────────────────────
+@router.get("/existencias/plan")
+def tiktok_existencias_plan(producto_id: str = "", refrescar: bool = False, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Que cambiaria en TikTok para que muestre lo mismo que el ERP (solo productos activos)."""
+    import tiktok_sync
+    from routers.tiktok_excel import _cargar_erp
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    productos, e = _catalogo_tiktok(access, tienda.get("cipher", ""), forzar=refrescar)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    cambios, r = tiktok_sync.plan_existencias(productos, _cargar_erp(), solo_producto=producto_id or None)
+    mas = [c for c in cambios if c["a"] > c["de"]]
+    menos = [c for c in cambios if c["a"] < c["de"]]
+    relleno = [c for c in cambios if c["de"] >= 9000]
+    cambios.sort(key=lambda c: abs(c["a"] - c["de"]), reverse=True)
+    return {**r, "cambios": len(cambios), "subirian": len(mas), "bajarian": len(menos), "de_relleno_9000_o_mas": len(relleno),
+            "productos_afectados": len({c["producto_id"] for c in cambios}), "ejemplos": cambios[:40],
+            "automatico_activo": tiktok_sync.estado_automatico()["existencias"]}
+
+
+@router.post("/existencias/aplicar")
+def tiktok_existencias_aplicar(producto_id: str = "", limite_productos: int = 0, todo: bool = False, confirmar: bool = False, _staff=Depends(require_staff)):
+    """ESCRIBE EN TIKTOK (solo existencias de SKUs que difieren del ERP). Exige confirmar=true y alcance explicito:
+    producto_id (uno), limite_productos (los primeros N con cambios) o todo=true."""
+    import tiktok_sync
+    from routers.tiktok_excel import _cargar_erp
+    if not confirmar:
+        return JSONResponse(status_code=400, content={"error": "Pasa confirmar=true: esto cambia las existencias reales en TikTok"})
+    if not (producto_id or limite_productos or todo):
+        return JSONResponse(status_code=400, content={"error": "Indica producto_id, limite_productos o todo=true"})
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    productos, e = _catalogo_tiktok(access, tienda.get("cipher", ""), forzar=True)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    cambios, r = tiktok_sync.plan_existencias(productos, _cargar_erp(), solo_producto=producto_id or None)
+    if limite_productos:
+        ids = []
+        for c in cambios:
+            if c["producto_id"] not in ids:
+                ids.append(c["producto_id"])
+        permitidos = set(ids[:limite_productos])
+        cambios = [c for c in cambios if c["producto_id"] in permitidos]
+    if not cambios:
+        return {**r, "cambios": 0, "mensaje": "TikTok ya coincide con el ERP en lo seleccionado"}
+    res = tiktok_sync.aplicar_cambios(cambios, access, tienda.get("cipher", ""))
+    return {**r, "cambios": len(cambios), **res, "ejemplos": cambios[:15]}
+
+
+@router.get("/automatico")
+def tiktok_automatico(_staff=Depends(require_staff)):
+    import tiktok_sync
+    return tiktok_sync.estado_automatico()
+
+
+@router.post("/automatico")
+def tiktok_automatico_cambiar(existencias: str = "", ventas: str = "", _admin=Depends(require_admin)):
+    """Enciende o apaga las dos sincronizaciones. ventas=on guarda el momento de activacion: solo se importan pedidos creados desde entonces."""
+    import tiktok_sync
+    if existencias in ("on", "off"):
+        tiktok_sync.cfg_set(tiktok_sync.CLAVE_EXISTENCIAS, "1" if existencias == "on" else "0")
+    if ventas == "on":
+        if not tiktok_sync.estado_automatico()["ventas_desde"]:
+            tiktok_sync.cfg_set(tiktok_sync.CLAVE_VENTAS, str(int(time.time())))
+    elif ventas == "off":
+        tiktok_sync.cfg_set(tiktok_sync.CLAVE_VENTAS, None)
+    return tiktok_sync.estado_automatico()
+
+
+@router.post("/sync-ventas")
+def tiktok_sync_ventas(_staff=Depends(require_staff)):
+    """Corre ahora la importacion de pedidos de TikTok (solo si el interruptor de ventas esta encendido)."""
+    import tiktok_sync
+    return tiktok_sync.hacer_sync_ventas_tiktok()
 
 
 @router.get("/comparar-existencias")

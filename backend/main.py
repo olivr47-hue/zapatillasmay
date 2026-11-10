@@ -484,16 +484,28 @@ def _loop_tiktok_sync():
     _time.sleep(180)  # espera 3 min al arrancar
     while True:
         try:
-            estado = tiktok_router.status()
-            if tiktok_router.TIKTOK_SYNC_ACTIVO and isinstance(estado, dict) and estado.get("connected"):   # escritura apagada hasta nuevo aviso
-                res = tiktok_router.sync_stock()
-                if isinstance(res, dict) and res.get("ok"):
-                    print(f"[tiktok-sync] Stock actualizado — OK:{res.get('actualizados')} ERR:{res.get('errores')} SIN_MATCH:{res.get('sin_match')}")
-                else:
-                    print(f"[tiktok-sync] Respuesta inesperada: {res}")
+            # Nueva sincronizacion (tiktok_sync.py): solo hace algo si el interruptor «existencias automaticas» esta encendido en el panel
+            import tiktok_sync
+            tiktok_sync.sync_existencias_auto()
         except Exception as e:
             print(f"[tiktok-sync] Error en loop: {e}")
         _time.sleep(30 * 60)  # cada 30 minutos
+
+def _loop_tiktok_ventas():
+    """Cada 10 minutos: registra los pedidos nuevos de TikTok Shop (pedido + descuento de inventario + aviso) y pone al dia los
+    existentes. Solo hace algo si el interruptor «registrar pedidos» esta encendido en el panel."""
+    _time.sleep(280)
+    while True:
+        try:
+            import tiktok_sync
+            res = tiktok_sync.hacer_sync_ventas_tiktok()
+            if res.get("procesadas") or res.get("enviados") or res.get("entregados") or res.get("cancelados"):
+                print(f"[tiktok-ventas] nuevas: {res['procesadas']}, enviadas: {res['enviados']}, entregadas: {res['entregados']}, canceladas: {res['cancelados']}")
+            if res.get("errores"):
+                print(f"[tiktok-ventas] errores: {res['errores'][:3]}")
+        except Exception as e:
+            print(f"[tiktok-ventas] Error en loop: {e}")
+        _time.sleep(10 * 60)
 
 def _loop_secuencias_wa():
     """Revisa cada 15 minutos si hay pasos de secuencias de WhatsApp (drip) que
@@ -859,6 +871,9 @@ def _iniciar_hilos():
     t2 = threading.Thread(target=_loop_tiktok_sync, daemon=True)
     t2.start()
     print("[tiktok-sync] Hilo de sincronización de inventario iniciado (cada 30 min)")
+    t2v = threading.Thread(target=_loop_tiktok_ventas, daemon=True)
+    t2v.start()
+    print("[tiktok-ventas] Hilo de pedidos de TikTok iniciado (cada 10 min; apagado hasta encender el interruptor)")
     # MercadoLibre: descontar inventario por ventas nuevas
     t3 = threading.Thread(target=_loop_ml_ventas, daemon=True)
     t3.start()
