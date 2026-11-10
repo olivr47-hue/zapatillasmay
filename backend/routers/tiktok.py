@@ -9,7 +9,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from dotenv import load_dotenv
-from database import supabase_get, supabase_patch, supabase_post
+from database import supabase_get, supabase_get_all, supabase_patch, supabase_post
 from security import require_staff, require_admin
 
 load_dotenv()
@@ -31,6 +31,19 @@ TIKTOK_REFRESH_URL = "https://auth.tiktok-shops.com/api/v2/token/refresh"     # 
 TIKTOK_API_BASE   = "https://open-api.tiktokglobalshop.com"
 # La escritura de existencias en TikTok queda APAGADA hasta que se pruebe la lectura y se reescriba sync_stock con la API vigente
 TIKTOK_SYNC_ACTIVO = os.getenv("TIKTOK_SYNC_STOCK", "") == "1"
+# Modo «copia por cliente»: esta copia NO tiene el secreto de la app de TikTok; le pide al servidor central (intermediario) que firme y renueve.
+TIKTOK_BROKER_URL = os.getenv("TIKTOK_BROKER_URL", "").rstrip("/")
+TIKTOK_CLIENTE_CODIGO = os.getenv("TIKTOK_CLIENTE_CODIGO", "")
+TIKTOK_CLIENTE_SECRETO = os.getenv("TIKTOK_CLIENTE_SECRETO", "")
+
+
+def _modo_copia() -> bool:
+    return bool(TIKTOK_BROKER_URL and TIKTOK_CLIENTE_CODIGO and TIKTOK_CLIENTE_SECRETO)
+
+
+def _al_broker(ruta: str, datos: dict) -> dict:
+    import tiktok_broker
+    return tiktok_broker.post_firmado(TIKTOK_BROKER_URL + ruta, TIKTOK_CLIENTE_CODIGO, TIKTOK_CLIENTE_SECRETO, datos)
 
 # ── Token storage (Supabase configuracion table con fallback a /tmp) ──────────
 
@@ -76,6 +89,9 @@ def _save_token(data: dict):
 
 def _sign(path: str, params: dict, body_str: str = "") -> str:
     """Firma según 'Sign your API request': se excluyen sign y access_token; el token va en el encabezado x-tts-access-token."""
+    if _modo_copia():
+        r = _al_broker("/tiktok/broker/firmar", {"path": path, "params": {k: str(v) for k, v in params.items() if k not in ("sign", "access_token")}, "body": body_str})
+        return r.get("sign", "")
     entrada = path + "".join(f"{k}{v}" for k, v in sorted(params.items()) if k not in ("sign", "access_token"))
     if body_str:
         entrada += body_str
@@ -131,10 +147,13 @@ def _token_vigente() -> str:
     if not token or not token.get("access_token"):
         return ""
     if time.time() > _vence_en(token) - 86400 and token.get("refresh_token"):
-        res = _pedir_token(TIKTOK_REFRESH_URL, {
-            "app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET,
-            "refresh_token": token["refresh_token"], "grant_type": "refresh_token",
-        })
+        if _modo_copia():
+            res = _al_broker("/tiktok/broker/refrescar", {"refresh_token": token["refresh_token"]})
+        else:
+            res = _pedir_token(TIKTOK_REFRESH_URL, {
+                "app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET,
+                "refresh_token": token["refresh_token"], "grant_type": "refresh_token",
+            })
         if res.get("code") == 0:
             nuevo = res.get("data", {})
             nuevo["obtained_at"] = int(time.time())
@@ -148,7 +167,7 @@ def _token_vigente() -> str:
 @router.get("/authorize")
 def authorize():
     """Devuelve la URL de autorización para conectar tu tienda TikTok Shop (entrar con la cuenta administradora del Seller Center)."""
-    params = {"service_id": TIKTOK_SERVICE_ID, "state": "zapatillasmay"}
+    params = {"service_id": TIKTOK_SERVICE_ID, "state": ("cli:" + TIKTOK_CLIENTE_CODIGO) if _modo_copia() else "zapatillasmay"}
     url = TIKTOK_AUTH_URL + "?" + urllib.parse.urlencode(params)
     return {
         "auth_url": url,
@@ -169,6 +188,21 @@ def callback(code: str = None, state: str = None, error: str = None):
             "app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET,
             "auth_code": code, "grant_type": "authorized_code",
         })
+        if state and str(state).startswith("cli:"):
+            # Autorizacion de una COPIA de un cliente: se entrega el acceso a SU copia; aqui no se guarda nada
+            import tiktok_broker
+            cli = tiktok_broker.cliente_por_codigo(str(state)[4:])
+            if not cli:
+                return JSONResponse(status_code=404, content={"error": "Cliente desconocido: pide un enlace nuevo desde tu panel"})
+            if result.get("code") != 0:
+                return JSONResponse(status_code=400, content={"error": "No se pudo obtener el token", "detalle": {"code": result.get("code"), "message": result.get("message")}})
+            token_data = result.get("data", {})
+            token_data["obtained_at"] = int(time.time())
+            r = tiktok_broker.post_firmado(cli["url_api"] + "/tiktok/instalar-token", cli["codigo"], cli["secreto"], {"token": token_data})
+            if not r.get("ok"):
+                return JSONResponse(status_code=502, content={"error": "TikTok autorizo, pero no se pudo entregar el acceso a tu copia del sistema", "detalle": r.get("error")})
+            destino = (cli.get("url_panel") or cli["url_api"]) + "/?tiktok_connected=1&shop=" + urllib.parse.quote(str(token_data.get("seller_name") or "TikTok Shop"))
+            return RedirectResponse(url=destino, status_code=302)
         if result.get("code") == 0:
             token_data = result.get("data", {})
             token_data["obtained_at"] = int(time.time())
@@ -184,6 +218,79 @@ def callback(code: str = None, state: str = None, error: str = None):
         )
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ── Intermediario central (solo corre en el servidor central, el que tiene el secreto de la app) ──────────────────────────────
+@router.post("/broker/firmar")
+async def broker_firmar(request: Request):
+    """Una copia pide la firma de una llamada a TikTok. Solo firma: el acceso (token) de la copia nunca pasa por aqui."""
+    import tiktok_broker
+    cuerpo = await request.body()
+    cli, datos, motivo = tiktok_broker.verificar_cliente(request.headers.get("x-cliente", ""), cuerpo, request.headers.get("x-firma", ""))
+    if not cli:
+        return JSONResponse(status_code=401, content={"error": motivo})
+    path = str(datos.get("path") or "")
+    if not path.startswith("/") or len(path) > 300 or not isinstance(datos.get("params"), dict):
+        return JSONResponse(status_code=400, content={"error": "peticion invalida"})
+    return {"sign": _sign(path, {k: str(v) for k, v in datos["params"].items()}, str(datos.get("body") or ""))}
+
+
+@router.post("/broker/refrescar")
+async def broker_refrescar(request: Request):
+    """Una copia pide renovar su acceso a TikTok (la renovacion usa el secreto de la app)."""
+    import tiktok_broker
+    cuerpo = await request.body()
+    cli, datos, motivo = tiktok_broker.verificar_cliente(request.headers.get("x-cliente", ""), cuerpo, request.headers.get("x-firma", ""))
+    if not cli:
+        return JSONResponse(status_code=401, content={"error": motivo})
+    rt = str(datos.get("refresh_token") or "")
+    if not rt:
+        return JSONResponse(status_code=400, content={"error": "falta refresh_token"})
+    return _pedir_token(TIKTOK_REFRESH_URL, {"app_key": TIKTOK_APP_KEY, "app_secret": TIKTOK_APP_SECRET, "refresh_token": rt, "grant_type": "refresh_token"})
+
+
+@router.get("/broker/clientes")
+def broker_clientes(_admin=Depends(require_admin)):
+    filas = supabase_get("clientes_sistema?select=id,codigo,nombre,url_api,url_panel,activo,notas,creado_at&order=creado_at.desc") or []
+    return filas
+
+
+@router.post("/broker/clientes")
+def broker_crear_cliente(datos: dict, _admin=Depends(require_admin)):
+    """Da de alta una copia de un cliente. Devuelve su codigo y su secreto UNA sola vez: van en las variables de esa copia."""
+    import tiktok_broker
+    nombre, url_api = str(datos.get("nombre") or "").strip(), str(datos.get("url_api") or "").strip()
+    if not nombre or not url_api.startswith("https://"):
+        return JSONResponse(status_code=400, content={"error": "Falta el nombre o la direccion del servidor de la copia (https://...)"})
+    return tiktok_broker.crear_cliente(nombre, url_api, str(datos.get("url_panel") or ""))
+
+
+@router.patch("/broker/clientes/{codigo}")
+def broker_cliente_estado(codigo: str, datos: dict, _admin=Depends(require_admin)):
+    if "activo" not in datos:
+        return JSONResponse(status_code=400, content={"error": "indica activo=true o activo=false"})
+    supabase_patch(f"clientes_sistema?codigo=eq.{urllib.parse.quote(codigo, safe='')}", {"activo": bool(datos["activo"])})
+    return {"ok": True}
+
+
+# ── Copia de un cliente: recibe del central el acceso que TikTok autorizo ─────────────────────────────────────────────────
+@router.post("/instalar-token")
+async def instalar_token(request: Request):
+    """Solo en una COPIA: el central entrega aqui el acceso a TikTok recien autorizado (firmado con el secreto de esta copia)."""
+    if not _modo_copia():
+        return JSONResponse(status_code=404, content={"error": "no disponible"})
+    import tiktok_broker, json as _json
+    cuerpo = await request.body()
+    if request.headers.get("x-cliente", "") != TIKTOK_CLIENTE_CODIGO or not tiktok_broker.firma_valida(TIKTOK_CLIENTE_SECRETO, cuerpo, request.headers.get("x-firma", "")):
+        return JSONResponse(status_code=401, content={"error": "firma invalida"})
+    try:
+        datos = _json.loads(cuerpo or b"{}")
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "cuerpo invalido"})
+    if abs(time.time() - float(datos.get("ts") or 0)) > tiktok_broker.TOLERANCIA_SEG or not isinstance(datos.get("token"), dict) or not datos["token"].get("access_token"):
+        return JSONResponse(status_code=400, content={"error": "peticion vencida o sin acceso"})
+    _save_token(datos["token"])
+    return {"ok": True}
 
 
 @router.get("/status")
@@ -559,6 +666,26 @@ def _producto_erp_de_tiktok(tk_producto, cargado):
     return None, None
 
 
+def _erp_cargado():
+    """_cargar_erp() con cache de 10 min: el trabajo de fotos procesa cientos de productos y no debe volver a leer todo el ERP en cada uno."""
+    from cache import cache_get, cache_set
+    c = cache_get("tiktok_erp_cargado")
+    if c is not None:
+        return c
+    from routers.tiktok_excel import _cargar_erp
+    c = _cargar_erp()
+    cache_set("tiktok_erp_cargado", c, ttl=600)
+    return c
+
+
+def _fotos_hechas():
+    """{tiktok_product_id} de los productos cuyas fotos (galeria y color) ya se actualizaron desde el panel."""
+    try:
+        return {r["tiktok_product_id"] for r in (supabase_get_all("tiktok_fotos_log?error=is.null&select=tiktok_product_id") or [])}
+    except Exception:
+        return set()
+
+
 @router.get("/fotos-pendientes")
 def tiktok_fotos_pendientes(refrescar: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Modelos ACTIVOS en TikTok que tienen MENOS fotos que las que ya existen en el ERP (por ejemplo, los que se subieron con una sola foto).
@@ -577,8 +704,8 @@ def tiktok_fotos_pendientes(refrescar: bool = False, _staff=Depends(require_staf
     if productos is None:
         return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
     activos = [p for p in productos if p.get("status") == "ACTIVATE"]
-    from routers.tiktok_excel import _cargar_erp
-    cargado = _cargar_erp()
+    cargado = _erp_cargado()
+    hechas = _fotos_hechas()
     from concurrent.futures import ThreadPoolExecutor
 
     def _uno(p):
@@ -599,10 +726,12 @@ def tiktok_fotos_pendientes(refrescar: bool = False, _staff=Depends(require_staf
 
     with ThreadPoolExecutor(max_workers=5) as ex:
         filas = list(ex.map(_uno, activos))
-    pendientes = [f for f in filas if f.get("fotos_erp") and f["fotos_erp"] > f.get("fotos_tiktok", 0)]
+    # TODOS los modelos activos ligados al ERP que todavia no se actualizan desde el panel (galeria + foto de cada color)
+    pendientes = [f for f in filas if f.get("fotos_erp") and str(f["id"]) not in hechas]
     pendientes.sort(key=lambda f: (f["fotos_tiktok"], -f["fotos_erp"]))
     salida = {
         "activos_revisados": len(filas),
+        "ya_actualizados": len([f for f in filas if str(f.get("id")) in hechas]),
         "con_una_sola_foto": sum(1 for f in filas if f.get("fotos_tiktok") == 1),
         "pendientes": len(pendientes),
         "sin_modelo_erp": sum(1 for f in filas if f.get("sin_modelo_erp")),
@@ -672,6 +801,83 @@ def _armar_skus_con_foto_color(d, vs, subir):
     return salida, f"{len(uri_de_clave)} color(es) con su foto"
 
 
+def _iso_ahora():
+    import datetime as _d
+    return _d.datetime.now(_d.timezone.utc).isoformat()
+
+
+_JOB_FOTOS = {"en_curso": False, "cancelar": False, "total": 0, "hechos": 0, "con_error": 0, "actual": "", "errores": [], "inicio": None, "fin": None}
+
+
+def _correr_job_fotos(ids):
+    """Procesa uno por uno (con pausa) los productos y deja el avance en _JOB_FOTOS. Si el servidor se reinicia, basta volver a iniciarlo:
+    los ya hechos quedan registrados y se saltan."""
+    import time as _t
+    _JOB_FOTOS.update({"en_curso": True, "cancelar": False, "total": len(ids), "hechos": 0, "con_error": 0, "actual": "", "errores": [], "inicio": _t.time(), "fin": None})
+    try:
+        for pid in ids:
+            if _JOB_FOTOS["cancelar"]:
+                break
+            _JOB_FOTOS["actual"] = str(pid)
+            try:
+                r = tiktok_actualizar_fotos(pid, confirmar=True, por_color=True, como_borrador=False, _staff=None)
+                if isinstance(r, dict) and r.get("hecho"):
+                    _JOB_FOTOS["hechos"] += 1
+                else:
+                    _JOB_FOTOS["con_error"] += 1
+                    cont = getattr(r, "body", b"")
+                    try:
+                        msg = json.loads(cont).get("error") if cont else str(r)[:120]
+                    except Exception:
+                        msg = str(r)[:120]
+                    _JOB_FOTOS["errores"].append({"id": pid, "error": str(msg)[:160]})
+                    try:
+                        supabase_post("tiktok_fotos_log", {"tiktok_product_id": str(pid), "error": str(msg)[:300], "actualizado_at": _iso_ahora()})
+                    except Exception:
+                        pass
+            except Exception as ex:
+                _JOB_FOTOS["con_error"] += 1
+                _JOB_FOTOS["errores"].append({"id": pid, "error": str(ex)[:160]})
+            _t.sleep(2)
+    finally:
+        _JOB_FOTOS.update({"en_curso": False, "fin": __import__("time").time(), "actual": ""})
+        try:
+            from cache import cache_set
+            cache_set("tiktok_fotos_pendientes", None, ttl=1)
+        except Exception:
+            pass
+
+
+@router.post("/fotos/actualizar-todo")
+def tiktok_fotos_actualizar_todo(confirmar: bool = False, _staff=Depends(require_staff)):
+    """ESCRIBE EN TIKTOK. Actualiza, en segundo plano y de uno en uno, la galeria y la foto de cada color de TODOS los modelos activos ligados al ERP
+    que todavia no se actualizan desde el panel. Consulta el avance en /tiktok/fotos/progreso."""
+    if not confirmar:
+        return JSONResponse(status_code=400, content={"error": "Pasa confirmar=true: esto cambia las fotos reales de muchos productos en TikTok"})
+    if _JOB_FOTOS["en_curso"]:
+        return {"ya_en_curso": True, **{k: v for k, v in _JOB_FOTOS.items() if k != "errores"}}
+    lista = tiktok_fotos_pendientes(refrescar=True, _staff=None)
+    if not isinstance(lista, dict):
+        return lista
+    ids = [f["id"] for f in lista.get("productos", [])]
+    if not ids:
+        return {"iniciado": False, "mensaje": "No hay productos pendientes: todo esta actualizado"}
+    import threading as _th
+    _th.Thread(target=_correr_job_fotos, args=(ids,), daemon=True).start()
+    return {"iniciado": True, "total": len(ids)}
+
+
+@router.get("/fotos/progreso")
+def tiktok_fotos_progreso(_staff=Depends(require_staff)):
+    return {k: (v if k != "errores" else v[-8:]) for k, v in _JOB_FOTOS.items()}
+
+
+@router.post("/fotos/cancelar")
+def tiktok_fotos_cancelar(_staff=Depends(require_staff)):
+    _JOB_FOTOS["cancelar"] = True
+    return {"cancelando": True}
+
+
 @router.post("/producto/{producto_id}/actualizar-fotos")
 def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, por_color: bool = True, como_borrador: bool = False, _staff=Depends(require_staff)):
     """ESCRIBE EN TIKTOK (fotos de ESE producto: la galeria y, con por_color=true, la foto de cada color). No cambia titulo ni texto; el precio y las
@@ -689,8 +895,7 @@ def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, por_color
     estado = d.get("status")
     if estado != "ACTIVATE" and not (como_borrador and estado == "DRAFT"):
         return JSONResponse(status_code=409, content={"error": f"El producto no esta activo en TikTok (estado {estado})"})
-    from routers.tiktok_excel import _cargar_erp
-    prod, vars_ = _producto_erp_de_tiktok(d, _cargar_erp())
+    prod, vars_ = _producto_erp_de_tiktok(d, _erp_cargado())
     if not prod:
         return JSONResponse(status_code=404, content={"error": "No se encontro el modelo en el ERP por el SKU de vendedor"})
     fotos = _fotos_erp_de_modelo(prod, vars_)
@@ -732,8 +937,16 @@ def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, por_color
     e = _tiktok_api("POST", f"/product/202309/products/{producto_id}/partial_edit", access, body=cuerpo, extra_params={"shop_cipher": cipher})
     if e.get("code") != 0:
         return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": "TikTok rechazo el cambio de fotos", "codigo": e.get("code"), "mensaje": e.get("message"), "fallos": fallos, "por_color_nota": nota_color})
+    try:
+        if not como_borrador:
+            supabase_post("tiktok_fotos_log", {"tiktok_product_id": str(producto_id), "sku_interno": prod.get("sku_interno"), "fotos": len(uris),
+                                              "con_foto_por_color": "skus" in cuerpo, "error": None, "actualizado_at": _iso_ahora()},)
+    except Exception:
+        try:
+            supabase_patch(f"tiktok_fotos_log?tiktok_product_id=eq.{producto_id}", {"fotos": len(uris), "con_foto_por_color": "skus" in cuerpo, "error": None, "actualizado_at": _iso_ahora()})
+        except Exception as ex:
+            print(f"[tiktok-fotos] no se pudo guardar el registro: {ex}")
     from cache import cache_set
-    cache_set("tiktok_fotos_pendientes", None, ttl=1)
     cache_set("tiktok_catalogo", None, ttl=1)
     return {**resumen, "hecho": True, "fotos_subidas": len(uris), "fallos": fallos, "por_color_nota": nota_color, "con_foto_por_color": "skus" in cuerpo,
             "respuesta_tiktok": e.get("data")}

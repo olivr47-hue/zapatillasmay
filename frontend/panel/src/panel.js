@@ -25069,6 +25069,7 @@ async function _tkTabFotos(refrescar = false) {
   const d = await _tkGet('/fotos-pendientes' + (refrescar ? '?refrescar=true' : ''))
   window._tkFotosLista = d.productos || []
   window._tkFotosSel = new Set(window._tkFotosLista.map(p => p.id))
+  setTimeout(() => { if (document.getElementById('tk-job-res')) window._tkFotosProgreso() }, 300)
   const filas = window._tkFotosLista.map(p => `<tr>
     ${_tkTd(`<input type="checkbox" checked data-tkf="${p.id}" onchange="window._tkFotosToggle('${p.id}', this.checked)">`)}
     ${_tkTd(p.portada_tiktok ? `<img src="${_e(p.portada_tiktok)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px">` : '')}
@@ -25082,8 +25083,12 @@ async function _tkTabFotos(refrescar = false) {
       ${_tkBtn('refresh', 'Volver a revisar', 'window._tkFotosRefrescar()', 'secondary')}</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:0.9rem;font-size:0.84rem">
         <span>Activos revisados: <b>${d.activos_revisados}</b></span><span>Con una sola foto: <b>${d.con_una_sola_foto}</b></span>
-        <span>Por actualizar: <b style="color:${_TK_COLOR}">${d.pendientes}</b></span>${d.sin_modelo_erp ? `<span style="color:#b45309">Sin modelo en el ERP: <b>${d.sin_modelo_erp}</b></span>` : ''}${d.con_error ? `<span style="color:#b45309">Con error al leer: <b>${d.con_error}</b></span>` : ''}</div>`)
-    + (d.pendientes ? _tkCard(`
+        <span>Ya actualizados: <b style="color:#166534">${d.ya_actualizados || 0}</b></span><span>Por actualizar: <b style="color:${_TK_COLOR}">${d.pendientes}</b></span>${d.sin_modelo_erp ? `<span style="color:#b45309">Sin modelo en el ERP: <b>${d.sin_modelo_erp}</b></span>` : ''}${d.con_error ? `<span style="color:#b45309">Con error al leer: <b>${d.con_error}</b></span>` : ''}</div>`)
+    + (d.pendientes ? _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div style="max-width:700px"><h3 style="margin:0 0 3px;font-size:1rem">Actualizar TODO de una vez</h3>
+        <p style="margin:0;font-size:0.82rem;color:#888">El servidor va de uno en uno por los ${d.pendientes} modelos que faltan y les pone la galería y la foto de cada color. <b>Puedes cerrar esta pantalla</b>: sigue solo. Si se interrumpe, vuelve a pulsar el botón y continúa donde se quedó.</p></div>
+        <div style="display:flex;gap:8px">${_tkBtn('star', 'Actualizar todo lo pendiente', 'window._tkFotosTodo(this)', 'rosa')}${_tkBtn('refresh', 'Detener', 'window._tkFotosDetener()', 'secondary')}</div></div>
+        <div id="tk-job-res" style="margin-top:0.8rem"></div>`) + _tkCard(`
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.9rem">
         ${_tkBtn('star', 'Probar solo con el primero', 'window._tkFotosActualizar(true)', 'warning')}
         ${_tkBtn('star', 'Actualizar los seleccionados', 'window._tkFotosActualizar(false)', 'rosa')}
@@ -25094,6 +25099,30 @@ async function _tkTabFotos(refrescar = false) {
       ${_tkTabla([{ t: '' }, { t: '' }, { t: 'Modelo' }, { t: 'En TikTok', der: true }, { t: 'En el ERP', der: true }, { t: 'Estado' }], filas, '')}
       <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Cambia la galería y la foto de cada color; el precio y las existencias de cada talla se reenvían iguales y los textos no se tocan. TikTok puede volver a revisar el producto después de cambiarle las fotos. Empieza con «Probar solo con el primero» y revisa el resultado en TikTok antes de seguir con los demás.</p>`)
       : _tkCard(`<p style="margin:0;color:#166534;font-size:0.88rem">✅ No hay modelos activos con menos fotos que el ERP.</p>`))
+}
+window._tkFotosTodo = async (btn) => {
+  if (!confirm('Vas a actualizar las fotos (galería y color) de TODOS los modelos pendientes en TikTok. Tarda un buen rato y TikTok puede volver a revisar cada producto. ¿Confirmas?')) return
+  try {
+    const res = await fetch(`${API}/tiktok/fotos/actualizar-todo?confirmar=true`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || d.detail || ('Error ' + res.status))
+    window._tkFotosProgreso()
+  } catch (e) { const o = document.getElementById('tk-job-res'); if (o) o.innerHTML = _tkError(e) }
+}
+window._tkFotosDetener = async () => { try { await fetch(`${API}/tiktok/fotos/cancelar`, { method: 'POST' }); window._tkFotosProgreso() } catch (e) {} }
+window._tkFotosProgreso = async () => {
+  clearTimeout(window._tkFotosTimer)
+  const o = document.getElementById('tk-job-res'); if (!o) return
+  try {
+    const p = await _tkGet('/fotos/progreso')
+    const pct = p.total ? Math.round((p.hechos + p.con_error) * 100 / p.total) : 0
+    const fin = !p.en_curso
+    o.innerHTML = `<div style="padding:0.8rem 1rem;border-radius:10px;background:${fin ? '#f0fdf4' : '#eff6ff'};font-size:0.84rem;color:#1e3a8a">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><b>${fin ? (p.total ? '✅ Terminó' : 'Sin trabajo en curso') : '⏳ Actualizando…'}</b><span>${p.hechos} listos · ${p.con_error} con error · de ${p.total}</span></div>
+      <div style="height:9px;background:#dbeafe;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${fin ? '#16a34a' : '#2563eb'}"></div></div>
+      ${p.errores && p.errores.length ? `<div style="margin-top:8px;font-size:0.74rem;color:#92400e">Últimos errores: ${p.errores.map(e => _e(String(e.error).slice(0, 90))).join(' · ')}</div>` : ''}</div>`
+    if (!fin) window._tkFotosTimer = setTimeout(window._tkFotosProgreso, 5000)
+  } catch (e) { o.innerHTML = _tkError(e) }
 }
 window._tkFotosRefrescar = async () => { document.getElementById('tk-body').innerHTML = '<p style="padding:2rem;color:#aaa">Revisando los productos activos de TikTok… puede tardar un minuto.</p>'; try { await _tkTabFotos(true) } catch (e) { document.getElementById('tk-body').innerHTML = _tkError(e) } }
 window._tkFotosToggle = (id, on) => { if (on) window._tkFotosSel.add(id); else window._tkFotosSel.delete(id); const c = document.getElementById('tk-f-contador'); if (c) c.textContent = `${window._tkFotosSel.size} seleccionados` }
