@@ -25078,7 +25078,7 @@ async function _tkTabFotos(refrescar = false) {
   document.getElementById('tk-body').innerHTML =
     _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div><h3 style="margin:0 0 3px;font-size:1rem">Actualizar fotos en TikTok</h3>
-      <p style="margin:0;font-size:0.82rem;color:#888">Modelos activos que tienen <b>menos fotos en TikTok que en el ERP</b> (por ejemplo, los que se subieron con una sola). Se ponen hasta 9 fotos: la portada y una de cada color, por turnos.</p></div>
+      <p style="margin:0;font-size:0.82rem;color:#888">Modelos activos que tienen <b>menos fotos en TikTok que en el ERP</b> (por ejemplo, los que se subieron con una sola). Se actualiza la <b>galería</b> (hasta 9 fotos: la portada y una de cada color, por turnos) <b>y además la foto de cada color</b>: al elegir un color en TikTok se verá la foto de ESE color del ERP.</p></div>
       ${_tkBtn('refresh', 'Volver a revisar', 'window._tkFotosRefrescar()', 'secondary')}</div>
       <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:0.9rem;font-size:0.84rem">
         <span>Activos revisados: <b>${d.activos_revisados}</b></span><span>Con una sola foto: <b>${d.con_una_sola_foto}</b></span>
@@ -25092,7 +25092,7 @@ async function _tkTabFotos(refrescar = false) {
       </div>
       <div id="tk-f-res" style="margin-bottom:0.8rem"></div>
       ${_tkTabla([{ t: '' }, { t: '' }, { t: 'Modelo' }, { t: 'En TikTok', der: true }, { t: 'En el ERP', der: true }, { t: 'Estado' }], filas, '')}
-      <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Solo cambia la galería de fotos: no toca precio, existencias ni textos. TikTok puede volver a revisar el producto después de cambiarle las fotos. Empieza con «Probar solo con el primero» y revisa el resultado en TikTok antes de seguir con los demás.</p>`)
+      <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Cambia la galería y la foto de cada color; el precio y las existencias de cada talla se reenvían iguales y los textos no se tocan. TikTok puede volver a revisar el producto después de cambiarle las fotos. Empieza con «Probar solo con el primero» y revisa el resultado en TikTok antes de seguir con los demás.</p>`)
       : _tkCard(`<p style="margin:0;color:#166534;font-size:0.88rem">✅ No hay modelos activos con menos fotos que el ERP.</p>`))
 }
 window._tkFotosRefrescar = async () => { document.getElementById('tk-body').innerHTML = '<p style="padding:2rem;color:#aaa">Revisando los productos activos de TikTok… puede tardar un minuto.</p>'; try { await _tkTabFotos(true) } catch (e) { document.getElementById('tk-body').innerHTML = _tkError(e) } }
