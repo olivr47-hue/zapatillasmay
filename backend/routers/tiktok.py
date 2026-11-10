@@ -739,6 +739,74 @@ def tiktok_automatico_cambiar(existencias: str = "", ventas: str = "", _admin=De
     return tiktok_sync.estado_automatico()
 
 
+_ERR_GUIA = {
+    21023035: "TikTok todavia no tiene preparado el envio de este pedido: en TikTok toca «Preparar envio» (o «Arrange shipment») y vuelve a intentar",
+    21042104: "TikTok todavia no tiene preparado el envio de este pedido: en TikTok toca «Preparar envio» y vuelve a intentar",
+    21042102: "La paqueteria ya recogio el paquete: la guia ya no se puede imprimir",
+    21023046: "El paquete ya fue enviado: la guia ya no se puede imprimir",
+    21023059: "El paquete fue cancelado",
+    11034037: "La paqueteria todavia esta generando la guia: intenta de nuevo en un minuto",
+    11034023: "La guia tardo en generarse: intenta de nuevo en un minuto",
+    11034002: "Este pedido no es de envio por TikTok: la guia se imprime fuera de TikTok",
+    21008017: "Este pedido no es de envio por TikTok: la guia se imprime fuera de TikTok",
+    21008043: "Este paquete lo envia TikTok (FBT): no hay guia que imprimir",
+}
+
+
+@router.get("/guia/{order_id}")
+def tiktok_guia(order_id: str, _staff=Depends(require_staff)):
+    """PDF de la guia de envio (etiqueta A6) de un pedido de TikTok Shop enviado con TikTok Shipping. Solo se puede obtener DESPUES de preparar el
+    envio en TikTok y ANTES de que la paqueteria recoja el paquete. Si el pedido trae varios paquetes, se unen en un solo PDF. No cambia nada."""
+    from fastapi import Response
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    d = _tiktok_api("GET", "/order/202309/orders", access, extra_params={"ids": order_id, "shop_cipher": cipher})
+    if d.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el pedido", "mensaje": d.get("message")})
+    ords = (d.get("data") or {}).get("orders") or []
+    if not ords:
+        return JSONResponse(status_code=404, content={"error": "TikTok no encontro ese pedido"})
+    orden = ords[0]
+    if orden.get("status") == "CANCELLED":
+        return JSONResponse(status_code=409, content={"error": "El pedido esta cancelado en TikTok"})
+    paquetes = [p.get("id") for p in (orden.get("packages") or []) if p.get("id")]
+    if not paquetes:
+        return JSONResponse(status_code=409, content={"error": "TikTok todavia no genera el paquete de este pedido: en TikTok toca «Preparar envio» y vuelve a intentar"})
+    pdfs = []
+    for pid in paquetes:
+        r = _tiktok_api("GET", f"/fulfillment/202309/packages/{pid}/shipping_documents", access,
+                        extra_params={"document_type": "SHIPPING_LABEL", "document_size": "A6", "document_format": "PDF", "shop_cipher": cipher})
+        if r.get("code") != 0:
+            msg = _ERR_GUIA.get(r.get("code")) or f"TikTok no entrego la guia: {r.get('message')}"
+            return JSONResponse(status_code=409, content={"error": msg, "codigo": r.get("code")})
+        url = ((r.get("data") or {}).get("doc_url") or "")
+        if not url.startswith("https://"):
+            return JSONResponse(status_code=502, content={"error": "TikTok regreso un enlace de guia no valido"})
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as resp:
+                pdfs.append(resp.read())
+        except Exception as e:
+            return JSONResponse(status_code=502, content={"error": f"No se pudo descargar la guia de TikTok: {type(e).__name__}"})
+    contenido = pdfs[0]
+    if len(pdfs) > 1:
+        try:
+            import io
+            from pypdf import PdfWriter, PdfReader
+            w = PdfWriter()
+            for b in pdfs:
+                for pg in PdfReader(io.BytesIO(b)).pages:
+                    w.add_page(pg)
+            buf = io.BytesIO()
+            w.write(buf)
+            contenido = buf.getvalue()
+        except Exception:
+            return JSONResponse(status_code=500, content={"error": "El pedido trae varios paquetes y no se pudieron unir las guias; imprimelas desde TikTok"})
+    return Response(content=contenido, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="guia_tiktok_{order_id}.pdf"'})
+
+
 @router.post("/utilidad/sincronizar")
 def tiktok_utilidad_sincronizar(_staff=Depends(require_staff)):
     """Trae los pedidos de TikTok posteriores al ultimo registro y los suma a la utilidad (general y «Tu utilidad»). No mueve inventario."""

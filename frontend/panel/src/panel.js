@@ -11021,7 +11021,7 @@ function _renderFilaPedido(p) {
 
   const btn = (txt, onclick, estilo = '') => `<button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem;${estilo}" onclick="${onclick}">${txt}</button>`
   // Marketplaces: guía de envío y el par exacto que pidieron, sin salir de Pedidos
-  const _gid = p.canal === 'mercadolibre' ? p.ml_order_id : (p.canal === 'shein' ? p.shein_order_id : '')
+  const _gid = p.canal === 'mercadolibre' ? p.ml_order_id : (p.canal === 'shein' ? p.shein_order_id : (p.canal === 'tiktok' ? p.tiktok_order_id : ''))
   const btnGuia = _gid && !['entregado', 'cancelado', 'devuelto', 'reembolsado', 'borrador'].includes(p.status)
     ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
   const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon', 'tiktok'].includes(p.canal) ? (p.pedido_items || []) : []
@@ -11079,7 +11079,7 @@ function _renderFilaPedido(p) {
 }
 
 window._guiaMarketplace = async (canal, orderId, btn) => {
-  const ruta = canal === 'shein' ? `${API}/shein/guia/${encodeURIComponent(orderId)}` : `${API}/ml/guia/${encodeURIComponent(orderId)}`
+  const ruta = canal === 'shein' ? `${API}/shein/guia/${encodeURIComponent(orderId)}` : (canal === 'tiktok' ? `${API}/tiktok/guia/${encodeURIComponent(orderId)}` : `${API}/ml/guia/${encodeURIComponent(orderId)}`)
   const orig = btn.innerHTML
   // la pestaña se abre antes de esperar al servidor para que el celular no la bloquee
   const w = window.open('', '_blank')
@@ -25128,6 +25128,7 @@ async function _tkTabPedidos() {
     ${_tkTd(p.articulos.map(a => `<div><b>${_e((a.sku || '').split('-').slice(0, 3).join('-'))}</b> <span style="color:#666">${_e(a.variante || '')}</span></div>`).join('') || '—')}
     ${_tkTd(_tkMXN(p.total), true, 'font-weight:600')}${_tkTd(_e(p.paqueteria || '—'))}
     ${_tkTd(p.guia ? `<span style="font-family:monospace;font-size:0.74rem">${_e(p.guia)}</span>` : '<span style="color:#aaa">—</span>')}
+    ${_tkTd(['AWAITING_SHIPMENT', 'AWAITING_COLLECTION', 'PARTIALLY_SHIPPING'].includes(p.estado) ? `<button onclick="_guiaMarketplace('tiktok','${_e(p.id)}',this)" style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;background:#fff7ed;border:1px solid #fb923c;border-radius:6px;cursor:pointer;font-size:0.74rem;color:#9a3412;font-weight:700;font-family:inherit">🖨️ Guía</button>` : '')}
     ${_tkTd(`<span style="color:#888">${_tkFecha(p.creado)}</span>`)}</tr>`)
   const cobrado = d.pedidos.filter(p => p.estado !== 'CANCELLED').reduce((s, p) => s + Number(p.total || 0), 0)
   let auto = { ventas_desde: null }
@@ -25141,7 +25142,7 @@ async function _tkTabPedidos() {
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
       <select onchange="window._tkPedDias=Number(this.value);window._tkSwitchTab('pedidos')" style="padding:0.55rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem">${[7, 30, 60, 90].map(n => `<option value="${n}" ${window._tkPedDias === n ? 'selected' : ''}>Últimos ${n} días</option>`).join('')}</select>
       <span style="font-size:0.82rem;color:#888">${d.total_en_pagina} pedido(s) · sin contar cancelados: <b style="color:#166534">${_tkMXN(cobrado)}</b>${d.hay_mas ? ' · hay más de 100, se muestran los más recientes' : ''}</span></div>
-    ${_tkTabla([{ t: 'Pedido' }, { t: 'Estado' }, { t: 'Modelo / variante' }, { t: 'Total', der: true }, { t: 'Paquetería' }, { t: 'Guía' }, { t: 'Fecha' }], filas, 'No hay pedidos en ese periodo.')}
+    ${_tkTabla([{ t: 'Pedido' }, { t: 'Estado' }, { t: 'Modelo / variante' }, { t: 'Total', der: true }, { t: 'Paquetería' }, { t: 'Guía' }, { t: 'Imprimir' }, { t: 'Fecha' }], filas, 'No hay pedidos en ese periodo.')}
     <p style="margin:0.8rem 0 0;font-size:0.74rem;color:#aaa">Esta lista es lo que dice TikTok. Los pedidos ya registrados en el ERP se ven en la sección Pedidos con la etiqueta 🎵 TikTok.</p>`)
 }
 
