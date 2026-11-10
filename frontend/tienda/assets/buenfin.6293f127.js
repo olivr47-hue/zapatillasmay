@@ -71,8 +71,8 @@
       '<button id="zm-bf-x" aria-label="Cerrar" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.5rem;line-height:1;color:#8B6A54;cursor:pointer">&times;</button>' +
       '<p style="margin:0 0 6px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#b5687a;font-weight:700">' + rango + '</p>' +
       '<h2 style="margin:0 0 10px;font-family:\'Cormorant Garamond\',serif;font-size:2.1rem;line-height:1.1;color:#2A1A0E;font-weight:600">Buen Fin <em style="color:#b5687a">Zapatillas May</em></h2>' +
-      '<p style="margin:0 0 18px;font-size:0.95rem;line-height:1.5;color:#5a4030">Durante el Buen Fin, <b>todos los pares tienen precio especial desde el primer par</b>: no necesitas comprar 3. Y en los modelos Buen Fin, <b>descuento extra</b>.</p>' +
-      '<a href="/buen-fin" style="display:inline-block;background:#2A1A0E;color:#fff;text-decoration:none;padding:13px 28px;border-radius:100px;font-weight:600;font-size:0.88rem">Ver modelos del Buen Fin</a>' +
+      '<p style="margin:0 0 18px;font-size:0.95rem;line-height:1.5;color:#5a4030">Durante el Buen Fin, <b>todos los pares tienen precio especial desde el primer par</b>: no necesitas comprar 3. Además, <b>tenemos modelos con precios especiales</b> solo por el Buen Fin.</p>' +
+      '<a href="/buen-fin" style="display:inline-block;background:#2A1A0E;color:#fff;text-decoration:none;padding:13px 28px;border-radius:100px;font-weight:600;font-size:0.88rem">Ver modelos con precios especiales</a>' +
       '<div><button id="zm-bf-c" style="margin-top:10px;background:none;border:none;color:#8B6A54;font-size:0.8rem;cursor:pointer;text-decoration:underline">Seguir viendo la tienda</button></div></div>'
     function cerrar() { try { localStorage.setItem('zm_bf_popup', estado.inicio) } catch (e) {} d.remove() }
     d.addEventListener('click', function (ev) { if (ev.target === d) cerrar() })
