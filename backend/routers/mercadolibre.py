@@ -2199,6 +2199,28 @@ def categoria_attrs(category_id: str):
     return ml_get(f"/categories/{category_id}/attributes")
 
 
+# Atributos que MercadoLibre rellena solo, mirando la foto de cada item, y que deciden a que "familia" (publicacion) pertenece:
+# si salen distintos entre tallas del mismo modelo, la publicacion se parte. Se igualan con los de un item hermano.
+_ATRIBUTOS_FAMILIA = ["PATTERN_NAME", "FOOTWEAR_STYLE", "FABRIC_DESIGN", "HEEL_LEVEL", "SHAFT_TYPE"]
+
+
+def _attrs_familia(item: dict) -> list:
+    """Los atributos de familia (con valor) de un item de ML, listos para mandarlos en otro item."""
+    out = []
+    for a in (item.get("attributes") or []):
+        if a.get("id") in _ATRIBUTOS_FAMILIA and (a.get("value_id") or a.get("value_name")):
+            out.append({"id": a["id"], **({"value_id": a["value_id"]} if a.get("value_id") else {"value_name": a.get("value_name")})})
+    return out
+
+
+def _con_attrs(payload: dict, attrs: list) -> dict:
+    """Copia del payload con esos atributos puestos (reemplazan los que ya trae)."""
+    ids = {a["id"] for a in attrs}
+    nuevo = dict(payload)
+    nuevo["attributes"] = [a for a in (payload.get("attributes") or []) if a.get("id") not in ids] + list(attrs)
+    return nuevo
+
+
 @router.post("/publicar")
 def publicar_producto(body: dict):
     """
@@ -2272,12 +2294,19 @@ def publicar_producto(body: dict):
     # SKUs que ya tienen una publicacion viva en ML: nunca volver a publicar
     # el mismo SKU encima (esto es lo que causo publicaciones duplicadas).
     skus_ya_publicados = set()
+    ref_attrs: list = []   # atributos de familia de un item hermano: se copian a lo que se publique para no partir la publicacion
     if not solo_preview:
         try:
             items_ml = _get_items_with_sku(_get_all_item_ids())
+            pref_modelo = _norm_sku(producto.get("sku_interno") or "")
+            hermano = None
             for it in items_ml:
                 if it["status"] in ("active", "paused", "under_review") and it["seller_sku"]:
                     skus_ya_publicados.add(_norm_sku(it["seller_sku"]))
+                    if hermano is None and pref_modelo and _norm_sku(it["seller_sku"]).startswith(pref_modelo + "-"):
+                        hermano = it
+            if hermano:
+                ref_attrs = _attrs_familia(ml_get(f"/items/{hermano['item_id']}"))
         except Exception:
             pass  # si falla el chequeo, seguir publicando (no bloquear por un error de red)
 
@@ -2286,6 +2315,8 @@ def publicar_producto(body: dict):
     for idx_v, variante in enumerate(variantes):
         qty     = stock_map.get(variante["id"], 0)
         payload = _build_item(producto, variante, qty, category_id, listing_type, ajuste_tipo, ajuste_valor, precio_override, titulo_override)
+        if ref_attrs:
+            payload = _con_attrs(payload, ref_attrs)
 
         if not solo_preview and _norm_sku(variante.get("sku") or "") in skus_ya_publicados:
             resultados.append({
@@ -2358,6 +2389,11 @@ def publicar_producto(body: dict):
         # JV30060 y EF1200, aun con PATTERN_NAME correcto en todas.
         if idx_v < len(variantes) - 1:
             time.sleep(8 if idx_v == 0 else 1.5)
+            if not ref_attrs and not solo_preview and resultados and resultados[-1].get("item_id"):
+                try:
+                    ref_attrs = _attrs_familia(ml_get(f"/items/{resultados[-1]['item_id']}"))
+                except Exception:
+                    pass
 
     ok  = [r for r in resultados if r.get("status") == "publicado"]
     err = [r for r in resultados if r.get("status") == "error"]
@@ -2627,7 +2663,6 @@ def ml_acceso(_staff=Depends(require_staff)):
 
 
 # ─── Juntar publicaciones partidas: igualar los atributos que MercadoLibre rellena solo ──────────────────────────────────────────
-_ATRIBUTOS_FAMILIA = ["PATTERN_NAME", "FOOTWEAR_STYLE", "FABRIC_DESIGN", "HEEL_LEVEL", "SHAFT_TYPE"]
 
 
 @router.post("/igualar-atributos")
