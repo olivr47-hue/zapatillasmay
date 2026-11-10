@@ -1025,7 +1025,7 @@ function renderProducto() {
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
   if (_bf) {
-    mayoreoHTML = `<div class="mayoreo-box" style="padding:8px 12px"><p style="font-size:0.76rem;margin:0;font-weight:600;color:var(--gray-light)">🏷️ Buen Fin: precio especial desde 1 par · <span style="color:#22c55e">ahorras $${Math.round(precioDisplay - _pBF)}/par</span></p></div>`
+    mayoreoHTML = `<div class="mayoreo-box" style="padding:10px 12px;background:#fdf0f3;border-color:rgba(181,104,122,0.45)"><p style="font-size:0.82rem;margin:0;font-weight:700;color:#b5687a">🏷️ ${_bfp.especial ? 'Modelo con precio especial del Buen Fin' : 'Precio del Buen Fin'} · ya aplicado</p><p style="font-size:0.76rem;margin:3px 0 0;color:#666">Pagas $${_pBF} por par desde el primer par, sin necesidad de llevar 3 · <span style="color:#16a34a;font-weight:600">ahorras $${Math.round(precioDisplay - _pBF)}/par</span></p></div>`
   } else if (!p.es_oferta) {
     // Descuento de 3+ pares SI se queda en el sitio público (el de 6+ ya solo
     // vive en el panel y el portal de mayoristas -- por eso aquí ya no se muestra).
