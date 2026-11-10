@@ -19,8 +19,35 @@ window.cargarConexiones = async function () {
     <h2 style="font-size:1.3rem;font-weight:800;margin:0">🔌 Conexiones</h2>
     <p style="font-size:0.78rem;color:#64748b;margin:4px 0 0;max-width:760px">Aquí pones las claves de tus integraciones (MercadoPago, MercadoLibre, Amazon, WhatsApp…) sin tocar Railway. Se guardan <b>cifradas</b> y se aplican al momento.
     Una clave capturada aquí <b>manda</b> sobre la de Railway; si la quitas, se vuelve a usar la de Railway. Los secretos nunca se muestran completos.</p></div>
+    <div id="con-sync"></div>
     <div id="con-cuerpo"><p style="color:#888">Cargando…</p></div>`
+  api('/sync-estado').then(d => pintarSync(d.tareas || [])).catch(() => {})
   try { const d = await api('/config/integraciones'); _con = d.integraciones; window._conCifrado = d.cifrado; pintar() } catch (e) { document.getElementById('con-cuerpo').innerHTML = `<p style="color:#dc2626">No se pudo cargar: ${esc(e.message)}</p>` }
+}
+
+// Estado de las tareas automáticas de cada canal (ventas, stock, entregas…): cuándo corrieron y si fallaron
+const CANAL_NOMBRE = { ml: 'MercadoLibre', shein: 'SHEIN', walmart: 'Walmart', amazon: 'Amazon', tiktok: 'TikTok Shop' }
+const TAREA_NOMBRE = { ventas: 'Ventas y pedidos', stock: 'Existencias', existencias: 'Existencias', entregas: 'Envíos y entregas', devoluciones: 'Devoluciones', revision: 'Revisión de productos', inventario: 'Existencias' }
+function hace(iso) {
+  if (!iso) return 'aún no'
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  return m < 1 ? 'hace un momento' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`
+}
+function pintarSync(tareas) {
+  const el = document.getElementById('con-sync'); if (!el) return
+  if (!tareas.length) { el.innerHTML = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#64748b">🔄 Sincronizaciones automáticas: todavía no hay datos (se llenan en la primera vuelta de cada tarea, unos minutos después de reiniciar el servidor).</div>`; return }
+  const mal = tareas.filter(t => t.salud !== 'ok')
+  const color = { ok: ['#e8f5e9', '#2e7d32', '● Bien'], atrasada: ['#fff4e5', '#b26a00', '● Atrasada'], con_error: ['#fdecea', '#b3261e', '● Con error'] }
+  el.innerHTML = `<div style="background:#fff;border:1px solid ${mal.length ? '#f5c2c0' : '#eee'};border-radius:14px;padding:14px;margin-bottom:14px">
+    <b style="font-size:0.92rem">🔄 Sincronizaciones automáticas</b>
+    <span style="font-size:0.76rem;margin-left:8px;color:${mal.length ? '#b3261e' : '#2e7d32'}">${mal.length ? `${mal.length} con problema` : 'todas bien'}</span>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">${tareas.map(t => {
+      const c = color[t.salud] || color.ok
+      return `<div style="border:1px solid #f1f5f9;border-radius:10px;padding:8px 10px;font-size:0.76rem">
+        <div style="display:flex;justify-content:space-between;gap:6px"><b>${esc(CANAL_NOMBRE[t.canal] || t.canal)} · ${esc(TAREA_NOMBRE[t.tarea] || t.tarea)}</b><span style="background:${c[0]};color:${c[1]};font-weight:700;border-radius:100px;padding:1px 8px;white-space:nowrap">${c[2]}</span></div>
+        <div style="color:#64748b;margin-top:3px">Última vuelta ${hace(t.ultima)} · última vez bien ${hace(t.ultimo_ok)}</div>
+        ${t.ultimo_error ? `<div style="color:#b3261e;margin-top:3px;word-break:break-word">${esc(t.ultimo_error.slice(0, 160))}</div>` : ''}</div>`
+    }).join('')}</div></div>`
 }
 
 function pintar() {

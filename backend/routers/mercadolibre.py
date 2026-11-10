@@ -276,7 +276,7 @@ def auth_callback(code: str = "", state: str = "", error: str = ""):
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             resp = json.loads(r.read())
     except urllib.error.HTTPError as e:
         err = json.loads(e.read())
@@ -1464,7 +1464,7 @@ def publicar_producto_agrupado(body: dict):
     req_body = json.dumps(payload).encode()
     req = urllib.request.Request(f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST")
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             resp = json.loads(r.read())
     except urllib.error.HTTPError as e:
         raw = e.read()
@@ -1539,7 +1539,7 @@ def publicar_payloads_raw(body: dict):
             f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST"
         )
         try:
-            with urllib.request.urlopen(req) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 resp = json.loads(r.read())
                 resultados.append({
                     "sku":       sku,
@@ -1588,7 +1588,7 @@ def test_item_ml(body: dict):
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             return {"ok": True, "response": json.loads(r.read())}
     except urllib.error.HTTPError as e:
         raw = e.read()
@@ -1640,7 +1640,7 @@ def debug_publicar(body: dict):
         f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST"
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             ml_resp = json.loads(r.read())
             return {"ok": True, "payload_enviado": payload, "ml_response": ml_resp}
     except urllib.error.HTTPError as e:
@@ -1789,7 +1789,7 @@ def validar_publicacion(body: dict):
         f"{ML_BASE}/items/validate", data=req_body, headers=ml_headers(), method="POST"
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             # 204/200 sin cuerpo = payload válido
             raw = r.read()
             return {"ok": True, "valido": True, "category_id": category_id,
@@ -2312,7 +2312,7 @@ def publicar_producto(body: dict):
             method="POST"
         )
         try:
-            with urllib.request.urlopen(req) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 resp = json.loads(r.read())
                 resultados.append({
                     "sku":     variante.get("sku"),
@@ -2331,7 +2331,7 @@ def publicar_producto(body: dict):
                             data=json.dumps({"plain_text": descripcion_item}).encode(),
                             headers=ml_headers(), method="POST",
                         )
-                        with urllib.request.urlopen(desc_req):
+                        with urllib.request.urlopen(desc_req, timeout=30):
                             pass
                     except Exception as e:
                         print(f"[ml publicar] no se pudo mandar descripcion de {resp.get('id')}: {e}")
@@ -2577,3 +2577,50 @@ def actualizar_token(body: dict):
     _token_guardar_db()
     cache_invalidate("ml_items")
     return {"ok": True, "message": "Token actualizado (en memoria y en la base)"}
+
+
+# ─── Prueba de acceso (SOLO LECTURA): que datos de MercadoLibre puede leer esta cuenta ────────────────────────────────────────
+@router.get("/acceso")
+def ml_acceso(_staff=Depends(require_staff)):
+    """Hace una consulta de lectura a cada API de MercadoLibre que podriamos usar (visitas, calidad, promociones, publicidad, competencia...)
+    y dice a cuales tiene acceso este token. No escribe ni cambia nada."""
+    resultados = []
+
+    def probar(nombre, path, extra_headers=None):
+        req = urllib.request.Request(f"{ML_BASE}{path}", headers={**ml_headers(), **(extra_headers or {})}, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                d = json.loads(r.read() or b"{}")
+            claves = list(d.keys())[:6] if isinstance(d, dict) else f"lista de {len(d)}"
+            resultados.append({"funcion": nombre, "ok": True, "http": 200, "vista": claves})
+            return d
+        except urllib.error.HTTPError as e:
+            try:
+                det = json.loads(e.read())
+                det = f"{det.get('error') or ''} {det.get('message') or ''}".strip()
+            except Exception:
+                det = ""
+            resultados.append({"funcion": nombre, "ok": False, "http": e.code, "detalle": det[:160]})
+        except Exception as e:
+            resultados.append({"funcion": nombre, "ok": False, "http": 0, "detalle": str(e)[:160]})
+        return None
+
+    probar("Cuenta (base)", f"/users/{ML_USER_ID}")
+    d = probar("Mis publicaciones", f"/users/{ML_USER_ID}/items/search?limit=1")
+    item = ((d or {}).get("results") or [None])[0]
+    hoy = datetime.now(timezone.utc)
+    desde = (hoy - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00.000-00:00")
+    hasta = hoy.strftime("%Y-%m-%dT23:59:59.000-00:00")
+    probar("Visitas de toda la cuenta (30 dias)", f"/users/{ML_USER_ID}/items_visits?date_from={desde}&date_to={hasta}")
+    if item:
+        probar("Visitas por publicacion", f"/items/{item}/visits/time_window?last=30&unit=day")
+        probar("Calidad de la publicacion (health)", f"/items/{item}/health")
+        probar("Calidad de la publicacion (performance)", f"/item/{item}/performance")
+        probar("Precio frente a la competencia (price_to_win)", f"/items/{item}/price_to_win?siteId=MLM&version=v2")
+    probar("Promociones y campañas", f"/seller-promotions/users/{ML_USER_ID}?app_version=v2")
+    probar("Publicidad (Product Ads)", "/advertising/advertisers?product_id=PADS", {"Api-Version": "1"})
+    probar("Pedidos", f"/orders/search?seller={ML_USER_ID}&limit=1")
+    probar("Reclamos y devoluciones", "/post-purchase/v1/claims/search?limit=1")
+    probar("Tendencias de busqueda en Mexico", "/trends/MLM")
+    probar("Metodos de envio del vendedor", f"/users/{ML_USER_ID}/shipping_preferences")
+    return {"con_acceso": [r["funcion"] for r in resultados if r["ok"]], "sin_acceso": [r["funcion"] for r in resultados if not r["ok"]], "detalle": resultados}

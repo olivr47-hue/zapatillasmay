@@ -6,6 +6,7 @@ from security import limiter, require_staff, require_admin, AUTH_ENFORCE, verify
 import re as _re
 from database import supabase_get
 import integraciones_cfg
+import sync_estado as _se
 integraciones_cfg.cargar_overrides()   # claves capturadas en el panel (Conexiones): deben estar en os.environ ANTES de importar los routers
 from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
@@ -263,6 +264,12 @@ app.include_router(pinterest.router)
 app.include_router(portal.router)
 from routers import buenfin
 app.include_router(buenfin.router)
+
+
+@app.get("/sync-estado")
+def sync_estado_endpoint(_staff=Depends(require_staff)):
+    """Estado de las tareas automaticas de los canales (cuando corrieron y si fallaron). Lo muestra el panel."""
+    return {"tareas": _se.estado()}
 app.include_router(sugerencias.router)
 app.include_router(push.router)
 app.include_router(emails.router)
@@ -321,32 +328,40 @@ def _loop_ml_ventas():
         try:
             from routers.mercadolibre import _hacer_sync_ventas
             res = _hacer_sync_ventas()
+            _se.ok_res("ml", "ventas", res)
             if res.get("procesadas"):
                 print(f"[ml-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
         except Exception as e:
             print(f"[ml-ventas] Error en loop: {e}")
+            _se.mal("ml", "ventas", e)
         try:
             # Stock ERP -> MercadoLibre. Va DESPUÉS de registrar las ventas (arriba) para que el ERP ya tenga
             # descontado lo que se vendió allá; si no, se le devolvería a ML una cantidad más alta de la real.
             from routers.mercadolibre import _hacer_sync
-            _hacer_sync()
+            res_s = _hacer_sync()
+            _se.ok_res("ml", "stock", res_s)
         except Exception as e:
             print(f"[ml-stock] Error en loop: {e}")
+            _se.mal("ml", "stock", e)
         try:
             from routers.mercadolibre import _hacer_sync_entregas
             res2 = _hacer_sync_entregas()
+            _se.ok_res("ml", "entregas", res2)
             if res2.get("actualizados") or res2.get("entregados") or res2.get("cancelados"):
                 print(f"[ml-entregas] enviados: {res2['actualizados']}, entregados: {res2['entregados']}, cancelados: {res2['cancelados']} (de {res2['revisados']} revisados)")
         except Exception as e:
             print(f"[ml-entregas] Error en loop: {e}")
+            _se.mal("ml", "entregas", e)
         try:
             # devoluciones: se revisa cada ~hora (la propia función se salta las vueltas intermedias) y solo avisa en el panel
             from routers.mercadolibre import _hacer_sync_devoluciones
             res3 = _hacer_sync_devoluciones()
+            _se.ok_res("ml", "devoluciones", res3, 60)
             if res3.get("por_confirmar"):
                 print(f"[ml-devoluciones] Por confirmar: {res3['por_confirmar']}")
         except Exception as e:
             print(f"[ml-devoluciones] Error en loop: {e}")
+            _se.mal("ml", "devoluciones", e, 60)
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_walmart_ventas():
@@ -359,12 +374,14 @@ def _loop_walmart_ventas():
             from routers.walmart import _hacer_sync_ventas_walmart, WALMART_CLIENT_ID
             if WALMART_CLIENT_ID:
                 res = _hacer_sync_ventas_walmart()
+                _se.ok_res("walmart", "ventas", res)
                 if res.get("procesadas") or res.get("enviados") or res.get("entregados") or res.get("cancelados"):
                     print(f"[walmart-ventas] nuevas: {res['procesadas']}, enviadas: {res['enviados']}, entregadas: {res['entregados']}, canceladas: {res['cancelados']}")
                 if res.get("errores"):
                     print(f"[walmart-ventas] errores: {res['errores'][:3]}")
         except Exception as e:
             print(f"[walmart-ventas] Error en loop: {e}")
+            _se.mal("walmart", "ventas", e)
         _time.sleep(10 * 60)
 
 def _loop_shein_stock():
@@ -374,9 +391,11 @@ def _loop_shein_stock():
     while True:
         try:
             from routers.shein import _hacer_sync
-            _hacer_sync()
+            res_s = _hacer_sync()
+            _se.ok_res("shein", "stock", res_s, 30)
         except Exception as e:
             print(f"[shein-stock] Error en loop: {e}")
+            _se.mal("shein", "stock", e, 30)
         _time.sleep(30 * 60)
 
 def _loop_shein_ventas():
@@ -388,26 +407,32 @@ def _loop_shein_ventas():
         try:
             from routers.shein import _hacer_sync_ventas_shein
             res = _hacer_sync_ventas_shein()
+            _se.ok_res("shein", "ventas", res)
             if res.get("procesadas"):
                 print(f"[shein-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
             if res.get("sin_match") or res.get("errores"):
                 print(f"[shein-ventas] sin_match: {res.get('sin_match')[:3]}, errores: {res.get('errores')[:3]}")
         except Exception as e:
             print(f"[shein-ventas] Error en loop: {e}")
+            _se.mal("shein", "ventas", e)
         try:
             # devoluciones de SHEIN: cada ~hora (la función se salta las vueltas intermedias); solo avisa en el panel
             from routers.shein import _hacer_sync_devoluciones_shein
             r2 = _hacer_sync_devoluciones_shein()
+            _se.ok_res("shein", "devoluciones", r2, 60)
             if r2.get("por_confirmar"):
                 print(f"[shein-devoluciones] Por confirmar: {r2['por_confirmar']}")
         except Exception as e:
             print(f"[shein-devoluciones] Error en loop: {e}")
+            _se.mal("shein", "devoluciones", e, 60)
         try:
             # estado de revisión de SHEIN (rechazados / negociaciones de precio): se deja calculado para el aviso del dashboard
             from routers.shein import _refrescar_revision_shein
             _refrescar_revision_shein()
+            _se.registrar("shein", "revision", True)
         except Exception as e:
             print(f"[shein-revision] Error en loop: {e}")
+            _se.mal("shein", "revision", e)
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_walmart_inventario():
@@ -419,10 +444,12 @@ def _loop_walmart_inventario():
             from routers.walmart import sincronizar_inventario, WALMART_CLIENT_ID
             if WALMART_CLIENT_ID:
                 res = sincronizar_inventario(solo_publicados=True)
+                _se.ok_res("walmart", "inventario", res, 30)
                 if res.get("enviados"):
                     print(f"[walmart-inventario] Existencias enviadas: {res['enviados']} SKU(s)")
         except Exception as e:
             print(f"[walmart-inventario] Error en loop: {e}")
+            _se.mal("walmart", "inventario", e, 30)
         _time.sleep(30 * 60)
 
 def _loop_amazon_ventas():
@@ -434,10 +461,12 @@ def _loop_amazon_ventas():
             from routers.amazon import _hacer_sync_ventas_amazon, _configurado
             if _configurado():
                 res = _hacer_sync_ventas_amazon()
+                _se.ok_res("amazon", "ventas", res)
                 if res.get("procesadas") or res.get("enviados") or res.get("cancelados"):
                     print(f"[amazon-ventas] nuevas: {res['procesadas']} de {res['revisadas']} revisadas, enviadas: {res['enviados']}, canceladas: {res['cancelados']}")
         except Exception as e:
             print(f"[amazon-ventas] Error en loop: {e}")
+            _se.mal("amazon", "ventas", e)
         _time.sleep(10 * 60)
 
 def _loop_resenas():
@@ -473,12 +502,14 @@ def _loop_amazon_stock():
         try:
             from routers.amazon import _hacer_sync_stock_amazon
             res = _hacer_sync_stock_amazon()
+            _se.ok_res("amazon", "stock", res, 30)
             if res.get("actualizados"):
                 print(f"[amazon-stock] Existencias enviadas: {res['actualizados']} de {res['revisados']} publicaciones")
             if res.get("errores"):
                 print(f"[amazon-stock] errores: {res['errores'][:3]}")
         except Exception as e:
             print(f"[amazon-stock] Error en loop: {e}")
+            _se.mal("amazon", "stock", e, 30)
         _time.sleep(30 * 60)
 
 def _loop_tiktok_sync():
@@ -488,9 +519,11 @@ def _loop_tiktok_sync():
         try:
             # Nueva sincronizacion (tiktok_sync.py): solo hace algo si el interruptor «existencias automaticas» esta encendido en el panel
             import tiktok_sync
-            tiktok_sync.sync_existencias_auto()
+            res_t = tiktok_sync.sync_existencias_auto()
+            _se.ok_res("tiktok", "existencias", res_t, 30)
         except Exception as e:
             print(f"[tiktok-sync] Error en loop: {e}")
+            _se.mal("tiktok", "existencias", e, 30)
         _time.sleep(30 * 60)  # cada 30 minutos
 
 def _loop_tiktok_ventas():
@@ -501,12 +534,14 @@ def _loop_tiktok_ventas():
         try:
             import tiktok_sync
             res = tiktok_sync.hacer_sync_ventas_tiktok()
+            _se.ok_res("tiktok", "ventas", res)
             if res.get("procesadas") or res.get("enviados") or res.get("entregados") or res.get("cancelados"):
                 print(f"[tiktok-ventas] nuevas: {res['procesadas']}, enviadas: {res['enviados']}, entregadas: {res['entregados']}, canceladas: {res['cancelados']}")
             if res.get("errores"):
                 print(f"[tiktok-ventas] errores: {res['errores'][:3]}")
         except Exception as e:
             print(f"[tiktok-ventas] Error en loop: {e}")
+            _se.mal("tiktok", "ventas", e)
         _time.sleep(10 * 60)
 
 def _loop_secuencias_wa():

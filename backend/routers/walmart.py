@@ -1461,3 +1461,32 @@ def inventario_sku(sku: str):
     """Consulta el inventario actual en Walmart para un SKU puntual (útil
     para confirmar que una sincronización sí se aplicó)."""
     return walmart_get("/inventory", params={"sku": sku})
+
+
+# ─── Prueba de acceso (SOLO LECTURA): que datos de Walmart puede leer esta cuenta ──────────────────────────────────────────────
+@router.get("/acceso")
+def walmart_acceso(_admin=Depends(require_admin)):
+    """Hace una consulta de lectura a cada API de Walmart que podriamos usar (calidad de listados, devoluciones, conciliacion de pagos...)
+    y dice a cuales tiene acceso esta cuenta. No escribe ni cambia nada."""
+    resultados = []
+
+    def probar(nombre, path, params=None):
+        try:
+            d = walmart_get(path, params)
+            vista = list(d.keys())[:6] if isinstance(d, dict) else f"lista de {len(d)}"
+            resultados.append({"funcion": nombre, "ok": True, "http": 200, "vista": vista})
+        except HTTPException as e:
+            resultados.append({"funcion": nombre, "ok": False, "http": e.status_code, "detalle": str(e.detail)[:200]})
+        except Exception as e:
+            resultados.append({"funcion": nombre, "ok": False, "http": 0, "detalle": str(e)[:200]})
+
+    probar("Productos (base)", "/items", {"limit": 1})
+    probar("Pedidos", "/orders", {"limit": 1, "createdStartDate": "2026-11-01T00:00:00Z"})
+    probar("Devoluciones", "/returns", {"limit": 1})
+    probar("Calidad de los listados (resumen)", "/insights/items/listingQuality/score")
+    probar("Calidad de los listados (por producto)", "/insights/items/listingQuality/items", {"limit": 1})
+    probar("Conciliacion de pagos (reportes disponibles)", "/report/reconreport/availableReconFiles", {"reportVersion": "v1"})
+    probar("Cargas masivas recientes (feeds)", "/feeds", {"limit": 1})
+    probar("Detalle del acceso (token)", "/token/detail")
+    probar("Plantillas de envio", "/settings/shippingTemplates")
+    return {"con_acceso": [r["funcion"] for r in resultados if r["ok"]], "sin_acceso": [r["funcion"] for r in resultados if not r["ok"]], "detalle": resultados}
