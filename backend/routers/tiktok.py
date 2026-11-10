@@ -821,6 +821,63 @@ def tiktok_sync_ventas(_staff=Depends(require_staff)):
     return tiktok_sync.hacer_sync_ventas_tiktok()
 
 
+@router.get("/nuevos/preparacion")
+def tiktok_nuevos_preparacion(_staff=Depends(require_staff)):
+    """SOLO LECTURA. Averigua con TikTok lo necesario para crear productos: requisitos de la tienda, ids de las categorias de calzado,
+    sus reglas y atributos obligatorios, la marca, la guia de tallas y la bodega."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    sal = {}
+
+    def lee(ruta, extra=None):
+        q = {"shop_cipher": cipher}
+        q.update(extra or {})
+        return _tiktok_api("GET", ruta, access, extra_params=q)
+
+    pre = lee("/product/202309/prerequisites")
+    sal["requisitos"] = {"code": pre.get("code"), "message": pre.get("message"), "data": pre.get("data")}
+    cat = lee("/product/202309/categories", {"locale": "es-MX", "category_version": "v1"})
+    cats = (cat.get("data") or {}).get("categories") or []
+    sal["categorias_total"] = len(cats)
+    por_id = {c.get("id"): c for c in cats}
+    buscadas = {"zapatos de tacón", "sandalias y chanclas", "zapatos planos", "botas", "zapatillas informales", "botas para mujer"}
+    halladas = []
+    for c in cats:
+        nom = (c.get("local_name") or "").strip().lower()
+        if nom in buscadas:
+            padre = por_id.get(c.get("parent_id")) or {}
+            abuelo = por_id.get(padre.get("parent_id")) or {}
+            halladas.append({"id": c.get("id"), "nombre": c.get("local_name"), "hoja": c.get("is_leaf"), "padre": padre.get("local_name"), "abuelo": abuelo.get("local_name"),
+                             "permiso": c.get("permission_statuses")})
+    sal["categorias_calzado"] = halladas
+    sal["reglas_y_atributos"] = {}
+    for c in halladas:
+        if c.get("abuelo") and "mujer" not in str(c.get("abuelo")).lower() and "mujer" not in str(c.get("padre")).lower():
+            continue
+        if not c.get("hoja"):
+            continue
+        cid = c["id"]
+        reglas = lee(f"/product/202309/categories/{cid}/rules", {"locale": "es-MX"})
+        atr = lee(f"/product/202309/categories/{cid}/attributes", {"locale": "es-MX"})
+        lista = (atr.get("data") or {}).get("attributes") or []
+        sal["reglas_y_atributos"][cid] = {
+            "nombre": c["nombre"], "padre": c.get("padre"),
+            "reglas": (reglas.get("data") or {}) if reglas.get("code") == 0 else {"error": reglas.get("message")},
+            "atributos": [{"id": a.get("id"), "nombre": a.get("name"), "obligatorio": a.get("is_requried") or a.get("is_required"), "tipo": a.get("type"),
+                           "multiple": a.get("is_multiple_selection"), "personalizable": a.get("is_customizable"),
+                           "valores": [(v.get("id"), v.get("name")) for v in (a.get("values") or [])[:6]]} for a in lista],
+            "atributos_codigo": atr.get("code"), "atributos_mensaje": atr.get("message"),
+        }
+    marcas = lee("/product/202309/brands", {"brand_name": "ZAPATILLAS", "page_size": "20"})
+    sal["marcas"] = {"code": marcas.get("code"), "message": marcas.get("message"), "data": (marcas.get("data") or {})}
+    bod = lee("/logistics/202309/warehouses")
+    sal["bodegas"] = {"code": bod.get("code"), "message": bod.get("message"), "data": bod.get("data")}
+    return sal
+
+
 @router.get("/comparar-existencias")
 def comparar_existencias(limite_productos: int = 0, crudo: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Lee de TikTok las existencias de cada SKU publicado y las compara con las del ERP (mismo cruce por SKU de vendedor que
