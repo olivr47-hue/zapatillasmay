@@ -279,6 +279,7 @@ function renderPC() {
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
         ${pcNavItem('sugerencias','💡', 'Sugerencias')}
         ${pcNavItem('cuenta',   '👤', 'Mi cuenta')}
+        <a class="pc-nav-item" target="_blank" rel="noopener" style="text-decoration:none;color:#E91E8C;font-weight:700" href="https://zapatillasmay.mx/buen-fin?utm_source=portal&utm_medium=menu&utm_campaign=buen_fin">🏷️ Buen Fin</a>
         <a class="pc-nav-item" target="_blank" rel="noopener" style="text-decoration:none" href="https://wa.me/5214792244560?text=${encodeURIComponent('Hola, soy ' + (pc.sesion?.nombre || 'cliente') + ' del portal mayoreo y tengo una pregunta 👋')}">💬 WhatsApp (tu asesora)</a>
       </nav>
 
