@@ -25516,6 +25516,7 @@ const _ML_TABS = [
   { id: 'preguntas',     label: 'Preguntas',     icon: 'message' },
   { id: 'mensajes',      label: 'Mensajes',       icon: 'message' },
   { id: 'reputacion',    label: 'Reputación',     icon: 'star' },
+  { id: 'rendimiento',   label: 'Rendimiento',    icon: 'clipboard' },
   { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
 ]
 
@@ -25567,8 +25568,77 @@ window._mlSwitchTab = async (tab) => {
   else if (tab === 'preguntas')  await _mlRenderPreguntasTab()
   else if (tab === 'mensajes')   await _mlRenderMensajesTab()
   else if (tab === 'reputacion') await _mlRenderReputacionTab()
+  else if (tab === 'rendimiento') await _mlRenderRendimientoTab()
   else if (tab === 'publicar')   await _mlRenderPublicarTab()
 }
+
+// ─── Pestaña: Rendimiento ────────────────────────────────────────────────────
+// Visitas y ventas de 30 días, calidad de la ficha por modelo y publicaciones pausadas que sí tienen existencias.
+async function _mlRenderRendimientoTab(refrescar = false) {
+  const body = document.getElementById('ml-tab-body')
+  clearTimeout(window._mlRendTimer)
+  let d
+  try {
+    const res = await fetch(`${API}/ml/rendimiento${refrescar ? '?refrescar=true' : ''}`)
+    d = await res.json()
+    if (!res.ok) throw new Error(d.error || d.detail || ('Error ' + res.status))
+  } catch (e) { if (body) body.innerHTML = `<p style="padding:1.5rem;color:#b91c1c">No se pudo cargar: ${_e(e.message)}</p>`; return }
+  if (window._mlTabActivo !== 'rendimiento' || !body) return
+  if (!d.datos) {
+    if (d.error) { body.innerHTML = `<p style="padding:1.5rem;color:#b91c1c">No se pudo calcular: ${_e(d.error)}</p><button class="btn btn-secondary" onclick="window._mlRendRefrescar()">Reintentar</button>`; return }
+    const pct = d.total ? Math.round(d.progreso * 100 / d.total) : 0
+    body.innerHTML = `<div style="padding:2rem 1rem;max-width:520px"><p style="margin:0 0 10px;font-size:0.9rem;color:#444">Calculando el rendimiento de tus publicaciones… ${d.total ? `${d.progreso} de ${d.total} modelos` : 'leyendo MercadoLibre'}</p>
+      <div style="height:9px;background:#e5eefc;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#3483fa"></div></div>
+      <p style="font-size:0.74rem;color:#aaa;margin-top:8px">Tarda un par de minutos la primera vez; después se reutiliza 30 minutos.</p></div>`
+    window._mlRendTimer = setTimeout(() => _mlRenderRendimientoTab(), 4000)
+    return
+  }
+  const k = d.datos.kpis, ms = d.datos.modelos
+  window._mlRend = d.datos
+  const kpi = (v, t, c = '#111', sub = '') => `<div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1rem 1.1rem">
+    <p style="font-size:1.45rem;font-weight:800;margin:0;color:${c}">${v}</p><p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">${t}</p>${sub ? `<p style="font-size:0.72rem;color:#aaa;margin:3px 0 0">${sub}</p>` : ''}</div>`
+  const fmt = (n) => n == null ? '—' : Number(n).toLocaleString('es-MX')
+  const pausadas = ms.filter(m => m.pausados_con_stock > 0).sort((a, b) => b.pausados_con_stock - a.pausados_con_stock)
+  const colorNivel = (n) => n === 'high' ? ['#dcfce7', '#166534', 'Buena'] : n === 'medium' ? ['#fef3c7', '#92400e', 'Media'] : n === 'low' ? ['#fee2e2', '#991b1b', 'Baja'] : ['#f3f4f6', '#666', '—']
+  const filaCal = (m) => {
+    const c = m.calidad || {}, n = colorNivel(c.nivel)
+    const mej = (c.mejoras || []).map(x => x.enlace ? `<a href="${_e(x.enlace)}" target="_blank" rel="noopener" style="color:#3483fa;text-decoration:none">${_e(x.titulo)}</a>` : _e(x.titulo)).join('<br>')
+    return `<tr><td style="padding:8px;border-bottom:1px solid #f1f1f1"><b style="font-size:0.84rem">${_e((m.nombre || '').slice(0, 56))}</b><br><span style="font-size:0.7rem;color:#aaa;font-family:monospace">${_e(m.modelo)}</span></td>
+      <td style="padding:8px;border-bottom:1px solid #f1f1f1;text-align:center">${c.error ? '<span style="color:#b91c1c;font-size:0.72rem">sin dato</span>' : `<span style="background:${n[0]};color:${n[1]};font-weight:700;font-size:0.78rem;padding:2px 9px;border-radius:99px">${c.puntaje ?? '—'} · ${n[2]}</span>`}</td>
+      <td style="padding:8px;border-bottom:1px solid #f1f1f1;text-align:center">${m.ventas_30d || 0}</td>
+      <td style="padding:8px;border-bottom:1px solid #f1f1f1;font-size:0.75rem;line-height:1.45">${mej || '<span style="color:#aaa">Sin mejoras pendientes</span>'}</td></tr>`
+  }
+  body.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <p style="margin:0;font-size:0.78rem;color:#888">Datos de los últimos 30 días · actualizado ${new Date(d.datos.generado).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}${d.calculando ? ' · actualizando…' : ''}</p>
+      <button class="btn btn-secondary" onclick="window._mlRendRefrescar()">↻ Actualizar</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:1.2rem">
+      ${kpi(fmt(k.visitas_30d), 'Visitas (30 días)')}
+      ${kpi(fmt(k.pares_30d), 'Pares vendidos', '#111', `${fmt(k.pedidos_30d)} pedidos`)}
+      ${kpi(k.conversion == null ? '—' : k.conversion + '%', 'Conversión', '#3483fa', 'pares ÷ visitas')}
+      ${kpi(fmt(k.activos), 'Publicaciones activas', '#166534', `${fmt(k.modelos)} modelos`)}
+      ${kpi(fmt(k.pausados), 'Pausadas', '#92400e')}
+      ${kpi(fmt(k.pausados_con_stock), 'Pausadas con existencias', k.pausados_con_stock ? '#b91c1c' : '#166534', 'podrían estar vendiendo')}
+      ${kpi(fmt(k.activos_sin_stock), 'Activas sin existencias', k.activos_sin_stock ? '#b91c1c' : '#166534', 'riesgo de vender de más')}
+    </div>
+    ${pausadas.length ? `<div style="background:#fff;border:1px solid #fecaca;border-radius:14px;padding:1.1rem;margin-bottom:1.2rem">
+      <h3 style="margin:0 0 4px;font-size:0.98rem">⏸ Pausadas que sí tienen existencias en tu ERP</h3>
+      <p style="margin:0 0 10px;font-size:0.78rem;color:#888">Estas tallas están pausadas en MercadoLibre pero en tu inventario hay pares. Revisa por qué se pausaron (la sincronización de existencias las reactiva sola cuando corresponde).</p>
+      <div style="max-height:320px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="text-align:left;color:#888;font-size:0.72rem;text-transform:uppercase"><th style="padding:6px 8px">Modelo</th><th style="padding:6px 8px;text-align:center">Pausadas con existencias</th><th style="padding:6px 8px;text-align:center">Pares en ERP</th><th style="padding:6px 8px;text-align:center">Activas</th></tr></thead><tbody>
+      ${pausadas.map(m => `<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5"><b>${_e((m.nombre || '').slice(0, 56))}</b><br><span style="font-size:0.7rem;color:#aaa;font-family:monospace">${_e(m.modelo)}</span></td><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:center;color:#b91c1c;font-weight:700">${m.pausados_con_stock} de ${m.pausados}</td><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:center">${m.stock_erp}</td><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:center">${m.activos}</td></tr>`).join('')}
+      </tbody></table></div></div>` : ''}
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem">
+      <h3 style="margin:0 0 4px;font-size:0.98rem">⭐ Calidad de la ficha por modelo</h3>
+      <p style="margin:0 0 10px;font-size:0.78rem;color:#888">Puntaje que MercadoLibre le da a cada ficha (de menor a mayor) y las mejoras que sugiere; tocar una mejora abre MercadoLibre para hacerla. Mejorar la ficha ayuda a que te encuentren más.</p>
+      <input id="ml-rend-buscar" oninput="window._mlRendFiltrar()" placeholder="Buscar modelo…" style="width:100%;max-width:320px;padding:7px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">
+      <div style="max-height:520px;overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;color:#888;font-size:0.72rem;text-transform:uppercase"><th style="padding:6px 8px">Modelo</th><th style="padding:6px 8px;text-align:center">Calidad</th><th style="padding:6px 8px;text-align:center">Pares 30 d</th><th style="padding:6px 8px">Mejoras sugeridas</th></tr></thead><tbody id="ml-rend-filas">${ms.map(filaCal).join('')}</tbody></table></div></div>`
+  window._mlRendFiltrar = () => {
+    const q = (document.getElementById('ml-rend-buscar').value || '').toLowerCase().trim()
+    document.getElementById('ml-rend-filas').innerHTML = (window._mlRend.modelos || []).filter(m => !q || `${m.nombre} ${m.modelo}`.toLowerCase().includes(q)).map(filaCal).join('')
+  }
+  window._mlRendRefrescar = () => { body.innerHTML = '<p style="padding:2rem;color:#aaa">Actualizando…</p>'; _mlRenderRendimientoTab(true) }
+}
+window._mlRendRefrescar = () => _mlRenderRendimientoTab(true)
 
 // ─── Pestaña: Publicaciones ──────────────────────────────────────────────────
 async function _mlRenderPublicacionesTab() {
