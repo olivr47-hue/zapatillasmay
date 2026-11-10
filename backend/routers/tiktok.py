@@ -478,7 +478,7 @@ def tiktok_finanzas(crudo: bool = False, _staff=Depends(require_staff)):
         return err
     access, tienda = ctx
     r = _tiktok_api("GET", "/finance/202309/statements", access,
-                    extra_params={"shop_cipher": tienda.get("cipher", ""), "sort_field": "statement_time", "page_size": "20"})
+                    extra_params={"shop_cipher": tienda.get("cipher", ""), "sort_field": "statement_time", "sort_order": "DESC", "page_size": "20"})
     if r.get("code") != 0:
         return JSONResponse(status_code=502, content={"error": "TikTok rechazo la consulta de finanzas", "codigo": r.get("code"), "mensaje": r.get("message")})
     d = r.get("data") or {}
@@ -491,6 +491,177 @@ def tiktok_finanzas(crudo: bool = False, _staff=Depends(require_staff)):
     if crudo and lista:
         salida["primera_crudo"] = lista[0]
     return salida
+
+
+# ── Fotos: llevar a TikTok las fotos que el ERP ya tiene de cada modelo ───────────────────────────────────────────────────────
+def _tiktok_subir_imagen(access, contenido: bytes, use_case: str = "MAIN_IMAGE"):
+    """Sube UNA imagen a TikTok (multipart) y devuelve su uri. La firma no incluye el cuerpo cuando es multipart."""
+    import secrets
+    path = "/product/202309/images/upload"
+    params = {"app_key": TIKTOK_APP_KEY, "timestamp": str(int(time.time()))}
+    params["sign"] = _sign(path, params, "")
+    limite = "----zm" + secrets.token_hex(12)
+    cuerpo = b"".join([
+        f"--{limite}\r\nContent-Disposition: form-data; name=\"data\"; filename=\"foto.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".encode(),
+        contenido, b"\r\n",
+        f"--{limite}\r\nContent-Disposition: form-data; name=\"use_case\"\r\n\r\n{use_case}\r\n".encode(),
+        f"--{limite}--\r\n".encode(),
+    ])
+    req = urllib.request.Request(TIKTOK_API_BASE + path + "?" + urllib.parse.urlencode(params), data=cuerpo, method="POST",
+                                 headers={"Content-Type": f"multipart/form-data; boundary={limite}", "x-tts-access-token": access})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read())
+        except Exception:
+            return {"code": e.code, "message": f"HTTP {e.code}"}
+
+
+def _fotos_erp_de_modelo(producto, variantes, maximo=9):
+    """Fotos del ERP para el modelo: la portada primero y luego una de cada color por turnos (así la galeria muestra todos los colores),
+    sin repetir, hasta `maximo` (TikTok acepta 9). Tamano 1200 px como pide TikTok."""
+    from routers.tiktok_excel import _resize_cloudinary
+    vistas = set()
+    salida = []
+    def agrega(u):
+        if u and u not in vistas and len(salida) < maximo:
+            vistas.add(u); salida.append(u)
+    agrega(producto.get("imagen_principal"))
+    colas = []
+    for v in variantes:
+        colas.append([x for x in ([v.get("foto_url")] + list(v.get("imagenes") or [])) if x])
+    ronda = 0
+    while len(salida) < maximo and any(ronda < len(c) for c in colas):
+        for c in colas:
+            if ronda < len(c):
+                agrega(c[ronda])
+        ronda += 1
+    return [_resize_cloudinary(u) for u in salida]
+
+
+def _producto_erp_de_tiktok(tk_producto, cargado):
+    """Producto del ERP (y sus variantes) que corresponde a un producto de TikTok, por el SKU de vendedor. (None, None) si no hay."""
+    from routers.tiktok_excel import _spu_de, _ALIAS_ID
+    productos, vars_por_prod, _inv, inv_por_sku = cargado
+    for s in tk_producto.get("skus") or []:
+        sv = (s.get("seller_sku") or "").strip()
+        if not sv:
+            continue
+        spu, _resto = _spu_de(sv, inv_por_sku)
+        if spu is None:
+            continue
+        clave = _ALIAS_ID.get(spu, spu)
+        for p in productos:
+            if (p.get("sku_interno") or str(p["id"])) == clave:
+                return p, vars_por_prod.get(p["id"], [])
+    return None, None
+
+
+@router.get("/fotos-pendientes")
+def tiktok_fotos_pendientes(refrescar: bool = False, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Modelos ACTIVOS en TikTok que tienen MENOS fotos que las que ya existen en el ERP (por ejemplo, los que se subieron con una sola foto).
+    Consulta el detalle de cada producto activo (cache de 30 min)."""
+    from cache import cache_get, cache_set
+    if not refrescar:
+        c = cache_get("tiktok_fotos_pendientes")
+        if c is not None:
+            return c
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    productos, e = _catalogo_tiktok(access, cipher)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    activos = [p for p in productos if p.get("status") == "ACTIVATE"]
+    from routers.tiktok_excel import _cargar_erp
+    cargado = _cargar_erp()
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _uno(p):
+        try:
+            r = _tiktok_api("GET", f"/product/202309/products/{p.get('id')}", access, extra_params={"shop_cipher": cipher})
+            if r.get("code") != 0:
+                return {"id": p.get("id"), "titulo": p.get("title"), "error": r.get("message")}
+            d = r.get("data") or {}
+            n_tk = len(d.get("main_images") or [])
+            prod, vars_ = _producto_erp_de_tiktok(p, cargado)
+            if not prod:
+                return {"id": p.get("id"), "titulo": d.get("title"), "fotos_tiktok": n_tk, "sin_modelo_erp": True}
+            fotos = _fotos_erp_de_modelo(prod, vars_)
+            return {"id": p.get("id"), "titulo": d.get("title"), "sku_interno": prod.get("sku_interno"),
+                    "fotos_tiktok": n_tk, "fotos_erp": len(fotos), "portada_tiktok": ((d.get("main_images") or [{}])[0].get("urls") or [""])[0]}
+        except Exception as ex:
+            return {"id": p.get("id"), "titulo": p.get("title"), "error": str(ex)[:100]}
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        filas = list(ex.map(_uno, activos))
+    pendientes = [f for f in filas if f.get("fotos_erp") and f["fotos_erp"] > f.get("fotos_tiktok", 0)]
+    pendientes.sort(key=lambda f: (f["fotos_tiktok"], -f["fotos_erp"]))
+    salida = {
+        "activos_revisados": len(filas),
+        "con_una_sola_foto": sum(1 for f in filas if f.get("fotos_tiktok") == 1),
+        "pendientes": len(pendientes),
+        "sin_modelo_erp": sum(1 for f in filas if f.get("sin_modelo_erp")),
+        "con_error": sum(1 for f in filas if f.get("error")),
+        "productos": pendientes,
+    }
+    cache_set("tiktok_fotos_pendientes", salida, ttl=1800)
+    return salida
+
+
+@router.post("/producto/{producto_id}/actualizar-fotos")
+def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, _staff=Depends(require_staff)):
+    """ESCRIBE EN TIKTOK (solo las fotos de la galeria de ESE producto; no toca precio, existencias ni texto).
+    Sin confirmar=true solo muestra que fotos se subirian. Con confirmar=true las sube a TikTok y las pone en la galeria del producto.
+    Ojo: TikTok puede volver a revisar el producto despues de cambiarle fotos."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    r = _tiktok_api("GET", f"/product/202309/products/{producto_id}", access, extra_params={"shop_cipher": cipher})
+    if r.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el producto", "mensaje": r.get("message")})
+    d = r.get("data") or {}
+    if d.get("status") != "ACTIVATE":
+        return JSONResponse(status_code=409, content={"error": f"El producto no esta activo en TikTok (estado {d.get('status')})"})
+    from routers.tiktok_excel import _cargar_erp
+    prod, vars_ = _producto_erp_de_tiktok(d, _cargar_erp())
+    if not prod:
+        return JSONResponse(status_code=404, content={"error": "No se encontro el modelo en el ERP por el SKU de vendedor"})
+    fotos = _fotos_erp_de_modelo(prod, vars_)
+    n_tk = len(d.get("main_images") or [])
+    resumen = {"producto": d.get("title"), "modelo_erp": prod.get("sku_interno"), "fotos_actuales_tiktok": n_tk, "fotos_que_se_subirian": len(fotos), "fotos": fotos}
+    if len(fotos) <= n_tk:
+        return {**resumen, "hecho": False, "mensaje": "TikTok ya tiene igual o mas fotos que el ERP: no hay nada que actualizar"}
+    if not confirmar:
+        return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para subirlas a TikTok"}
+    uris, fallos = [], []
+    for u in fotos:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as resp:
+                contenido = resp.read()
+            s = _tiktok_subir_imagen(access, contenido)
+            uri = ((s.get("data") or {}).get("uri"))
+            if s.get("code") == 0 and uri:
+                uris.append(uri)
+            else:
+                fallos.append({"url": u[-60:], "codigo": s.get("code"), "mensaje": s.get("message")})
+        except Exception as ex:
+            fallos.append({"url": u[-60:], "error": str(ex)[:100]})
+    if len(uris) <= n_tk:
+        return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": "No se pudieron subir suficientes fotos; no se cambio nada en TikTok", "fallos": fallos})
+    e = _tiktok_api("POST", f"/product/202309/products/{producto_id}/partial_edit", access,
+                    body={"main_images": [{"uri": x} for x in uris]}, extra_params={"shop_cipher": cipher})
+    if e.get("code") != 0:
+        return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": "TikTok rechazo el cambio de fotos", "codigo": e.get("code"), "mensaje": e.get("message"), "fallos": fallos})
+    from cache import cache_set
+    cache_set("tiktok_fotos_pendientes", None, ttl=1)
+    return {**resumen, "hecho": True, "fotos_subidas": len(uris), "fallos": fallos, "respuesta_tiktok": e.get("data")}
 
 
 @router.get("/comparar-existencias")
@@ -534,6 +705,8 @@ def comparar_existencias(limite_productos: int = 0, crudo: bool = False, _staff=
     skus_total = sin_inventario = sin_sku = sin_match = iguales = 0
     mas_en_tiktok, menos_en_tiktok = [], []
     for prod in productos_tt:
+        if prod.get("status") != "ACTIVATE":
+            continue   # borrados, en borrador o desactivados: no se venden, no cuentan
         for s in prod.get("skus") or []:
             skus_total += 1
             sv = (s.get("seller_sku") or "").strip()
