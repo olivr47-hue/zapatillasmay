@@ -149,6 +149,144 @@ def sync_existencias_auto():
         _LOCK_EXISTENCIAS.release()
 
 
+
+# ── utilidad de TikTok -> «Tu utilidad» (tabla ventas_externas, sin mover inventario) ──────────────────────────────────────
+_ESTADO_EXTERNO = {"AWAITING_SHIPMENT": "Para enviar", "PARTIALLY_SHIPPING": "Para enviar", "AWAITING_COLLECTION": "Para enviar",
+                   "IN_TRANSIT": "Enviado", "DELIVERED": "Completado", "COMPLETED": "Completado"}
+_LOCK_UTILIDAD = threading.Lock()
+
+
+def sync_utilidad_tiktok(dias_extra=3):
+    """Trae de TikTok los pedidos NUEVOS desde el ultimo registro de ventas_externas (menos `dias_extra` dias para refrescar estados) y los
+    guarda ahi: asi suman a la utilidad general y a «Tu utilidad» (precio vendido - precio de corrida) SIN contar como venta ni mover inventario.
+    Los pedidos cancelados no suman (si ya estaban guardados, se quitan). No guarda pedidos que el sistema ya registro como pedido (canal tiktok)."""
+    if not _LOCK_UTILIDAD.acquire(blocking=False):
+        return {"omitida": "ya hay una actualizacion en curso"}
+    res = {"pedidos_nuevos": 0, "filas_nuevas": 0, "estados_actualizados": 0, "quitados_por_cancelacion": 0, "sin_costo": 0,
+           "pares": 0, "tu_utilidad_agregada": 0.0, "desde": None, "errores": []}
+    try:
+        from routers.tiktok import _contexto_tienda, _tiktok_api
+        ctx, err = _contexto_tienda()
+        if err:
+            res["errores"].append("sin conexion con TikTok")
+            return res
+        access, tienda = ctx
+        ult = supabase_get("ventas_externas?origen=eq.tiktok&select=fecha_venta&order=fecha_venta.desc&limit=1") or []
+        if ult:
+            try:
+                ult_ts = int(_dt.datetime.fromisoformat(str(ult[0]["fecha_venta"]).replace("Z", "+00:00")).timestamp())
+            except Exception:
+                ult_ts = int(time.time()) - 30 * 86400
+        else:
+            ult_ts = int(time.time()) - 30 * 86400
+        ini = ult_ts - dias_extra * 86400
+        res["desde"] = ini
+        ordenes, token_pag, paginas = [], "", 0
+        while True:
+            extra = {"page_size": "100", "shop_cipher": tienda.get("cipher", ""), "sort_field": "create_time", "sort_order": "ASC"}
+            if token_pag:
+                extra["page_token"] = token_pag
+            o = _tiktok_api("POST", "/order/202309/orders/search", access,
+                            body={"create_time_ge": ini, "create_time_lt": int(time.time()) + 60}, extra_params=extra)
+            if o.get("code") != 0:
+                res["errores"].append(f"TikTok rechazo la busqueda de pedidos: {o.get('message')}")
+                return res
+            d = o.get("data") or {}
+            ordenes.extend(d.get("orders") or [])
+            paginas += 1
+            token_pag = d.get("next_page_token") or ""
+            if not token_pag or paginas >= 20:
+                break
+        ids = [str(x.get("id")) for x in ordenes if x.get("id")]
+        guardadas = {}
+        for k in range(0, len(ids), 100):
+            lote = ",".join(ids[k:k + 100])
+            for f in supabase_get(f"ventas_externas?origen=eq.tiktok&pedido_externo=in.({lote})&select=id,pedido_externo,sku_vendedor,estado_externo") or []:
+                guardadas[(f["pedido_externo"], f["sku_vendedor"])] = f
+        como_pedido = set()
+        for k in range(0, len(ids), 100):
+            lote = ",".join(ids[k:k + 100])
+            for f in supabase_get(f"pedidos?tiktok_order_id=in.({lote})&select=tiktok_order_id") or []:
+                como_pedido.add(str(f["tiktok_order_id"]))
+        from routers.tiktok_excel import _cargar_erp, _spu_de, _ALIAS_ID
+        from routers.finanzas import _costo_unitario
+        _p, _v, _i, inv_por_sku = _cargar_erp()
+        cache_prod = {}
+
+        def producto_de(sv):
+            spu, _r = _spu_de(sv, inv_por_sku)
+            if spu is None:
+                return None
+            clave = _ALIAS_ID.get(spu, spu)
+            if clave not in cache_prod:
+                import urllib.parse as _up
+                filas = supabase_get(f"productos?sku_interno=eq.{_up.quote(clave, safe='')}&select=id,nombre,costo,precio_corrida,precio_menudeo&limit=1") or []
+                cache_prod[clave] = filas[0] if filas else None
+            return cache_prod[clave]
+
+        for orden in ordenes:
+            oid = str(orden.get("id") or "")
+            if not oid or oid in como_pedido:
+                continue
+            estado_tt = orden.get("status")
+            if estado_tt in ("CANCELLED", "UNPAID", "ON_HOLD"):
+                for (po, sv), fila in list(guardadas.items()):
+                    if po == oid:
+                        from database import supabase_delete
+                        supabase_delete(f"ventas_externas?id=eq.{fila['id']}")
+                        res["quitados_por_cancelacion"] += 1
+                continue
+            estado_ext = _ESTADO_EXTERNO.get(estado_tt, "Para enviar")
+            por_sku = {}
+            for li in orden.get("line_items") or []:
+                if (li.get("display_status") or "") == "CANCELLED":
+                    continue
+                sv = (li.get("seller_sku") or "").strip() or f"SIN-SKU-{li.get('sku_id')}"
+                g = por_sku.setdefault(sv, {"n": 0, "li": li})
+                g["n"] += 1
+            nuevo_pedido = False
+            for sv, g in por_sku.items():
+                clave = (oid, sv)
+                if clave in guardadas:
+                    if guardadas[clave].get("estado_externo") != estado_ext:
+                        supabase_patch(f"ventas_externas?id=eq.{guardadas[clave]['id']}", {"estado_externo": estado_ext})
+                        res["estados_actualizados"] += 1
+                    continue
+                li, n = g["li"], g["n"]
+                try:
+                    venta = float(li.get("sale_price") or 0)
+                except (TypeError, ValueError):
+                    venta = 0.0
+                prod = producto_de(sv) if not sv.startswith("SIN-SKU") else None
+                real = corrida = None
+                if prod:
+                    real = _costo_unitario(prod, "real") or None
+                    corrida = _costo_unitario(prod, "corrida")
+                else:
+                    res["sin_costo"] += 1
+                fila = {"origen": "tiktok", "pedido_externo": oid, "sku_vendedor": sv, "producto_id": prod["id"] if prod else None,
+                        "nombre": (li.get("product_name") or "")[:200], "cantidad": n, "venta_unit": venta, "costo_real_unit": real,
+                        "costo_corrida_unit": corrida, "fecha_venta": _iso(orden.get("create_time")) + "+00:00", "estado_externo": estado_ext}
+                try:
+                    supabase_post("ventas_externas", fila)
+                    res["filas_nuevas"] += 1
+                    res["pares"] += n
+                    if corrida is not None:
+                        res["tu_utilidad_agregada"] += (venta - corrida) * n
+                    nuevo_pedido = True
+                except Exception as e:
+                    res["errores"].append(f"{oid}/{sv}: {str(e)[:120]}")
+            if nuevo_pedido:
+                res["pedidos_nuevos"] += 1
+        res["tu_utilidad_agregada"] = round(res["tu_utilidad_agregada"], 2)
+        return res
+    except Exception as ex:
+        res["errores"].append(str(ex)[:200])
+        return res
+    finally:
+        _LOCK_UTILIDAD.release()
+
+
 # ── ventas: TikTok -> ERP ──────────────────────────────────────────────────────────────────────────────────────────────────
 # Estado del pedido de TikTok -> estado del pedido en el ERP. UNPAID / ON_HOLD / CANCELLED no se crean (no hay venta firme).
 _ESTADO_ERP = {"AWAITING_SHIPMENT": "pagado", "PARTIALLY_SHIPPING": "pagado", "AWAITING_COLLECTION": "pagado",
@@ -236,7 +374,8 @@ def hacer_sync_ventas_tiktok(forzar_sin_interruptor=False):
     try:
         desde = cfg_get(CLAVE_VENTAS)
         if not (desde or "").isdigit():
-            return {"activo": False}
+            # Sin registrar pedidos: igual se mantiene al dia la UTILIDAD de TikTok (ventas_externas) para «Tu utilidad»
+            return {"activo": False, "utilidad": sync_utilidad_tiktok()}
         desde = int(desde)
         from routers.tiktok import _contexto_tienda, _tiktok_api
         ctx, err = _contexto_tienda()
@@ -282,6 +421,8 @@ def hacer_sync_ventas_tiktok(forzar_sin_interruptor=False):
             estado_erp = _ESTADO_ERP.get(orden.get("status"))
             if not estado_erp or int(orden.get("create_time") or 0) < desde:
                 continue   # sin venta firme, o anterior a la activacion (ya se manejo a mano)
+            if supabase_get(f"ventas_externas?origen=eq.tiktok&pedido_externo=eq.{oid}&select=id&limit=1"):
+                continue   # ya cuenta en la utilidad como venta externa: no se vuelve a contar como pedido
             if cargado is None:
                 from routers.tiktok_excel import _cargar_erp
                 cargado = _cargar_erp()

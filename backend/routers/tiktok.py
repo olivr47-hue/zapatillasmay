@@ -732,10 +732,18 @@ def tiktok_automatico_cambiar(existencias: str = "", ventas: str = "", _admin=De
         tiktok_sync.cfg_set(tiktok_sync.CLAVE_EXISTENCIAS, "1" if existencias == "on" else "0")
     if ventas == "on":
         if not tiktok_sync.estado_automatico()["ventas_desde"]:
+            tiktok_sync.sync_utilidad_tiktok()   # primero se cierra la utilidad hasta este momento (esos pedidos no se importan como pedido)
             tiktok_sync.cfg_set(tiktok_sync.CLAVE_VENTAS, str(int(time.time())))
     elif ventas == "off":
         tiktok_sync.cfg_set(tiktok_sync.CLAVE_VENTAS, None)
     return tiktok_sync.estado_automatico()
+
+
+@router.post("/utilidad/sincronizar")
+def tiktok_utilidad_sincronizar(_staff=Depends(require_staff)):
+    """Trae los pedidos de TikTok posteriores al ultimo registro y los suma a la utilidad (general y «Tu utilidad»). No mueve inventario."""
+    import tiktok_sync
+    return tiktok_sync.sync_utilidad_tiktok()
 
 
 @router.post("/sync-ventas")
