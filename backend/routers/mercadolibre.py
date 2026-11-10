@@ -455,10 +455,18 @@ def _get_items_with_sku(all_ids: list) -> list:
     items = []
     for i in range(0, len(all_ids), 20):
         batch = ",".join(all_ids[i:i+20])
-        try:
-            resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
-        except HTTPException as e:
-            raise HTTPException(e.status_code, f"{e.detail} [lote {i // 20 + 1} de {(len(all_ids) + 19) // 20}: {batch[:60]}...]")
+        resp = None
+        for intento in (1, 2, 3):
+            try:
+                resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
+                break
+            except HTTPException as e:
+                # MercadoLibre a veces contesta 403/429 «recurso obsoleto» cuando recibe muchas consultas seguidas: se espera y se reintenta
+                if e.status_code in (403, 429, 500, 502, 503) and intento < 3:
+                    time.sleep(2 * intento)
+                    continue
+                raise HTTPException(e.status_code, f"{e.detail} [lote {i // 20 + 1} de {(len(all_ids) + 19) // 20}]")
+        time.sleep(0.15)   # ritmo suave: 65 consultas seguidas pueden toparse con el limite de MercadoLibre
         for entry in resp:
             if entry.get("code") != 200:
                 continue
