@@ -72,13 +72,19 @@
       '<p style="margin:0 0 6px;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:#b5687a;font-weight:700">' + rango + '</p>' +
       '<h2 style="margin:0 0 10px;font-family:\'Cormorant Garamond\',serif;font-size:2.1rem;line-height:1.1;color:#2A1A0E;font-weight:600">Buen Fin <em style="color:#b5687a">Zapatillas May</em></h2>' +
       '<p style="margin:0 0 18px;font-size:0.95rem;line-height:1.5;color:#5a4030">Durante el Buen Fin, <b>todos los pares tienen precio especial desde el primer par</b>: no necesitas comprar 3. Además, <b>tenemos modelos con precios especiales</b> solo por el Buen Fin.</p>' +
-      '<a href="/buen-fin" style="display:inline-block;background:#2A1A0E;color:#fff;text-decoration:none;padding:13px 28px;border-radius:100px;font-weight:600;font-size:0.88rem">Ver modelos con precios especiales</a>' +
+      '<a id="zm-bf-go" href="/buen-fin" style="display:inline-block;background:#2A1A0E;color:#fff;text-decoration:none;padding:13px 28px;border-radius:100px;font-weight:600;font-size:0.88rem">Ver modelos con precios especiales</a>' +
       '<div><button id="zm-bf-c" style="margin-top:10px;background:none;border:none;color:#8B6A54;font-size:0.8rem;cursor:pointer;text-decoration:underline">Seguir viendo la tienda</button></div></div>'
     function cerrar() { try { localStorage.setItem('zm_bf_popup', estado.inicio) } catch (e) {} d.remove() }
     d.addEventListener('click', function (ev) { if (ev.target === d) cerrar() })
     document.body.appendChild(d)
     document.getElementById('zm-bf-x').onclick = cerrar
     document.getElementById('zm-bf-c').onclick = cerrar
+    // Al ir a los modelos especiales el recuadro se cierra (y ya no vuelve a salir)
+    document.getElementById('zm-bf-go').addEventListener('click', function (ev) {
+      cerrar()
+      // En la tienda se abre la lista sin recargar la pagina; en carrito/ficha el enlace normal lleva a /buen-fin
+      if (typeof window.mostrarBuenFin === 'function') { ev.preventDefault(); window.mostrarBuenFin() }
+    })
   }
 
   var st = document.createElement('style')
