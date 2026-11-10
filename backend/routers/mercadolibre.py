@@ -2720,3 +2720,131 @@ def ml_consulta(ruta: str, _admin=Depends(require_admin)):
         return _ml_abrir("GET", ruta)
     except urllib.error.HTTPError as e:
         return JSONResponse(status_code=e.code, content={"error": _detalle_error(e)})
+
+
+# ─── Rendimiento: como van las publicaciones (visitas, ventas, calidad y pausadas con existencias) ─────────────────────────────────
+_REND = {"datos": None, "calculando": False, "progreso": 0, "total": 0, "inicio": 0.0, "fin": 0.0, "error": ""}
+_REND_LOCK = threading.Lock()
+_REND_VIGENCIA = 30 * 60   # los datos se reutilizan 30 minutos
+
+
+def _calidad_item(item_id: str) -> dict:
+    """Puntaje de calidad de una publicacion (GET /item/{id}/performance) y las mejoras que MercadoLibre sugiere."""
+    try:
+        d = ml_get(f"/item/{item_id}/performance")
+    except Exception as e:
+        return {"error": str(getattr(e, "detail", e))[:120]}
+    mejoras, vistos = [], set()
+    for bk in d.get("buckets") or []:
+        for var in bk.get("variables") or []:
+            for r in var.get("rules") or []:
+                if r.get("status") == "COMPLETED":
+                    continue
+                w = r.get("wordings") or {}
+                titulo = (w.get("title") or r.get("key") or "").strip()
+                if titulo and titulo not in vistos:
+                    vistos.add(titulo)
+                    mejoras.append({"titulo": titulo, "enlace": w.get("link")})
+    return {"puntaje": d.get("score"), "nivel": d.get("level"), "mejoras": mejoras[:4], "pendientes": len(mejoras)}
+
+
+def _calcular_rendimiento():
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        _REND.update({"calculando": True, "progreso": 0, "total": 0, "inicio": time.time(), "error": ""})
+        items = _get_items_with_sku(_get_all_item_ids())
+        # ERP: existencias por SKU y modelo
+        productos = {p["id"]: p for p in supabase_get_all("productos?select=id,nombre,sku_interno")}
+        variantes = supabase_get_all("variantes?select=id,sku,producto_id")
+        stock_var: dict = {}
+        for r in supabase_get_all("inventario?select=variante_id,cantidad"):
+            stock_var[r["variante_id"]] = stock_var.get(r["variante_id"], 0) + int(r.get("cantidad") or 0)
+        stock_sku, prod_de_var = {}, {}
+        for v in variantes:
+            prod_de_var[v["id"]] = v.get("producto_id")
+            if v.get("sku"):
+                stock_sku[_norm_sku(v["sku"])] = stock_var.get(v["id"], 0)
+        # ventas de los ultimos 30 dias por modelo (pedidos de MercadoLibre registrados en el ERP)
+        desde = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        peds = supabase_get_all(f"pedidos?canal=eq.mercadolibre&created_at=gte.{urllib.parse.quote(desde)}&select=id,status") or []
+        ids_ok = [x["id"] for x in peds if x.get("status") not in ("cancelado", "borrador")]
+        ventas_modelo: dict = {}
+        pares_total = 0
+        for i in range(0, len(ids_ok), 80):
+            lote = ",".join(ids_ok[i:i + 80])
+            for pi in supabase_get_all(f"pedido_items?pedido_id=in.({lote})&select=variante_id,cantidad") or []:
+                prod = productos.get(prod_de_var.get(pi.get("variante_id")))
+                cant = int(pi.get("cantidad") or 0)
+                pares_total += cant
+                if prod:
+                    k = prod.get("sku_interno") or ""
+                    ventas_modelo[k] = ventas_modelo.get(k, 0) + cant
+        # agrupar items de ML por modelo (primeras 3 partes del SKU)
+        modelos: dict = {}
+        for it in items:
+            partes = (it.get("seller_sku") or "").split("-")
+            clave = "-".join(partes[:3]) if len(partes) >= 3 else (it.get("seller_sku") or "?")
+            m = modelos.setdefault(clave, {"modelo": clave, "items": 0, "activos": 0, "pausados": 0, "pausados_con_stock": 0, "activos_sin_stock": 0, "stock_erp": 0, "ref": None, "ref_activo": False})
+            m["items"] += 1
+            stock = stock_sku.get(_norm_sku(it.get("seller_sku") or ""), 0)
+            m["stock_erp"] += max(stock, 0)
+            if it.get("status") == "active":
+                m["activos"] += 1
+                if stock <= 0:
+                    m["activos_sin_stock"] += 1
+                if not m["ref_activo"]:
+                    m["ref"], m["ref_activo"] = it["item_id"], True
+            elif it.get("status") == "paused":
+                m["pausados"] += 1
+                if stock > 0:
+                    m["pausados_con_stock"] += 1
+            if not m["ref"]:
+                m["ref"] = it["item_id"]
+        nombre_de = {(p.get("sku_interno") or ""): p.get("nombre") for p in productos.values()}
+        lista = list(modelos.values())
+        _REND["total"] = len(lista)
+
+        def trabajo(m):
+            m["nombre"] = nombre_de.get(m["modelo"]) or m["modelo"]
+            m["ventas_30d"] = ventas_modelo.get(m["modelo"], 0)
+            m["calidad"] = _calidad_item(m["ref"]) if m["ref"] else {}
+            _REND["progreso"] += 1
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            list(ex.map(trabajo, lista))
+        # visitas de toda la cuenta (30 dias)
+        hoy = datetime.now(timezone.utc)
+        try:
+            v = ml_get(f"/users/{ML_USER_ID}/items_visits?date_from={(hoy - timedelta(days=30)).strftime('%Y-%m-%d')}&date_to={hoy.strftime('%Y-%m-%d')}")
+            visitas = int(v.get("total_visits") or 0)
+        except Exception:
+            visitas = None
+        activos = sum(m["activos"] for m in lista)
+        pausados = sum(m["pausados"] for m in lista)
+        _REND["datos"] = {
+            "generado": datetime.now(timezone.utc).isoformat(),
+            "kpis": {"visitas_30d": visitas, "pedidos_30d": len(ids_ok), "pares_30d": pares_total,
+                     "conversion": (round(pares_total * 100.0 / visitas, 2) if visitas else None),
+                     "items": len(items), "activos": activos, "pausados": pausados,
+                     "pausados_con_stock": sum(m["pausados_con_stock"] for m in lista), "activos_sin_stock": sum(m["activos_sin_stock"] for m in lista),
+                     "modelos": len(lista)},
+            "modelos": sorted([{k: v for k, v in m.items() if k not in ("ref_activo",)} for m in lista],
+                              key=lambda x: ((x.get("calidad") or {}).get("puntaje") if (x.get("calidad") or {}).get("puntaje") is not None else 999)),
+        }
+    except Exception as e:
+        _REND["error"] = f"{type(e).__name__}: {str(getattr(e, 'detail', e))[:200]}"
+        print(f"[ml-rendimiento] {_REND['error']}")
+    finally:
+        _REND.update({"calculando": False, "fin": time.time()})
+
+
+@router.get("/rendimiento")
+def ml_rendimiento(refrescar: bool = False, _staff=Depends(require_staff)):
+    """Como van las publicaciones: visitas y ventas de 30 dias, calidad por modelo y publicaciones pausadas que si tienen existencias.
+    Se calcula en segundo plano (tarda un par de minutos) y se reutiliza 30 minutos."""
+    vigente = _REND["datos"] is not None and (time.time() - _REND["fin"]) < _REND_VIGENCIA
+    if (refrescar or not vigente) and not _REND["calculando"]:
+        with _REND_LOCK:
+            if not _REND["calculando"]:
+                _REND["calculando"] = True
+                threading.Thread(target=_calcular_rendimiento, daemon=True).start()
+    return {"calculando": _REND["calculando"], "progreso": _REND["progreso"], "total": _REND["total"], "error": _REND["error"], "datos": _REND["datos"]}
