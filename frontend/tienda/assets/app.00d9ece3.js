@@ -2959,6 +2959,7 @@ function zmBuscar(texto, productos, coloresPorProducto, tieneTalla) {
     if (_enPausa(mostrarBuenFin, arguments)) return
     if (!(window.zmBuenFin && window.zmBuenFin.activa())) { mostrarInicio(); return }
     mostrarConFiltros(productos.filter(p => p.activo && window.zmBuenFin.esModelo(p.id)), '<em>Buen Fin</em> Zapatillas May', '', '/buen-fin')
+    try { _bfChipsVisibles() } catch (e) {}
   }
 
   function mostrarInicio() {
@@ -3095,6 +3096,7 @@ const _SEO_DESCRIPTIONS = {
 }
 
 function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
+  { const _c0 = document.getElementById('bf-cats'); if (_c0) _c0.remove() }
   document.documentElement.classList.remove('ruta-interna', 'ruta-home')
   document.documentElement.classList.add('ruta-categoria')
   const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
@@ -3205,7 +3207,19 @@ function _construirChipsFiltro() {
   ).join('')
 }
 
-function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); aplicarFiltros() }
+function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); aplicarFiltros(); if (document.getElementById('bf-cats')) _bfChipsVisibles() }
+// Buen Fin: categorias visibles (botas, zapatillas, sandalias...) sin abrir el panel de filtros
+function _bfChipsVisibles() {
+  const bar = document.getElementById('filtros-bar'); if (!bar) return
+  const base = _filtroBase || []
+  const cats = [...new Set(base.map(p => p.categoria).filter(Boolean))]
+  let cont = document.getElementById('bf-cats')
+  if (cats.length < 2) { if (cont) cont.remove(); return }
+  if (!cont) { cont = document.createElement('div'); cont.id = 'bf-cats'; cont.style.cssText = 'display:flex;gap:8px;overflow-x:auto;padding:10px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch'; bar.insertBefore(cont, bar.firstChild) }
+  const chip = (txt, act, fn) => `<button onclick="${fn}" style="flex:0 0 auto;padding:8px 16px;border-radius:100px;border:1.5px solid ${act ? '#2A1A0E' : '#d9c9bb'};background:${act ? '#2A1A0E' : '#fff'};color:${act ? '#fff' : '#2A1A0E'};font:600 0.8rem Outfit,sans-serif;cursor:pointer">${txt}</button>`
+  cont.innerHTML = chip(`Todos (${base.length})`, !_filtros.categoria, "_bfCat('')") + cats.map(c => chip(`${_CAT_LABELS[c] || c} (${base.filter(p => p.categoria === c).length})`, _filtros.categoria === c, `_bfCat('${c}')`)).join('')
+}
+function _bfCat(c) { _filtros.categoria = c; _construirChipsFiltro(); aplicarFiltros(); _bfChipsVisibles() }
 function _toggleOcasion(o){ const i=_filtros.ocasion.indexOf(o); if(i<0)_filtros.ocasion.push(o); else _filtros.ocasion.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
 function _toggleTalla(t){ const i=_filtros.tallas.indexOf(t); if(i<0)_filtros.tallas.push(t); else _filtros.tallas.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
 function _toggleColor(c){ const i=_filtros.colores.indexOf(c); if(i<0)_filtros.colores.push(c); else _filtros.colores.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
