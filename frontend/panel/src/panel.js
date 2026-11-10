@@ -24828,13 +24828,20 @@ async function cargarBuenFin() {
   if (!res.ok) { el.innerHTML = `<p style="padding:2rem;color:#b91c1c">No se pudo cargar: ${_e(d.error || d.detail || res.status)}</p>`; return }
   window._bf = { modelos: d.modelos_disponibles || [], sel: new Set((d.modelos_disponibles || []).filter(m => m.seleccionado).map(m => m.id)) }
   const web = (m) => { const b = parseFloat(m.menudeo) || 0; return b + 80 }
+  // Precio especial de un modelo elegido: web − descuento, sin bajar de su corrida + $50 (y nunca más caro que el −$60 general)
+  const especial = (m) => {
+    const w = web(m), desc = parseFloat(document.getElementById('bf-desc')?.value) || 100, corr = parseFloat(m.corrida) || ((parseFloat(m.menudeo) || 0) - 100)
+    return Math.min(w - 60, Math.max(w - desc, corr + 50))
+  }
+  window._bfEspecial = especial
   el.innerHTML = `<div style="max-width:980px">
     <h2 style="margin:0 0 4px">🏷️ Buen Fin</h2>
-    <p style="margin:0 0 16px;color:#888;font-size:0.85rem">Elige las fechas (hora de México) y los modelos de la promoción. <b>Tienda:</b> todos los pares de esos modelos se cobran al precio de 3+ pares desde el primer par; se muestra un aviso y el botón del Buen Fin solo dentro de las fechas. <b>Portal de mayoreo:</b> esos modelos se cobran a precio de corrida aunque la clienta lleve tallas y colores variados.</p>
+    <p style="margin:0 0 16px;color:#888;font-size:0.85rem">Elige las fechas (hora de México) y los modelos de la promoción. <b>Tienda (dentro de las fechas):</b> TODA la tienda cobra el precio de 3+ pares (−$60) desde el primer par, y los modelos que elijas abajo llevan además el descuento especial de aquí (contra el precio web, sin bajar de su corrida + $50). Se muestra un aviso y el botón del Buen Fin, que lleva a los modelos elegidos. <b>Portal de mayoreo:</b> los modelos elegidos se cobran a precio de corrida aunque la clienta lleve tallas y colores variados.</p>
     <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" id="bf-activo" ${d.activo ? 'checked' : ''}> Promoción encendida</label>
       <label style="font-size:0.8rem;color:#666">Inicio<br><input type="datetime-local" id="bf-inicio" value="${_e(d.inicio || '')}" style="padding:6px;border:1px solid #ddd;border-radius:6px"></label>
       <label style="font-size:0.8rem;color:#666">Fin<br><input type="datetime-local" id="bf-fin" value="${_e(d.fin || '')}" style="padding:6px;border:1px solid #ddd;border-radius:6px"></label>
+      <label style="font-size:0.8rem;color:#666">Descuento especial en modelos elegidos ($ contra precio web)<br><input type="number" id="bf-desc" min="60" max="170" step="10" value="${_e(d.descuento || 100)}" oninput="window._bfFiltrar()" style="padding:6px;border:1px solid #ddd;border-radius:6px;width:110px"></label>
       <span id="bf-estado" style="font-size:0.82rem;padding:5px 10px;border-radius:100px;background:${d.activa_ahora ? '#dcfce7' : '#f3f4f6'};color:${d.activa_ahora ? '#166534' : '#666'}">${d.activa_ahora ? '● Activa ahora' : '○ No está activa ahora'}</span>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
@@ -24851,7 +24858,7 @@ async function cargarBuenFin() {
       ${m.foto ? `<img src="${_e(m.foto)}" loading="lazy" style="width:42px;height:42px;object-fit:cover;border-radius:6px">` : '<div style="width:42px;height:42px;background:#f3f3f3;border-radius:6px"></div>'}
       <div style="flex:1;min-width:0"><div style="font-size:0.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(m.nombre || '')}</div>
       <div style="font-size:0.72rem;color:#999">${_e(m.sku || '')} · ${_e(m.categoria || '')}</div></div>
-      <div style="font-size:0.78rem;text-align:right;color:#555">Web hoy $${web(m)}<br><b style="color:#b5687a">Buen Fin $${web(m) - 60}</b>${m.corrida ? `<br><span style="color:#888">Portal $${m.corrida}</span>` : ''}</div></label>`).join('') || '<p style="padding:16px;color:#aaa">Sin resultados.</p>'
+      <div style="font-size:0.78rem;text-align:right;color:#555">Web hoy $${web(m)} · Buen Fin general $${web(m) - 60}<br><b style="color:#b5687a">Modelo elegido $${especial(m)}</b>${m.corrida ? `<br><span style="color:#888">Portal $${m.corrida}</span>` : ''}</div></label>`).join('') || '<p style="padding:16px;color:#aaa">Sin resultados.</p>'
     document.getElementById('bf-cont').textContent = `${window._bf.sel.size} modelos elegidos`
   }
   window._bfFiltrar = () => {
@@ -24863,7 +24870,7 @@ async function cargarBuenFin() {
     const msg = document.getElementById('bf-msg'); btn.disabled = true
     try {
       const r = await fetch(`${API}/buen-fin/config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activo: document.getElementById('bf-activo').checked, inicio: document.getElementById('bf-inicio').value, fin: document.getElementById('bf-fin').value, modelos: [...window._bf.sel] }) })
+        body: JSON.stringify({ activo: document.getElementById('bf-activo').checked, inicio: document.getElementById('bf-inicio').value, fin: document.getElementById('bf-fin').value, modelos: [...window._bf.sel], descuento: parseFloat(document.getElementById('bf-desc').value) || 100 }) })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(j.error || j.detail || ('Error ' + r.status))
       msg.innerHTML = `<div style="padding:8px 12px;border-radius:8px;background:#f0fdf4;color:#166534;font-size:0.84rem">✅ Guardado: ${j.modelos} modelos. ${j.activa_ahora ? 'La promoción está ACTIVA ahora.' : 'Aún no está activa (fuera de fechas o apagada).'} La tienda y el portal lo reflejan en menos de un minuto.</div>`

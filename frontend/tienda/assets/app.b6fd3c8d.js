@@ -1490,7 +1490,8 @@ cargarConfigSEO()
     // Descuento de 3+ pares: se queda visible en la tarjeta (el de 6+ ya solo
     // vive en panel/portal, aquí no se muestra).
     const _precioMay3 = (_precioMenu && !p.es_oferta) ? _precioMenu - 60 : null
-    const _bf = !!(_precioMay3 && window.zmBuenFin && window.zmBuenFin.esModelo(p.id))
+    const _bfp = window.zmBuenFinProducto ? window.zmBuenFinProducto(p) : null   // Buen Fin: toda la tienda a precio de 3+ pares desde 1 par; los modelos elegidos, aun menos
+    const _bf = !!_bfp
 
     // Fotos para ir rotando sola en la tarjeta (ver observador más abajo):
     // primero los ángulos extra del color de portada, luego una foto de
@@ -1536,7 +1537,7 @@ cargarConfigSEO()
         ${_estrellasHTML}
         <div class="product-prices">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${_bf ? `<span class="price-main">$${_precioMay3.toLocaleString('es-MX')} MXN</span><span style="text-decoration:line-through;color:#aaa;font-size:0.78rem">$${_precioMenu.toLocaleString('es-MX')}</span><span class="zm-bf-tag">Buen Fin</span>` : _precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
+            ${_bf ? `<span class="price-main">$${_bfp.bf.toLocaleString('es-MX')} MXN</span><span style="text-decoration:line-through;color:#aaa;font-size:0.78rem">$${_bfp.web.toLocaleString('es-MX')}</span><span class="zm-bf-tag">${_bfp.especial ? 'Especial Buen Fin' : 'Buen Fin'}</span>` : _precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
           </div>
           ${_precioMay3 && !_bf ? `<div class="price-mayoreo-hint" style="margin-top:2px">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
         </div>

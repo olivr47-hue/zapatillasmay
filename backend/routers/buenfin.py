@@ -4,7 +4,8 @@ buenfin.py -- Promocion del Buen Fin.
 · Los modelos y las fechas se administran desde el panel (se guardan en la tabla `configuracion`, clave `buen_fin`).
 · La promocion esta ACTIVA solo si el interruptor esta encendido y la hora actual (horario de Mexico, UTC-6 sin horario de verano)
   cae entre el inicio y el fin.
-· En la TIENDA: todos los pares de esos modelos se cobran al precio de 3+ pares desde el primer par.
+· En la TIENDA: mientras esta activa, TODA la tienda cobra el precio de 3+ pares (-$60) desde el primer par, y los modelos elegidos en el
+  panel llevan ademas un descuento mayor (`descuento` en pesos contra el precio web, por defecto $100) sin bajar de su corrida + $50.
 · En el PORTAL de mayoreo: esos modelos se cobran al precio de corrida, aunque la clienta lleve tallas y colores variados.
 """
 import json
@@ -23,17 +24,24 @@ _CLAVE = "buen_fin"
 _MX = timezone(timedelta(hours=-6))
 
 
+def _desc(v) -> int:
+    try:
+        return max(60, min(170, int(float(v))))
+    except Exception:
+        return 100
+
+
 def _leer_config() -> dict:
     c = cache_get("buen_fin_config")
     if c is not None:
         return c
-    cfg = {"activo": False, "inicio": "", "fin": "", "modelos": []}
+    cfg = {"activo": False, "inicio": "", "fin": "", "modelos": [], "descuento": 100}
     try:
         filas = supabase_get(f"configuracion?clave=eq.{_CLAVE}&select=valor&limit=1") or []
         if filas:
             v = json.loads(filas[0].get("valor") or "{}")
             cfg = {"activo": bool(v.get("activo")), "inicio": str(v.get("inicio") or ""), "fin": str(v.get("fin") or ""),
-                   "modelos": [str(x) for x in (v.get("modelos") or [])]}
+                   "modelos": [str(x) for x in (v.get("modelos") or [])], "descuento": _desc(v.get("descuento", 100))}
     except Exception as e:
         print(f"[buen-fin] no se pudo leer la configuracion: {e}")
     cache_set("buen_fin_config", cfg, ttl=30)
@@ -54,8 +62,8 @@ def estado_actual() -> dict:
     cfg = _leer_config()
     ini, fin = _fecha_mx(cfg["inicio"]), _fecha_mx(cfg["fin"])
     ahora = datetime.now(_MX)
-    activa = bool(cfg["activo"] and ini and fin and ini <= ahora <= fin and cfg["modelos"])
-    return {"activa": activa, "inicio": cfg["inicio"], "fin": cfg["fin"], "ids": set(cfg["modelos"])}
+    activa = bool(cfg["activo"] and ini and fin and ini <= ahora <= fin)
+    return {"activa": activa, "inicio": cfg["inicio"], "fin": cfg["fin"], "ids": set(cfg["modelos"]), "descuento": cfg["descuento"]}
 
 
 def producto_en_buen_fin(producto_id) -> bool:
@@ -67,7 +75,7 @@ def producto_en_buen_fin(producto_id) -> bool:
 def buen_fin_estado():
     """PUBLICO. Lo lee la tienda y el portal para saber si la promocion esta activa y que modelos incluye."""
     e = estado_actual()
-    return {"activa": e["activa"], "inicio": e["inicio"], "fin": e["fin"], "ids": sorted(e["ids"]) if e["activa"] else []}
+    return {"activa": e["activa"], "inicio": e["inicio"], "fin": e["fin"], "ids": sorted(e["ids"]) if e["activa"] else [], "descuento": e["descuento"]}
 
 
 @router.get("/config")
@@ -93,7 +101,7 @@ def buen_fin_guardar(datos: dict, _staff=Depends(require_staff)):
         if not a or not b or b <= a:
             return JSONResponse(status_code=400, content={"error": "Indica la fecha de inicio y la de fin (el fin debe ser despues del inicio)"})
     modelos = [str(x) for x in (datos.get("modelos") or []) if str(x)][:500]
-    valor = json.dumps({"activo": activo, "inicio": inicio, "fin": fin, "modelos": modelos}, separators=(",", ":"))
+    valor = json.dumps({"activo": activo, "inicio": inicio, "fin": fin, "modelos": modelos, "descuento": _desc(datos.get("descuento", 100))}, separators=(",", ":"))
     existe = supabase_get(f"configuracion?clave=eq.{_CLAVE}&select=clave") or []
     if existe:
         supabase_patch(f"configuracion?clave=eq.{_CLAVE}", {"valor": valor})
