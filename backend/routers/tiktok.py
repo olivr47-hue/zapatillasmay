@@ -1021,6 +1021,23 @@ def _variantes_faltantes(d, prod, vs, inv):
     return faltan
 
 
+@router.get("/mensajes/prueba")
+def tiktok_mensajes_prueba(conversacion_id: str = "", _staff=Depends(require_staff)):
+    """SOLO LECTURA. Prueba si la app tiene permiso de Servicio al cliente: pide las ultimas conversaciones (y, si se da conversacion_id, sus mensajes).
+    No escribe ni responde nada."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    if conversacion_id:
+        r = _tiktok_api("GET", f"/customer_service/202309/conversations/{urllib.parse.quote(conversacion_id, safe='')}/messages", access,
+                        extra_params={"shop_cipher": cipher, "page_size": "20"})
+    else:
+        r = _tiktok_api("GET", "/customer_service/202309/conversations", access, extra_params={"shop_cipher": cipher, "page_size": "10"})
+    return {"codigo": r.get("code"), "mensaje": r.get("message"), "datos": r.get("data")}
+
+
 @router.get("/variantes-faltantes")
 def tiktok_variantes_faltantes(refrescar: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Productos ACTIVOS en TikTok a los que les faltan colores/tallas que el ERP si tiene con existencias."""
