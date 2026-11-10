@@ -71,7 +71,7 @@ REGISTRO = [
      "campos": _G(("SHEIN_APP_ID", "App ID", False), ("SHEIN_APP_SECRET", "App Secret", True), ("SHEIN_PROXY_URL", "URL del proxy (si usas uno)", False))},
     {"id": "tiktok", "nombre": "TikTok Shop", "icono": "🎵", "probar": None,
      "descripcion": "Conexión de la app de TikTok (hoy el catálogo se sube por Excel).",
-     "campos": _G(("TIKTOK_APP_KEY", "App Key", False), ("TIKTOK_APP_SECRET", "App Secret", True))},
+     "campos": _G(("TIKTOK_APP_KEY", "App Key", False), ("TIKTOK_APP_SECRET", "App Secret", True), ("TIKTOK_SERVICE_ID", "Service ID (app ERP MAY: 7696112354686027541)", False))},
     {"id": "pinterest", "nombre": "Pinterest", "icono": "📌", "probar": "/redes/pinterest/ping", "descripcion": "Publicar pines, catálogo y anuncios de Pinterest.",
      "campos": _G(("PINTEREST_APP_ID", "ID de la app de Pinterest", False, "Pinterest Developers → tu app → ID de la aplicación."),
                   ("PINTEREST_APP_SECRET", "Clave secreta de la app", True, "Pinterest Developers → tu app → Clave secreta. Sirve para el botón «Conectar Pinterest»."),

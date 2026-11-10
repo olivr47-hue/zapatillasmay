@@ -22,8 +22,9 @@ TIKTOK_REDIRECT_URI = os.getenv(
     "TIKTOK_REDIRECT_URI",
     "https://zapatillasmay-production.up.railway.app/tiktok/callback"
 )
-# ID del servicio (app "Zapatillas May ERP" en el Partner Center → Aplicación y servicio)
-TIKTOK_SERVICE_ID = os.getenv("TIKTOK_SERVICE_ID", "7641934060004837136")
+# ID del servicio: app "ERP MAY" en el Partner Center → Aplicación y servicio (la anterior, "Zapatillas May ERP" 7641934060004837136, quedó en
+# borrador sin aprobar). Se puede cambiar desde el panel (Conexiones → TikTok Shop → Service ID) sin tocar Railway.
+TIKTOK_SERVICE_ID = os.getenv("TIKTOK_SERVICE_ID", "7696112354686027541")
 TIKTOK_AUTH_URL   = "https://services.tiktokshop.com/open/authorize"          # mercados fuera de EE. UU.
 TIKTOK_TOKEN_URL  = "https://auth.tiktok-shops.com/api/v2/token/get"          # GET
 TIKTOK_REFRESH_URL = "https://auth.tiktok-shops.com/api/v2/token/refresh"     # GET
