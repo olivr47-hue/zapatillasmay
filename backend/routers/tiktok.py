@@ -233,6 +233,266 @@ def diagnostico(_staff=Depends(require_staff)):
     return salida
 
 
+# ── Lectura de TikTok Shop para la pantalla del panel (SOLO LECTURA: nada de esto escribe en TikTok) ──────────────────────────
+def _contexto_tienda():
+    """((access_token, tienda), None) de la tienda conectada, o (None, JSONResponse con el error)."""
+    access = _token_vigente()
+    if not access:
+        return None, JSONResponse(status_code=401, content={"error": "Sin token vigente de TikTok: autoriza la tienda otra vez"})
+    r = _tiktok_api("GET", "/authorization/202309/shops", access)
+    tiendas = (r.get("data") or {}).get("shops") or []
+    if not tiendas:
+        return None, JSONResponse(status_code=502, content={"error": "TikTok no devolvio tiendas", "detalle": r.get("message")})
+    return (access, tiendas[0]), None
+
+
+def _catalogo_tiktok(access, cipher, forzar=False):
+    """Todos los productos de TikTok (con SKUs, existencias y precios), paginado, con cache de 10 min."""
+    from cache import cache_get, cache_set
+    if not forzar:
+        c = cache_get("tiktok_catalogo")
+        if c is not None:
+            return c, None
+    productos, token_pag, paginas = [], "", 0
+    while True:
+        extra = {"page_size": "100", "shop_cipher": cipher}
+        if token_pag:
+            extra["page_token"] = token_pag
+        p = _tiktok_api("POST", "/product/202309/products/search", access, body={}, extra_params=extra)
+        if p.get("code") != 0:
+            return None, {"codigo": p.get("code"), "mensaje": p.get("message")}
+        d = p.get("data") or {}
+        productos.extend(d.get("products") or [])
+        paginas += 1
+        token_pag = d.get("next_page_token") or ""
+        if not token_pag or paginas >= 40:
+            break
+    cache_set("tiktok_catalogo", productos, ttl=600)
+    return productos, None
+
+
+def _resumen_producto(p):
+    skus = p.get("skus") or []
+    stock = 0
+    precios = []
+    sin_sku = 0
+    for s in skus:
+        stock += sum(int(i.get("quantity") or 0) for i in (s.get("inventory") or []))
+        pr = (s.get("price") or {}).get("tax_exclusive_price") or (s.get("price") or {}).get("sale_price")
+        try:
+            if pr is not None:
+                precios.append(float(pr))
+        except (TypeError, ValueError):
+            pass
+        if not (s.get("seller_sku") or "").strip():
+            sin_sku += 1
+    return {
+        "id": p.get("id"), "titulo": p.get("title") or "", "estado": p.get("status") or "",
+        "skus": len(skus), "sin_sku": sin_sku, "stock": stock,
+        "precio_min": min(precios) if precios else None, "precio_max": max(precios) if precios else None,
+        "creado": p.get("create_time"), "actualizado": p.get("update_time"),
+        "sku_ejemplo": next(((s.get("seller_sku") or "") for s in skus if s.get("seller_sku")), ""),
+    }
+
+
+@router.get("/resumen")
+def tiktok_resumen(refrescar: bool = False, _staff=Depends(require_staff)):
+    """Tarjetas de la pantalla: tienda, conexion, productos por estado, SKUs, existencias y pedidos de los ultimos 30 dias."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    token = _load_token() or {}
+    productos, e = _catalogo_tiktok(access, tienda.get("cipher", ""), forzar=refrescar)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    por_estado, skus, stock, sin_sku = {}, 0, 0, 0
+    for p in productos:
+        r = _resumen_producto(p)
+        por_estado[r["estado"]] = por_estado.get(r["estado"], 0) + 1
+        skus += r["skus"]; stock += r["stock"]; sin_sku += r["sin_sku"]
+    salida = {
+        "conectado": True,
+        "tienda": {"nombre": tienda.get("name"), "region": tienda.get("region"), "tipo": tienda.get("seller_type"), "id": tienda.get("id")},
+        "token_vence": _vence_en(token), "permisos": len(token.get("granted_scopes") or []),
+        "productos": {"total": len(productos), "por_estado": por_estado, "skus": skus, "stock_total": stock, "skus_sin_sku_vendedor": sin_sku},
+        "sync_existencias_activa": TIKTOK_SYNC_ACTIVO,
+    }
+    ahora = int(time.time())
+    o = _tiktok_api("POST", "/order/202309/orders/search", access,
+                    body={"create_time_ge": ahora - 30 * 86400, "create_time_lt": ahora},
+                    extra_params={"page_size": "100", "shop_cipher": tienda.get("cipher", ""), "sort_field": "create_time", "sort_order": "DESC"})
+    if o.get("code") == 0:
+        ords = (o.get("data") or {}).get("orders") or []
+        est = {}
+        total = 0.0
+        for x in ords:
+            est[x.get("status") or "?"] = est.get(x.get("status") or "?", 0) + 1
+            try:
+                total += float(((x.get("payment") or {}).get("total_amount")) or 0)
+            except (TypeError, ValueError):
+                pass
+        salida["pedidos_30d"] = {"n": len(ords), "hay_mas": bool((o.get("data") or {}).get("next_page_token")), "por_estado": est, "total": round(total, 2)}
+    else:
+        salida["pedidos_30d"] = {"error": o.get("message"), "codigo": o.get("code")}
+    return salida
+
+
+@router.get("/productos")
+def tiktok_productos(q: str = "", estado: str = "", pagina: int = 1, por_pagina: int = 50, refrescar: bool = False, _staff=Depends(require_staff)):
+    """Lista de productos de TikTok (filtro por texto/SKU y por estado), con existencias y rango de precios."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    productos, e = _catalogo_tiktok(access, tienda.get("cipher", ""), forzar=refrescar)
+    if productos is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la lista de productos", **e})
+    filas = [_resumen_producto(p) for p in productos]
+    nq = (q or "").strip().lower()
+    if nq:
+        ids_por_sku = {}
+        for p in productos:
+            for s in p.get("skus") or []:
+                if nq in (s.get("seller_sku") or "").lower():
+                    ids_por_sku[p.get("id")] = True
+        filas = [f for f in filas if nq in f["titulo"].lower() or f["id"] in ids_por_sku or nq in str(f["id"])]
+    if estado:
+        filas = [f for f in filas if f["estado"] == estado]
+    filas.sort(key=lambda f: f.get("actualizado") or 0, reverse=True)
+    por_pagina = max(1, min(int(por_pagina), 200))
+    ini = (max(1, int(pagina)) - 1) * por_pagina
+    return {"total": len(filas), "pagina": pagina, "por_pagina": por_pagina, "productos": filas[ini:ini + por_pagina]}
+
+
+@router.get("/producto/{producto_id}")
+def tiktok_producto(producto_id: str, crudo: bool = False, _staff=Depends(require_staff)):
+    """Detalle de un producto de TikTok (fotos, descripcion, SKUs con existencias y precio) junto con las fotos que tiene el ERP del mismo modelo."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    r = _tiktok_api("GET", f"/product/202309/products/{producto_id}", access, extra_params={"shop_cipher": tienda.get("cipher", "")})
+    if r.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el producto", "codigo": r.get("code"), "mensaje": r.get("message")})
+    d = r.get("data") or {}
+    salida = {
+        "id": d.get("id"), "titulo": d.get("title"), "estado": d.get("status"),
+        "fotos": [(i.get("urls") or [i.get("thumb_urls", [None])[0]])[0] if isinstance(i, dict) else i for i in (d.get("main_images") or [])],
+        "descripcion": (d.get("description") or "")[:600],
+        "categoria": [c.get("local_name") or c.get("name") for c in (d.get("category_chains") or [])],
+        "skus": [{"id": s.get("id"), "seller_sku": s.get("seller_sku"), "precio": (s.get("price") or {}).get("tax_exclusive_price") or (s.get("price") or {}).get("sale_price"),
+                  "existencias": sum(int(i.get("quantity") or 0) for i in (s.get("inventory") or [])),
+                  "atributos": [(a.get("name"), a.get("value_name")) for a in (s.get("sales_attributes") or [])]} for s in (d.get("skus") or [])],
+    }
+    # Fotos del ERP para el mismo modelo (el SKU del vendedor empieza con el sku_interno: LETRA-TIPO-NNNN)
+    try:
+        sku0 = next(((s.get("seller_sku") or "") for s in (d.get("skus") or []) if s.get("seller_sku")), "")
+        partes = sku0.split("-")
+        sku_int = "-".join(partes[:3]) if len(partes) >= 3 else ""
+        if sku_int:
+            prod = supabase_get(f"productos?sku_interno=eq.{urllib.parse.quote(sku_int, safe='')}&select=id,nombre,imagen_principal&limit=1") or []
+            if prod:
+                vs = supabase_get(f"variantes?producto_id=eq.{prod[0]['id']}&activa=eq.true&select=color,foto_url,imagenes") or []
+                fotos_erp = {}
+                for v in vs:
+                    lista = [u for u in ([v.get("foto_url")] + list(v.get("imagenes") or [])) if u]
+                    fotos_erp.setdefault(v.get("color") or "", [])
+                    for u in lista:
+                        if u not in fotos_erp[v.get("color") or ""]:
+                            fotos_erp[v.get("color") or ""].append(u)
+                salida["erp"] = {"sku_interno": sku_int, "nombre": prod[0].get("nombre"), "fotos_por_color": fotos_erp,
+                                 "total_fotos": sum(len(x) for x in fotos_erp.values())}
+    except Exception as e:
+        salida["erp_error"] = str(e)[:120]
+    if crudo:
+        salida["crudo"] = d
+    return salida
+
+
+@router.get("/pedidos")
+def tiktok_pedidos(dias: int = 30, estado: str = "", crudo: bool = False, _staff=Depends(require_staff)):
+    """Pedidos de TikTok Shop de los ultimos N dias (maximo 100 por consulta)."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    ahora = int(time.time())
+    cuerpo = {"create_time_ge": ahora - max(1, min(int(dias), 90)) * 86400, "create_time_lt": ahora}
+    if estado:
+        cuerpo["order_status"] = estado
+    o = _tiktok_api("POST", "/order/202309/orders/search", access, body=cuerpo,
+                    extra_params={"page_size": "100", "shop_cipher": tienda.get("cipher", ""), "sort_field": "create_time", "sort_order": "DESC"})
+    if o.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la busqueda de pedidos", "codigo": o.get("code"), "mensaje": o.get("message")})
+    d = o.get("data") or {}
+    filas = []
+    for x in d.get("orders") or []:
+        pago = x.get("payment") or {}
+        items = x.get("line_items") or []
+        filas.append({
+            "id": x.get("id"), "estado": x.get("status"), "creado": x.get("create_time"),
+            "total": pago.get("total_amount"), "moneda": pago.get("currency"),
+            "pares": len(items),
+            "articulos": [{"producto": (i.get("product_name") or "")[:60], "sku": i.get("seller_sku"), "variante": i.get("sku_name")} for i in items][:6],
+            "paqueteria": x.get("shipping_provider"), "guia": x.get("tracking_number"),
+            "pago_metodo": x.get("payment_method_name"),
+        })
+    salida = {"total_en_pagina": len(filas), "hay_mas": bool(d.get("next_page_token")), "pedidos": filas}
+    if crudo and d.get("orders"):
+        x = dict(d["orders"][0]); x.pop("recipient_address", None); x.pop("buyer_email", None); x.pop("buyer_message", None)
+        salida["primer_pedido_crudo"] = x
+    return salida
+
+
+@router.get("/devoluciones")
+def tiktok_devoluciones(dias: int = 90, crudo: bool = False, _staff=Depends(require_staff)):
+    """Devoluciones y reembolsos de TikTok Shop."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    ahora = int(time.time())
+    r = _tiktok_api("POST", "/return_refund/202309/returns/search", access,
+                    body={"create_time_ge": ahora - max(1, min(int(dias), 180)) * 86400, "create_time_lt": ahora},
+                    extra_params={"page_size": "50", "shop_cipher": tienda.get("cipher", "")})
+    if r.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la busqueda de devoluciones", "codigo": r.get("code"), "mensaje": r.get("message")})
+    d = r.get("data") or {}
+    lista = d.get("return_orders") or d.get("returns") or []
+    salida = {"total_en_pagina": len(lista), "devoluciones": [{
+        "id": x.get("id") or x.get("return_id"), "pedido": x.get("order_id"), "estado": x.get("status") or x.get("return_status"),
+        "tipo": x.get("return_type"), "motivo": x.get("return_reason_text") or x.get("return_reason"), "creado": x.get("create_time"),
+        "monto": ((x.get("refund_amount") or {}).get("refund_total") if isinstance(x.get("refund_amount"), dict) else x.get("refund_amount")),
+    } for x in lista]}
+    if crudo and lista:
+        salida["primera_crudo"] = lista[0]
+    return salida
+
+
+@router.get("/finanzas")
+def tiktok_finanzas(crudo: bool = False, _staff=Depends(require_staff)):
+    """Estados de cuenta (liquidaciones) recientes de TikTok Shop."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    r = _tiktok_api("GET", "/finance/202309/statements", access,
+                    extra_params={"shop_cipher": tienda.get("cipher", ""), "sort_field": "statement_time", "page_size": "20"})
+    if r.get("code") != 0:
+        return JSONResponse(status_code=502, content={"error": "TikTok rechazo la consulta de finanzas", "codigo": r.get("code"), "mensaje": r.get("message")})
+    d = r.get("data") or {}
+    lista = d.get("statements") or []
+    salida = {"total_en_pagina": len(lista), "liquidaciones": [{
+        "id": x.get("id"), "fecha": x.get("statement_time"), "estado": x.get("payment_status"), "moneda": x.get("currency"),
+        "ingresos": x.get("revenue_amount"), "comisiones": x.get("fee_amount"), "ajustes": x.get("adjustment_amount"), "neto": x.get("settlement_amount"),
+        "pago_id": x.get("payment_id"),
+    } for x in lista]}
+    if crudo and lista:
+        salida["primera_crudo"] = lista[0]
+    return salida
+
+
 @router.get("/comparar-existencias")
 def comparar_existencias(limite_productos: int = 0, crudo: bool = False, _staff=Depends(require_staff)):
     """SOLO LECTURA. Lee de TikTok las existencias de cada SKU publicado y las compara con las del ERP (mismo cruce por SKU de vendedor que
