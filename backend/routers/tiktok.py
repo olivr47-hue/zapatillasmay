@@ -798,6 +798,11 @@ def _fotos_por_color_erp(vs):
     return out
 
 
+def _es_color(a):
+    """El atributo de color de un SKU: unos productos lo traen con id 100000 y otros con otro id, pero siempre se llama Color."""
+    return str(a.get("id")) == "100000" or str(a.get("name") or "").strip().lower() in ("color", "colour")
+
+
 def _armar_skus_con_foto_color(d, vs, subir):
     """Arma `skus` de la edicion parcial para ponerle a CADA COLOR su propia foto, conservando precio y existencias de cada SKU tal como estan en TikTok.
     Devuelve (skus, mensaje). skus=None si no se puede hacer sin riesgo (color sin foto en el ERP, SKUs mal formados...): entonces solo se cambia la galeria.
@@ -811,9 +816,9 @@ def _armar_skus_con_foto_color(d, vs, subir):
     salida = []
     for s in skus_tt:
         attrs = s.get("sales_attributes") or []
-        color = next((a for a in attrs if str(a.get("id")) == "100000"), None)
+        color = next((a for a in attrs if _es_color(a)), None)
         if not color:
-            return None, "el atributo de color no es el principal (se cambia solo la galeria)"
+            return None, "el producto no tiene atributo de color (se cambia solo la galeria)"
         clave = _clave_color(color.get("value_name"))
         foto = por_color.get(clave) or next((u for k, u in por_color.items() if k and (k.startswith(clave) or clave.startswith(k))), None)
         if not foto:
@@ -832,7 +837,7 @@ def _armar_skus_con_foto_color(d, vs, subir):
         for a in attrs:
             x = {"id": a.get("id"), "name": a.get("name"), "value_id": a.get("value_id"), "value_name": a.get("value_name")}
             x = {k: v for k, v in x.items() if v not in (None, "")}
-            if str(a.get("id")) == "100000":
+            if a is color:
                 x["sku_img"] = {"uri": uri_de_clave[clave]}
             sku["sales_attributes"].append(x)
         inv = [{"warehouse_id": i.get("warehouse_id"), "quantity": int(i.get("quantity") or 0)} for i in (s.get("inventory") or []) if int(i.get("quantity") or 0) >= 1]
@@ -999,8 +1004,8 @@ def _variantes_faltantes(d, prod, vs, inv):
     tiene = set()
     for s in d.get("skus") or []:
         attrs = s.get("sales_attributes") or []
-        c = next((a for a in attrs if str(a.get("id")) == "100000"), None)
-        tl = next((a for a in attrs if str(a.get("id")) != "100000"), None)
+        c = next((a for a in attrs if _es_color(a)), None)
+        tl = next((a for a in attrs if not _es_color(a)), None)
         if c and tl:
             tiene.add((_clave_color(c.get("value_name")), _clave_talla(tl.get("value_name"))))
     faltan, vistos = [], set()
@@ -1063,7 +1068,9 @@ def tiktok_completar_variantes(producto_id: str, confirmar: bool = False, _staff
         return JSONResponse(status_code=409, content={**resumen, "hecho": False, "error": f"No se puede reenviar los SKUs actuales sin riesgo: {nota}"})
     base = existentes[0]
     precio = base["price"]
-    talla_attr = next((a for a in (d["skus"][0].get("sales_attributes") or []) if str(a.get("id")) != "100000"), None)
+    attrs0 = d["skus"][0].get("sales_attributes") or []
+    talla_attr = next((a for a in attrs0 if not _es_color(a)), None)
+    color_attr = next((a for a in attrs0 if _es_color(a)), None) or {"id": "100000", "name": "Color"}
     if not talla_attr:
         return JSONResponse(status_code=409, content={**resumen, "hecho": False, "error": "El producto no tiene atributo de talla"})
     almacen = next((i.get("warehouse_id") for s in d["skus"] for i in (s.get("inventory") or []) if i.get("warehouse_id")), tiktok_nuevos.WAREHOUSE_ID)
@@ -1072,12 +1079,12 @@ def tiktok_completar_variantes(producto_id: str, confirmar: bool = False, _staff
     nombre_tt = {}
     for s in d["skus"]:
         for a in s.get("sales_attributes") or []:
-            if str(a.get("id")) == "100000":
+            if _es_color(a):
                 nombre_tt.setdefault(_clave_color(a.get("value_name")), a.get("value_name"))
     uri_color, nuevos = {}, []
     for color, talla, cant, _v in faltan:
         clave = _clave_color(color)
-        sa_color = {"id": "100000", "name": "Color", "value_name": (nombre_tt.get(clave) or color)[:50]}
+        sa_color = {"id": color_attr.get("id"), "name": color_attr.get("name") or "Color", "value_name": (nombre_tt.get(clave) or color)[:50]}
         foto = fotos_color.get(clave)
         if foto:
             if clave not in uri_color:
