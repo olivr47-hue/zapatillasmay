@@ -1984,7 +1984,17 @@ def _hacer_sync_entregas() -> dict:
         )
         for p in enviados or []:
             try:
-                shipment = ml_get(f"/shipments/{p['numero_guia']}")
+                guia = str(p.get("numero_guia") or "").strip()
+                if guia.isdigit():
+                    envio_id = guia
+                else:
+                    # pedido marcado como enviado a mano: la guia trae texto («mercado libre 4831...»). El id real del envio sale de la orden.
+                    envio_id = None
+                    if p.get("ml_order_id"):
+                        envio_id = (ml_get(f"/orders/{p['ml_order_id']}").get("shipping") or {}).get("id")
+                    if not envio_id:
+                        continue
+                shipment = ml_get(f"/shipments/{envio_id}")
                 if shipment.get("status") == "delivered":
                     supabase_patch(f"pedidos?id=eq.{p['id']}", {"status": "entregado"})
                     _hist_ml(p["id"], "entregado", "MercadoLibre confirmó la entrega al comprador")

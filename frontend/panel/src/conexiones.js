@@ -36,8 +36,8 @@ function hace(iso) {
 function pintarSync(tareas) {
   const el = document.getElementById('con-sync'); if (!el) return
   if (!tareas.length) { el.innerHTML = `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#64748b">🔄 Sincronizaciones automáticas: todavía no hay datos (se llenan en la primera vuelta de cada tarea, unos minutos después de reiniciar el servidor).</div>`; return }
-  const mal = tareas.filter(t => t.salud !== 'ok')
-  const color = { ok: ['#e8f5e9', '#2e7d32', '● Bien'], atrasada: ['#fff4e5', '#b26a00', '● Atrasada'], con_error: ['#fdecea', '#b3261e', '● Con error'] }
+  const mal = tareas.filter(t => t.salud === 'con_error' || t.salud === 'atrasada')
+  const color = { ok: ['#e8f5e9', '#2e7d32', '● Bien'], sin_acceso: ['#f1f5f9', '#64748b', '● Sin acceso'], atrasada: ['#fff4e5', '#b26a00', '● Atrasada'], con_error: ['#fdecea', '#b3261e', '● Con error'] }
   el.innerHTML = `<div style="background:#fff;border:1px solid ${mal.length ? '#f5c2c0' : '#eee'};border-radius:14px;padding:14px;margin-bottom:14px">
     <b style="font-size:0.92rem">🔄 Sincronizaciones automáticas</b>
     <span style="font-size:0.76rem;margin-left:8px;color:${mal.length ? '#b3261e' : '#2e7d32'}">${mal.length ? `${mal.length} con problema` : 'todas bien'}</span>
