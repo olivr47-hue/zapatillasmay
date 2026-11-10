@@ -455,7 +455,7 @@ def _get_items_with_sku(all_ids: list) -> list:
     items = []
     for i in range(0, len(all_ids), 20):
         batch = ",".join(all_ids[i:i+20])
-        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,available_quantity,attributes,variations")
+        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
         for entry in resp:
             if entry.get("code") != 200:
                 continue
@@ -474,6 +474,7 @@ def _get_items_with_sku(all_ids: list) -> list:
                         "variation_id": v.get("id"),
                         "title":        b.get("title", ""),
                         "status":       b.get("status", ""),
+                        "sub_status":   b.get("sub_status") or [],
                         "qty":          v.get("available_quantity", 0) or 0,
                         "seller_sku":   sku,
                     })
@@ -488,6 +489,7 @@ def _get_items_with_sku(all_ids: list) -> list:
                     "variation_id": None,
                     "title":        b.get("title", ""),
                     "status":       b.get("status", ""),
+                    "sub_status":   b.get("sub_status") or [],
                     "qty":          b.get("available_quantity", 0),
                     "seller_sku":   sku,
                 })
@@ -704,10 +706,31 @@ def _hacer_sync_inner():
         all_ids   = _get_all_item_ids()
         items     = _get_items_with_sku(all_ids)
         stock_erp = _stock_erp()
-        actualizados, sin_match, errores, iguales = [], [], [], []
+        actualizados, sin_match, errores, iguales, reactivados = [], [], [], [], []
 
         for it in items:
             if it["status"] != "active":
+                # Una publicacion que MercadoLibre pauso por "sin existencias" no se reactiva sola cuando el ERP vuelve a tener pares:
+                # se le manda la cantidad y, si sigue pausada por esa causa, se activa. Solo ese motivo: las pausas manuales no se tocan.
+                if (it["status"] == "paused" and "out_of_stock" in (it.get("sub_status") or []) and not it.get("variation_id")
+                        and len(reactivados) < 60):
+                    sku_p = _norm_sku(it["seller_sku"])
+                    qty_p = stock_erp.get(sku_p) if sku_p else None
+                    if qty_p and qty_p > 0:
+                        try:
+                            r1 = ml_put(f"/items/{it['item_id']}", {"available_quantity": qty_p})
+                            if r1 and "error" in r1:
+                                errores.append({"item": it["item_id"], "sku": sku_p, "error": str(r1)})
+                                continue
+                            est = ml_get(f"/items/{it['item_id']}?attributes=status,sub_status")
+                            if est.get("status") == "paused" and "out_of_stock" in (est.get("sub_status") or []):
+                                r2 = ml_put(f"/items/{it['item_id']}", {"status": "active"})
+                                if r2 and "error" in r2:
+                                    errores.append({"item": it["item_id"], "sku": sku_p, "error": "no se pudo reactivar: " + str(r2)})
+                                    continue
+                            reactivados.append({"item": it["item_id"], "sku": sku_p, "cantidad": qty_p})
+                        except Exception as ex:
+                            errores.append({"item": it["item_id"], "sku": sku_p, "error": str(getattr(ex, "detail", ex))[:160]})
                 continue
             etiqueta = f"{it['item_id']}/{it['variation_id']}" if it.get("variation_id") else it["item_id"]
             sku = _norm_sku(it["seller_sku"])
@@ -731,6 +754,8 @@ def _hacer_sync_inner():
         cache_set("ml_sync_log", {
             "ts":           time.time(),
             "actualizados": len(actualizados),
+            "reactivados":  len(reactivados),
+            "detalle_reactivados": reactivados,
             "sin_cambio":   len(iguales),
             "sin_match":    len(sin_match),
             "errores":      len(errores),
