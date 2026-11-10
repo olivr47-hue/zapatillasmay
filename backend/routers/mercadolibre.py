@@ -2624,3 +2624,51 @@ def ml_acceso(_staff=Depends(require_staff)):
     probar("Tendencias de busqueda en Mexico", "/trends/MLM")
     probar("Metodos de envio del vendedor", f"/users/{ML_USER_ID}/shipping_preferences")
     return {"con_acceso": [r["funcion"] for r in resultados if r["ok"]], "sin_acceso": [r["funcion"] for r in resultados if not r["ok"]], "detalle": resultados}
+
+
+# ─── Juntar publicaciones partidas: igualar los atributos que MercadoLibre rellena solo ──────────────────────────────────────────
+_ATRIBUTOS_FAMILIA = ["PATTERN_NAME", "FOOTWEAR_STYLE", "FABRIC_DESIGN", "HEEL_LEVEL", "SHAFT_TYPE"]
+
+
+@router.post("/igualar-atributos")
+def ml_igualar_atributos(datos: dict, _admin=Depends(require_admin)):
+    """Copia a un item los atributos de ficha de otro item del MISMO modelo (el de la publicacion principal) para que MercadoLibre los agrupe.
+    datos: {item_id, referencia_id, atributos (opcional, lista de ids), confirmar (bool)}. Sin confirmar solo muestra que cambiaria.
+    Solo agrega o corrige valores; nunca borra un atributo."""
+    item_id, ref_id = str(datos.get("item_id") or "").strip(), str(datos.get("referencia_id") or "").strip()
+    if not item_id or not ref_id or item_id == ref_id:
+        return JSONResponse(status_code=400, content={"error": "Indica item_id y referencia_id (distintos)"})
+    ids = [a for a in (datos.get("atributos") or _ATRIBUTOS_FAMILIA) if isinstance(a, str)]
+    destino, ref = ml_get(f"/items/{item_id}"), ml_get(f"/items/{ref_id}")
+
+    def valores(it):
+        return {a.get("id"): a for a in (it.get("attributes") or []) if a.get("id")}
+    vd, vr = valores(destino), valores(ref)
+    cambios, omitidos = [], []
+    for a in ids:
+        r = vr.get(a)
+        if not r or not (r.get("value_id") or r.get("value_name")):
+            if (vd.get(a) or {}).get("value_name"):
+                omitidos.append({"atributo": a, "motivo": "la referencia no lo tiene (no se borra)"})
+            continue
+        d = vd.get(a) or {}
+        if (d.get("value_id") or d.get("value_name")) == (r.get("value_id") or r.get("value_name")):
+            continue
+        nuevo = {"id": a}
+        if r.get("value_id"):
+            nuevo["value_id"] = r["value_id"]
+        else:
+            nuevo["value_name"] = r.get("value_name")
+        cambios.append({"atributo": a, "de": d.get("value_name"), "a": r.get("value_name"), "payload": nuevo})
+    resumen = {"item": item_id, "referencia": ref_id, "familia_antes": destino.get("family_id"), "familia_referencia": ref.get("family_id"),
+               "cambios": [{k: v for k, v in c.items() if k != "payload"} for c in cambios], "omitidos": omitidos}
+    if not cambios:
+        return {**resumen, "hecho": False, "mensaje": "No hay nada que igualar"}
+    if not datos.get("confirmar"):
+        return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para aplicar"}
+    r = ml_put(f"/items/{item_id}", {"attributes": [c["payload"] for c in cambios]})
+    if r.get("error"):
+        return JSONResponse(status_code=502, content={**resumen, "hecho": False, "error": r.get("error"), "causa": r.get("cause")})
+    despues = ml_get(f"/items/{item_id}")
+    cache_invalidate("ml_items")
+    return {**resumen, "hecho": True, "familia_despues": despues.get("family_id"), "ahora_en_la_misma_familia": despues.get("family_id") == ref.get("family_id")}
