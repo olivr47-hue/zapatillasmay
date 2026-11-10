@@ -206,6 +206,24 @@ def callback(code: str = None, state: str = None, error: str = None):
         if result.get("code") == 0:
             token_data = result.get("data", {})
             token_data["obtained_at"] = int(time.time())
+            # El acceso se guarda como el de ESTE sistema solo si es la misma tienda (renovacion) o si todavia no hay ninguna conectada.
+            # Si autoriza OTRA tienda (por ejemplo, desde la tienda de apps de TikTok), NO se pisa el acceso del dueno: queda pendiente
+            # para asignarla a la copia de ese cliente desde el panel.
+            actual = _load_token() or {}
+            misma = bool(actual.get("open_id")) and actual.get("open_id") == token_data.get("open_id")
+            if actual.get("access_token") and not misma:
+                try:
+                    supabase_post("tiktok_autorizaciones_pendientes", {"vendedor": str(token_data.get("seller_name") or token_data.get("open_id") or "")[:200], "token": token_data})
+                    from routers.push import enviar_push
+                    enviar_push("TikTok: una tienda autorizo tu app", f"{token_data.get('seller_name') or 'Un vendedor'} autorizo ERP MAY. Asignala a su copia desde el panel.", url="/?modulo=conexiones", sitio="panel")
+                except Exception as e:
+                    print(f"[tiktok] no se pudo guardar la autorizacion pendiente: {e}")
+                from fastapi.responses import HTMLResponse
+                return HTMLResponse("<!doctype html><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Autorizacion recibida</title>"
+                                    "<body style='font-family:sans-serif;max-width:520px;margin:12vh auto;padding:0 20px;text-align:center;color:#222'>"
+                                    "<h2>Autorizacion recibida</h2><p>Gracias. Tu tienda de TikTok Shop autorizo el servicio.</p>"
+                                    "<p>Para empezar a usarlo, <b>entra a tu sistema</b> y conecta TikTok desde el menu TikTok Shop. "
+                                    "Si todavia no tienes sistema, pide una demo en <a href='https://portal.zapatillasmay.mx/?demo=1'>portal.zapatillasmay.mx</a> y te lo configuramos.</p></body>")
             _save_token(token_data)
             seller = token_data.get("seller_name") or token_data.get("open_id", "TikTok Shop")
             return RedirectResponse(
@@ -271,6 +289,29 @@ def broker_cliente_estado(codigo: str, datos: dict, _admin=Depends(require_admin
         return JSONResponse(status_code=400, content={"error": "indica activo=true o activo=false"})
     supabase_patch(f"clientes_sistema?codigo=eq.{urllib.parse.quote(codigo, safe='')}", {"activo": bool(datos["activo"])})
     return {"ok": True}
+
+
+@router.get("/broker/pendientes")
+def broker_pendientes(_admin=Depends(require_admin)):
+    """Tiendas que autorizaron la app (por ejemplo desde la tienda de apps de TikTok) y todavia no se asignan a la copia de un cliente."""
+    return supabase_get("tiktok_autorizaciones_pendientes?asignada_a=is.null&select=id,vendedor,creado_at&order=creado_at.desc") or []
+
+
+@router.post("/broker/pendientes/{pid}/asignar")
+def broker_asignar_pendiente(pid: str, datos: dict, _admin=Depends(require_admin)):
+    """Entrega el acceso de esa tienda a la copia del cliente indicado (codigo) y borra el acceso guardado aqui."""
+    import tiktok_broker
+    cli = tiktok_broker.cliente_por_codigo(str(datos.get("codigo") or ""))
+    if not cli:
+        return JSONResponse(status_code=404, content={"error": "Cliente desconocido o desactivado"})
+    filas = supabase_get(f"tiktok_autorizaciones_pendientes?id=eq.{urllib.parse.quote(pid, safe='')}&asignada_a=is.null&select=id,token&limit=1") or []
+    if not filas:
+        return JSONResponse(status_code=404, content={"error": "No hay esa autorizacion pendiente"})
+    r = tiktok_broker.post_firmado(cli["url_api"] + "/tiktok/instalar-token", cli["codigo"], cli["secreto"], {"token": filas[0]["token"]})
+    if not r.get("ok"):
+        return JSONResponse(status_code=502, content={"error": "No se pudo entregar el acceso a esa copia", "detalle": r.get("error")})
+    supabase_patch(f"tiktok_autorizaciones_pendientes?id=eq.{urllib.parse.quote(pid, safe='')}", {"asignada_a": cli["codigo"], "token": {}})
+    return {"ok": True, "entregado_a": cli["nombre"]}
 
 
 # ── Copia de un cliente: recibe del central el acceso que TikTok autorizo ─────────────────────────────────────────────────
