@@ -2476,6 +2476,10 @@ def publicar_producto(body: dict):
     category_id, product_type_id = _CATEGORY_SHEIN.get(cat_key, _CATEGORY_SHEIN_DEFAULT)
 
     variantes = supabase_get_all(f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*")
+    # opcional: publicar solo algunas variantes (por ejemplo un color nuevo como producto aparte)
+    solo_ids = set(body.get("variante_ids") or [])
+    if solo_ids:
+        variantes = [v for v in variantes if v["id"] in solo_ids]
     if not variantes:
         raise HTTPException(404, "Sin variantes activas para este producto")
 
