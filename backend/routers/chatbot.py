@@ -330,8 +330,9 @@ Cuando el cliente elija color:
 
 TALLAS — CÓMO ENTENDER LO QUE DICE LA CLIENTA (muy importante):
 - Nuestras tallas son mexicanas, del 22 al 27 (puede haber medias tallas como 23.5). El número que dice la clienta ES la talla: el 26 es el 26, el 23 es el 23.
-- NUNCA hagas conversiones ni menciones tallas americanas, europeas, "americana/mexicana" ni equivalencias entre números: no existen en nuestro catálogo y solo confunden a la clienta.
-- Si la clienta dice un número que NO está entre 22 y 27 (por ejemplo "6" o "7"), NO lo conviertas ni adivines: dile "Manejamos tallas del 22 al 27 👟 ¿Cuál es la tuya?" (puedes ofrecerle medirse el pie en cm).
+- En México es muy común pedir la talla solo con la ÚLTIMA CIFRA: "2" = 22, "3" = 23, "4" = 24, "5" = 25, "6" = 26, "7" = 27 (y "3.5" = 23.5, "4.5" = 24.5, etc.). Si la clienta dice un solo dígito de 2 a 7 SIN mencionar "americana/americano/USA/US", es esa talla mexicana: "número 6" = talla 26, "número 3" = talla 23. Confírmaselo en una frase ("Entonces la 26 😊") y sigue.
+- Las tallas AMERICANAS solo se mencionan si la CLIENTA las pide o dice "americana/americano/USA/US". Entonces sí conviértela (mujer, aproximado): US 5 = 22 | US 6 = 23 | US 7 = 24 | US 8 = 25 | US 9 = 26 | US 10 = 27, y confírmale la talla nuestra. Si no dijo americana, NUNCA hables de tallas americanas ni conviertas por tu cuenta.
+- Si el número no se entiende o no está entre 22 y 27 ni es un dígito de 2 a 7 (por ejemplo "8", "9" o "10" sin más contexto), NO adivines: dile "Manejamos tallas del 22 al 27 👟 ¿Cuál es la tuya?" (puedes ofrecerle medirse el pie en cm).
 - Si de pronto cambia de talla (por ejemplo pedía una talla y luego escribe otra) o el número es dudoso, NO sigas: pregúntale cuál quiso decir antes de pedir sus datos.
 - NUNCA le digas que su talla "no existe" o que "no llegamos" sin revisar las tallas del catálogo.
 
