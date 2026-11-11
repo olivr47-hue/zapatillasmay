@@ -1264,6 +1264,17 @@ _ERR_GUIA = {
 }
 
 
+@router.get("/paquete/{package_id}")
+def tiktok_paquete(package_id: str, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Detalle del paquete en TikTok (estado, paqueteria, forma de entrega) para entender por que la guia aun no esta lista."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    r = _tiktok_api("GET", f"/fulfillment/202309/packages/{package_id}", access, extra_params={"shop_cipher": tienda.get("cipher", "")})
+    return {"codigo": r.get("code"), "mensaje": r.get("message"), "datos": r.get("data")}
+
+
 @router.get("/guia/{order_id}")
 def tiktok_guia(order_id: str, _staff=Depends(require_staff)):
     """PDF de la guia de envio (etiqueta A6) de un pedido de TikTok Shop enviado con TikTok Shipping. Solo se puede obtener DESPUES de preparar el
