@@ -1252,7 +1252,7 @@ def tiktok_automatico_cambiar(existencias: str = "", ventas: str = "", _admin=De
 
 _ERR_GUIA = {
     21023035: "TikTok todavia no tiene preparado el envio de este pedido: en TikTok toca «Preparar envio» (o «Arrange shipment») y vuelve a intentar",
-    21042104: "TikTok todavia no tiene preparado el envio de este pedido: en TikTok toca «Preparar envio» y vuelve a intentar",
+    21042104: "TikTok todavia no genera la guia de este pedido (el paquete sigue «por preparar»): imprimela una vez en TikTok, eso lo prepara, y desde ahi ya sale tambien aqui",
     21042102: "La paqueteria ya recogio el paquete: la guia ya no se puede imprimir",
     21023046: "El paquete ya fue enviado: la guia ya no se puede imprimir",
     21023059: "El paquete fue cancelado",
