@@ -24850,7 +24850,11 @@ async function cargarBuenFin() {
       <span id="bf-cont" style="font-size:0.82rem;color:#888"></span>
       <button onclick="window._bfGuardar(this)" style="background:#111;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;cursor:pointer">Guardar</button>
       <button onclick="window._bfDescargar(true)" style="background:#fff;color:#111;border:1px solid #ccc;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="Excel con precios de tienda, Buen Fin y de corrida (portal) de los modelos elegidos">⬇ Descargar elegidos</button>
-      <button onclick="window._bfDescargar(false)" style="background:#fff;color:#111;border:1px solid #ccc;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="Lo mismo, de todo el catálogo">⬇ Todo el catálogo</button>
+      <button onclick="window._bfDescargar(false)" style="background:#fff;color:#111;border:1px solid #ccc;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="Lo mismo, de todo el catálogo">⬇ Todo el catálogo (Excel)</button>
+      <button onclick="window._bfPdf(true, true)" style="background:#E91E8C;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="PDF con foto y precio de corrida de los modelos elegidos">📄 PDF elegidos con precio</button>
+      <button onclick="window._bfPdf(true, false)" style="background:#fff;color:#E91E8C;border:1px solid #E91E8C;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="PDF con foto y nombre de los modelos elegidos, sin precios">📄 PDF elegidos sin precio</button>
+      <button onclick="window._bfPdf(false, true)" style="background:#E91E8C;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="PDF con foto y precio de corrida de todo el catálogo">📄 PDF todo con precio</button>
+      <button onclick="window._bfPdf(false, false)" style="background:#fff;color:#E91E8C;border:1px solid #E91E8C;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="PDF con foto y nombre de todo el catálogo, sin precios">📄 PDF todo sin precio</button>
     </div>
     <div id="bf-msg" style="margin-bottom:8px"></div>
     <div id="bf-lista" style="background:#fff;border:1px solid #eee;border-radius:12px;max-height:60vh;overflow:auto"></div></div>`
@@ -24883,6 +24887,50 @@ async function cargarBuenFin() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     a.download = `catalogo_${soloElegidos ? 'buen_fin' : 'completo'}_${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(a); a.click(); a.remove()
+  }
+  // PDF para las mayoristas: foto, nombre y PRECIO DE CORRIDA por par. Se abre una hoja lista para imprimir y se elige «Guardar como PDF».
+  window._bfPdf = (soloElegidos, conPrecio = true) => {
+    const lista = window._bf.modelos.filter(m => (!soloElegidos || window._bf.sel.has(m.id)) && m.foto)
+    if (!lista.length) { alert('No hay modelos con foto para el PDF.'); return }
+    const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    const fecha = (v) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || ''); return m ? `${parseInt(m[3], 10)} de ${MES[parseInt(m[2], 10) - 1]}` : '' }
+    const ini = fecha(document.getElementById('bf-inicio').value), fin = fecha(document.getElementById('bf-fin').value)
+    const vigencia = soloElegidos && ini && fin ? `Vigente del ${ini} al ${fin}` : ''
+    const titulo = (soloElegidos ? 'Buen Fin' : 'Catálogo') + (conPrecio ? ' · Precios de corrida' : '')
+    const foto = (u) => /res\.cloudinary\.com/.test(u) && u.includes('/upload/') ? u.replace('/upload/', '/upload/w_420,h_560,c_fill,q_auto,f_auto/') : u
+    const tarjetas = lista.map(m => {
+      const base = parseFloat(m.menudeo) || 0, corr = parseFloat(m.corrida) || Math.max(0, base - 100)
+      return `<div class="t"><img src="${_e(foto(m.foto))}" alt=""><div class="n">${_e((m.nombre || '').slice(0, 70))}</div><div class="s">${_e(m.sku || '')}</div>${conPrecio ? `<div class="p">$${Math.round(corr).toLocaleString('es-MX')} <span>por par</span></div>` : '<div style="height:5px"></div>'}</div>`
+    }).join('')
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${_e(titulo)} — Zapatillas May</title><style>
+      @page { size: A4; margin: 10mm }
+      * { box-sizing: border-box; margin: 0; padding: 0 }
+      body { font-family: Arial, Helvetica, sans-serif; color: #2A1A0E; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+      header { text-align: center; padding: 6mm 0 5mm; border-bottom: 2px solid #E91E8C; margin-bottom: 5mm }
+      header .m { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: #8B6A54 }
+      header h1 { font-size: 26px; margin: 3px 0 2px } header h1 em { color: #E91E8C }
+      header p { font-size: 12px; color: #4a3426; margin-top: 3px }
+      .g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm }
+      .t { border: 1px solid #eadbcf; border-radius: 6px; overflow: hidden; break-inside: avoid; page-break-inside: avoid; background: #fff }
+      .t img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f5ece2 }
+      .n { font-size: 10.5px; font-weight: 700; padding: 5px 6px 0; line-height: 1.25; min-height: 28px }
+      .s { font-size: 8.5px; color: #8B6A54; padding: 0 6px; font-family: monospace }
+      .p { font-size: 17px; font-weight: 800; color: #E91E8C; padding: 2px 6px 6px } .p span { font-size: 9px; font-weight: 600; color: #8B6A54 }
+      footer { margin-top: 6mm; text-align: center; font-size: 11px; color: #4a3426 }
+      @media screen { body { max-width: 210mm; margin: 0 auto; padding: 10mm } .aviso { background: #fff7d6; border: 1px solid #e5d27a; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px } }
+      @media print { .aviso { display: none } }
+    </style></head><body>
+      <div class="aviso">Preparando el PDF… cuando cargue las fotos se abre la ventana de impresión. Elige <b>Guardar como PDF</b> como impresora.</div>
+      <header><div class="m">Zapatillas May · Portal Mayoreo</div><h1>${soloElegidos ? 'Buen <em>Fin</em>' : 'Catálogo'}${conPrecio ? ' · precios de corrida' : ''}</h1>
+        <p>${vigencia ? vigencia + ' · ' : ''}${conPrecio ? 'Precio por par aunque lleves tallas y colores variados · ' : ''}${lista.length} modelos</p></header>
+      <div class="g">${tarjetas}</div>
+      <footer>Haz tu pedido en <b>portal.zapatillasmay.mx</b>${conPrecio ? ' · Precios en pesos mexicanos, sujetos a existencias' : ' · Consulta tus precios en el portal'}</footer>
+    </body></html>`
+    const w = window.open('', '_blank')
+    if (!w) { alert('El navegador bloqueó la ventana nueva. Permite ventanas emergentes para este sitio y vuelve a intentar.'); return }
+    w.document.open(); w.document.write(html); w.document.close()
+    const esperar = () => Promise.all([...w.document.images].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r })))
+    Promise.race([esperar(), new Promise(r => setTimeout(r, 25000))]).then(() => { try { w.focus(); w.print() } catch (e) {} })
   }
   window._bfToggle = (id, on) => { if (on) window._bf.sel.add(id); else window._bf.sel.delete(id); document.getElementById('bf-cont').textContent = `${window._bf.sel.size} modelos elegidos` }
   window._bfGuardar = async (btn) => {
