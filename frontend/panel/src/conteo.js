@@ -17,7 +17,9 @@ function css() {
   if (document.getElementById('cn-css')) return
   const s = document.createElement('style'); s.id = 'cn-css'
   s.textContent = `
-  .cn-wrap{max-width:600px;margin:0 auto;padding:8px 6px 110px;font-family:inherit}
+  .cn-wrap,.cn-wrap *,.cn-pie,.cn-pie *{box-sizing:border-box}
+  .cn-wrap{max-width:600px;width:100%;margin:0 auto;padding:8px 6px 110px;font-family:inherit;overflow-x:hidden}
+  .cn-grid>*,.cn-kpis>*{min-width:0}
   .cn-h1{font-size:1.25rem;font-weight:800;margin:4px 0 2px} .cn-sub{font-size:.8rem;color:#888;margin:0 0 12px}
   .cn-busca{width:100%;padding:14px 14px;font-size:1.05rem;border:2px solid #e5e5e5;border-radius:14px;outline:none} .cn-busca:focus{border-color:#E91E8C}
   .cn-lista{margin-top:10px;display:flex;flex-direction:column;gap:8px}
@@ -36,8 +38,8 @@ function css() {
   .cn-chip.on{background:#111;color:#fff;border-color:#111} .cn-chip small{opacity:.7;font-weight:600;margin-left:4px}
   .cn-ub .cn-chip.on{background:#E91E8C;border-color:#E91E8C}
   .cn-eti{font-size:.7rem;color:#999;text-transform:uppercase;letter-spacing:.05em;margin:10px 2px 0}
-  .cn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
-  @media(min-width:520px){.cn-grid{grid-template-columns:repeat(4,1fr)}}
+  .cn-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+  @media(min-width:520px){.cn-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
   .cn-cell{position:relative;border:2px solid #e5e5e5;border-radius:16px;background:#fafafa;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .06s}
   .cn-cell:active{transform:scale(.95);background:#ffe4f0}
   .cn-cell.on{background:#fff;border-color:#E91E8C}
@@ -52,7 +54,7 @@ function css() {
   .cn-dif{font-weight:800} .cn-dif.mas{color:#16a34a} .cn-dif.menos{color:#dc2626} .cn-dif.cero{color:#bbb}
   .cn-sin{color:#bbb;font-size:.75rem}
   .cn-card{background:#fff;border:1px solid #eee;border-radius:14px;padding:12px;margin-top:10px}
-  .cn-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .cn-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
   .cn-kpi{background:#fff;border:1px solid #eee;border-radius:12px;padding:10px;text-align:center} .cn-kpi b{font-size:1.4rem;display:block} .cn-kpi small{font-size:.62rem;color:#888;text-transform:uppercase}
   .cn-radio{display:flex;flex-direction:column;gap:8px;margin-top:8px} .cn-radio label{display:flex;gap:10px;align-items:flex-start;padding:10px;border:2px solid #e5e5e5;border-radius:12px;font-size:.88rem;cursor:pointer}
   .cn-radio input{margin-top:3px;width:18px;height:18px;accent-color:#E91E8C}
