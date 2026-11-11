@@ -92,7 +92,7 @@ def _cargar(conteo_id: str):
     if ids:
         for r in supabase_get_all(f"inventario?variante_id=in.({','.join(ids)})&select=variante_id,cantidad") or []:
             erp[r["variante_id"]] = erp.get(r["variante_id"], 0) + int(r.get("cantidad") or 0)
-        for l in supabase_get_all(f"conteo_lineas?conteo_id=eq.{conteo_id}&select=variante_id,ubicacion,cantidad") or []:
+        for l in supabase_get_all(f"conteo_lineas?conteo_id=eq.{conteo_id}&select=variante_id,ubicacion,cantidad&order=variante_id.asc,ubicacion.asc") or []:
             contado.setdefault(l["variante_id"], {})[l["ubicacion"]] = int(l.get("cantidad") or 0)
     filas = []
     for v in variantes:
