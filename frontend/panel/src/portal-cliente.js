@@ -695,7 +695,7 @@ async function cargarDatosPC() {
   // tocar el orden real del catálogo (eso se queda como está en el panel).
   {
     const destacadosIds = new Set(pc.masVendidos.slice(0, 4).map(p => p.id))
-    const resto = pc.productos.filter(p => !destacadosIds.has(p.id))
+    const resto = pc.productos.filter(p => !destacadosIds.has(p.id) && pcStockModelo(p) > 0)
     for (let i = resto.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[resto[i], resto[j]] = [resto[j], resto[i]]
@@ -973,9 +973,9 @@ function renderCatalogo(el) {
   })
   const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
 
-  let prods = pc.productos
-  // Buen Fin: solo modelos con pares disponibles (no se ofrecen los agotados)
-  if (pc.soloBuenFin && pc.buenFin.activa) prods = prods.filter(p => pcEsBF(p.id) && pc.variantes.some(v => v.producto_id === p.id && v.activa !== false && pc.inventario.some(i => i.variante_id === v.id && (i.cantidad || 0) > 0)))
+  // Solo modelos con pares disponibles: los agotados no se ofrecen en el catálogo
+  let prods = pc.productos.filter(p => pcStockModelo(p) > 0)
+  if (pc.soloBuenFin && pc.buenFin.activa) prods = prods.filter(p => pcEsBF(p.id))
   if (pc.filtroNuevos) prods = prods.filter(esNuevo)
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
