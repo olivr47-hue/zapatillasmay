@@ -5560,7 +5560,8 @@ def _registrar_origen_chat(telefono, mensaje_data):
         tel_q = urllib.parse.quote(str(telefono), safe="")
         existente = supabase_get(f"chats_control?telefono=eq.{tel_q}&select=telefono,origen")
         if existente:
-            if not (existente[0].get("origen") or "").strip():
+            # Solo la primera vez, SALVO que el mensaje traiga el codigo del clic del anuncio (ultimo clic = el que cuenta para Meta)
+            if not (existente[0].get("origen") or "").strip() or re.search(r"\|\s*[A-Z0-9]{4,12}\s*$", origen):
                 supabase_patch(f"chats_control?telefono=eq.{tel_q}", {"origen": origen})
         else:
             supabase_post("chats_control", {"telefono": telefono, "en_control": False, "origen": origen})

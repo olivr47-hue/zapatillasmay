@@ -8,6 +8,7 @@ import mercadopago
 import os
 import hashlib
 import hmac
+import re
 import time
 import urllib.request
 import json
@@ -148,11 +149,44 @@ def enviar_ga4_purchase(pedido, payment):
         print(f"[ga4] Error enviando purchase: {e}")
 
 
+def _tel_meta(t) -> str:
+    """Teléfono como lo pide Meta: solo dígitos con lada de país (52 + 10 dígitos)."""
+    try:
+        return a_e164_mx(t)
+    except Exception:
+        return re.sub(r"\D", "", str(t or ""))
+
+
+def _atribucion_por_telefono(telefono) -> dict:
+    """Datos del clic del anuncio (fbc, fbp, IP, navegador) de quien escribió por WhatsApp desde el sitio. El botón de WhatsApp del sitio deja en el
+    mensaje un código corto «(ref: pagina | fuente | CODIGO)» y el sitio guardó esos datos con ese código (tabla atribucion_meta)."""
+    try:
+        d10 = re.sub(r"\D", "", str(telefono or ""))[-10:]
+        if len(d10) < 10:
+            return {}
+        chats = supabase_get(f"chats_control?telefono=like.*{d10}&select=origen&limit=3") or []
+        for c in chats:
+            m = re.search(r"\|\s*([A-Z0-9]{4,12})\s*$", str(c.get("origen") or "").strip())
+            if m:
+                filas = supabase_get(f"atribucion_meta?codigo=eq.{m.group(1)}&select=fbc,fbp,fbclid,client_ip_address,client_user_agent&limit=1") or []
+                if filas:
+                    return filas[0]
+    except Exception as e:
+        print(f"[CAPI] no se pudo leer la atribución del chat: {e}")
+    return {}
+
+
 def enviar_evento_meta(event_name, pedido, payment):
+    """Manda el evento de compra a Meta (API de conversiones). Devuelve True si Meta lo aceptó."""
     if not META_PIXEL_ID or not META_ACCESS_TOKEN:
-        return
+        return False
     try:
         total = float(pedido.get("total", 0))
+        es_whatsapp = pedido.get("canal") == "whatsapp"
+        if es_whatsapp:
+            # Compra que se cerró por WhatsApp: no hay navegador, así que se recuperan los datos del clic del anuncio guardados al tocar el botón del sitio
+            _at = _atribucion_por_telefono(pedido.get("telefono_cliente"))
+            pedido = {**pedido, **{k: v for k, v in _at.items() if v and not pedido.get(k)}}
         email = pedido.get("email_cliente", "")
         telefono = pedido.get("telefono_cliente", "")
         nombre = pedido.get("nombre_cliente", "")
@@ -192,7 +226,7 @@ def enviar_evento_meta(event_name, pedido, payment):
 
         user_data = {
             "em": [hash_data(email)] if email else [],
-            "ph": [hash_data(telefono)] if telefono else [],
+            "ph": [hash_data(_tel_meta(telefono))] if telefono else [],
             "fn": [hash_data(fn)] if fn else [],
             "ln": [hash_data(ln)] if ln else [],
             "country": [hash_data("mx")],  # siempre México
@@ -221,7 +255,7 @@ def enviar_evento_meta(event_name, pedido, payment):
                     "event_name": event_name,
                     "event_time": int(time.time()),
                     "event_id": f"{pedido_id}-{event_name}",
-                    "action_source": "website",
+                    "action_source": "chat" if es_whatsapp else "website",
                     "user_data": user_data,
                     "custom_data": {
                         "currency": "MXN",
@@ -246,11 +280,61 @@ def enviar_evento_meta(event_name, pedido, payment):
             },
             method="POST"
         )
-        urllib.request.urlopen(req)
+        urllib.request.urlopen(req, timeout=10)
         print(f"[CAPI] Evento {event_name} enviado OK para pedido {pedido.get('id')}")
+        return True
 
     except Exception as e:
         print(f"[CAPI] Error enviando evento {event_name}: {e}")
+        return False
+
+
+_STATUS_COMPRA_WA = ("pagado", "confirmado", "enviado", "entregado")
+
+
+def enviar_compra_whatsapp_meta(pedido_id: str) -> bool:
+    """Pedido de WhatsApp cerrado por el personal (transferencia SPEI, depósito, pedido capturado a mano...): avisa a Meta de la compra, UNA sola vez
+    por pedido. Si el pago ya entró por Mercado Pago el aviso salió en el webhook y no se repite. Nunca lanza excepción."""
+    try:
+        filas = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(variante_id,cantidad,precio_unitario)&limit=1") or []
+        if not filas:
+            return False
+        p = filas[0]
+        if p.get("canal") != "whatsapp" or p.get("meta_purchase_enviado_at") or p.get("status") not in _STATUS_COMPRA_WA:
+            return False
+        if not enviar_evento_meta("Purchase", p, None):
+            return False
+        import datetime as _dt
+        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"meta_purchase_enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()})
+        return True
+    except Exception as e:
+        print(f"[CAPI] compra por WhatsApp no enviada ({pedido_id}): {e}")
+        return False
+
+
+@router.post("/meta/atribucion")
+def meta_atribucion(body: dict, request: Request):
+    """Lo llama el sitio cuando alguien toca un botón de WhatsApp: guarda los datos del clic del anuncio con el código corto que viaja en el
+    mensaje. Si después esa persona compra por WhatsApp, la compra se le avisa a Meta CON el anuncio que la trajo."""
+    try:
+        codigo = re.sub(r"[^A-Za-z0-9]", "", str(body.get("codigo") or "")).upper()[:12]
+        if len(codigo) < 4:
+            return {"ok": False}
+        ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+              or request.headers.get("x-real-ip", "") or (request.client.host if request.client else ""))
+        fbclid = str(body.get("fbclid") or "")[:300]
+        fbc = str(body.get("fbc") or "")[:300]
+        if not fbc and fbclid:
+            fbc = f"fb.1.{int(time.time() * 1000)}.{fbclid}"
+        fila = {"codigo": codigo, "fbc": fbc or None, "fbp": str(body.get("fbp") or "")[:300] or None, "fbclid": fbclid or None,
+                "client_ip_address": ip[:60] or None, "client_user_agent": (str(body.get("user_agent") or "") or request.headers.get("user-agent", ""))[:400] or None,
+                "utm_source": str(body.get("utm_source") or "")[:120] or None, "utm_medium": str(body.get("utm_medium") or "")[:120] or None,
+                "utm_campaign": str(body.get("utm_campaign") or "")[:200] or None, "pagina": str(body.get("pagina") or "")[:200] or None}
+        supabase_post("atribucion_meta", fila)
+        return {"ok": True}
+    except Exception as e:
+        print(f"[CAPI] atribución no guardada: {e}")
+        return {"ok": False}
 
 
 @router.post("/meta/evento")
@@ -1022,7 +1106,12 @@ async def webhook_mercadopago(request: Request):
                                 )
                             except Exception as e_push:
                                 print(f"[push] Error avisando pago confirmado: {e_push}")
-                            enviar_evento_meta("Purchase", p, payment)
+                            if enviar_evento_meta("Purchase", p, payment):
+                                try:
+                                    import datetime as _dtm
+                                    supabase_patch(f"pedidos?id=eq.{pedido_id}", {"meta_purchase_enviado_at": _dtm.datetime.now(_dtm.timezone.utc).isoformat()})
+                                except Exception as _em:
+                                    print(f"[CAPI] no se pudo marcar el aviso de compra: {_em}")
                             enviar_ga4_purchase(p, payment)
                             try:
                                 from routers.pinterest import enviar_checkout as pinterest_checkout

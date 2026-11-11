@@ -1107,7 +1107,10 @@ def actualizar_pedido(id: str, pedido: dict, credentials: HTTPAuthorizationCrede
                 _ant = (supabase_get(f"pedidos?id=eq.{id}&select=status") or [{}])[0].get("status")
                 if _ant != pedido["status"]:
                     _historial(id, "estado", f"{_ant} → {pedido['status']}", _quien(payload_opcional(credentials)))
-            return supabase_patch(f"pedidos?id=eq.{id}", pedido)
+            _resp = supabase_patch(f"pedidos?id=eq.{id}", pedido)
+            if pedido.get("status") in ("pagado", "confirmado", "enviado", "entregado"):
+                _avisar_compra_meta_whatsapp(id)
+            return _resp
         # Cliente dueño: solo datos de envío/pago de un pedido que aún no se cierra.
         actual = supabase_get(f"pedidos?id=eq.{id}&select=status,costo_envio") or [{}]
         if actual[0].get("status") not in _STATUS_EDITABLE_CLIENTE:
@@ -1137,6 +1140,19 @@ def actualizar_pedido(id: str, pedido: dict, credentials: HTTPAuthorizationCrede
         return supabase_patch(f"pedidos?id=eq.{id}", permitido)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+def _avisar_compra_meta_whatsapp(pedido_id: str):
+    """En segundo plano (no frena la respuesta): si es un pedido de WhatsApp recién cerrado, se le avisa a Meta de la compra."""
+    import threading
+
+    def _hilo():
+        try:
+            from routers.pagos import enviar_compra_whatsapp_meta
+            enviar_compra_whatsapp_meta(pedido_id)
+        except Exception as e:
+            print(f"[CAPI] aviso de compra por WhatsApp falló: {e}")
+    threading.Thread(target=_hilo, daemon=True).start()
+
 
 def _recalcular_total_pedido(pedido_id):
     """Recalcula pedidos.total/subtotal desde la suma real de pedido_items --
@@ -1584,6 +1600,7 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
         _enviar_confirmacion_wa(pedido[0], items)
         _otorgar_bono_referidor(pedido[0].get("cliente_id"))
+        _avisar_compra_meta_whatsapp(id)
 
         try:
             cliente_id_push = pedido[0].get("cliente_id")
@@ -1635,6 +1652,7 @@ def _marcar_enviado(id, paqueteria, numero_guia, tracking_extra, quien):
         "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
     })
     _historial(id, "enviado", f"{paqueteria} · guía {numero_guia}", quien)
+    _avisar_compra_meta_whatsapp(id)
 
     email_cliente = p.get("email_cliente", "")
     if email_cliente:
