@@ -1084,6 +1084,7 @@ _MAIN_COLOR = {
     "brown": ("2450291","Marrón"),   "camel": ("2450291","Marrón"),
     "latte": ("2450281","Beige"),    "beige": ("2450281","Beige"),
     "nude":  ("2450281","Beige"),    "hueso": ("2450281","Beige"),
+    "arenilla": ("2450281","Beige"), "arena": ("2450281","Beige"),
     "rosa":  ("2450312","Rosa"),     "pink":  ("2450312","Rosa"),
     "violeta":("2450311","Violeta"), "morado":("2450311","Violeta"),
     "verde": ("2450314","Verde"),    "green": ("2450314","Verde"),
