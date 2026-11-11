@@ -24849,6 +24849,8 @@ async function cargarBuenFin() {
       <label style="font-size:0.8rem;color:#666"><input type="checkbox" id="bf-solo-sel" onchange="window._bfFiltrar()"> Solo los elegidos</label>
       <span id="bf-cont" style="font-size:0.82rem;color:#888"></span>
       <button onclick="window._bfGuardar(this)" style="background:#111;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;cursor:pointer">Guardar</button>
+      <button onclick="window._bfDescargar(true)" style="background:#fff;color:#111;border:1px solid #ccc;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="Excel con precios de tienda, Buen Fin y de corrida (portal) de los modelos elegidos">⬇ Descargar elegidos</button>
+      <button onclick="window._bfDescargar(false)" style="background:#fff;color:#111;border:1px solid #ccc;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer" title="Lo mismo, de todo el catálogo">⬇ Todo el catálogo</button>
     </div>
     <div id="bf-msg" style="margin-bottom:8px"></div>
     <div id="bf-lista" style="background:#fff;border:1px solid #eee;border-radius:12px;max-height:60vh;overflow:auto"></div></div>`
@@ -24864,6 +24866,23 @@ async function cargarBuenFin() {
   window._bfFiltrar = () => {
     const q = (document.getElementById('bf-buscar').value || '').toLowerCase().trim(), solo = document.getElementById('bf-solo-sel').checked
     window._bfPintar(window._bf.modelos.filter(m => (!solo || window._bf.sel.has(m.id)) && (!q || `${m.nombre} ${m.sku} ${m.categoria}`.toLowerCase().includes(q))).slice(0, 400))
+  }
+  // Descarga (CSV que abre Excel): precios de la tienda, del Buen Fin y de corrida (portal) por modelo
+  window._bfDescargar = (soloElegidos) => {
+    const lista = window._bf.modelos.filter(m => !soloElegidos || window._bf.sel.has(m.id))
+    if (!lista.length) { alert('No hay modelos elegidos.'); return }
+    const desc = parseFloat(document.getElementById('bf-desc').value) || 100
+    const q = (v) => { const s = String(v == null ? '' : v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
+    const filas = [['SKU', 'Modelo', 'Categoría', 'Elegido para el Buen Fin', 'Precio tienda normal', 'Precio Buen Fin en tienda (todos)', 'Precio especial Buen Fin en tienda (elegidos)', 'Precio de corrida (portal)', 'Pares en existencia']]
+    lista.forEach(m => {
+      const base = parseFloat(m.menudeo) || 0, corr = parseFloat(m.corrida) || Math.max(0, base - 100), sel = window._bf.sel.has(m.id)
+      filas.push([m.sku || '', m.nombre || '', m.categoria || '', sel ? 'Sí' : 'No', base + 80, base + 80 - 60, sel ? window._bfEspecial(m) : '', corr, m.existencias ?? ''])
+    })
+    const csv = '\ufeff' + filas.map(f => f.map(q).join(',')).join('\r\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    a.download = `catalogo_${soloElegidos ? 'buen_fin' : 'completo'}_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
   }
   window._bfToggle = (id, on) => { if (on) window._bf.sel.add(id); else window._bf.sel.delete(id); document.getElementById('bf-cont').textContent = `${window._bf.sel.size} modelos elegidos` }
   window._bfGuardar = async (btn) => {

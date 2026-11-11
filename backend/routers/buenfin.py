@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from security import require_staff
 from cache import cache_get, cache_set
 
@@ -84,7 +84,17 @@ def buen_fin_config(_staff=Depends(require_staff)):
     cfg = _leer_config()
     seleccion = set(cfg["modelos"])
     prods = supabase_get("productos?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal,precio_menudeo,precio_mayoreo3,precio_corrida,es_oferta&order=nombre.asc&limit=2000") or []
-    modelos = [{"id": p["id"], "nombre": p.get("nombre"), "sku": p.get("sku_interno"), "categoria": p.get("categoria"), "foto": p.get("imagen_principal"),
+    # existencias por modelo (suma de todas sus tallas y colores)
+    stock = {}
+    try:
+        prod_de = {v["id"]: v["producto_id"] for v in supabase_get_all("variantes?activa=eq.true&select=id,producto_id")}
+        for r in supabase_get_all("inventario?select=variante_id,cantidad"):
+            pid = prod_de.get(r.get("variante_id"))
+            if pid:
+                stock[pid] = stock.get(pid, 0) + int(r.get("cantidad") or 0)
+    except Exception as e:
+        print(f"[buen-fin] no se pudieron leer las existencias: {e}")
+    modelos = [{"id": p["id"], "existencias": stock.get(p["id"], 0), "nombre": p.get("nombre"), "sku": p.get("sku_interno"), "categoria": p.get("categoria"), "foto": p.get("imagen_principal"),
                 "menudeo": p.get("precio_menudeo"), "mayoreo3": p.get("precio_mayoreo3"), "corrida": p.get("precio_corrida"),
                 "seleccionado": p["id"] in seleccion}
                for p in prods if not str(p.get("nombre") or "").lower().startswith("oferta")]

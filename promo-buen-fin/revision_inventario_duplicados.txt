@@ -1,0 +1,64 @@
+REVISAR INVENTARIO - 7 modelos que se recibieron duplicados (10 nov 2026)
+Favor de contar fisicamente cada talla y decir si el ERP esta de mas. "ERP" = pares que dice el sistema hoy; "posibles de mas" = lo que probablemente es duplicado.
+
+1) ML115 Flat de moda para dama muy comoda (M-FLT-0372) - 24 posibles de mas
+- Azul marino T23: ERP 5 (posibles 2 de mas)
+- Azul marino T24: ERP 11 (posibles 4 de mas)
+- Azul marino T25: ERP 14 (posibles 4 de mas)
+- Azul marino T26: ERP 7 (posibles 2 de mas)
+- Negro/blanco T23: ERP 8 (posibles 2 de mas)
+- Negro/blanco T24: ERP 11 (posibles 4 de mas)
+- Negro/blanco T25: ERP 12 (posibles 4 de mas)
+- Negro/blanco T26: ERP 5 (posibles 2 de mas)
+
+2) RX813 Tacon para dama suela tractor plantilla acojinada (R-TAC-0376) - 24 posibles de mas
+- Miel T23.5: ERP 1 (posibles 1 de mas)
+- Miel T24: ERP 2 (posibles 2 de mas)
+- Miel T24.5: ERP 2 (posibles 2 de mas)
+- Miel T25: ERP 2 (posibles 2 de mas)
+- Miel T25.5: ERP 2 (posibles 2 de mas)
+- Miel T26: ERP 1 (posibles 1 de mas)
+- Miel T27: ERP 2 (posibles 1 de mas)
+- Negro T23.5: ERP 1 (posibles 1 de mas)
+- Negro T24: ERP 3 (posibles 3 de mas)
+- Negro T24.5: ERP 2 (posibles 2 de mas)
+- Negro T25: ERP 2 (posibles 2 de mas)
+- Negro T25.5: ERP 2 (posibles 2 de mas)
+- Negro T26: ERP 2 (posibles 2 de mas)
+- Negro T27: ERP 2 (posibles 1 de mas)
+(Ojo: aqui casi todo lo que dice el ERP podria ser duplicado.)
+
+3) CH2300 Tacones estilleto lisas para fiesta de alto 10 cm (C-TAC-0207) - 14 posibles de mas
+- MAQUILLAJE NAPA T24.5: ERP 6 (posibles 3 de mas)
+- MAQUILLAJE NAPA T25: ERP 7 (posibles 3 de mas)
+- MAQUILLAJE NAPA T25.5: ERP 5 (posibles 3 de mas)
+- MAQUILLAJE NAPA T26: ERP 6 (posibles 3 de mas)
+- NEGRO NAPA T23: ERP 7 (posibles 1 de mas)
+- NEGRO NAPA T25: ERP 6 (posibles 1 de mas)
+
+4) oyyi701 (O-TAC-0381) - 6 posibles de mas (se esta ajustando hoy a mano)
+- moka T23.5: ERP 1 (posibles 1 de mas)
+- moka T24.5: ERP 3 (posibles 1 de mas)
+- Negro T23.5: ERP 1 (posibles 1 de mas)
+- Negro T24.5: ERP 3 (posibles 1 de mas)
+- Negro T26: ERP 2 (posibles 1 de mas)
+- oro ingles T25.5: ERP 1 (posibles 1 de mas)
+
+5) CH2300 Estilleto material tipo buck tacon alto 10 cm de vestir (C-TAC-0328) - 5 posibles de mas
+- Rojo Miranda T23: ERP 2 (posibles 1 de mas)
+- Rojo Miranda T24: ERP 4 (posibles 1 de mas)
+- Rojo Miranda T24.5: ERP 5 (posibles 1 de mas)
+- Rojo Miranda T25: ERP 1 (posibles 1 de mas)
+- Rojo Miranda T25.5: ERP 4 (posibles 1 de mas)
+
+6) CH2123 Tacones puntales con mono moda 2026 (C-TAC-0009) - 3 posibles de mas
+- Negro Galaxy T25.5: ERP 3 (posibles 1 de mas)
+- ORO T23: ERP 3 (posibles 1 de mas)
+- Oro Rosa T25.5: ERP 3 (posibles 1 de mas)
+
+7) CH2314 Estilleto con tiras cruzadas alto 10 zapatilla puntal vestir (C-TAC-0325) - 1 posible de mas
+- Nairobi Beileys T25.5: ERP 4 (posibles 1 de mas)
+
+ADEMAS, contar tambien:
+- MA3000 Botin 10 cm tacon puntal delgado (M-BTN-0332), color NEGRO CROXA (en mayusculas): el ERP dice unos 40 pares (T23: 7, T24: 13, T25: 13, T26: 7) y esta manana solo entraron 24.
+- MA3008 Botin 9 cm (M-BTN-0344), Negro Croxa: T23 0, T24 2, T25 2, T26 1 (ya se ajusto hoy; confirmar).
