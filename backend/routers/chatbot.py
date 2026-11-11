@@ -59,6 +59,74 @@ def precios_portal(p) -> dict:
     }
 
 
+_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _buen_fin() -> dict:
+    """Estado de la promocion del Buen Fin (se administra desde el panel). Nunca lanza."""
+    try:
+        from routers.buenfin import estado_actual
+        return estado_actual()
+    except Exception as e:
+        print(f"[maya] no se pudo leer el Buen Fin: {e}")
+        return {"activa": False, "ids": set(), "inicio": "", "fin": "", "descuento": 100}
+
+
+def _es_especial_bf(p) -> bool:
+    e = _buen_fin()
+    return bool(e["activa"] and str(p.get("id")) in e["ids"])
+
+
+def precio_buen_fin(p):
+    """Precio por par durante el Buen Fin (igual que la tienda): toda la tienda cobra el precio de 3+ pares desde el primer par (web - $60) y los
+    modelos elegidos en el panel llevan ademas el descuento especial, sin bajar de su corrida + $50. None si no aplica (promocion apagada u oferta)."""
+    e = _buen_fin()
+    if not e["activa"] or p.get("es_oferta"):
+        return None
+    try:
+        base = float(p.get("precio_menudeo") or 0)
+    except (TypeError, ValueError):
+        return None
+    if base <= 0:
+        return None
+    web = round(base + 80)
+    general = web - 60
+    if str(p.get("id")) in e["ids"]:
+        try:
+            corr = float(p.get("precio_corrida") or 0)
+        except (TypeError, ValueError):
+            corr = 0.0
+        corr = corr or (base - 100)
+        return min(general, max(web - e["descuento"], corr + 50))
+    return general
+
+
+def _fecha_bonita(s: str) -> str:
+    try:
+        d = str(s)[:10].split("-")
+        return f"{int(d[2])} de {_MESES[int(d[1]) - 1]}"
+    except Exception:
+        return ""
+
+
+def _seccion_buen_fin(mayorista: bool = False) -> str:
+    e = _buen_fin()
+    if not e["activa"]:
+        return ""
+    ini, fin = _fecha_bonita(e["inicio"]), _fecha_bonita(e["fin"])
+    rango = f"del {ini} al {fin}" if ini and fin else "por tiempo limitado"
+    extra_mayorista = (f"\n- Si es mayorista registrada o pregunta por mayoreo: dile que en su portal {_PORTAL_URL} ya esta el boton 🏷️ Buen Fin con precios especiales. NO le des precios de mayoreo por aqui."
+                       if mayorista else "")
+    return f"""
+
+=== PROMOCION ACTIVA: BUEN FIN ({rango}) ===
+- La promocion es REAL y esta vigente AHORA: {rango}. Si preguntan hasta cuando, di "hasta el {fin}" (termina ese dia por la tarde, hora de Mexico). No la extiendas ni la prometas despues de esa fecha.
+- En TODA la tienda cada par se cobra con el descuento por varios pares desde el PRIMER par: no necesitan comprar 3. El catalogo ya trae el "PRECIO BUEN FIN" de cada modelo: usalo TAL CUAL, sin sumar ni restar nada.
+- Los modelos marcados "⭐MODELO CON PRECIO ESPECIAL BUEN FIN" tienen un precio aun mas bajo. La lista completa esta en https://zapatillasmay.mx/buen-fin — compartela cuando pregunten por ofertas o descuentos.
+- Menciona la promocion cuando des un precio o cuando duden en comprar (con naturalidad, sin presionar). El envio se cobra aparte, segun las tarifas normales.
+- NO inventes otros descuentos, cupones ni meses sin intereses. Si preguntan por algo que no esta aqui, di que una asesora lo confirma.{extra_mayorista}"""
+
+
 def _tel10(t) -> str:
     return "".join(c for c in str(t or "") if c.isdigit())[-10:]
 
@@ -90,14 +158,21 @@ def construir_catalogo(productos, mayorista=False):
         if p.get('imagen_principal'):
             catalogo += f" [IMG:{p['imagen_principal']}]"
         _pw = precios_web(p)
-        catalogo += f": menudeo ${_pw['menudeo']:.0f}"
-        if not p.get('es_oferta'):
-            if mayorista:
-                # Cliente mayorista REGISTRADA: por WhatsApp solo menudeo; sus precios de mayoreo los ve en el portal
-                pass
-            else:
-                # Cualquier otra persona: solo el precio del sitio (desde 3 pares el sitio descuenta solo)
-                catalogo += f", 3+ pares ${_pw['mayoreo3']:.0f}"
+        _bf = precio_buen_fin(p)
+        if _bf is not None:
+            # Buen Fin activo: el precio por par ya incluye el descuento desde el primer par
+            catalogo += f": PRECIO BUEN FIN ${_bf:.0f} por par desde el primer par (precio normal ${_pw['menudeo']:.0f})"
+            if _es_especial_bf(p):
+                catalogo += " ⭐MODELO CON PRECIO ESPECIAL BUEN FIN"
+        else:
+            catalogo += f": menudeo ${_pw['menudeo']:.0f}"
+            if not p.get('es_oferta'):
+                if mayorista:
+                    # Cliente mayorista REGISTRADA: por WhatsApp solo menudeo; sus precios de mayoreo los ve en el portal
+                    pass
+                else:
+                    # Cualquier otra persona: solo el precio del sitio (desde 3 pares el sitio descuenta solo)
+                    catalogo += f", 3+ pares ${_pw['mayoreo3']:.0f}"
         if p.get('nuevo'):
             catalogo += " 🆕NUEVO"
         if p.get('categoria'):
@@ -218,7 +293,7 @@ SOBRE ZAPATILLAS MAY:
 - Llegan modelos nuevos cada semana
 - Ubicación física (Bodega Cuautla): Calle Cuautla 211, Col. Killian, León, Guanajuato. Si preguntan dónde están, dónde pueden pasar a ver/recoger, o piden la ubicación: da SIEMPRE esta dirección completa, NUNCA respondas solo "León, Guanajuato"
 
-{_seccion_precios(mayorista)}
+{_seccion_precios(mayorista)}{_seccion_buen_fin(mayorista)}
 
 ENVÍOS (costo exacto — úsalo al calcular totales):
 - 1 par: $99 | 2 pares: $150 | 3-5 pares: $199
@@ -519,6 +594,17 @@ def _resolver_items_wa(items_entrada: list, mayorista: bool = False) -> tuple:
     filtro_sku = ",".join(skus)
     productos = supabase_get(f"productos?sku_interno=in.({filtro_sku})&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta") or []
     prod_por_sku = {p["sku_interno"]: p for p in productos}
+    # Si la IA mando el codigo del nombre (p. ej. "MA3008") en vez del SKU interno (M-BTN-0344), se busca por el inicio del nombre
+    # cuando hay UNA sola coincidencia (asi no se confunde un modelo con otro).
+    for s in skus:
+        if s not in prod_por_sku:
+            try:
+                alt = supabase_get(f"productos?activo=eq.true&nombre=ilike.{urllib.parse.quote(s, safe='')}%25&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta&limit=3") or []
+            except Exception:
+                alt = []
+            if len(alt) == 1:
+                prod_por_sku[s] = alt[0]
+                productos.append(alt[0])
     prod_ids = [p["id"] for p in productos]
 
     variantes = []
@@ -575,8 +661,11 @@ def _resolver_items_wa(items_entrada: list, mayorista: bool = False) -> tuple:
     # Nivel de precio según el total de pares del pedido completo (igual que el sitio web)
     for producto, variante, cantidad, etiqueta in resueltos:
         _pw = precios_web(producto)
+        _bf = precio_buen_fin(producto)
         if producto.get("es_oferta"):
             precio_u = float(_pw["menudeo"])
+        elif _bf is not None and not (mayorista and pares >= 3):
+            precio_u = float(_bf)                                         # Buen Fin: precio por par desde el primer par
         elif mayorista and pares >= 6:
             precio_u = float(precios_portal(producto)["mayoreo6"])      # precio de portal (cliente registrada)
         elif mayorista and pares >= 3:
@@ -963,11 +1052,20 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
             link, total, pedido_id, faltantes = generar_link_pago_wa(from_number, datos)
             time.sleep(1)
             if faltantes:
-                msg_sin_stock = (
-                    "Uy, justo se me acaba de agotar 😔 esto ya no tiene existencia:\n"
-                    + "\n".join(f"• {f}" for f in faltantes)
-                    + "\n\n¿Le damos otra talla/color o le muestro otra opción? 💕"
-                )
+                if all("(disponibles:" in f for f in faltantes):
+                    msg_sin_stock = (
+                        "Uy, justo se me acaba de agotar 😔 esto ya no tiene existencia:\n"
+                        + "\n".join(f"• {f.split(' (')[0]}" for f in faltantes)
+                        + "\n\n¿Le damos otra talla/color o le muestro otra opción? 💕"
+                    )
+                else:
+                    # No es falta de existencias: Maya no pudo identificar el modelo/color/talla. No se le dice a la clienta que se agoto.
+                    print(f"[maya] no se pudo armar el pedido de {from_number}: {faltantes}")
+                    try:
+                        supabase_patch(f"chats_control?telefono=eq.{from_number}", {"pendiente_revision": True})
+                    except Exception:
+                        pass
+                    msg_sin_stock = "Déjame confirmar ese modelo con una compañera para no equivocarme 🙏 En un momento te ayudamos con tu pedido."
                 enviar_whatsapp_texto(from_number, msg_sin_stock)
                 msg_enviado = (texto + "\n\n" + msg_sin_stock).strip() if texto else msg_sin_stock
             elif link:
