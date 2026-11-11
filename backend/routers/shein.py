@@ -1524,12 +1524,13 @@ def _cloudinary_recorte_80x80(url_imagen: str) -> str:
 # proporcion) para type=1/2, y c_fill (fuerza cuadrado) solo para type=5.
 
 def _cloudinary_ajustar_detalle(url_imagen: str) -> str:
-    """Imagen principal (type=1) y de detalle (type=2): ajusta a 1500px (dentro
-    del rango 900-2200px oficial) sin recortar, preservando la proporcion original."""
+    """Imagen principal (type=1) y de detalle (type=2): RECTANGULAR vertical 3:4 (1500x2000, dentro del rango 900-2200px oficial). SHEIN pidio
+    dejar de mandar fotos cuadradas. No se recorta: la foto entera queda centrada y el sobrante se rellena con blanco (las fotos del catalogo
+    ya van sobre fondo blanco, asi que no se nota)."""
     marcador = "/image/upload/"
     if marcador not in url_imagen:
         return url_imagen
-    return url_imagen.replace(marcador, f"{marcador}c_fit,w_1500,h_1500/", 1)
+    return url_imagen.replace(marcador, f"{marcador}c_pad,b_white,w_1500,h_2000/", 1)
 
 
 def _cloudinary_ajustar_cuadrada(url_imagen: str) -> str:
