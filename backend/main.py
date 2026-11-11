@@ -264,6 +264,8 @@ app.include_router(pinterest.router)
 app.include_router(portal.router)
 from routers import buenfin
 app.include_router(buenfin.router)
+from routers import conteo
+app.include_router(conteo.router)
 
 
 @app.get("/sync-estado")

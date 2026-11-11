@@ -16,6 +16,7 @@ import './existencias-chat.js'
 import './chat-pedidos.js'
 import './novedades-modelos.js'
 import './campana-avisos.js'
+import './conteo.js'
 
 // Fechas en hora de México (la base guarda UTC; el negocio opera en America/Mexico_City).
 // Usar esto en vez de toISOString().split('T')[0], que después de las 18:00 ya devuelve "mañana".
@@ -114,6 +115,7 @@ const modulos = [
   { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
   { id: 'resenas', icon: '⭐', label: 'Reseñas', section: 'Catalogo', soloAdmin: true },
   { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
+  { id: 'conteo', icon: '📋', label: 'Conteo de inventario', section: 'Catalogo' },
   { id: 'carritos', icon: '🛒', label: 'Carritos', section: 'Ventas' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
@@ -762,6 +764,7 @@ async function cargarModulo(id) {
     case 'pedidos': await cargarPedidos(); window._limpiarBadgePedidos?.(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
+    case 'conteo': await window.cargarConteo(); break
     case 'pos': await cargarPOS(); break
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
