@@ -24873,7 +24873,8 @@ async function cargarBuenFin() {
   }
   // Descarga (CSV que abre Excel): precios de la tienda, del Buen Fin y de corrida (portal) por modelo
   window._bfDescargar = (soloElegidos) => {
-    const lista = window._bf.modelos.filter(m => !soloElegidos || window._bf.sel.has(m.id))
+    // Solo modelos con existencias (los agotados no se ofrecen)
+    const lista = window._bf.modelos.filter(m => (!soloElegidos || window._bf.sel.has(m.id)) && (m.existencias === undefined || m.existencias > 0))
     if (!lista.length) { alert('No hay modelos elegidos.'); return }
     const desc = parseFloat(document.getElementById('bf-desc').value) || 100
     const q = (v) => { const s = String(v == null ? '' : v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -24890,7 +24891,8 @@ async function cargarBuenFin() {
   }
   // PDF para las mayoristas: foto, nombre y PRECIO DE CORRIDA por par. Se abre una hoja lista para imprimir y se elige «Guardar como PDF».
   window._bfPdf = (soloElegidos, conPrecio = true) => {
-    const lista = window._bf.modelos.filter(m => (!soloElegidos || window._bf.sel.has(m.id)) && m.foto)
+    // Solo modelos con foto y con existencias (los agotados no se ofrecen)
+    const lista = window._bf.modelos.filter(m => (!soloElegidos || window._bf.sel.has(m.id)) && m.foto && (m.existencias === undefined || m.existencias > 0))
     if (!lista.length) { alert('No hay modelos con foto para el PDF.'); return }
     const MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
     const fecha = (v) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || ''); return m ? `${parseInt(m[3], 10)} de ${MES[parseInt(m[2], 10) - 1]}` : '' }

@@ -974,7 +974,8 @@ function renderCatalogo(el) {
   const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
 
   let prods = pc.productos
-  if (pc.soloBuenFin && pc.buenFin.activa) prods = prods.filter(p => pcEsBF(p.id))
+  // Buen Fin: solo modelos con pares disponibles (no se ofrecen los agotados)
+  if (pc.soloBuenFin && pc.buenFin.activa) prods = prods.filter(p => pcEsBF(p.id) && pc.variantes.some(v => v.producto_id === p.id && v.activa !== false && pc.inventario.some(i => i.variante_id === v.id && (i.cantidad || 0) > 0)))
   if (pc.filtroNuevos) prods = prods.filter(esNuevo)
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
