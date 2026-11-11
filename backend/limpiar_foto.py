@@ -71,6 +71,35 @@ def _fondo_filas(a):
     return fondos, max(residuos)
 
 
+def _fondos(a):
+    try:
+        fondos, residuo = _fondo(a)
+        if residuo > 7:
+            raise ValueError("el fondo no es liso (¿hay objetos o personas en las orillas?)")
+        return fondos, residuo
+    except ValueError as e1:
+        # fotos con piso/mesa: el fondo cambia de golpe y la curva suave no lo alcanza -> plan B por filas
+        fondos, residuo = _fondo_filas(a)
+        if residuo > 9:
+            raise e1
+        return fondos, residuo
+
+
+def _inicio_limpio(a):
+    """Fila desde la que TODO hacia abajo es fondo claro y liso (el zapato ocupa menos de la mitad de cada fila). Devuelve None si no hay
+    una franja sucia arriba que valga la pena quitar (menos del 5 % o mas del 45 % de la foto)."""
+    h = a.shape[0]
+    sat = a.max(2) - a.min(2)
+    limpio = ((a.mean(2) > 150) & (sat < 30)).mean(1) >= 0.5
+    malas = np.where(~limpio)[0]
+    if not len(malas):
+        return None
+    y0 = int(malas.max()) + 1 + max(int(h * 0.02), 10)
+    if y0 < h * 0.05 or y0 > h * 0.45:
+        return None
+    return y0
+
+
 def limpiar_foto(data: bytes, lado: int = 2000, ocupa: float = 0.90, sombra: bool = True) -> bytes:
     with _UNA_A_LA_VEZ:
         return _limpiar(data, lado, ocupa, sombra)
@@ -82,14 +111,15 @@ def _limpiar(data, lado, ocupa, sombra):
     a = np.asarray(im, dtype=np.float32)
     h, w, _ = a.shape
     try:
-        fondos, residuo = _fondo(a)
-        if residuo > 7:
-            raise ValueError("el fondo no es liso (¿hay objetos o personas en las orillas?)")
-    except ValueError as e1:
-        # fotos con piso/mesa: el fondo cambia de golpe y la curva suave no lo alcanza -> plan B por filas
-        fondos, residuo = _fondo_filas(a)
-        if residuo > 9:
-            raise e1
+        fondos, residuo = _fondos(a)
+    except ValueError:
+        # fotos con letreros, paraguas o personas arriba del fondo: se descarta esa franja de arriba y se reintenta
+        y0 = _inicio_limpio(a)
+        if y0 is None:
+            raise
+        a = np.ascontiguousarray(a[y0:])
+        h = a.shape[0]
+        fondos, residuo = _fondos(a)
     claro = np.mean([f.mean() for f in fondos])
     if claro < 150:
         raise ValueError("el fondo es oscuro: la limpieza es para fondos blancos o gris claro")
@@ -105,6 +135,17 @@ def _limpiar(data, lado, ocupa, sombra):
     cobertura = float(mm.mean())
     if cobertura < 0.02:
         raise ValueError("no se encontró el zapato en la foto")
+    # restos sueltos (orilla de un papel, sombra de un letrero): de los bloques de filas separados por filas vacias, se queda el de mayor area
+    filas = mm.sum(1)
+    activo = filas > 3
+    if activo.any():
+        cortes = np.flatnonzero(np.diff(np.concatenate(([0], activo.astype(np.int8), [0]))))
+        bloques = list(zip(cortes[0::2], cortes[1::2]))
+        if len(bloques) > 1:
+            mejor = max(bloques, key=lambda b: int(filas[b[0]:b[1]].sum()))
+            mm[:mejor[0]] = False
+            mm[mejor[1]:] = False
+            cobertura = float(mm.mean())
     xs_v = np.where(mm.sum(0) > 3)[0]
     ys_v = np.where(mm.sum(1) > 3)[0]
     if not len(xs_v) or not len(ys_v):
