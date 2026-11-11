@@ -52,6 +52,25 @@ def _fondo(a):
     return fondos, max(residuos)
 
 
+def _fondo_filas(a):
+    """Plan B para fotos con piso o mesa (el fondo cambia de golpe hacia abajo): el fondo de cada fila se toma de las franjas izquierda y
+    derecha de ESA fila (ahi no hay zapato) y se interpola en linea recta entre ambas. Devuelve (lista de 3 arrays h×w, residuo)."""
+    h, w, _ = a.shape
+    mw = max(int(w * 0.05), 4)
+    xn = (np.arange(w, dtype=np.float32) / max(w - 1, 1))[None, :]
+    fondos, residuos = [], []
+    for c in range(3):
+        izq = np.median(a[:, :mw, c], axis=1)
+        der = np.median(a[:, w - mw:, c], axis=1)
+        k = 9   # suaviza a lo largo de la altura (quita manchas sueltas sin borrar el cambio de piso)
+        pad = lambda v: np.convolve(np.pad(v, k // 2, mode="edge"), np.ones(k) / k, mode="valid")
+        izq, der = pad(izq).astype(np.float32), pad(der).astype(np.float32)
+        f = izq[:, None] + (der - izq)[:, None] * xn
+        fondos.append(f.astype(np.float32))
+        residuos.append(float(np.std(a[:, :mw, c] - f[:, :mw])))
+    return fondos, max(residuos)
+
+
 def limpiar_foto(data: bytes, lado: int = 2000, ocupa: float = 0.90, sombra: bool = True) -> bytes:
     with _UNA_A_LA_VEZ:
         return _limpiar(data, lado, ocupa, sombra)
@@ -62,9 +81,15 @@ def _limpiar(data, lado, ocupa, sombra):
     im.thumbnail((MAX_ENTRADA, MAX_ENTRADA), Image.LANCZOS)
     a = np.asarray(im, dtype=np.float32)
     h, w, _ = a.shape
-    fondos, residuo = _fondo(a)
-    if residuo > 7:
-        raise ValueError("el fondo no es liso (¿hay objetos o personas en las orillas?)")
+    try:
+        fondos, residuo = _fondo(a)
+        if residuo > 7:
+            raise ValueError("el fondo no es liso (¿hay objetos o personas en las orillas?)")
+    except ValueError as e1:
+        # fotos con piso/mesa: el fondo cambia de golpe y la curva suave no lo alcanza -> plan B por filas
+        fondos, residuo = _fondo_filas(a)
+        if residuo > 9:
+            raise e1
     claro = np.mean([f.mean() for f in fondos])
     if claro < 150:
         raise ValueError("el fondo es oscuro: la limpieza es para fondos blancos o gris claro")
