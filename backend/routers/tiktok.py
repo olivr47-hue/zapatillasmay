@@ -1284,15 +1284,19 @@ def tiktok_guia(order_id: str, _staff=Depends(require_staff)):
     if orden.get("status") == "CANCELLED":
         return JSONResponse(status_code=409, content={"error": "El pedido esta cancelado en TikTok"})
     paquetes = [p.get("id") for p in (orden.get("packages") or []) if p.get("id")]
+    if not paquetes:   # algunos pedidos traen el paquete solo dentro de los articulos
+        paquetes = list(dict.fromkeys(li.get("package_id") for li in (orden.get("line_items") or []) if li.get("package_id")))
     if not paquetes:
-        return JSONResponse(status_code=409, content={"error": "TikTok todavia no genera el paquete de este pedido: en TikTok toca «Preparar envio» y vuelve a intentar"})
+        return JSONResponse(status_code=409, content={"error": f"TikTok no regresa paquete para este pedido (estado {orden.get('status')}). Si en TikTok ya puedes imprimir la guia, avisame este numero de pedido: {order_id}",
+                                                      "estado": orden.get("status")})
     pdfs = []
     for pid in paquetes:
         r = _tiktok_api("GET", f"/fulfillment/202309/packages/{pid}/shipping_documents", access,
                         extra_params={"document_type": "SHIPPING_LABEL", "document_size": "A6", "document_format": "PDF", "shop_cipher": cipher})
         if r.get("code") != 0:
             msg = _ERR_GUIA.get(r.get("code")) or f"TikTok no entrego la guia: {r.get('message')}"
-            return JSONResponse(status_code=409, content={"error": msg, "codigo": r.get("code")})
+            msg += f" [codigo {r.get('code')}, paquete {pid}, estado {orden.get('status')}]"
+            return JSONResponse(status_code=409, content={"error": msg, "codigo": r.get("code"), "paquete": pid, "estado": orden.get("status")})
         url = ((r.get("data") or {}).get("doc_url") or "")
         if not url.startswith("https://"):
             return JSONResponse(status_code=502, content={"error": "TikTok regreso un enlace de guia no valido"})
