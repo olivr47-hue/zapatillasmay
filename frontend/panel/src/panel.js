@@ -12123,7 +12123,8 @@ window.verPedido = async (id) => {
             <p style="font-weight:600;color:#333;margin:0">Productos</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${p.id}')">✏️ Editar pedido</button>` : ''}
-              ${['borrador', 'apartado', 'checkout_iniciado', 'pendiente_pago'].includes(p.status) ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#E91E8C;border-color:#E91E8C;font-weight:700" onclick="linkPagoPorMonto('${p.id}')">🔗 Link de pago por monto</button>` : ''}
+              ${['borrador', 'apartado', 'checkout_iniciado', 'pendiente_pago'].includes(p.status) ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#E91E8C;border-color:#E91E8C;font-weight:700" onclick="linkPagoPorMonto('${p.id}')">🔗 Link de pago por monto</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#166534;border-color:#16a34a;font-weight:700" onclick="editarAnticipoCarrito('${p.id}', false, true)">💵 Registrar pago / transferencia</button>` : ''}
               ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? `<button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px" onclick="confirmarPedidoAdmin('${p.id}')">✅ Confirmar</button>` : ''}
               ${p.status === 'cancelado' ? `<button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:0.8rem;padding:4px 12px" onclick="reconfirmarPedido('${p.id}')">✅ Reconfirmar pedido</button>` : ''}
               ${(p.status === 'confirmado' || p.status === 'pagado') && !(parseFloat(p.anticipo) > 0) && !p.mp_payment_id ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#b26a00;border-color:#b26a00" onclick="volverAPendientePedido('${p.id}')">↩️ Regresar a pendiente de pago</button>` : ''}
@@ -12607,10 +12608,17 @@ window.recalcularPreciosEdicion = () => {
 }
 
 window.eliminarItemEdicion = async (itemId, idx) => {
-  if (!confirm('¿Eliminar este producto del pedido?')) return
+  const _it = (window._editItems || []).find(i => i.id === itemId) || {}
+  // Un par ya APARTADO tiene su stock descontado: quitarlo lo libera y lo regresa al inventario (el servidor pide autorización: forzar)
+  if (!confirm(_it.reservado ? '¿Quitar este par? Ya está APARTADO: se libera y regresa al inventario.' : '¿Eliminar este producto del pedido?')) return
   const pedidoId = window._editPedidoId
-  const res = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId, { method: 'DELETE' })
-  const data = await res.json()
+  let res = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + (_it.reservado ? '?forzar=true' : ''), { method: 'DELETE' })
+  let data = await res.json().catch(() => ({}))
+  if (!data.ok && data.code === 'RESERVADO') {
+    if (!confirm('Este par ya está APARTADO. ¿Quitarlo de todos modos? Se libera y regresa al inventario.')) return
+    res = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '?forzar=true', { method: 'DELETE' })
+    data = await res.json().catch(() => ({}))
+  }
   if (data.ok) {
     window._editItems.splice(idx, 1)
     window.recalcularPreciosEdicion()
@@ -12780,10 +12788,21 @@ window.confirmarPagoSPEI = async (id) => {
 window.confirmarPedidoAdmin = async (id) => {
   if (!confirm('Confirmar este pedido? El inventario se descontara.')) return
   try {
+    // Si ya está pagado con anticipos/transferencias registrados, la forma de pago del pedido es la de esos pagos (antes siempre decía «efectivo»)
+    let formaPago = 'efectivo'
+    try {
+      const an = await fetch(API + '/pedidos/' + id + '/anticipos').then(r => r.json())
+      const ped0 = window._currentPedido && window._currentPedido.id === id ? window._currentPedido : null
+      if (an && Array.isArray(an.pagos) && an.pagos.length && ped0 && (an.total || 0) + 0.5 >= parseFloat(ped0.total || 0)) {
+        const porForma = {}
+        an.pagos.forEach(x => { porForma[x.forma_pago] = (porForma[x.forma_pago] || 0) + (parseFloat(x.monto) || 0) })
+        formaPago = Object.entries(porForma).sort((a, b) => b[1] - a[1])[0][0]
+      }
+    } catch (_) {}
     const res = await fetch(API + '/pedidos/' + id + '/confirmar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ forma_pago: 'efectivo' })
+      body: JSON.stringify({ forma_pago: formaPago })
     })
     const data = await res.json()
     if (data.ok) {
@@ -31176,20 +31195,28 @@ window._subirComprobantes = async (pedidoId, archivos, pagoId, monto) => {
   }
   return fallos
 }
+// Después de guardar/cerrar: vuelve a donde se abrió (lista de carritos, el carrito, o el detalle del pedido en Pedidos)
+window._antRecargar = async (pedidoId) => {
+  const c = window._antCtx
+  if (c && c.recargar) return verPedido(pedidoId)
+  return c && c.desdeLista ? cargarCarritos() : abrirCarrito(pedidoId)
+}
 window._cerrarModalAnticipo = () => {
   document.getElementById('modal-anticipo')?.remove()
   const c = window._antCtx
-  if (c && c.cambio) { c.cambio = false; c.desdeLista ? cargarCarritos() : abrirCarrito(c.pedidoId) }
+  if (c && c.cambio) { c.cambio = false; window._antRecargar(c.pedidoId) }
 }
-window.editarAnticipoCarrito = async (pedidoId, desdeLista) => {
+window.editarAnticipoCarrito = async (pedidoId, desdeLista, recargar) => {
   const esc = window._escWA
   const previo = window._antCtx && window._antCtx.pedidoId === pedidoId ? window._antCtx : null
-  window._antCtx = { pedidoId, desdeLista: desdeLista === undefined ? !!previo?.desdeLista : !!desdeLista, cambio: !!previo?.cambio }
+  window._antCtx = { pedidoId, desdeLista: desdeLista === undefined ? !!previo?.desdeLista : !!desdeLista, cambio: !!previo?.cambio,
+    recargar: recargar === undefined ? !!previo?.recargar : !!recargar }
   document.getElementById('modal-anticipo')?.remove()
   let datos = { pagos: [], total: 0 }, comp = { comprobantes: [] }
   try { datos = await fetch(API + '/pedidos/' + pedidoId + '/anticipos').then(r => r.json()) } catch (e) {}
   try { comp = await fetch(API + '/pedidos/' + pedidoId + '/comprobantes').then(r => r.json()) } catch (e) {}
-  const ped = (window._antCtx.desdeLista ? window._carrPedidos?.[pedidoId] : window._carritoActivo?.pedidoData) || window._carritoActivo?.pedidoData || window._carrPedidos?.[pedidoId] || {}
+  const ped = (window._antCtx.recargar && window._currentPedido && window._currentPedido.id === pedidoId ? window._currentPedido : null)
+    || (window._antCtx.desdeLista ? window._carrPedidos?.[pedidoId] : window._carritoActivo?.pedidoData) || window._carritoActivo?.pedidoData || window._carrPedidos?.[pedidoId] || {}
   const totalPedido = parseFloat(ped.total) || 0
   const legacy = Math.max(0, (parseFloat(ped.anticipo) || 0) - (datos.total || 0))
   const todosComp = comp.comprobantes || []
@@ -31283,7 +31310,7 @@ window.guardarAnticipoCarrito = async (pedidoId) => {
     }
     window._antCtx.cambio = false
     document.getElementById('modal-anticipo')?.remove()
-    window._antCtx.desdeLista ? await cargarCarritos() : await abrirCarrito(pedidoId)
+    await window._antRecargar(pedidoId)
   } catch (e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Guardar anticipo' }
 }
 window.borrarAnticipoCarrito = async (pedidoId, pagoId) => {
@@ -31292,7 +31319,7 @@ window.borrarAnticipoCarrito = async (pedidoId, pagoId) => {
   if (!r.ok) { alert('No se pudo quitar el anticipo.'); return }
   window._antCtx.cambio = false
   document.getElementById('modal-anticipo')?.remove()
-  window._antCtx.desdeLista ? await cargarCarritos() : await abrirCarrito(pedidoId)
+  await window._antRecargar(pedidoId)
 }
 
 window.verSolicitudesLiberacion = async () => {

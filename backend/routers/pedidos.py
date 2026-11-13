@@ -1711,8 +1711,8 @@ def registrar_anticipo(id: str, datos: dict, _staff=Depends(require_staff)):
     if not ped:
         return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
     p = ped[0]
-    if p.get("status") not in ("borrador", "apartado", "pendiente_pago"):
-        return JSONResponse(status_code=409, content={"error": "Solo se registra anticipo en carritos o apartados abiertos"})
+    if p.get("status") not in ("borrador", "apartado", "pendiente_pago", "checkout_iniciado"):
+        return JSONResponse(status_code=409, content={"error": "Solo se registra pago en pedidos abiertos (carrito, apartado o con link de pago pendiente)"})
     suc = p.get("sucursal_id")
     if not suc:
         s0 = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
