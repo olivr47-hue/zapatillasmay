@@ -11000,15 +11000,17 @@ window._pedEsPorEnviar = (p) =>
   (_CANALES_CON_ENVIO.includes(p.canal) || p.mp_preference_id || p.mp_payment_id) &&
   !/recoge en tienda|recoger en tienda/i.test(`${p.notas || ''} ${p.direccion_envio || ''}`)
 window._pedDias = (iso) => iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : 0
+// Pedido al que se le generó un link de pago en los últimos 7 días: no es un abandono, es una venta esperando que la clienta pague
+window._pedLinkEnviado = (p) => p.status === 'checkout_iniciado' && !!p.link_pago_at && window._pedDias(p.link_pago_at) <= 7
 
 function _renderFilaPedido(p) {
   const statusColor = {
     'borrador': 'badge-warning', 'checkout_iniciado': 'badge-danger', 'pendiente_pago': 'badge-warning',
     'confirmado': 'badge-success', 'cancelado': 'badge-danger', 'pagado': 'badge-success',
     'por_enviar': 'badge-info', 'enviado': 'badge-success', 'entregado': 'badge-success', 'apartado': 'badge-warning',
-  }[p.status] || 'badge-warning'
+  }[window._pedLinkEnviado(p) ? 'pendiente_pago' : p.status] || 'badge-warning'
   const statusLabel = {
-    'borrador': 'Borrador', 'checkout_iniciado': '🛒 Abandonó', 'pendiente_pago': 'Pend. pago', 'confirmado': 'Confirmado',
+    'borrador': 'Borrador', 'checkout_iniciado': window._pedLinkEnviado(p) ? '🔗 Link enviado · esperando pago' : '🛒 Abandonó', 'pendiente_pago': 'Pend. pago', 'confirmado': 'Confirmado',
     'cancelado': 'Cancelado', 'pagado': 'Pagado', 'por_enviar': '📦 Por enviar', 'enviado': '✅ Enviado',
     'entregado': '🎉 Entregado', 'apartado': '🔒 Apartado',
   }[p.status] || p.status
@@ -11245,7 +11247,7 @@ async function cargarPedidos() {
     const totalHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
     const total7d = pedidosActivos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace7).reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
-    const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
+    const abandonados = data.filter(p => p.status === 'checkout_iniciado' && !window._pedLinkEnviado(p)).length
     const lista = data.filter(window._pedEsPorEnviar)
     const porEnviar = lista.length
     const porEnviarRojos = lista.filter(p => window._pedDias(p.confirmado_at || p.created_at) >= 3).length
@@ -11369,8 +11371,8 @@ function _pedFiltrados() {
     case 'por_enviar': l = data.filter(window._pedEsPorEnviar); break
     case 'enviados_viejos': l = data.filter(p => p.status === 'enviado' && window._pedDias(p.enviado_at || p.created_at) >= 7); break
     case 'apartado': l = data.filter(p => p.status === 'apartado'); break
-    case '': l = data.filter(p => !_PED_NO_REAL.includes(p.status)); break
-    default: l = data.filter(p => p.canal === F.pill && !_PED_NO_REAL.includes(p.status))
+    case '': l = data.filter(p => !_PED_NO_REAL.includes(p.status) || window._pedLinkEnviado(p)); break
+    default: l = data.filter(p => p.canal === F.pill && (!_PED_NO_REAL.includes(p.status) || window._pedLinkEnviado(p)))
   }
   if (F.estado) l = l.filter(p => p.status === F.estado)
   if (F.pago) l = l.filter(p => (p.mp_preference_id ? 'mercadopago' : p.forma_pago) === F.pago)

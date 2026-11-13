@@ -688,7 +688,15 @@ def crear_preferencia(datos: dict):
             envio_item = next((i for i in items if (i.get("nombre") or "") == "Envío"), None)
             if envio_item:
                 patch_pedido["costo_envio"] = float(envio_item.get("precio", 0) or 0)
-            supabase_patch(f"pedidos?id=eq.{pedido_id}", patch_pedido)
+            # momento en que se genero el link: el panel lo muestra como «Link enviado» (y no como abandonado) durante unos dias
+            from datetime import datetime as _dt, timezone as _tz
+            patch_pedido["link_pago_at"] = _dt.now(_tz.utc).isoformat()
+            try:
+                supabase_patch(f"pedidos?id=eq.{pedido_id}", patch_pedido)
+            except Exception as e_col:
+                print(f"[crear_preferencia] sin link_pago_at ({e_col}); se guarda sin ese dato")
+                patch_pedido.pop("link_pago_at", None)
+                supabase_patch(f"pedidos?id=eq.{pedido_id}", patch_pedido)
             return {
                 "preference_id": preference["id"],
                 "init_point": preference["init_point"],
