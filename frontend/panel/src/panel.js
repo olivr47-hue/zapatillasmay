@@ -11091,7 +11091,21 @@ window._guiaMarketplace = async (canal, orderId, btn) => {
   btn.innerHTML = '⏳ Guía…'; btn.disabled = true
   try {
     if (w) w.document.write('<p style="font-family:sans-serif;padding:20px">Pidiendo la guía…</p>')
-    const res = await fetch(ruta)
+    let res = await fetch(ruta)
+    if (!res.ok && canal === 'tiktok') {
+      // Pedido nuevo: TikTok no da la guía hasta que se prepara el envío. Al tocar «Guía» se prepara aquí mismo (igual que en la app) y se reintenta.
+      const d0 = await res.clone().json().catch(() => ({}))
+      if ([21042104, 21023035].includes(d0.codigo)) {
+        if (w) w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:20px">Preparando el envío en TikTok…</p>'
+        const prep = await fetch(`${API}/tiktok/preparar-envio/${encodeURIComponent(orderId)}?confirmar=true`, { method: 'POST' })
+        if (!prep.ok) {
+          const dp = await prep.json().catch(() => ({}))
+          throw new Error(dp.error || (typeof dp.detail === 'string' ? dp.detail : `Error ${prep.status}`))
+        }
+        await new Promise(r => setTimeout(r, 2500))
+        res = await fetch(ruta)
+      }
+    }
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
       const det = typeof d.detail === 'string' ? d.detail : (d.detail && (d.detail.message || d.detail.msg)) || d.error || `Error ${res.status}`

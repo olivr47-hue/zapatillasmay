@@ -1275,6 +1275,84 @@ def tiktok_paquete(package_id: str, _staff=Depends(require_staff)):
     return {"codigo": r.get("code"), "mensaje": r.get("message"), "datos": r.get("data")}
 
 
+@router.get("/paquete/{package_id}/horarios")
+def tiktok_paquete_horarios(package_id: str, _staff=Depends(require_staff)):
+    """SOLO LECTURA. Horarios de recoleccion / opciones de entrega que TikTok ofrece para este paquete."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    r = _tiktok_api("GET", f"/fulfillment/202309/packages/{package_id}/handover_time_slots", access, extra_params={"shop_cipher": tienda.get("cipher", "")})
+    return {"codigo": r.get("code"), "mensaje": r.get("message"), "datos": r.get("data")}
+
+
+def _buscar_horarios(nodo, acum=None):
+    """Recorre la respuesta de TikTok y junta todo objeto con start_time y end_time (no se conoce la forma exacta de la respuesta)."""
+    acum = [] if acum is None else acum
+    if isinstance(nodo, dict):
+        if nodo.get("start_time") and nodo.get("end_time"):
+            acum.append({"start_time": int(nodo["start_time"]), "end_time": int(nodo["end_time"])})
+        else:
+            for v in nodo.values():
+                _buscar_horarios(v, acum)
+    elif isinstance(nodo, list):
+        for v in nodo:
+            _buscar_horarios(v, acum)
+    return acum
+
+
+@router.post("/preparar-envio/{order_id}")
+def tiktok_preparar_envio(order_id: str, confirmar: bool = False, _staff=Depends(require_staff)):
+    """Prepara el envio (Ship Package de TikTok) de TODOS los paquetes de un pedido para que la guia ya se pueda bajar. Es lo mismo que el toque
+    en «Preparar envio / Imprimir guia» de la app de TikTok. Sin confirmar=true solo muestra lo que haria (no cambia nada).
+    Metodo: el que TikTok ya trae en el paquete (PICKUP o DROP_OFF); con PICKUP se toma el primer horario que TikTok ofrece."""
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    d = _tiktok_api("GET", "/order/202309/orders", access, extra_params={"ids": order_id, "shop_cipher": cipher})
+    ords = (d.get("data") or {}).get("orders") or [] if d.get("code") == 0 else []
+    if not ords:
+        return JSONResponse(status_code=404, content={"error": "TikTok no encontro ese pedido"})
+    orden = ords[0]
+    if orden.get("status") in ("CANCELLED", "COMPLETED", "DELIVERED", "IN_TRANSIT"):
+        return JSONResponse(status_code=409, content={"error": f"El pedido ya esta en estado {orden.get('status')}: no hay nada que preparar"})
+    paquetes = [p.get("id") for p in (orden.get("packages") or []) if p.get("id")]
+    if not paquetes:
+        paquetes = list(dict.fromkeys(li.get("package_id") for li in (orden.get("line_items") or []) if li.get("package_id")))
+    if not paquetes:
+        return JSONResponse(status_code=409, content={"error": "TikTok no regresa paquete para este pedido"})
+    plan = []
+    for pid in paquetes:
+        det = _tiktok_api("GET", f"/fulfillment/202309/packages/{pid}", access, extra_params={"shop_cipher": cipher})
+        dd = det.get("data") or {}
+        if dd.get("delivery_option") in ("SEND_BY_SELLER", "SELLER_SHIPPING"):
+            return JSONResponse(status_code=409, content={"error": "Este pedido lo envias tu con tu paqueteria (necesita numero de guia): no se puede preparar desde aqui", "paquete": pid})
+        metodo = dd.get("handover_method") if dd.get("handover_method") in ("PICKUP", "DROP_OFF") else None
+        horarios = []
+        sl = _tiktok_api("GET", f"/fulfillment/202309/packages/{pid}/handover_time_slots", access, extra_params={"shop_cipher": cipher})
+        if sl.get("code") == 0:
+            horarios = _buscar_horarios(sl.get("data"))
+        if not metodo:
+            metodo = "PICKUP" if horarios else "DROP_OFF"
+        cuerpo = {"handover_method": metodo}
+        if metodo == "PICKUP":
+            if not horarios:
+                return JSONResponse(status_code=409, content={"error": "TikTok no ofrece horario de recoleccion para este paquete: preparalo una vez en la app de TikTok", "paquete": pid})
+            cuerpo["pickup_slot"] = sorted(horarios, key=lambda h: h["start_time"])[0]
+        plan.append({"paquete": pid, "estado": dd.get("status"), "cuerpo": cuerpo})
+    if not confirmar:
+        return {"confirmar_requerido": True, "plan": plan}
+    hechos = []
+    for p in plan:
+        r = _tiktok_api("POST", f"/fulfillment/202309/packages/{p['paquete']}/ship", access, body=p["cuerpo"], extra_params={"shop_cipher": cipher})
+        if r.get("code") not in (0, 11006021):   # 11006021 = el paquete ya estaba enviado: sigue siendo exito
+            return JSONResponse(status_code=409, content={"error": f"TikTok no preparo el envio: {r.get('message')} [codigo {r.get('code')}, paquete {p['paquete']}]", "hechos": hechos})
+        hechos.append(p["paquete"])
+    return {"ok": True, "preparados": hechos, "plan": plan}
+
+
 @router.get("/guia/{order_id}")
 def tiktok_guia(order_id: str, _staff=Depends(require_staff)):
     """PDF de la guia de envio (etiqueta A6) de un pedido de TikTok Shop enviado con TikTok Shipping. Solo se puede obtener DESPUES de preparar el
