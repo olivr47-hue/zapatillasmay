@@ -601,6 +601,84 @@ def _construir_items_validados(pedido_id, items_cliente):
         return None
 
 
+def _crear_link_parcial(pedido_id: str, monto: float, saldo: float, cliente: dict):
+    """Link de Mercado Pago por una PARTE del pedido (la clienta paga con 2+ tarjetas). La referencia lleva el prefijo «PARC-»: el webhook
+    registra cada pago como anticipo del pedido y solo lo confirma cuando lo pagado ya cubre el total."""
+    webhook_url = os.getenv("MP_WEBHOOK_URL", "")
+    frontend_url = os.getenv("FRONTEND_URL", "https://zapatillasmay.mx")
+    pref = {
+        "items": [{"title": f"Pago parcial de tu pedido (${monto:,.0f} de ${saldo:,.0f} pendientes)", "quantity": 1,
+                   "unit_price": round(monto, 2), "currency_id": "MXN"}],
+        "payer": {"name": cliente.get("nombre", ""), "email": cliente.get("email") or "cliente@zapatillasmay.mx"},
+        "external_reference": f"PARC-{pedido_id}",
+        "back_urls": {"success": frontend_url + "/success", "failure": frontend_url + "/success", "pending": frontend_url + "/success"},
+        "auto_return": "approved",
+    }
+    if webhook_url:
+        pref["notification_url"] = webhook_url
+    preference = sdk.preference().create(pref)["response"]
+    if "id" not in preference:
+        print(f"MP error response (parcial): {preference}")
+        return JSONResponse(status_code=500, content={"error": str(preference.get("message", preference))})
+    from datetime import datetime as _dt, timezone as _tz
+    patch = {"mp_preference_id": preference["id"], "status": "checkout_iniciado", "link_pago_at": _dt.now(_tz.utc).isoformat()}
+    try:
+        supabase_patch(f"pedidos?id=eq.{pedido_id}", patch)
+    except Exception as e_col:
+        print(f"[link parcial] sin link_pago_at ({e_col})")
+        patch.pop("link_pago_at", None)
+        supabase_patch(f"pedidos?id=eq.{pedido_id}", patch)
+    return {"preference_id": preference["id"], "init_point": preference["init_point"], "sandbox_init_point": preference["sandbox_init_point"],
+            "parcial": True, "monto": round(monto, 2), "saldo_antes": round(saldo, 2)}
+
+
+def _registrar_pago_parcial_mp(pedido_id: str, payment: dict, payment_id, forma: str) -> str:
+    """Webhook de un pago hecho con un link PARCIAL. Lo guarda como anticipo del pedido (pedido_pagos, entra a caja con su fecha y forma de pago).
+    Devuelve «completo» si con este pago ya se cubrió el total (el webhook sigue entonces con la confirmación normal), «parcial» si aún falta,
+    o «duplicado»/«sin_pedido». Es idempotente: el mismo pago no se registra dos veces."""
+    nota = f"MP-{payment_id}"
+    if supabase_get(f"pedido_pagos?pedido_id=eq.{pedido_id}&nota=eq.{nota}&select=id"):
+        return "duplicado"
+    ped = supabase_get(f"pedidos?id=eq.{pedido_id}&select=id,status,total,anticipo,sucursal_id")
+    if not ped:
+        return "sin_pedido"
+    p = ped[0]
+    monto = round(float(payment.get("transaction_amount") or 0), 2)
+    suc = p.get("sucursal_id")
+    if not suc:
+        s0 = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
+        suc = s0[0]["id"] if s0 else None
+    forma_pp = "spei" if forma == "spei" else ("efectivo" if forma == "oxxo" else "tarjeta")
+    supabase_post("pedido_pagos", {"pedido_id": pedido_id, "monto": monto, "forma_pago": forma_pp, "tipo": "anticipo",
+                                   "nota": nota, "usuario": "MercadoPago", "sucursal_id": suc})
+    pagado = round(sum(float(f.get("monto") or 0) for f in (supabase_get(
+        f"pedido_pagos?pedido_id=eq.{pedido_id}&or=(tipo.is.null,tipo.neq.abono_credito)&select=monto") or [])), 2)
+    supabase_patch(f"pedidos?id=eq.{pedido_id}", {"anticipo": pagado})
+    total = float(p.get("total") or 0)
+    try:
+        supabase_post("pedido_historial", {"pedido_id": pedido_id, "accion": "anticipo",
+                                           "detalle": f"+${monto:,.2f} (tarjeta, link de pago parcial)", "usuario": "MercadoPago"})
+    except Exception as e_h:
+        print(f"[pago parcial] historial: {e_h}")
+    if p.get("status") in ("pagado", "enviado", "confirmado"):
+        try:
+            from routers.push import enviar_push as _ep
+            _ep(titulo="⚠️ Pago extra en pedido ya pagado", cuerpo=f"Pedido {pedido_id[:8]}: llegaron ${monto:,.0f} por link parcial y ya estaba pagado",
+                url="/?modulo=pedidos", sitio="panel")
+        except Exception:
+            pass
+        return "duplicado"
+    if pagado + 1 >= total:
+        return "completo"
+    try:
+        from routers.push import enviar_push as _ep
+        _ep(titulo="💳 Pago parcial recibido", cuerpo=f"Pedido {pedido_id[:8]}: pagó ${monto:,.0f}, faltan ${max(0.0, total - pagado):,.0f}",
+            url="/?modulo=pedidos", sitio="panel")
+    except Exception as e_push:
+        print(f"[pago parcial] push: {e_push}")
+    return "parcial"
+
+
 @router.post("/crear-preferencia")
 def crear_preferencia(datos: dict):
     try:
@@ -616,6 +694,23 @@ def crear_preferencia(datos: dict):
         if _ped_estado[0].get("status") not in ("borrador", "apartado", "checkout_iniciado", "pendiente_pago"):
             return JSONResponse(status_code=409, content={"error": "Este pedido ya no está pendiente de pago"})
         _total_guardado = float(_ped_estado[0].get("total") or 0)
+
+        # Link por una parte del pedido (pago con 2 tarjetas): «monto» = lo que cubre ESTE link
+        if datos.get("monto") not in (None, ""):
+            try:
+                _monto_parcial = round(float(datos.get("monto")), 2)
+            except (TypeError, ValueError):
+                return JSONResponse(status_code=400, content={"error": "Monto no válido"})
+            _saldo = round(_total_guardado - float(_ped_estado[0].get("anticipo") or 0), 2)
+            if _saldo <= 0.5:
+                return JSONResponse(status_code=400, content={"error": "Este pedido ya no tiene saldo por cobrar"})
+            if _monto_parcial < 10:
+                return JSONResponse(status_code=400, content={"error": "El monto mínimo de un link es $10"})
+            if _monto_parcial > _saldo + 0.5:
+                return JSONResponse(status_code=400, content={"error": f"El monto (${_monto_parcial:,.2f}) es mayor al saldo pendiente (${_saldo:,.2f})"})
+            if _monto_parcial < _saldo - 0.5:
+                return _crear_link_parcial(str(pedido_id), _monto_parcial, _saldo, cliente)
+            # si el monto es todo el saldo, sigue el link normal (que ya cobra solo el saldo)
 
         webhook_url = os.getenv("MP_WEBHOOK_URL", "")
         frontend_url = os.getenv("FRONTEND_URL", "https://zapatillasmay.mx")
@@ -1030,6 +1125,16 @@ async def webhook_mercadopago(request: Request):
                     "account_money": "mercadopago", "digital_wallet": "mercadopago",
                     "ticket": "oxxo", "atm": "spei", "bank_transfer": "spei",
                 }.get(_pt, "mercadopago")
+
+                # Pago hecho con un link PARCIAL («PARC-<pedido>»): se registra como anticipo y el pedido solo se confirma cuando lo
+                # pagado ya cubre el total (la clienta paga con 2 tarjetas). Los pagos no aprobados de un link parcial no cambian nada.
+                if str(pedido_id or "").startswith("PARC-"):
+                    if status != "approved":
+                        return {"ok": True}
+                    _real_id = str(pedido_id)[5:]
+                    if _registrar_pago_parcial_mp(_real_id, payment, payment_id, _forma) != "completo":
+                        return {"ok": True}
+                    pedido_id = _real_id   # ya se cubrió el total: sigue la confirmación normal (inventario, avisos, etc.)
 
                 if pedido_id:
                     if status == "approved":

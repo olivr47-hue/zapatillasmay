@@ -12066,6 +12066,7 @@ window.verPedido = async (id) => {
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
             <p style="font-weight:700;font-size:1.2rem;color:#E91E8C" id="pedido-total-display">$${p.total || '0'}</p>
+            ${(parseFloat(p.anticipo) > 0 && ['borrador', 'apartado', 'checkout_iniciado', 'pendiente_pago'].includes(p.status)) ? `<p style="font-size:0.78rem;color:#166534;margin:4px 0 0;font-weight:600">Pagado $${parseFloat(p.anticipo).toLocaleString('es-MX', { maximumFractionDigits: 2 })} · Falta $${Math.max(0, parseFloat(p.total || 0) - parseFloat(p.anticipo)).toLocaleString('es-MX', { maximumFractionDigits: 2 })}</p>` : ''}
             ${(() => {
               // Verificar si el total difiere de la suma real de items
               const sumaItems = (items || []).reduce((s, i) => s + ((i.cantidad || 0) * (i.precio_unitario || 0)), 0)
@@ -12122,6 +12123,7 @@ window.verPedido = async (id) => {
             <p style="font-weight:600;color:#333;margin:0">Productos</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
               ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${p.id}')">✏️ Editar pedido</button>` : ''}
+              ${['borrador', 'apartado', 'checkout_iniciado', 'pendiente_pago'].includes(p.status) ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#E91E8C;border-color:#E91E8C;font-weight:700" onclick="linkPagoPorMonto('${p.id}')">🔗 Link de pago por monto</button>` : ''}
               ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? `<button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px" onclick="confirmarPedidoAdmin('${p.id}')">✅ Confirmar</button>` : ''}
               ${p.status === 'cancelado' ? `<button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:0.8rem;padding:4px 12px" onclick="reconfirmarPedido('${p.id}')">✅ Reconfirmar pedido</button>` : ''}
               ${(p.status === 'confirmado' || p.status === 'pagado') && !(parseFloat(p.anticipo) > 0) && !p.mp_payment_id ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#b26a00;border-color:#b26a00" onclick="volverAPendientePedido('${p.id}')">↩️ Regresar a pendiente de pago</button>` : ''}
@@ -30866,19 +30868,49 @@ window.generarLinkPagoCarrito = async (pedidoId) => {
   }
 }
 
+// Link de pago por una PARTE del pedido (la clienta paga con 2 tarjetas): se pide el monto, se genera el link y se repite con el saldo
+window.linkPagoPorMonto = async (pedidoId) => {
+  try {
+    const rp = await fetch(API + '/pedidos/' + pedidoId)
+    const p = ((await rp.json()) || [])[0]
+    if (!p) { alert('Pedido no encontrado'); return }
+    const total = parseFloat(p.total || 0), pagado = parseFloat(p.anticipo || 0)
+    const saldo = Math.round((total - pagado) * 100) / 100
+    if (saldo <= 0.5) { alert('Este pedido ya no tiene saldo por cobrar.'); return }
+    const sug = Math.round(saldo / 2)
+    const txt = prompt(`Total $${total.toLocaleString('es-MX')}${pagado > 0 ? ` · ya pagado $${pagado.toLocaleString('es-MX')}` : ''} · saldo $${saldo.toLocaleString('es-MX')}\n\n¿De cuánto es ESTE link? (si es la primera tarjeta, el resto lo cobras con otro link después)`, String(sug))
+    if (txt === null) return
+    const monto = Math.round(parseFloat(String(txt).replace(/[$,\s]/g, '')) * 100) / 100
+    if (!(monto >= 10)) { alert('Escribe un monto válido (mínimo $10).'); return }
+    if (monto > saldo + 0.5) { alert(`El monto no puede ser mayor al saldo ($${saldo.toLocaleString('es-MX')}).`); return }
+    const cli = p.clientes || {}
+    const res = await fetch(API + '/pagos/crear-preferencia', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pedido_id: pedidoId, items: [], monto, cliente: { nombre: cli.nombre || p.nombre_cliente || '', email: cli.email || p.email_cliente || '' } })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!data.init_point) { alert('No se pudo generar el link: ' + (data.error || JSON.stringify(data))); return }
+    const resto = Math.round((saldo - monto) * 100) / 100
+    mostrarLinkGeneradoCarrito(data.init_point, {
+      nombre: cli.nombre || p.nombre_cliente, telefono: cli.telefono || p.telefono_cliente, total: monto,
+      etiqueta: resto > 0.5 ? `Pago parcial — después faltarán $${resto.toLocaleString('es-MX')}` : '', recargar: `verPedido('${pedidoId}')`,
+    })
+  } catch (e) { alert('Error: ' + e.message) }
+}
+
 window.mostrarLinkGeneradoCarrito = (link, info = {}) => {
   const total = typeof info.total === 'number' ? info.total : null
   const primerNombre = (info.nombre || '').trim().split(' ')[0]
   let telWa = (info.telefono || '').replace(/\D/g, '')
   if (telWa.length === 10) telWa = '52' + telWa
-  const msg = `¡Hola${primerNombre ? ' ' + primerNombre : ''}! 🥰 Aquí está tu link de pago de Zapatillas May${total != null ? `:\n💳 Total: $${total.toFixed(2)} MXN` : ':'}\n👉 ${link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu pedido 📦✨`
+  const msg = `¡Hola${primerNombre ? ' ' + primerNombre : ''}! 🥰 Aquí está tu link de pago de Zapatillas May${total != null ? `:\n💳 ${info.etiqueta ? 'Monto de este pago' : 'Total'}: $${total.toFixed(2)} MXN` : ':'}\n👉 ${link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu pedido 📦✨`
   const modal = document.createElement('div')
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem'
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;text-align:center">
       <p style="font-size:1.8rem;margin-bottom:6px">🔗</p>
       <p style="font-weight:700;margin-bottom:4px">Link de pago generado${total != null ? ` — $${total.toFixed(2)} MXN` : ''}</p>
-      <p style="font-size:0.78rem;color:#888;margin-bottom:12px">Este carrito pasó a "Pedidos" (checkout iniciado) mientras el cliente paga.</p>
+      <p style="font-size:0.78rem;color:#888;margin-bottom:12px">${info.etiqueta ? _e(info.etiqueta) + '. Cada pago queda registrado en el pedido y se confirma cuando se cubra el total.' : 'Este carrito pasó a "Pedidos" (checkout iniciado) mientras el cliente paga.'}</p>
       <input readonly value="${link}" onclick="this.select()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.75rem;margin-bottom:12px;box-sizing:border-box">
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <button class="btn btn-secondary" style="flex:1" onclick="navigator.clipboard.writeText('${link}');this.textContent='¡Copiado!'">📋 Copiar link</button>
@@ -30887,7 +30919,7 @@ window.mostrarLinkGeneradoCarrito = (link, info = {}) => {
       ${telWa
         ? `<a href="https://wa.me/${telWa}?text=${encodeURIComponent(msg)}" target="_blank" class="btn btn-primary" style="width:100%;background:#25D366;border-color:#25D366;text-decoration:none;display:block;box-sizing:border-box">💬 Enviar por WhatsApp</a>`
         : `<button class="btn btn-secondary" style="width:100%" onclick="navigator.clipboard.writeText(${JSON.stringify(msg)});this.textContent='¡Mensaje copiado!'">📋 Copiar mensaje para WhatsApp</button>`}
-      <button onclick="this.closest('div[style*=position]').remove();cargarCarritos()" style="margin-top:14px;background:none;border:none;color:#888;cursor:pointer;font-size:0.85rem">Cerrar</button>
+      <button onclick="this.closest('div[style*=position]').remove();${info.recargar || 'cargarCarritos()'}" style="margin-top:14px;background:none;border:none;color:#888;cursor:pointer;font-size:0.85rem">Cerrar</button>
     </div>
   `
   document.body.appendChild(modal)
