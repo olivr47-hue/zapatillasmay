@@ -12066,6 +12066,7 @@ window.verPedido = async (id) => {
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
             <p style="font-weight:700;font-size:1.2rem;color:#E91E8C" id="pedido-total-display">$${p.total || '0'}</p>
+            ${parseFloat(p.costo_envio) > 0 ? `<p style="font-size:0.74rem;color:#6b21a8;margin:2px 0 0">Incluye envío $${parseFloat(p.costo_envio).toLocaleString('es-MX', { maximumFractionDigits: 2 })}${p.paqueteria ? ' · ' + _e(p.paqueteria) : ''}</p>` : ''}
             ${(parseFloat(p.anticipo) > 0 && ['borrador', 'apartado', 'checkout_iniciado', 'pendiente_pago'].includes(p.status)) ? `<p style="font-size:0.78rem;color:#166534;margin:4px 0 0;font-weight:600">Pagado $${parseFloat(p.anticipo).toLocaleString('es-MX', { maximumFractionDigits: 2 })} · Falta $${Math.max(0, parseFloat(p.total || 0) - parseFloat(p.anticipo)).toLocaleString('es-MX', { maximumFractionDigits: 2 })}</p>` : ''}
             ${(() => {
               // Verificar si el total difiere de la suma real de items
@@ -12188,12 +12189,18 @@ window.activarEdicionPedido = async (pedidoId) => {
   if (!panel) return
 
   // Cargar variantes, productos e inventario para el buscador
-  const [resVariantes, resProductos, resInv] = await Promise.all([
+  const [resVariantes, resProductos, resInv, resEnvioCfg] = await Promise.all([
     fetch(API + '/variantes/').then(r => r.json()),
     fetch(API + '/productos/').then(r => r.json()),
-    fetch(API + '/inventario/').then(r => r.json()).catch(() => [])
+    fetch(API + '/inventario/').then(r => r.json()).catch(() => []),
+    fetch(API + '/config/envio').then(r => r.json()).catch(() => null)
   ])
 
+  // Envío / paquetería del pedido (se suma al total al guardar)
+  window._editEnvioTiers = resEnvioCfg?.mayoreo_tiers || null
+  window._editEnvio = parseFloat(window._currentPedido?.costo_envio) || 0
+  window._editPaq = window._currentPedido?.paqueteria || ''
+  window._editPorCobrar = ''
   window._editPedidoId = pedidoId
   window._editItems = (window._currentPedido?.pedido_items || []).map(i => ({...i}))
   window._editVariantes = resVariantes
@@ -12303,6 +12310,21 @@ window.activarEdicionPedido = async (pedidoId) => {
           <span style="font-size:0.8rem;color:#888">(se resta del total final)</span>
         </div>
 
+        <div style="margin-top:1rem;padding:12px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
+          <p style="font-weight:700;font-size:0.85rem;color:#333;margin:0 0 8px">📦 Envío / paquetería <span style="font-weight:400;color:#888;font-size:0.76rem">(se suma al total y a lo que falta por cobrar)</span></p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="edit-envio-paq" class="form-input" style="width:130px" onchange="window._editPaq = this.value">
+              ${['', 'Estafeta', 'FedEx', 'DHL', 'Paquetexpress', 'Otra'].map(v => `<option value="${v}" ${(window._editPaq || '') === v ? 'selected' : ''}>${v || 'Paquetería…'}</option>`).join('')}
+            </select>
+            <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="editEnvioCalcular()">🧮 Calcular por peso</button>
+            <label style="font-size:0.82rem;color:#333;font-weight:600">Costo de envío $</label>
+            <input type="number" id="edit-envio" min="0" step="0.01" value="${window._editEnvio || 0}" style="width:100px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
+              oninput="window._editEnvio = parseFloat(this.value) || 0; window._editPorCobrar = ''">
+            <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="editEnvioPorCobrar()">Por cobrar (paga a la paquetería)</button>
+          </div>
+          <p id="edit-envio-info" style="margin:8px 0 0;font-size:0.78rem;color:#555">${window._editPorCobrar ? '📦 Por cobrar vía ' + _e(window._editPorCobrar) + ': el cliente paga directo a la paquetería, no se suma al total.' : ''}</p>
+        </div>
+
         <div style="margin-top:1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <label style="font-size:0.85rem;color:#333;font-weight:600">Forma de pago:</label>
           <select id="edit-forma-pago" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
@@ -12321,6 +12343,44 @@ window.activarEdicionPedido = async (pedidoId) => {
 
   renderEdicion()
   window._renderEdicion = renderEdicion
+}
+
+// ── Editar pedido: envío / paquetería ───────────────────────────────────────
+window.editEnvioCalcular = () => {
+  const info = document.getElementById('edit-envio-info')
+  const err = (t) => { info.style.color = '#c62828'; info.textContent = t }
+  const tiers = window._editEnvioTiers
+  if (!tiers || !tiers.length) return err('❌ No se pudo cargar la configuración de tarifas.')
+  let gramos = 0
+  ;(window._editItems || []).forEach(item => {
+    if ((item.cantidad || 0) <= 0) return
+    const v = (window._editVariantes || []).find(x => x.id === item.variante_id)
+    const prod = v ? (window._editProductos || []).find(p => p.id === v.producto_id) : null
+    gramos += (prod?.peso_gramos || 0) * item.cantidad
+  })
+  const kg = gramos / 1000
+  if (kg <= 0) return err('❌ No se pudo calcular el peso: revisa que los productos tengan "Peso en kilos" en su ficha, o escribe el costo a mano.')
+  const sel = document.getElementById('edit-envio-paq')
+  const paq = sel && sel.value === 'FedEx' ? 'FedEx' : 'Estafeta'
+  const cajas = _repartirEnCajas(kg, tiers, paq)
+  const total = cajas.reduce((s, c) => s + c.precio, 0)
+  window._editEnvio = total; window._editPaq = paq; window._editPorCobrar = ''
+  document.getElementById('edit-envio').value = total
+  if (sel) sel.value = paq
+  info.style.color = '#166534'
+  info.innerHTML = `Peso total <strong>${kg.toFixed(2)} kg</strong> · ${cajas.length} caja${cajas.length !== 1 ? 's' : ''}: ` +
+    cajas.map((c, i) => `#${i + 1} ${c.peso.toFixed(1)}kg → $${c.precio}`).join(' + ') + ` = <strong>$${total} MXN</strong> por ${paq}`
+}
+
+window.editEnvioPorCobrar = () => {
+  const sel = document.getElementById('edit-envio-paq')
+  const paq = (sel && sel.value) || (prompt('¿Con cuál paquetería? (paga la clienta directo a ella)', window._editPaq || '') || '').trim()
+  if (!paq) { alert('Escribe o elige la paquetería.'); return }
+  window._editPaq = paq; window._editEnvio = 0; window._editPorCobrar = paq
+  document.getElementById('edit-envio').value = 0
+  const info = document.getElementById('edit-envio-info')
+  info.style.color = '#166534'
+  info.textContent = `📦 Por cobrar vía ${paq}: el cliente paga directo a la paquetería, no se suma al total.`
 }
 
 // ── Editar pedido: toggle par suelto / corrida ──────────────────────────────
@@ -12644,7 +12704,9 @@ window.guardarEdicionPedido = async () => {
   const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0
   const formaPago = document.getElementById('edit-forma-pago')?.value
   const formaPagoOriginal = window._currentPedido?.forma_pago || 'efectivo'
-  const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento)
+  // El envío (paquetería) forma parte del total: así lo que falta por cobrar y los links de pago ya lo incluyen
+  const envio = Math.max(0, parseFloat(document.getElementById('edit-envio')?.value) || 0)
+  const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento + envio)
 
   // Cambiar a "Tarjeta" aquí NO puede ser solo relabelear el pedido -- eso es
   // justo el hueco que permite cobrar en efectivo y luego "corregir" el
@@ -12678,7 +12740,12 @@ window.guardarEdicionPedido = async () => {
   await fetch(API + '/pedidos/' + pedidoId, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ total: nuevoTotal, ...(formaPago ? { forma_pago: formaPago } : {}) })
+    body: JSON.stringify({
+      total: nuevoTotal, costo_envio: envio,
+      ...(window._editPaq ? { paqueteria: window._editPaq } : {}),
+      ...(window._editPorCobrar ? { comentarios: `Envío por cobrar vía ${window._editPorCobrar}` } : {}),
+      ...(formaPago ? { forma_pago: formaPago } : {})
+    })
   })
 
   alert('Pedido actualizado correctamente')
@@ -30897,7 +30964,8 @@ window.linkPagoPorMonto = async (pedidoId) => {
     const saldo = Math.round((total - pagado) * 100) / 100
     if (saldo <= 0.5) { alert('Este pedido ya no tiene saldo por cobrar.'); return }
     const sug = Math.round(saldo / 2)
-    const txt = prompt(`Total $${total.toLocaleString('es-MX')}${pagado > 0 ? ` · ya pagado $${pagado.toLocaleString('es-MX')}` : ''} · saldo $${saldo.toLocaleString('es-MX')}\n\n¿De cuánto es ESTE link? (si es la primera tarjeta, el resto lo cobras con otro link después)`, String(sug))
+    const _envP = parseFloat(p.costo_envio) || 0
+    const txt = prompt(`Total $${total.toLocaleString('es-MX')}${_envP > 0 ? ` (incluye envío $${_envP.toLocaleString('es-MX')})` : ' (SIN envío: si lleva paquetería, cancela y agrégala primero en «Editar pedido»)'}${pagado > 0 ? ` · ya pagado $${pagado.toLocaleString('es-MX')}` : ''} · saldo $${saldo.toLocaleString('es-MX')}\n\n¿De cuánto es ESTE link? (si es la primera tarjeta, el resto lo cobras con otro link después)`, String(sug))
     if (txt === null) return
     const monto = Math.round(parseFloat(String(txt).replace(/[$,\s]/g, '')) * 100) / 100
     if (!(monto >= 10)) { alert('Escribe un monto válido (mínimo $10).'); return }
