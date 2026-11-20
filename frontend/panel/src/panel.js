@@ -7670,6 +7670,21 @@ window.mostrarImpresionEtiquetas = () => {
       <div id="et-resultados-prod" style="margin-top:6px;max-height:280px;overflow-y:auto;border:1px solid #eee;border-radius:8px"></div>
       <div id="et-variantes"></div>
     </div>
+    <div class="table-card" style="padding:1.5rem;margin-bottom:1.5rem">
+      <h4 style="margin:0 0 4px">💌 Etiqueta de agradecimiento</h4>
+      <p style="font-size:0.82rem;color:#888;margin:0 0 12px">Escribe el nombre de la clienta (por ejemplo, de Marketplace). Sale en la misma etiqueta de 3x2" y se imprime junto con las de caja que tengas en la cola.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <label class="form-label">Nombre de la clienta</label>
+          <input class="form-input" id="et-gracias-nombre" placeholder="Ej: María Fernanda" maxlength="40" autocomplete="off" onkeydown="if(event.key==='Enter'){_etiquetasAgregarGracias()}">
+        </div>
+        <div style="width:90px">
+          <label class="form-label">Cantidad</label>
+          <input class="form-input" id="et-gracias-cant" type="number" min="1" value="1">
+        </div>
+        <button class="btn btn-secondary" onclick="_etiquetasAgregarGracias()">+ Agregar a la cola</button>
+      </div>
+    </div>
     <div class="table-card" style="padding:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:10px">
         <h4 style="margin:0">Cola de impresión (<span id="et-cola-total">0</span> etiquetas)</h4>
@@ -7802,7 +7817,9 @@ function _etiquetasRenderCola() {
   }
   lista.innerHTML = cola.map((it, idx) => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;flex-wrap:wrap;gap:6px">
-      <div style="font-size:0.85rem"><b>${_etEsc(it.codigo)}</b> — ${_etEsc(it.color)}${it.material ? ' · ' + _etEsc(it.material) : ''} · Talla ${_etEsc(it.talla)}</div>
+      ${it.tipo === 'gracias'
+        ? `<div style="font-size:0.85rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">💌 <b>Agradecimiento</b> para <input class="form-input" value="${_etEsc(it.nombre)}" maxlength="40" style="width:200px;padding:4px 8px;font-size:0.85rem" onchange="_etiquetasEditarGracias(${idx}, this.value)"></div>`
+        : `<div style="font-size:0.85rem"><b>${_etEsc(it.codigo)}</b> — ${_etEsc(it.color)}${it.material ? ' · ' + _etEsc(it.material) : ''} · Talla ${_etEsc(it.talla)}</div>`}
       <div style="display:flex;align-items:center;gap:10px">
         <span style="color:#888;font-size:0.82rem">${it.cantidad} caja${it.cantidad === 1 ? '' : 's'}</span>
         <button onclick="_etiquetasQuitarCola(${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem" title="Quitar">✕</button>
@@ -7813,6 +7830,91 @@ function _etiquetasRenderCola() {
 
 function _etEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+// Nombre para la etiqueta de agradecimiento: sin espacios de mas y con mayuscula inicial en cada palabra
+function _etNombreBonito(s) {
+  const part = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e'])
+  return String(s == null ? '' : s).trim().replace(/\s+/g, ' ').split(' ').filter(Boolean)
+    .map((w, i) => (i > 0 && part.has(w.toLowerCase())) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+window._etiquetasAgregarGracias = () => {
+  const inp = document.getElementById('et-gracias-nombre')
+  const cant = document.getElementById('et-gracias-cant')
+  const nombre = _etNombreBonito(inp ? inp.value : '')
+  if (!nombre) { alert('Escribe el nombre de la clienta'); if (inp) inp.focus(); return }
+  window._etiquetasCola.push({ tipo: 'gracias', nombre, cantidad: Math.max(1, parseInt(cant && cant.value) || 1) })
+  if (inp) { inp.value = ''; inp.focus() }
+  if (cant) cant.value = 1
+  _etiquetasRenderCola()
+}
+
+window._etiquetasEditarGracias = (idx, valor) => {
+  const it = window._etiquetasCola[idx]
+  if (it && it.tipo === 'gracias') it.nombre = _etNombreBonito(valor)
+  _etiquetasRenderCola()
+}
+
+// Desde el detalle de un pedido: etiquetas de caja de cada par + la de agradecimiento con el nombre de la clienta
+window.etiquetasDePedido = async (pedidoId) => {
+  try {
+    const p = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
+    let items = p.pedido_items || []
+    if (!items.length) {
+      try { const d = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()); if (Array.isArray(d)) items = d } catch (e) {}
+    }
+    if (!window._invData) {
+      const [sucursales, productos, variantes, inventario] = await Promise.all([
+        fetch(API + '/sucursales/').then(r => r.json()),
+        fetch(API + '/productos/').then(r => r.json()),
+        fetch(API + '/variantes/?ligero=true').then(r => r.json()),
+        fetch(API + '/inventario/?ligero=true').then(r => r.json())
+      ])
+      window._invData = { sucursales, productos, variantes, inventario }
+    }
+    const { productos, variantes } = window._invData
+    const cola = []
+    items.forEach(i => {
+      const v = variantes.find(x => x.id === i.variante_id)
+      if (!v) return
+      const pr = productos.find(x => x.id === (i.producto_id || v.producto_id))
+      cola.push({
+        producto_id: pr ? pr.id : null,
+        codigo: (i.nombre || (pr && pr.nombre) || '').split(' ')[0] || (pr && pr.sku_interno) || '',
+        material: (pr && pr.material) || '',
+        color: v.color || i.color || '',
+        talla: v.talla || i.talla || '',
+        sku: v.sku || '',
+        cantidad: i.cantidad || 1
+      })
+    })
+    // por defecto: nombre y primer apellido (se puede corregir en la cola antes de imprimir)
+    const nombre = _etNombreBonito(p.nombre_cliente || '').split(' ').slice(0, 2).join(' ')
+    cola.push({ tipo: 'gracias', nombre, cantidad: 1 })
+    window._etiquetasCola = cola
+    window.mostrarImpresionEtiquetas()
+  } catch (e) {
+    alert('No se pudieron preparar las etiquetas de este pedido')
+  }
+}
+
+function _etiquetaGraciasHTML(it) {
+  const n = String(it.nombre || '').trim()
+  const tam = n.length <= 10 ? 30 : n.length <= 16 ? 24 : n.length <= 24 ? 18 : 14
+  return `
+    <div class="etiqueta">
+      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:8px">
+        <img src="/logo-etiqueta-print.png" alt="Zapatillas May" style="height:0.56in;width:auto;display:inline-block">
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0">
+        <div style="font-size:9px;font-weight:800;letter-spacing:3px">GRACIAS POR TU COMPRA</div>
+        <div style="font-size:${tam}px;font-weight:900;line-height:1.1;margin:5px 0 4px;word-break:break-word;max-width:100%">${_etEsc(n)}</div>
+        <div style="font-size:9px;font-weight:700;line-height:1.3">Hecho con cariño en León, Guanajuato<br>Zapatillas May · desde 1996</div>
+      </div>
+    </div>
+  `
 }
 
 function _etiquetaHTML(it, qrDataUrl) {
@@ -7865,7 +7967,7 @@ window.imprimirEtiquetas = async () => {
 
   const labelsHtml = []
   cola.forEach(it => {
-    for (let i = 0; i < it.cantidad; i++) labelsHtml.push(_etiquetaHTML(it, qrCache[it.sku] || ''))
+    for (let i = 0; i < it.cantidad; i++) labelsHtml.push(it.tipo === 'gracias' ? _etiquetaGraciasHTML(it) : _etiquetaHTML(it, qrCache[it.sku] || ''))
   })
 
   ventana.document.open()
@@ -12131,6 +12233,7 @@ window.verPedido = async (id) => {
               ${(p.status === 'confirmado' || p.status === 'pagado') && !(parseFloat(p.anticipo) > 0) && !p.mp_payment_id ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#b26a00;border-color:#b26a00" onclick="volverAPendientePedido('${p.id}')">↩️ Regresar a pendiente de pago</button>` : ''}
               ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#c62828;border-color:#c62828" onclick="cancelarPedido('${p.id}')">❌ Cancelar pedido</button>` : ''}
               <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#37474f;border-color:#37474f" onclick="etiquetasDePedido('${p.id}')" title="Etiquetas de caja y de agradecimiento con el nombre de la clienta">🏷️ Etiquetas y agradecimiento</button>
               <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="imprimirTicketPOS('${p.id}',${p.total},${p.pedido_items ? p.pedido_items.reduce((s,i)=>s+i.cantidad,0) : 0},'${p.forma_pago||'efectivo'}')">Reimprimir ticket</button>
             </div>
           </div>
