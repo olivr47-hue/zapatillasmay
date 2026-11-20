@@ -148,6 +148,17 @@
       .item-img, .item-img-placeholder { width: 72px; height: 88px; }
       h1 { font-size: 1.9rem; }
     }
+
+    /* ── PANTALLAS GRANDES (2026-11): carrito en dos columnas (productos | resumen y pago) ── */
+    .cart-cols, .cart-main, .cart-side { display: contents; }
+    @media (min-width: 1024px) {
+      .page { max-width: 1240px; padding: 40px 40px 120px; }
+      .cart-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(360px, 1fr); gap: 40px; align-items: start; }
+      .cart-main, .cart-side { display: block; min-width: 0; }
+      .item-img, .item-img-placeholder { width: 108px; height: 130px; }
+      .item-card { padding: 18px; gap: 18px; }
+    }
+    @media (min-width: 1700px) { .page { max-width: 1500px; } }
   </style>
   <script>
     if (localStorage.getItem('zm_consent') !== 'rejected') {
@@ -185,7 +196,11 @@
       <span id="mayoreo-hint-texto"></span>
     </div>
 
+    <div class="cart-cols">
+    <div class="cart-main">
     <div class="items-list" id="items-list"></div>
+    </div>
+    <div class="cart-side">
 
     <div class="resumen" id="resumen-box"></div>
 
@@ -214,6 +229,8 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
         Seguir comprando
       </a>
+    </div>
+    </div>
     </div>
   </div>
 </div>

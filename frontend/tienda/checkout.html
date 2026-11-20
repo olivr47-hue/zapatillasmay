@@ -139,6 +139,19 @@
       body { padding-bottom:90px; }
     }
     @keyframes mpSpin { to { transform: rotate(360deg); } }
+
+    /* ── PANTALLAS GRANDES (2026-11): el formulario y el resumen aprovechan el ancho ── */
+    @media (min-width: 1024px) {
+      .page { max-width: 1240px; }
+      #sesion-banner { max-width: 1240px !important; }
+      .layout { grid-template-columns: minmax(0,1fr) 420px; gap: 40px; }
+      .layout.brick-activo { max-width: 640px; grid-template-columns: minmax(0,1fr); }
+    }
+    @media (min-width: 1700px) {
+      .page { max-width: 1500px; }
+      #sesion-banner { max-width: 1500px !important; }
+      .layout { grid-template-columns: minmax(0,1fr) 480px; }
+    }
   </style>
   <script>
     if (localStorage.getItem('zm_consent') !== 'rejected') {
