@@ -333,6 +333,25 @@
       .gallery-main { transform-style: preserve-3d; will-change: transform; }
     }
 
+    /* ── PANTALLAS GRANDES (2026-11): dos columnas -- fotos a la izquierda, datos a la derecha -- en vez de una
+       sola columna angosta de 640px con franjas vacias a los lados. Sin posicion fija: la galeria fluye con la pagina. */
+    @media (min-width: 1024px) {
+      main#contenido-principal { max-width: 1500px; margin-left: auto; margin-right: auto; padding: 0 32px; box-sizing: border-box; }
+      main#contenido-principal::after { content: ''; display: block; clear: both; }
+      .gallery { float: left; width: 44%; box-sizing: border-box; }
+      .gallery-main { max-width: none; margin: 0; border-radius: 12px; }
+      .gallery-thumbs { max-width: none; margin: 0; justify-content: flex-start; padding: 12px 0; }
+      .gallery-thumb { width: 78px; height: 78px; }
+      .product-section { max-width: none; margin: 0 0 0 50%; padding: 20px 0 0; }
+      .info-card { max-width: none; margin: 12px 0 0 50%; }
+      #resenas-section, .similares-section { clear: both; max-width: none; }
+      .header-inner, .footer-inner { max-width: 1500px; }
+    }
+    @media (min-width: 1700px) {
+      main#contenido-principal { max-width: 1800px; }
+      .header-inner, .footer-inner { max-width: 1800px; }
+    }
+
     /* ── FOOTER ── */
     footer { background: linear-gradient(160deg,#1e0e08 0%,#2A1A0E 50%,#1a0c0a 100%); color: rgba(255,255,255,0.45); position: relative; overflow: hidden; }
     footer::before { content:''; display:block; height:1px; background:linear-gradient(90deg,transparent,rgba(200,150,122,0.5),#C8967A,rgba(181,104,122,0.5),transparent); }
