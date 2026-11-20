@@ -337,6 +337,53 @@ def meta_atribucion(body: dict, request: Request):
         return {"ok": False}
 
 
+_CK_EVENTOS = {
+    "paso_contacto", "paso_direccion", "paso_pago", "validacion", "pedido_creado", "pedido_error",
+    "pago_pantalla_lista", "pago_demora", "pago_brick_error", "pago_rechazado", "pago_aprobado",
+    "pago_pendiente", "pago_respaldo", "salio",
+}
+
+
+@router.post("/checkout-evento")
+def checkout_evento(body: dict, request: Request):
+    """Bitacora anonima del embudo de compra (en que paso se queda la gente y por que falla un pago).
+    Sin datos personales: solo un id de sesion al azar, el paso, un motivo corto y el metodo. Nunca lanza."""
+    try:
+        ev = str(body.get("evento", ""))[:40]
+        if ev not in _CK_EVENTOS:
+            return {"ok": False}
+        sid = str(body.get("sid", ""))[:40]
+        # tope por sesion: evita que alguien llene la tabla
+        clave = f"ck_{sid or (request.client.host if request.client else 'x')}"
+        n = int(cache_get(clave) or 0)
+        if n >= 60:
+            return {"ok": False}
+        cache_set(clave, n + 1, ttl=3600)
+        try:
+            paso = int(body.get("paso") or 0)
+        except (TypeError, ValueError):
+            paso = 0
+        try:
+            total = float(body.get("total") or 0)
+        except (TypeError, ValueError):
+            total = 0.0
+        supabase_post("checkout_eventos", {
+            "sid": sid or None,
+            "evento": ev,
+            "paso": paso,
+            "detalle": str(body.get("detalle", ""))[:200] or None,
+            "metodo": str(body.get("metodo", ""))[:30] or None,
+            "total": total or None,
+            "dispositivo": str(body.get("dispositivo", ""))[:12] or None,
+            "utm_source": str(body.get("utm_source", ""))[:40] or None,
+            "pedido_id": str(body.get("pedido_id", ""))[:40] or None,
+        })
+        return {"ok": True}
+    except Exception as e:
+        print(f"[checkout-evento] no guardado: {e}")
+        return {"ok": False}
+
+
 @router.post("/meta/evento")
 def meta_evento_frontend(body: dict, request: Request):
     """

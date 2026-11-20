@@ -398,6 +398,26 @@ if (!window.fbq){
 <script src="/assets/mpcarrito.f3cb3abf.js"></script>
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
+
+// ── Bitacora anonima del embudo: en que paso se queda la gente y por que falla un pago (sin datos personales) ──
+const _ckSid = (function(){ try { let s = sessionStorage.getItem('zm_ck_sid'); if (!s) { s = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); sessionStorage.setItem('zm_ck_sid', s) } return s } catch(e) { return Math.random().toString(36).slice(2, 12) } })()
+let _ckPaso = 1, _ckTerminado = false, _ckSalio = 0
+function ckEvt(evento, extra) {
+  try {
+    if (window.__zmInterno) return
+    const d = Object.assign({
+      evento, sid: _ckSid, paso: _ckPaso,
+      dispositivo: window.matchMedia('(max-width: 760px)').matches ? 'movil' : 'escritorio',
+      total: window._totalFinal || 0,
+      utm_source: (function(){ try { return localStorage.getItem('zm_utm_source') || '' } catch(e) { return '' } })()
+    }, extra || {})
+    fetch(`${API}/pagos/checkout-evento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d), keepalive: true }).catch(() => {})
+  } catch(e) {}
+}
+// Si se va de la pagina sin terminar, queda registrado en que paso se quedo (una vez por paso)
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden' && !_ckTerminado && _ckSalio !== _ckPaso) { _ckSalio = _ckPaso; ckEvt('salio') }
+})
 let carrito = []
 let cfgEnvio = { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }
 let usuarioActual = null   // cliente logueado (de localStorage)
@@ -638,13 +658,13 @@ function irAPaso2() {
     if (!val) { if (el) el.style.borderColor = '#e74c3c'; if (!primerVacio) primerVacio = { el, label } }
     else if (el) el.style.borderColor = ''
   })
-  if (primerVacio) { mostrarToast(`Falta: ${primerVacio.label}`); primerVacio.el?.focus(); return }
+  if (primerVacio) { ckEvt('validacion', { detalle: 'falta: ' + primerVacio.label }); mostrarToast(`Falta: ${primerVacio.label}`); primerVacio.el?.focus(); return }
 
   // Validar formato email
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     const el = document.getElementById('co-email')
     if (el) el.style.borderColor = '#e74c3c'
-    mostrarToast('Email inválido (ej: nombre@correo.com)')
+    ckEvt('validacion', { detalle: 'email invalido' }); mostrarToast('Email inválido (ej: nombre@correo.com)')
     document.getElementById('co-email')?.focus()
     return
   }
@@ -652,7 +672,7 @@ function irAPaso2() {
   if (telefono.replace(/\D/g,'').length < 10) {
     const el = document.getElementById('co-telefono')
     if (el) el.style.borderColor = '#e74c3c'
-    mostrarToast('Teléfono debe tener 10 dígitos')
+    ckEvt('validacion', { detalle: 'telefono invalido' }); mostrarToast('Teléfono debe tener 10 dígitos')
     document.getElementById('co-telefono')?.focus()
     return
   }
@@ -702,6 +722,7 @@ async function procesarPago() {
     }
   })
   if (primerVacio) {
+    ckEvt('validacion', { detalle: 'falta: ' + primerVacio.label })
     mostrarToast(`Falta: ${primerVacio.label}`)
     primerVacio.el?.focus()
     return
@@ -711,21 +732,21 @@ async function procesarPago() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     const el = document.getElementById('co-email')
     if (el) el.style.borderColor = '#e74c3c'
-    mostrarToast('Email inválido (ej: nombre@correo.com)')
+    ckEvt('validacion', { detalle: 'email invalido' }); mostrarToast('Email inválido (ej: nombre@correo.com)')
     el?.focus()
     return
   }
   if (telefono.replace(/\D/g,'').length < 10) {
     const el = document.getElementById('co-telefono')
     if (el) el.style.borderColor = '#e74c3c'
-    mostrarToast('Teléfono debe tener 10 dígitos')
+    ckEvt('validacion', { detalle: 'telefono invalido' }); mostrarToast('Teléfono debe tener 10 dígitos')
     el?.focus()
     return
   }
   if (!esRecoger && cp.replace(/\D/g,'').length !== 5) {
     const el = document.getElementById('co-cp')
     if (el) el.style.borderColor = '#e74c3c'
-    mostrarToast('Código postal debe tener exactamente 5 dígitos')
+    ckEvt('validacion', { detalle: 'cp invalido' }); mostrarToast('Código postal debe tener exactamente 5 dígitos')
     el?.focus()
     return
   }
@@ -786,6 +807,7 @@ async function procesarPago() {
       return
     }
     if (!pedido.id) throw new Error(pedido.error || pedido.detail || 'Error creando pedido')
+    ckEvt('pedido_creado', { pedido_id: pedido.id })
     // Guardar dirección en la cuenta del cliente si está logueado
     guardarDatosEnCuenta({ nombre, telefono, calle, colonia, cp, ciudad, estado })
     // Guardar dirección completa para próxima compra anónima
@@ -842,6 +864,7 @@ async function procesarPago() {
   } catch(e) {
     btn.disabled = false; const _bpt = document.getElementById('btn-pagar-text'); if (_bpt) _bpt.textContent = `Pagar $${(window._totalFinal||0).toLocaleString('es-MX',{maximumFractionDigits:0})} MXN`
     if (stickyBtn) { stickyBtn.disabled = false; stickyBtn.textContent = 'Pagar ahora 🔒' }
+    ckEvt('pedido_error', { detalle: String((e && e.message) || e).slice(0, 180) })
     mostrarToast(e.message || 'Error al procesar. Intenta de nuevo.')
     console.error('Error pago:', e)
   }
@@ -850,6 +873,7 @@ async function procesarPago() {
 // ── PAGO EMBEBIDO (MercadoPago Checkout Bricks) ──────────────────
 let _brickController = null
 function mostrarPasoVisual(paso, updateState = true) {
+  try { _ckPaso = paso; ckEvt(paso === 1 ? 'paso_contacto' : paso === 2 ? 'paso_direccion' : 'paso_pago') } catch(e) {}
   if (paso === 1) {
     const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
     const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'block'
@@ -1039,6 +1063,7 @@ async function pagarConBrick(pedidoId, total, email) {
     mostrarPasoVisual(3, true)
 
     let timeoutTimer = setTimeout(() => {
+      ckEvt('pago_demora')
       const loader = document.getElementById('mp-brick-loader')
       if (loader) {
         loader.innerHTML = `
@@ -1057,6 +1082,7 @@ async function pagarConBrick(pedidoId, total, email) {
               const costoEnvio = window._costoEnvio || 0
               const mpItems = carrito.map(i => ({ nombre: i.nombre+' - '+i.color+(i.talla?' T:'+i.talla:''), cantidad: i.es_corrida?i.cantidad*6:i.cantidad, precio: calcularPrecioUnitario(i,pTotal) }))
               if (costoEnvio > 0) mpItems.push({ nombre:'Envío a domicilio', cantidad:1, precio:costoEnvio })
+              ckEvt('pago_respaldo', { detalle: 'boton' })
               const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
                 method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ pedido_id:pedidoId, items:mpItems, cliente:{nombre,email:emailVal}, total:totalFinal })
@@ -1086,6 +1112,7 @@ async function pagarConBrick(pedidoId, total, email) {
       customization: { paymentMethods: { creditCard:'all', debitCard:'all', ticket:'all', bankTransfer:'all', maxInstallments: 12 } },
       callbacks: {
         onReady: () => {
+          ckEvt('pago_pantalla_lista')
           if (timeoutTimer) clearTimeout(timeoutTimer)
           const loader = document.getElementById('mp-brick-loader')
           if (loader) loader.style.display = 'none'
@@ -1094,6 +1121,7 @@ async function pagarConBrick(pedidoId, total, email) {
         onError: (err) => {
           if (timeoutTimer) clearTimeout(timeoutTimer)
           console.error('Brick error', err)
+          ckEvt('pago_brick_error', { detalle: String((err && (err.type || err.message || err.cause)) || 'sin detalle').slice(0, 180) })
           const loader = document.getElementById('mp-brick-loader')
           if (loader) loader.style.display = 'none'
           mostrarToast('Revisa los datos de tu tarjeta')
@@ -1106,17 +1134,22 @@ async function pagarConBrick(pedidoId, total, email) {
               installments: formData.installments, issuer_id: formData.issuer_id,
               payer: formData.payer
             })
-          }).then(r => r.json()).then(res => {
+          }).catch(e => { ckEvt('pago_rechazado', { detalle: 'red: ' + String((e && e.message) || e).slice(0, 150), metodo: formData.payment_method_id }); throw e }).then(r => r.json()).then(res => {
+            const _met = formData.payment_method_id || ''
             if (res.status === 'approved') {
+              _ckTerminado = true; ckEvt('pago_aprobado', { metodo: _met })
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=approved&transaction_amount=${total}`
             } else if (res.voucher_url) {
+              _ckTerminado = true; ckEvt('pago_pendiente', { metodo: _met, detalle: 'voucher' })
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=pending&transaction_amount=${total}&voucher=${encodeURIComponent(res.voucher_url)}`
             } else if (res.status === 'in_process' || res.status === 'pending') {
+              _ckTerminado = true; ckEvt('pago_pendiente', { metodo: _met, detalle: String(res.status) })
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=${res.status}&transaction_amount=${total}`
             } else {
+              ckEvt('pago_rechazado', { metodo: _met, detalle: String(res.status_detail || res.status || 'rechazado').slice(0, 150) })
               mostrarToast(mensajePagoRechazado(res.status_detail), 7000)
               throw new Error(res.status_detail || 'rejected')   // deja reintentar en el brick
             }
@@ -1126,6 +1159,7 @@ async function pagarConBrick(pedidoId, total, email) {
     return true   // brick renderizado OK
   } catch(e) {
     console.error('pagarConBrick (se usará redirect como respaldo):', e)
+    ckEvt('pago_respaldo', { detalle: String((e && e.message) || e).slice(0, 150) })
     return false  // que procesarPago caiga al redirect (Checkout Pro)
   }
 }
@@ -1179,6 +1213,7 @@ function cargarPixeles(config) {
 }
 
 function dispararInitiateCheckout() {
+  ckEvt('paso_contacto')
   const total = totalPares(carrito)
   const valor = window._totalFinal || 0
   const ids = carrito.map(i => i.sku_interno || i.producto_id).filter(Boolean)
