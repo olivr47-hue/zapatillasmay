@@ -2112,6 +2112,17 @@ header { background: #FAF8F6 !important; backdrop-filter: none !important; -webk
 .btn-agregar,.btn-icon{border-radius:100px!important}
 .cart-tipo-precio{border-radius:12px!important}
 .modal-prices-mayoreo{border-radius:8px!important}
+/* Pantallas anchas: el contenido ya no se queda en 1440px con franjas vacias a los lados */
+@media(min-width:1700px){
+  .header-inner,.section,.cro-trust-inner,.cro-historia,.banner-mayoreo-inner,.footer-inner{max-width:1800px}
+  #products-grid,.products-grid{grid-template-columns:repeat(5,1fr)!important}
+  #cats-grid{max-width:1500px}
+}
+@media(min-width:2200px){
+  .header-inner,.section,.cro-trust-inner,.cro-historia,.banner-mayoreo-inner,.footer-inner{max-width:2160px}
+  #products-grid,.products-grid{grid-template-columns:repeat(6,1fr)!important}
+  #cats-grid{max-width:1700px}
+}
 </style>
 <style id="zm-hero-v2">
 @keyframes zmHeroIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
