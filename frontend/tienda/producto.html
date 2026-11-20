@@ -1034,9 +1034,10 @@ function renderProducto() {
       textoFaltan = `Faltan <strong>$${faltan}</strong> para envío gratis 🎯`
     }
 
-    return `<div style="margin-top:8px;font-size:0.73rem;color:#666;line-height:1.7">
+    return `<div style="margin-top:8px;font-size:0.8rem;color:#555;line-height:1.7">
       <p>🚚 Envío estimado: <strong style="color:var(--tan)">$${costoEnvio} MXN</strong>
-        <span style="color:#aaa;font-size:0.66rem"> · Gratis a partir de $${_cfg.gratis_desde}</span></p>
+        <span style="color:#999;font-size:0.72rem"> · Gratis a partir de $${_cfg.gratis_desde}</span></p>
+      <p style="font-weight:700;color:var(--black)">Total con envío: $${Math.round(subtotal + costoEnvio).toLocaleString('es-MX')} MXN</p>
       ${faltan > 0 ? `<p style="color:#f97316;font-size:0.68rem">${textoFaltan}</p>` : ''}
     </div>`
   }
