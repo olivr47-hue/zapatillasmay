@@ -285,6 +285,17 @@ if (!window.fbq){
   .product-card .price-mayoreo-hint{font-size:.64rem;padding:2px 8px}
 }
 </style>
+<style id="zm-pulido">
+/* Pulido visual 2026-11: menos ruido arriba, sin emojis como iconos, tipografia unica, cookies compactas */
+.hero-offer{display:none!important}
+#promo-banner span[data-editable]:not(:empty)::after{content:"";display:inline-block;width:1px;height:10px;background:rgba(255,255,255,.45);margin-left:40px;vertical-align:middle}
+#promo-banner{letter-spacing:.6px}
+.cro-garantia svg{width:16px;height:16px;stroke:#b5687a;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:6px;flex:none}
+.titulo-cuenta{font-family:inherit!important}
+#cookie-banner{padding:10px 16px!important;box-shadow:none!important;gap:8px!important;border-top:1px solid #eadfd5!important}
+#cookie-banner p{font-size:.74rem!important;line-height:1.4!important}
+#cookie-banner .cookie-btn-aceptar,#cookie-banner .cookie-btn-rechazar{padding:8px 14px!important;border-radius:100px!important;font-size:.76rem!important;min-width:0!important}
+</style>
 </head>
 <body>
 <a href="#productos-section" class="skip-link">Saltar al contenido</a>
@@ -365,16 +376,16 @@ if (!window.fbq){
 <!-- HEADER -->
  <div id="promo-banner" style="background:linear-gradient(90deg,#b5687a 0%,#c8967a 40%,#b5687a 70%,#9e5468 100%);color:white;text-align:center;padding:8px 0;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101;overflow:hidden;height:36px;display:flex;align-items:center">
   <div style="display:flex;gap:0;animation:bannerSlide 20s linear infinite;white-space:nowrap">
-    <span data-editable="promo_msg_1" style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
-    <span data-editable="promo_msg_2" style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span data-editable="promo_msg_3" style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
-    <span data-editable="promo_msg_4" style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+    <span data-editable="promo_msg_1" style="padding:0 40px">Envío GRATIS desde $1,299</span>
+    <span data-editable="promo_msg_2" style="padding:0 40px">Nuevos modelos cada semana</span>
+    <span data-editable="promo_msg_3" style="padding:0 40px">Te asesoramos por WhatsApp</span>
+    <span data-editable="promo_msg_4" style="padding:0 40px">Calzado hecho en León, Guanajuato</span>
     <span data-editable="promo_msg_5" style="padding:0 40px"></span>
     <span data-editable="promo_msg_6" style="padding:0 40px"></span>
-    <span data-editable="promo_msg_1" style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
-    <span data-editable="promo_msg_2" style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span data-editable="promo_msg_3" style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
-    <span data-editable="promo_msg_4" style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+    <span data-editable="promo_msg_1" style="padding:0 40px">Envío GRATIS desde $1,299</span>
+    <span data-editable="promo_msg_2" style="padding:0 40px">Nuevos modelos cada semana</span>
+    <span data-editable="promo_msg_3" style="padding:0 40px">Te asesoramos por WhatsApp</span>
+    <span data-editable="promo_msg_4" style="padding:0 40px">Calzado hecho en León, Guanajuato</span>
     <span data-editable="promo_msg_5" style="padding:0 40px"></span>
     <span data-editable="promo_msg_6" style="padding:0 40px"></span>
   </div>
@@ -386,7 +397,7 @@ if (!window.fbq){
 </a>
     <ul class="nav-cats">
       <li><a href="#" onclick="mostrarInicio();return false">Inicio</a></li>
-      <li><a href="#" onclick="mostrarNuevos();return false" style="color:#16a34a;font-weight:600">✨ Nuevos</a></li>
+      <li><a href="#" onclick="mostrarNuevos();return false" style="color:#16a34a;font-weight:600">Nuevos</a></li>
       <li class="nav-dd" id="nav-dd-cat">
         <button class="nav-dd-btn" onclick="toggleNavDD(this)" aria-expanded="false" aria-haspopup="true">
           Catálogo
@@ -395,20 +406,20 @@ if (!window.fbq){
         <div class="nav-mega" role="menu">
           <div class="nav-mega-col">
             <p>Categorías</p>
-            <a href="#" onclick="mostrarNuevos();cerrarNavDD();return false" style="color:#16a34a;font-weight:600">✨ Nuevos</a>
-            <a href="#" onclick="filtrarCategoria('tacones');cerrarNavDD();return false">👠 Tacones</a>
-            <a href="#" onclick="filtrarCategoria('sandalias');cerrarNavDD();return false">🩴 Sandalias</a>
-            <a href="#" onclick="filtrarCategoria('plataformas');cerrarNavDD();return false">👡 Plataformas</a>
-            <a href="#" onclick="filtrarCategoria('botas');cerrarNavDD();return false">🥾 Botas</a>
-            <a href="#" onclick="filtrarCategoria('botines');cerrarNavDD();return false">👢 Botines</a>
-            <a href="#" onclick="filtrarCategoria('nina');cerrarNavDD();return false">🎀 Niña</a>
-            <a href="#" onclick="mostrarOfertas();cerrarNavDD();return false" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a>
+            <a href="#" onclick="mostrarNuevos();cerrarNavDD();return false" style="color:#16a34a;font-weight:600">Nuevos</a>
+            <a href="#" onclick="filtrarCategoria('tacones');cerrarNavDD();return false">Tacones</a>
+            <a href="#" onclick="filtrarCategoria('sandalias');cerrarNavDD();return false">Sandalias</a>
+            <a href="#" onclick="filtrarCategoria('plataformas');cerrarNavDD();return false">Plataformas</a>
+            <a href="#" onclick="filtrarCategoria('botas');cerrarNavDD();return false">Botas</a>
+            <a href="#" onclick="filtrarCategoria('botines');cerrarNavDD();return false">Botines</a>
+            <a href="#" onclick="filtrarCategoria('nina');cerrarNavDD();return false">Niña</a>
+            <a href="#" onclick="mostrarOfertas();cerrarNavDD();return false" style="color:#b5687a;font-weight:600">Ofertas</a>
           </div>
           <div class="nav-mega-divider"></div>
           <div class="nav-mega-col">
             <p>Ver todo</p>
-            <a href="#" onclick="mostrarCatalogo();cerrarNavDD();return false">📖 Todo el catálogo</a>
-            <a href="/catalogo?descargar=1">📥 Descargar catálogo (PDF)</a>
+            <a href="#" onclick="mostrarCatalogo();cerrarNavDD();return false">Todo el catálogo</a>
+            <a href="/catalogo?descargar=1">Descargar catálogo (PDF)</a>
           </div>
         </div>
       </li>
@@ -420,25 +431,25 @@ if (!window.fbq){
         <div class="nav-mega" role="menu">
           <div class="nav-mega-col">
             <p>Ayuda</p>
-            <a href="#" onclick="mostrarPagina('como-comprar');cerrarNavDD();return false">🛒 Cómo comprar</a>
-            <a href="#" onclick="mostrarPagina('tabla-tallas');cerrarNavDD();return false">📏 Tabla de tallas</a>
-            <a href="#" onclick="mostrarPagina('envios');cerrarNavDD();return false">🚚 Envíos</a>
-            <a href="/guias">📘 Guías de compra</a>
-            <a href="#" onclick="mostrarPagina('mayoreo');cerrarNavDD();return false">💰 Mayoreo (portal)</a>
-            <a href="#" onclick="mostrarPagina('nosotros');cerrarNavDD();return false">🏪 Nosotros</a>
-            <a href="#" onclick="mostrarPagina('contacto');cerrarNavDD();return false">📞 Contacto</a>
+            <a href="#" onclick="mostrarPagina('como-comprar');cerrarNavDD();return false">Cómo comprar</a>
+            <a href="#" onclick="mostrarPagina('tabla-tallas');cerrarNavDD();return false">Tabla de tallas</a>
+            <a href="#" onclick="mostrarPagina('envios');cerrarNavDD();return false">Envíos</a>
+            <a href="/guias">Guías de compra</a>
+            <a href="#" onclick="mostrarPagina('mayoreo');cerrarNavDD();return false">Mayoreo (portal)</a>
+            <a href="#" onclick="mostrarPagina('nosotros');cerrarNavDD();return false">Nosotros</a>
+            <a href="#" onclick="mostrarPagina('contacto');cerrarNavDD();return false">Contacto</a>
           </div>
           <div class="nav-mega-divider"></div>
           <div class="nav-mega-col">
             <p>Legal</p>
-            <a href="#" onclick="mostrarPagina('privacidad');cerrarNavDD();return false">🔒 Política de privacidad</a>
-            <a href="#" onclick="mostrarPagina('politica-de-devoluciones');cerrarNavDD();return false">🔄 Política de devoluciones</a>
-            <a href="#" onclick="mostrarPagina('terminos');cerrarNavDD();return false">📄 Términos y condiciones</a>
-            <a href="#" onclick="mostrarPagina('eliminacion-datos');cerrarNavDD();return false">🗑️ Eliminación de datos</a>
+            <a href="#" onclick="mostrarPagina('privacidad');cerrarNavDD();return false">Política de privacidad</a>
+            <a href="#" onclick="mostrarPagina('politica-de-devoluciones');cerrarNavDD();return false">Política de devoluciones</a>
+            <a href="#" onclick="mostrarPagina('terminos');cerrarNavDD();return false">Términos y condiciones</a>
+            <a href="#" onclick="mostrarPagina('eliminacion-datos');cerrarNavDD();return false">Eliminación de datos</a>
           </div>
         </div>
       </li>
-      <li><a href="#" onclick="mostrarOfertas();return false" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a></li>
+      <li><a href="#" onclick="mostrarOfertas();return false" style="color:#b5687a;font-weight:600">Ofertas</a></li>
     </ul>
     <div class="header-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -473,17 +484,17 @@ if (!window.fbq){
     <!-- Categorías -->
     <div style="padding:16px 12px 8px">
       <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
-      <a href="#" onclick="mostrarNuevos();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#166534;margin-bottom:4px;background:#f0fdf4">✨ Nuevos</a>
-      <a href="/tacones" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8;transition:background 0.15s">👠 Tacones</a>
-      <a href="/sandalias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🩴 Sandalias</a>
-      <a href="/botas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥾 Botas</a>
-      <a href="/botines" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👢 Botines</a>
-      <a href="/plataformas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👟 Plataformas</a>
-      <a href="/flats" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥿 Flats</a>
-      <a href="/nina" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🎀 Niña</a>
-      <a href="#" onclick="mostrarOfertas();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">🏷️ Ofertas</a>
-      <a href="/catalogo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">📖 Catálogos</a>
-      <a href="/catalogo?descargar=1" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#fff;border:1px solid #E8D5C4">📥 Descargar catálogo</a>
+      <a href="#" onclick="mostrarNuevos();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#166534;margin-bottom:4px;background:#f0fdf4">Nuevos</a>
+      <a href="/tacones" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8;transition:background 0.15s">Tacones</a>
+      <a href="/sandalias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Sandalias</a>
+      <a href="/botas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Botas</a>
+      <a href="/botines" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Botines</a>
+      <a href="/plataformas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Plataformas</a>
+      <a href="/flats" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Flats</a>
+      <a href="/nina" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">Niña</a>
+      <a href="#" onclick="mostrarOfertas();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">Ofertas</a>
+      <a href="/catalogo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">Catálogos</a>
+      <a href="/catalogo?descargar=1" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#fff;border:1px solid #E8D5C4">Descargar catálogo</a>
     </div>
 
     <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
@@ -491,13 +502,13 @@ if (!window.fbq){
     <!-- Info -->
     <div style="padding:8px 12px">
       <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Info</p>
-      <a href="#" onclick="mostrarPagina('como-comprar');cerrarMenu();return false" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🛒 Cómo comprar</a>
-      <a href="/mayoreo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">💰 Mayoreo (portal)</a>
-      <a href="/envios" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🚚 Envíos</a>
-      <a href="/contacto" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📞 Contacto</a>
-      <a href="/tabla-tallas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📏 Tabla de tallas</a>
-      <a href="/guias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📚 Guías de compra</a>
-      <a href="/nosotros" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🏪 Nosotros</a>
+      <a href="#" onclick="mostrarPagina('como-comprar');cerrarMenu();return false" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Cómo comprar</a>
+      <a href="/mayoreo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Mayoreo (portal)</a>
+      <a href="/envios" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Envíos</a>
+      <a href="/contacto" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Contacto</a>
+      <a href="/tabla-tallas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Tabla de tallas</a>
+      <a href="/guias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Guías de compra</a>
+      <a href="/nosotros" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">Nosotros</a>
     </div>
 
     <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
@@ -505,10 +516,10 @@ if (!window.fbq){
     <!-- Legal -->
     <div style="padding:8px 12px">
       <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Legal</p>
-      <a href="/privacidad" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">🔒 Política de privacidad</a>
-      <a href="/politica-de-devoluciones" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">🔄 Política de devoluciones</a>
-      <a href="/terminos" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">📄 Términos y condiciones</a>
-      <a href="/eliminacion-datos" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">🗑️ Eliminación de datos</a>
+      <a href="/privacidad" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">Política de privacidad</a>
+      <a href="/politica-de-devoluciones" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">Política de devoluciones</a>
+      <a href="/terminos" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">Términos y condiciones</a>
+      <a href="/eliminacion-datos" style="display:block;padding:9px 12px;border-radius:10px;font-size:0.82rem;text-decoration:none;color:#666;margin-bottom:2px">Eliminación de datos</a>
     </div>
 
     <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
@@ -520,9 +531,9 @@ if (!window.fbq){
         WhatsApp
       </a>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">📸 IG</a>
-        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">👍 FB</a>
-        <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">🎵 TT</a>
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">IG</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">FB</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">TT</a>
       </div>
     </div>
 
@@ -541,16 +552,16 @@ if (!window.fbq){
 
 <!-- Chips de categoría (solo móvil) -->
 <div id="zm-chips">
-  <button class="zm-chip zm-chip-nuevos" onclick="mostrarNuevos()">✨ Nuevos</button>
-  <button class="zm-chip" onclick="filtrarCategoria('tacones')">👠 Tacones</button>
-  <button class="zm-chip" onclick="filtrarCategoria('sandalias')">🩴 Sandalias</button>
-  <button class="zm-chip" onclick="filtrarCategoria('plataformas')">👡 Plataformas</button>
-  <button class="zm-chip" onclick="filtrarCategoria('botas')">👢 Botas</button>
-  <button class="zm-chip" onclick="filtrarCategoria('botines')">🥾 Botines</button>
-  <button class="zm-chip" onclick="filtrarCategoria('flats')">🥿 Flats</button>
-  <button class="zm-chip" onclick="filtrarCategoria('nina')">🎀 Niña</button>
-  <button class="zm-chip zm-chip-ofertas zm-bf-solo" onclick="mostrarBuenFin()">🏷️ Buen Fin</button>
-  <button class="zm-chip zm-chip-ofertas" onclick="mostrarOfertas()">🔥 Ofertas</button>
+  <button class="zm-chip zm-chip-nuevos" onclick="mostrarNuevos()">Nuevos</button>
+  <button class="zm-chip" onclick="filtrarCategoria('tacones')">Tacones</button>
+  <button class="zm-chip" onclick="filtrarCategoria('sandalias')">Sandalias</button>
+  <button class="zm-chip" onclick="filtrarCategoria('plataformas')">Plataformas</button>
+  <button class="zm-chip" onclick="filtrarCategoria('botas')">Botas</button>
+  <button class="zm-chip" onclick="filtrarCategoria('botines')">Botines</button>
+  <button class="zm-chip" onclick="filtrarCategoria('flats')">Flats</button>
+  <button class="zm-chip" onclick="filtrarCategoria('nina')">Niña</button>
+  <button class="zm-chip zm-chip-ofertas zm-bf-solo" onclick="mostrarBuenFin()">Buen Fin</button>
+  <button class="zm-chip zm-chip-ofertas" onclick="mostrarOfertas()">Ofertas</button>
 </div>
 <style>
   #zm-chips { display: none; gap: 6px; overflow-x: auto; padding: 8px 14px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -631,9 +642,9 @@ if (!window.fbq){
     </div>
     <div class="cro-divider"></div>
     <div class="cro-garantias">
-      <div class="cro-garantia"><span>✅</span> Cambios de talla fáciles</div>
-      <div class="cro-garantia"><span>💬</span> Te asesoramos por WhatsApp</div>
-      <div class="cro-garantia"><span>🚚</span> Envío GRATIS desde $1,299</div>
+      <div class="cro-garantia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg> Cambios de talla fáciles</div>
+      <div class="cro-garantia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1"/></svg> Te asesoramos por WhatsApp</div>
+      <div class="cro-garantia"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-8m0 -5h5l3 5"/></svg> Envío GRATIS desde $1,299</div>
     </div>
   </div>
   <p class="cro-historia">Con más de un millón de pares vendidos, es muy probable que tú, tu mamá o tu abuela ya hayan caminado en unas Zapatillas May.</p>
@@ -750,7 +761,7 @@ if (!window.fbq){
         <div style="color:#FBBC05;font-size:1.05rem;letter-spacing:2px">★★★★★</div>
         <svg width="16" height="16" viewBox="0 0 24 24" aria-label="Reseña de Facebook"><path fill="#1877F2" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
       </div>
-      <p style="font-size:0.9rem;color:#444;line-height:1.7;flex:1">"Me gustaron mucho, la verdad valen la pena y a muy buen precio, son muy cómodos. La atención es excelente 👌"</p>
+      <p style="font-size:0.9rem;color:#444;line-height:1.7;flex:1">"Me gustaron mucho, la verdad valen la pena y a muy buen precio, son muy cómodos. La atención es excelente"</p>
       <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
         <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.85rem;flex-shrink:0">LM</div>
         <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Liz Mar</p><p style="font-size:0.72rem;color:#6b5c55;margin:0">Recomienda en Facebook</p></div>
@@ -852,9 +863,9 @@ if (!window.fbq){
     const popup = document.getElementById('zm-email-popup')
     popup.querySelector('div > div:last-child').innerHTML = `
       <div style="text-align:center;padding:20px 0">
-        <p style="font-size:2.5rem;margin-bottom:12px">🎉</p>
+        <p style="font-size:2.5rem;margin-bottom:12px"></p>
         <h4 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;margin-bottom:8px">¡Listo, ya quedaste!</h4>
-        <p style="font-size:0.85rem;color:#777;margin-bottom:20px">Revisa tu correo — te enviamos la bienvenida. 📩</p>
+        <p style="font-size:0.85rem;color:#777;margin-bottom:20px">Revisa tu correo — te enviamos la bienvenida.</p>
         <button onclick="zmCerrarPopup()" style="padding:11px 28px;background:var(--pink,#C8967A);color:white;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer">Ver catálogo →</button>
       </div>`
     // Suscribir en backend (guarda en Supabase + envía welcome email via Resend)
@@ -1031,7 +1042,7 @@ if (!window.fbq){
 </footer>
 
 <script src="/assets/buenfin.da5443ed.js"></script>
-<script src="/assets/app.00d9ece3.js"></script>
+<script src="/assets/app.d7625a93.js"></script>
   <!-- PÁGINA INTERNA -->
 
 
