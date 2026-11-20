@@ -4010,7 +4010,7 @@ async function _cargarDatosAnalisisPesados() {
     function canalLegible(canal) {
       return {
         mercadolibre: 'MercadoLibre', shein: 'SHEIN', walmart: 'Walmart',
-        whatsapp: 'WhatsApp', portal_mayoreo: 'Portal mayorista', mayoreo: 'Mayoreo'
+        whatsapp: 'WhatsApp', portal_mayoreo: 'Portal mayorista', mayoreo: 'Mayoreo', fb_marketplace: 'Facebook Marketplace', tiktok: 'TikTok'
       }[canal] || 'Tienda / Web'
     }
 
@@ -11168,7 +11168,7 @@ function _renderFilaPedido(p) {
       </td>
       <td data-label="Canal">${{
         web: '🌐 Web', sucursal: '🏬 Sucursal', whatsapp: '💬 WhatsApp', mercadolibre: '🛒 MercadoLibre',
-        portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart', tiktok: '🎵 TikTok',
+        portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart', tiktok: '🎵 TikTok', fb_marketplace: '📘 Facebook Marketplace',
       }[p.canal] || p.canal || (p.mp_preference_id ? '🌐 Web' : '—')}</td>
       <td data-label="Total"><strong>$${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}</strong></td>
       <td data-label="Pago">${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}${chipCredito}</td>
@@ -11433,7 +11433,7 @@ async function cargarPedidos() {
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
           ${pill('', `Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span>`, 'pill-active')}
-          ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}${pill('tiktok', '🎵 TikTok')}
+          ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}${pill('tiktok', '🎵 TikTok')}${pill('fb_marketplace', '📘 Marketplace')}
           ${pill('pendiente_pago', 'SPEI/OXXO pendiente', 'pill-warning')}
           ${pill('comprobantes', `📎 Comprobantes por revisar ${conComprobante > 0 ? `<span style="opacity:0.75;font-weight:400">${conComprobante}</span>` : ''}`, 'pill-info')}
           ${pill('comprobantes_todos', `📎 Todos los comprobantes <span style="opacity:0.75;font-weight:400">${data.filter(p => (window._pedCompResumen[p.id] || {}).total > 0).length}</span>`, 'pill-info')}
@@ -13102,6 +13102,11 @@ async function cargarPOS() {
               <span style="font-weight:600;font-size:1rem">Total:</span>
               <span style="font-weight:700;font-size:1.4rem;color:#E91E8C" id="pos-total">$0.00</span>
             </div>
+            <select class="form-input" id="pos-canal" onchange="_posCambiarCanal(this.value)" title="¿Dónde se vendió?" style="width:100%;background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
+              <option value="sucursal">Canal: Mostrador / tienda</option>
+              <option value="fb_marketplace">Canal: Facebook Marketplace</option>
+            </select>
+            <input class="form-input" id="pos-nombre-fb" placeholder="Nombre de la clienta (para la etiqueta de agradecimiento)" maxlength="60" autocomplete="off" style="display:none;width:100%;font-size:0.85rem;margin-bottom:8px">
             <select class="form-input" id="pos-pago" style="width:100%;background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
               <option value="efectivo">Efectivo</option>
               <option value="tarjeta">Tarjeta</option>
@@ -13183,6 +13188,11 @@ async function cargarPOS() {
               <span style="color:#f57f17;font-size:0.85rem">de descuento por par</span>
             </div>
           </div>
+          <select class="form-input" id="pos-canal-m" onchange="_posCambiarCanal(this.value)" title="¿Dónde se vendió?" style="width:100%;margin-bottom:8px;font-size:0.95rem">
+            <option value="sucursal">Canal: Mostrador / tienda</option>
+            <option value="fb_marketplace">Canal: Facebook Marketplace</option>
+          </select>
+          <input class="form-input" id="pos-nombre-fb-m" placeholder="Nombre de la clienta (para la etiqueta de agradecimiento)" maxlength="60" autocomplete="off" style="display:none;width:100%;margin-bottom:8px;font-size:0.95rem">
           <select class="form-input" id="pos-pago-m" style="width:100%;margin-bottom:12px;font-size:0.95rem">
             <option value="efectivo">Efectivo</option>
             <option value="tarjeta">Tarjeta</option>
@@ -13354,10 +13364,18 @@ window.renderDrawerPOS = () => {
   `
 }
 
+// Canal de la venta (Mostrador o Facebook Marketplace): se mantiene igual en la versión de escritorio y la del celular
+window._posCambiarCanal = (v) => {
+  ;['pos-canal', 'pos-canal-m'].forEach(id => { const el = document.getElementById(id); if (el) el.value = v })
+  ;['pos-nombre-fb', 'pos-nombre-fb-m'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = v === 'fb_marketplace' ? 'block' : 'none' })
+}
+
 window.cobrarPOSM = async () => {
   const pm = document.getElementById('pos-pago-m')
   const pp = document.getElementById('pos-pago')
   if (pm && pp) pp.value = pm.value
+  const nm = document.getElementById('pos-nombre-fb-m'), nd = document.getElementById('pos-nombre-fb')
+  if (nm && nd && nm.value.trim()) nd.value = nm.value
   cerrarDrawerPOS()
   await cobrarPOS()
 }
@@ -15631,6 +15649,8 @@ window.cobrarPOS = async () => {
   const clienteId = document.getElementById('pos-cliente').value || null
   const sucursalId = document.getElementById('pos-sucursal').value
   const formaPago = document.getElementById('pos-pago').value
+  const canalVenta = (document.getElementById('pos-canal') || {}).value === 'fb_marketplace' ? 'fb_marketplace' : 'sucursal'
+  const nombreFb = canalVenta === 'fb_marketplace' ? ((document.getElementById('pos-nombre-fb') || {}).value || '').trim() : ''
   const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
 
   // ── Pago combinado: si está activo, validar que los renglones sumen el
@@ -15694,12 +15714,13 @@ window.cobrarPOS = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente_id: clienteId,
-        canal: 'sucursal',
+        canal: canalVenta,
         sucursal_id: sucursalId,
         forma_pago: pagoCombinadoActivo ? 'combinado' : formaPago,
         total,
         subtotal: total,
-        status: 'borrador'
+        status: 'borrador',
+        ...(nombreFb ? { nombre_cliente: nombreFb } : {})
       })
     })
     const pedidoData = await resPedido.json()
@@ -15804,7 +15825,15 @@ window.cobrarPOS = async () => {
       if (wrap) wrap.style.display = 'none'
     })
     renderCarritoPOS()
-    imprimirTicketPOS(pedidoId, total, totalPares, pagoCombinadoActivo ? 'combinado' : formaPago)
+    if (canalVenta === 'fb_marketplace') {
+      // Venta de Facebook Marketplace: no se imprime ticket de mostrador; se ofrece la etiqueta de caja + agradecimiento con el nombre
+      ;['pos-nombre-fb', 'pos-nombre-fb-m'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+      if (confirm('Venta de Marketplace registrada.\n\n¿Imprimir las etiquetas de caja y la de agradecimiento con el nombre de la clienta?')) {
+        try { window.etiquetasDePedido(pedidoId) } catch (e) {}
+      }
+    } else {
+      imprimirTicketPOS(pedidoId, total, totalPares, pagoCombinadoActivo ? 'combinado' : formaPago)
+    }
 
     // 5. Refrescar inventario. En su propio try: la venta YA está cobrada y confirmada; si solo falla este
     // refresco (red, sesión), el catch de abajo NO debe cancelarla (antes lo hacía).
@@ -16937,7 +16966,7 @@ async function cargarDashboard() {
 
       // Dona: canal
       const elCanales = document.getElementById('chart-canales')
-      const canalesLabels = Object.keys(porCanal)
+      const canalesLabels = Object.keys(porCanal).map(k => k === 'fb_marketplace' ? 'Facebook Marketplace' : k)
       const canalesVals = Object.values(porCanal)
       if (elCanales && window.Chart && canalesLabels.length > 0) {
         window._dashCharts.canales = new Chart(elCanales, {

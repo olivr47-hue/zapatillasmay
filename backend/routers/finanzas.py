@@ -70,7 +70,7 @@ def _cuenta_en_tu_utilidad(canal, origen_cliente):
         return True
     if origen_cliente == 'llego_solo':
         return canal != 'shein'
-    if canal in ('web', 'online', 'mercadolibre', 'whatsapp', 'tiktok'):   # 'tiktok' = pedidos que el sistema importa solo de TikTok Shop
+    if canal in ('web', 'online', 'mercadolibre', 'whatsapp', 'tiktok', 'fb_marketplace'):   # 'tiktok' = pedidos que el sistema importa solo de TikTok Shop; 'fb_marketplace' = ventas de Facebook Marketplace (se capturan en el Punto de venta con ese canal)
         return True
     if canal == 'portal_mayoreo':
         return origen_cliente in _ORIGEN_PROPIO
@@ -334,10 +334,10 @@ def _materializar_gastos_recurrentes(sucursal_id):
     vez como 'plantilla' (es_recurrente=true, plantilla_id=null) y aqui se
     clona automaticamente una copia para el mes actual si todavia no existe,
     para no tener que capturarlos a mano cada mes."""
-    import calendar
-    try:
-        hoy = _hoy_mx()
-        mes_actual = hoy.strftime("%Y-%m")
+    import calendar
+    try:
+        hoy = _hoy_mx()
+        mes_actual = hoy.strftime("%Y-%m")
         plantillas = supabase_get(
             f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
         ) or []
@@ -780,6 +780,7 @@ _GRUPOS_TU_UTILIDAD = [
     ("portal_solas", "Portal: clientas que se registraron solas"),
     ("clientes_nuevos", "Clientas nuevas que llegaron solas (pedidos capturados por ti o tu equipo)"),
     ("tiktok", "TikTok (ventas capturadas con el cliente TikTok)"),
+    ("fb_marketplace", "Facebook Marketplace"),
     ("mostrador_sitio", "Punto de venta cobrado al precio del sitio (+$80)"),
 ]
 
@@ -809,6 +810,8 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
                 return "mercadolibre"
             if canal == 'whatsapp':
                 return "whatsapp"
+            if canal == 'fb_marketplace':
+                return "fb_marketplace"
             if canal == 'portal_mayoreo' and origen.get(p.get('cliente_id')) in _ORIGEN_PROPIO:
                 return "portal_solas"
             if origen.get(p.get('cliente_id')) == 'llego_solo' and canal != 'shein':
@@ -1915,7 +1918,8 @@ def quitar_gasto_fijo(plantilla_id: str):
 
 # ═══ REPORTES automáticos y Excel para el contador ═══
 _CANAL_ETQ = {"sucursal": "Mostrador", "web": "Tienda en línea", "online": "Tienda en línea", "whatsapp": "WhatsApp", "portal_mayoreo": "Portal mayoreo",
-              "mercadolibre": "MercadoLibre", "shein": "SHEIN", "walmart": "Walmart", "amazon": "Amazon", "tiktok": "TikTok"}
+              "mercadolibre": "MercadoLibre", "shein": "SHEIN", "walmart": "Walmart", "amazon": "Amazon", "tiktok": "TikTok",
+              "fb_marketplace": "Facebook Marketplace"}
 _ESTADOS_VENTA_FIN = "confirmado,pagado,entregado,enviado"
 
 
