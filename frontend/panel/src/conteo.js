@@ -136,16 +136,20 @@ function pintarChips() {
   ub.innerHTML = Object.keys(UBIC).map(u => `<button class="cn-chip ${cn.ubic === u ? 'on' : ''}" onclick="window._cnUbic('${u}')">${UBIC[u]}<small>${porUb(u)}</small></button>`).join('')
   const co = document.getElementById('cn-col'); if (!co) return
   co.innerHTML = colores().map(c => {
-    const n = cn.data.variantes.filter(v => v.color === c).reduce((s, v) => s + v.total, 0)
+    const n = cn.data.variantes.filter(v => v.color === c).reduce((s, v) => s + (v.contado[cn.ubic] || 0), 0)   // de la ubicación elegida
     return `<button class="cn-chip ${cn.color === c ? 'on' : ''}" onclick="window._cnColor(this)" data-c="${esc(c)}">${esc(c || 'Sin color')}<small>${n}</small></button>`
   }).join('')
 }
 
+// Cada talla muestra SOLO lo contado en la ubicación elegida (Estantería, Amarres u Otro): al cambiar de ubicación el conteo
+// de los botones arranca en lo de esa ubicación. Los totales (todas las ubicaciones) siguen en el contador de arriba, en los
+// botones de ubicación y en la pantalla de revisión.
 function celdaHTML(v) {
-  const desg = Object.entries(v.contado).filter(([, n]) => n > 0).map(([u, n]) => `${UBIC[u].charAt(0)}${n}`).join(' · ')
-  return `<div class="cn-cell ${v.tocada ? 'on' : ''}" id="cn-c-${v.id}" onclick="window._cnSumar('${v.id}',1)">
+  const n = v.contado[cn.ubic] || 0
+  const on = n > 0 || (v.tocada && v.total === 0)   // en 0 pero contada a propósito (se quitaron todos los pares)
+  return `<div class="cn-cell ${on ? 'on' : ''}" id="cn-c-${v.id}" onclick="window._cnSumar('${v.id}',1)">
     <button class="cn-menos" onclick="event.stopPropagation();window._cnSumar('${v.id}',-1)" aria-label="Restar uno">−</button>
-    <span class="cn-t">T${esc(v.talla)}</span><span class="cn-n">${v.total}</span><span class="cn-ds">${esc(Object.keys(v.contado).filter(u => v.contado[u] > 0).length > 1 ? desg : '')}</span></div>`
+    <span class="cn-t">T${esc(v.talla)}</span><span class="cn-n">${n}</span><span class="cn-ds"></span></div>`
 }
 
 function pintarGrid() {
@@ -153,7 +157,7 @@ function pintarGrid() {
   g.innerHTML = cn.data.variantes.filter(v => v.color === cn.color).map(celdaHTML).join('')
 }
 
-window._cnUbic = (u) => { cn.ubic = u; pintarChips() }
+window._cnUbic = (u) => { cn.ubic = u; pintarChips(); pintarGrid() }
 window._cnColor = (btn) => { cn.color = btn.dataset.c; pintarChips(); pintarGrid() }
 
 function refrescarCelda(v) {
@@ -184,6 +188,8 @@ window._cnSumar = (vid, delta) => sumar(vid, delta, true)
 window._cnDeshacer = () => {
   const h = cn.historial.pop(); if (!h) { toast('No hay nada que deshacer'); return }
   const u = cn.ubic; cn.ubic = h.ub; sumar(h.vid, -h.delta, false); cn.ubic = u
+  pintarChips(); pintarGrid()   // la celda se pintó con la ubicación del toque deshecho: se vuelve a pintar con la elegida
+  if (h.ub !== u) toast('Se deshizo en ' + UBIC[h.ub])
 }
 window._cnSalir = () => { if (!cn || confirm('Lo contado ya está guardado. ¿Volver a la lista de modelos?')) { cn = null; pantallaInicio() } }
 
