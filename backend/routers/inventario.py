@@ -215,3 +215,49 @@ def actualizar_inventario(datos: dict, _staff=Depends(require_staff)):
         return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/mover-ubicacion")
+def mover_ubicacion(datos: dict, _staff=Depends(require_staff)):
+    """Pasa pares de AMARRES a ESTANTERIA (o al reves) eligiendo talla por talla. El total de la talla no cambia.
+    datos = {sucursal_id, desde: 'amarres'|'estanteria', items: [{variante_id, cantidad}]}.
+    Todo o nada: si una talla pide mas pares de los que hay en el origen, no se mueve nada y se explica cual."""
+    try:
+        sucursal_id = datos.get("sucursal_id")
+        desde = datos.get("desde") or "amarres"
+        if desde not in ("amarres", "estanteria") or not sucursal_id:
+            return JSONResponse(status_code=400, content={"error": "Falta sucursal o el origen no es valido"})
+        col_o, col_d = ("cant_amarres", "cant_estanteria") if desde == "amarres" else ("cant_estanteria", "cant_amarres")
+        pedidos = {}
+        for it in datos.get("items") or []:
+            vid, n = it.get("variante_id"), int(it.get("cantidad") or 0)
+            if vid and n > 0:
+                pedidos[vid] = pedidos.get(vid, 0) + n
+        if not pedidos:
+            return JSONResponse(status_code=400, content={"error": "No hay pares que mover"})
+        filas = {}
+        for vid in pedidos:
+            f = (supabase_get(f"inventario?variante_id=eq.{vid}&sucursal_id=eq.{sucursal_id}&select=cant_estanteria,cant_amarres") or [None])[0]
+            if not f:
+                return JSONResponse(status_code=400, content={"error": "Una talla no tiene inventario en esa sucursal"})
+            filas[vid] = f
+            if int(f.get(col_o) or 0) < pedidos[vid]:
+                return JSONResponse(status_code=400, content={"error": f"Solo hay {int(f.get(col_o) or 0)} par(es) en {desde} y pediste mover {pedidos[vid]}"})
+        for vid, n in pedidos.items():
+            f = filas[vid]
+            supabase_patch(f"inventario?variante_id=eq.{vid}&sucursal_id=eq.{sucursal_id}", {
+                col_o: int(f.get(col_o) or 0) - n,
+                col_d: int(f.get(col_d) or 0) + n,
+                "ubicacion_confirmada": True,
+            })
+            try:
+                supabase_post("movimientos_inventario", {
+                    "tipo": "traslado_ubicacion", "variante_id": vid, "sucursal_id": sucursal_id, "cantidad": n,
+                    "motivo": f"{'Amarres → Estantería' if desde == 'amarres' else 'Estantería → Amarres'} (el total no cambia)",
+                })
+            except Exception as e_mov:
+                print(f"[inventario] no se pudo registrar el traslado de ubicacion: {e_mov}")
+        cache_invalidate_prefix(_CK)
+        return {"ok": True, "movidos": sum(pedidos.values()), "tallas": len(pedidos)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

@@ -7539,6 +7539,8 @@ window.renderInventario = () => {
                 <div style="width:14px;height:14px;border-radius:50%;background:${colorHex};border:2px solid #ddd;flex-shrink:0"></div>
                 <span style="font-size:0.9rem;font-weight:600;color:#333">${color}</span>
               </div>
+              <button class="btn btn-secondary" style="margin-left:auto;padding:4px 10px;font-size:0.75rem;background:#eef6ff;border-color:#3b6aa5;color:#3b6aa5"
+                      onclick="abrirMoverUbic('${prod.id}','${encodeURIComponent(color)}','${suc.id}')">⇄ Mover amarres / estantería</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
               ${tallasHtml}
@@ -7586,6 +7588,119 @@ window.renderInventario = () => {
   const contenido = document.getElementById('inv-contenido')
   if (contenido) contenido.innerHTML = html || '<div style="text-align:center;padding:3rem;color:#888"><p>No hay inventario registrado</p></div>'
 }
+// ── Mover pares entre AMARRES y ESTANTERÍA, talla por talla (el total de cada talla no cambia) ──
+window.abrirMoverUbic = (productoId, colorEnc, sucursalId) => {
+  const color = decodeURIComponent(colorEnc)
+  const { productos, variantes } = window._invData
+  const prod = productos.find(p => p.id === productoId)
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const vs = variantes.filter(v => v.producto_id === productoId && v.color === color && v.activa !== false)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+  window._mvu = { productoId, color, sucursalId, desde: 'amarres', vs, mover: {} }
+  document.getElementById('mvu-overlay')?.remove()
+  const ov = document.createElement('div')
+  ov.id = 'mvu-overlay'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px'
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+      <div><p style="font-weight:700;font-size:1rem;margin:0">${prod ? prod.nombre : ''}</p><p style="margin:2px 0 0;font-size:0.8rem;color:#888">${color}</p></div>
+      <button onclick="cerrarMoverUbic()" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;margin:12px 0 6px">
+      <button id="mvu-d-amarres" class="btn" onclick="mvuDesde('amarres')" style="flex:1;font-size:0.8rem"></button>
+      <button id="mvu-d-estanteria" class="btn" onclick="mvuDesde('estanteria')" style="flex:1;font-size:0.8rem"></button>
+    </div>
+    <p style="font-size:0.78rem;color:#5f6b7a;margin:6px 0">Escribe cuántos pares de cada talla quieres pasar. El total de la talla no cambia.</p>
+    <div id="mvu-atajos" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div id="mvu-filas"></div>
+    <p id="mvu-resumen" style="font-size:0.85rem;font-weight:600;margin:10px 0 0"></p>
+    <button id="mvu-guardar" class="btn btn-primary" onclick="mvuGuardar()" style="width:100%;margin-top:10px">Guardar movimiento</button>
+  </div>`
+  document.body.appendChild(ov)
+  mvuRender()
+}
+window.cerrarMoverUbic = () => { document.getElementById('mvu-overlay')?.remove(); window._mvu = null }
+window.mvuDesde = (d) => { window._mvu.desde = d; window._mvu.mover = {}; mvuRender() }
+function _mvuFila(v) {
+  const m = window._mvu
+  const inv = window._invData.inventario.find(i => i.variante_id === v.id && i.sucursal_id === m.sucursalId)
+  return { v, est: inv ? (inv.cant_estanteria || 0) : 0, am: inv ? (inv.cant_amarres || 0) : 0 }
+}
+window.mvuRender = () => {
+  const m = window._mvu; if (!m) return
+  const desde = m.desde
+  const B = (id, txt, on) => { const b = document.getElementById(id); b.textContent = txt; b.style.background = on ? '#3b6aa5' : '#f0f0f0'; b.style.color = on ? '#fff' : '#555' }
+  B('mvu-d-amarres', 'Amarres → Estantería', desde === 'amarres')
+  B('mvu-d-estanteria', 'Estantería → Amarres', desde === 'estanteria')
+  document.getElementById('mvu-atajos').innerHTML = `<button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="mvuCorrida(1)">1 corrida</button>
+    <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="mvuCorrida(2)">2 corridas</button>
+    <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="mvuCorrida(0)">Limpiar</button>`
+  document.getElementById('mvu-filas').innerHTML = m.vs.map(v => {
+    const f = _mvuFila(v)
+    const disp = desde === 'amarres' ? f.am : f.est
+    const val = m.mover[v.id] || 0
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;${disp === 0 ? 'opacity:.45' : ''}">
+      <span style="width:44px;font-weight:700">T${v.talla}</span>
+      <span style="flex:1;font-size:0.76rem;color:#5f6b7a">Estantería ${f.est} · Amarres ${f.am}</span>
+      <span style="font-size:0.72rem;color:#888">pasar</span>
+      <input type="number" min="0" max="${disp}" value="${val}" ${disp === 0 ? 'disabled' : ''} oninput="mvuSet('${v.id}', this.value)"
+        style="width:54px;text-align:center;border:1px solid #ccc;border-radius:6px;padding:4px">
+      <span style="font-size:0.72rem;color:#888">de ${disp}</span></div>`
+  }).join('')
+  mvuResumen()
+}
+window.mvuSet = (vid, val) => {
+  const m = window._mvu; const f = _mvuFila(m.vs.find(v => v.id === vid))
+  const disp = m.desde === 'amarres' ? f.am : f.est
+  m.mover[vid] = Math.max(0, Math.min(parseInt(val) || 0, disp))
+  mvuResumen()
+}
+// Corrida = 1 par de cada talla (con medios), o 1-2-2-1 si el modelo solo tiene enteros 23 a 26. Solo lo que haya en el origen.
+window.mvuCorrida = (n) => {
+  const m = window._mvu; m.mover = {}
+  if (n > 0) {
+    const tallas = m.vs.map(v => String(v.talla))
+    const soloEnteros = tallas.every(t => !t.includes('.')) && ['23', '24', '25', '26'].every(t => tallas.includes(t))
+    const patron = { '23': 1, '24': 2, '25': 2, '26': 1 }
+    m.vs.forEach(v => {
+      const f = _mvuFila(v); const disp = m.desde === 'amarres' ? f.am : f.est
+      m.mover[v.id] = Math.min(disp, n * (soloEnteros ? (patron[String(v.talla)] || 1) : 1))
+    })
+  }
+  mvuRender()
+}
+window.mvuResumen = () => {
+  const m = window._mvu; if (!m) return
+  const tot = Object.values(m.mover).reduce((s, n) => s + n, 0)
+  document.getElementById('mvu-resumen').textContent = tot > 0
+    ? `Vas a pasar ${tot} par(es) de ${m.desde === 'amarres' ? 'amarres a estantería' : 'estantería a amarres'}.`
+    : 'Aún no has elegido pares.'
+  const g = document.getElementById('mvu-guardar'); if (g) g.disabled = tot === 0
+}
+window.mvuGuardar = async () => {
+  const m = window._mvu; if (!m) return
+  const items = Object.entries(m.mover).filter(([, n]) => n > 0).map(([variante_id, cantidad]) => ({ variante_id, cantidad }))
+  if (!items.length) return
+  const g = document.getElementById('mvu-guardar'); g.disabled = true; g.textContent = 'Guardando…'
+  try {
+    const res = await fetch(API + '/inventario/mover-ubicacion', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal_id: m.sucursalId, desde: m.desde, items })
+    })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { alert(d.error || 'No se pudo mover'); g.disabled = false; g.textContent = 'Guardar movimiento'; return }
+    items.forEach(({ variante_id, cantidad }) => {
+      const inv = window._invData.inventario.find(i => i.variante_id === variante_id && i.sucursal_id === m.sucursalId)
+      if (!inv) return
+      if (m.desde === 'amarres') { inv.cant_amarres -= cantidad; inv.cant_estanteria += cantidad }
+      else { inv.cant_estanteria -= cantidad; inv.cant_amarres += cantidad }
+      inv.ubicacion_confirmada = true
+    })
+    cerrarMoverUbic()
+    renderInventario()
+  } catch (e) { alert('Error de conexión'); g.disabled = false; g.textContent = 'Guardar movimiento' }
+}
+
 window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, minimo, delta) => {
   let nuevaCantidad = Math.max(0, cantidadActual + delta)   // solo para el caso de que el servidor no la devuelva
   try {
