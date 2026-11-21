@@ -224,7 +224,9 @@ function pantallaRevision() {
     <div class="cn-chips"><button class="cn-chip ${cn.soloDif ? 'on' : ''}" onclick="window._cnSoloDif(true)">Solo diferencias</button><button class="cn-chip ${!cn.soloDif ? 'on' : ''}" onclick="window._cnSoloDif(false)">Todas las tallas</button></div>
     ${Object.keys(porColor).length ? Object.entries(porColor).map(([c, fs]) => `<div class="cn-card"><b>${esc(c || 'Sin color')}</b><table class="cn-rev"><thead><tr><th style="text-align:left">Talla</th><th>ERP</th><th>Contado</th><th>Dif.</th></tr></thead><tbody>${fs.map(fila).join('')}</tbody></table></div>`).join('')
       : '<div class="cn-card" style="text-align:center;color:#16a34a;font-weight:700">✅ Sin diferencias: el ERP coincide con lo que contaste.</div>'}
-    <div class="cn-pie"><button class="cn-btn" onclick="window._cnCancelar()">Descartar</button><button class="cn-btn p" id="cn-ap" onclick="window._cnAplicar()" ${cambian.length ? '' : 'disabled'}>Aplicar ${cambian.length} ajuste(s)</button></div>`
+    <div class="cn-pie"><button class="cn-btn" onclick="window._cnCancelar()">Descartar</button>${cambian.length
+      ? `<button class="cn-btn p" id="cn-ap" onclick="window._cnAplicar()">Aplicar ${cambian.length} ajuste(s)</button>`
+      : `<button class="cn-btn p" id="cn-ap" onclick="window._cnTerminar()">✅ Todo cuadra: terminar</button>`}</div>`
   cn._cambian = cambian.length
 }
 window._cnVolverContar = () => pantallaConteo()
@@ -234,6 +236,28 @@ window._cnCancelar = async () => {
   if (!confirm('¿Descartar este conteo? No se cambia el inventario.')) return
   try { await api(`/conteo/${cn.id}/cancelar`, { method: 'POST', json: {} }); toast('Conteo descartado'); cn = null; pantallaInicio() } catch (e) { toast(e.message) }
 }
+// Todo cuadra (sin diferencias contra el ERP): se cierra el conteo sin ajustar nada. Antes el botón de aplicar quedaba apagado y
+// solo se podía salir con la flecha de atrás, pantalla por pantalla.
+window._cnTerminar = async () => {
+  const btn = document.getElementById('cn-ap')
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando…' }
+    // Primero se vuelve a calcular en el servidor: si mientras revisabas el inventario cambió (una venta, por ejemplo) y ya hay diferencias,
+    // NO se aplica nada a escondidas: se regresa a la revisión para que las veas.
+    const vista = await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar } })
+    if (vista.resumen && vista.resumen.tallas_cambian > 0) {
+      toast('El inventario cambió mientras revisabas. Revisa las diferencias.')
+      await window._cnRevisar()
+      return
+    }
+    await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar, confirmar: true } })
+    raiz().innerHTML = `<div class="cn-card" style="text-align:center;margin-top:30px"><div style="font-size:2.4rem">✅</div><h3 style="margin:6px 0">Conteo terminado</h3>
+      <p class="cn-sub">Todo cuadra: el inventario ya coincidía con lo que contaste, no se cambió nada.</p>
+      <button class="cn-btn p" style="width:100%;margin-top:12px" onclick="window.cargarConteo()">Contar otro modelo</button></div>`
+    cn = null
+  } catch (e) { toast(e.message); if (btn) { btn.disabled = false; btn.textContent = '✅ Todo cuadra: terminar' } }
+}
+
 window._cnAplicar = async () => {
   const btn = document.getElementById('cn-ap')
   try {
