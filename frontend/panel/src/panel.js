@@ -7459,6 +7459,12 @@ async function cargarInventario() {
   }
 }
 
+// Dónde está cada par de una talla: «Estantería 3 · Amarres 5». Solo se muestra si ya hay pares en amarres o la ubicación se confirmó contando.
+function _invEtiquetaUbic(inv) {
+  if (!inv || !(inv.cant_amarres > 0 || inv.ubicacion_confirmada)) return ''
+  return `📍 Estantería ${inv.cant_estanteria || 0} · Amarres ${inv.cant_amarres || 0}`
+}
+
 window.renderInventario = () => {
   const { sucursales, productos, variantes, inventario } = window._invData
   const buscar = (document.getElementById('inv-buscar') ? document.getElementById('inv-buscar').value : '').toLowerCase()
@@ -7507,7 +7513,7 @@ window.renderInventario = () => {
           else { bg = '#e8f5e9'; colorTexto = '#2e7d32' }
 
           return `
-            <div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border-radius:10px;padding:8px 12px;border:1px solid ${colorTexto}30">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;background:${bg};border-radius:10px;padding:8px 12px;border:1px solid ${colorTexto}30">
               <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:44px">T${v.talla}</span>
               <div style="display:flex;align-items:center;gap:8px">
                 <button onclick="cambiarStockInventario('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo}, -1)"
@@ -7516,6 +7522,7 @@ window.renderInventario = () => {
                 <button onclick="cambiarStockInventario('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo}, 1)"
                         style="background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
               </div>
+              <div id="ubic-${v.id}-${suc.id}" title="Dónde está cada par: en la estantería o en los amarres" style="flex-basis:100%;font-size:0.68rem;color:#5f6b7a;margin-top:2px">${_invEtiquetaUbic(inv)}</div>
             </div>
           `
         }).join('')
@@ -7610,7 +7617,16 @@ window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, m
       }
       // Actualizar datos en memoria
       const invItem = window._invData.inventario.find(i => i.variante_id === varianteId && i.sucursal_id === sucursalId)
-      if (invItem) invItem.cantidad = nuevaCantidad
+      if (invItem) {
+        // misma regla que el servidor: sube a estantería; baja primero de estantería y luego de amarres
+        const d = nuevaCantidad - (invItem.cantidad || 0)
+        let est = invItem.cant_estanteria || 0, am = invItem.cant_amarres || 0
+        if (d > 0) est += d
+        else if (d < 0) { const deEst = Math.min(-d, est); est -= deEst; am = Math.max(0, am - (-d - deEst)) }
+        invItem.cantidad = nuevaCantidad; invItem.cant_estanteria = est; invItem.cant_amarres = am
+        const eu = document.getElementById('ubic-' + varianteId + '-' + sucursalId)
+        if (eu) eu.textContent = _invEtiquetaUbic(invItem)
+      }
       // Actualizar los botones con nueva cantidad
       const btns = document.querySelectorAll(`button[onclick*="${varianteId}"][onclick*="${sucursalId}"]`)
       btns.forEach(btn => {

@@ -192,6 +192,30 @@ def conteo_aplicar(conteo_id: str, datos: dict, _staff=Depends(require_staff)):
         except Exception as e:
             errores.append(f"{c['color']} T{c['talla']}: {str(e)[:80]}")
     import datetime as _dt
+    # Ubicacion: lo contado en estanteria y en amarres se guarda en el inventario (aunque el total no cambie). Lo contado en «otro» se
+    # suma a estanteria. Si el total del inventario es justo lo contado, la ubicacion queda confirmada; si cambio mientras contaban
+    # (una venta, por ejemplo), se guarda la mejor aproximacion y se deja sin confirmar.
+    ubicaciones_guardadas = 0
+    ahora_iso = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    for v in d["variantes"]:
+        if not v["tocada"]:
+            continue
+        try:
+            am = int(v["contado"].get("amarres", 0) or 0)
+            es = sum(int(n or 0) for u, n in v["contado"].items() if u != "amarres")
+            fila = (supabase_get(f"inventario?variante_id=eq.{v['id']}&select=sucursal_id,cantidad&order=cantidad.desc&limit=1") or [None])[0]
+            if not fila:
+                continue
+            cant = int(fila.get("cantidad") or 0)
+            exacto = (am + es) == cant
+            am_final = min(am, cant)
+            supabase_patch(f"inventario?variante_id=eq.{v['id']}&sucursal_id=eq.{fila['sucursal_id']}", {
+                "cant_amarres": am_final, "cant_estanteria": cant - am_final,
+                "ubicacion_confirmada": bool(exacto), "ubicacion_at": ahora_iso})
+            ubicaciones_guardadas += 1
+        except Exception as e:
+            errores.append(f"ubicacion {v.get('color', '')} T{v.get('talla', '')}: {str(e)[:80]}")
+    resumen["ubicaciones_guardadas"] = ubicaciones_guardadas
     resumen["aplicados"] = aplicados
     resumen["errores"] = errores
     supabase_patch(f"conteos?id=eq.{conteo_id}", {"estado": "aplicado", "aplicado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),

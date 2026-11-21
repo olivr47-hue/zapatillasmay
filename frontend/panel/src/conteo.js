@@ -250,9 +250,10 @@ window._cnTerminar = async () => {
       await window._cnRevisar()
       return
     }
-    await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar, confirmar: true } })
+    const fin = await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar, confirmar: true } })
+    const gu = fin && fin.resumen ? fin.resumen.ubicaciones_guardadas : 0
     raiz().innerHTML = `<div class="cn-card" style="text-align:center;margin-top:30px"><div style="font-size:2.4rem">✅</div><h3 style="margin:6px 0">Conteo terminado</h3>
-      <p class="cn-sub">Todo cuadra: el inventario ya coincidía con lo que contaste, no se cambió nada.</p>
+      <p class="cn-sub">Todo cuadra: el inventario ya coincidía con lo que contaste, no se cambió ningún total.${gu ? `<br>Se guardó dónde está cada par (estantería y amarres) en ${gu} talla(s).` : ''}</p>
       <button class="cn-btn p" style="width:100%;margin-top:12px" onclick="window.cargarConteo()">Contar otro modelo</button></div>`
     cn = null
   } catch (e) { toast(e.message); if (btn) { btn.disabled = false; btn.textContent = '✅ Todo cuadra: terminar' } }
@@ -268,7 +269,7 @@ window._cnAplicar = async () => {
     const hecho = await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar, confirmar: true } })
     const h = hecho.resumen
     raiz().innerHTML = `<div class="cn-card" style="text-align:center;margin-top:30px"><div style="font-size:2.4rem">✅</div><h3 style="margin:6px 0">Inventario ajustado</h3>
-      <p class="cn-sub">${h.aplicados} talla(s) actualizadas (+${h.pares_mas} / −${h.pares_menos} pares).${h.errores && h.errores.length ? `<br><span style="color:#dc2626">${h.errores.length} con error: ${esc(h.errores.slice(0, 3).join('; '))}</span>` : ''}</p>
+      <p class="cn-sub">${h.aplicados} talla(s) actualizadas (+${h.pares_mas} / −${h.pares_menos} pares).${h.ubicaciones_guardadas ? `<br>Se guardó dónde está cada par (estantería y amarres) en ${h.ubicaciones_guardadas} talla(s).` : ''}${h.errores && h.errores.length ? `<br><span style="color:#dc2626">${h.errores.length} con error: ${esc(h.errores.slice(0, 3).join('; '))}</span>` : ''}</p>
       <button class="cn-btn p" style="width:100%;margin-top:12px" onclick="window.cargarConteo()">Contar otro modelo</button></div>`
     cn = null
   } catch (e) { toast(e.message); if (btn) { btn.disabled = false } }
