@@ -246,8 +246,8 @@ window._cnTerminar = async () => {
     // NO se aplica nada a escondidas: se regresa a la revisión para que las veas.
     const vista = await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar } })
     if (vista.resumen && vista.resumen.tallas_cambian > 0) {
-      toast('El inventario cambió mientras revisabas. Revisa las diferencias.')
       await window._cnRevisar()
+      alert(`El inventario cambió mientras revisabas: ahora hay ${vista.resumen.tallas_cambian} talla(s) con diferencia. Revisa la lista y aplica los ajustes.`)
       return
     }
     const fin = await api(`/conteo/${cn.id}/aplicar`, { method: 'POST', json: { sin_contar: cn.sinContar, confirmar: true } })
@@ -256,7 +256,7 @@ window._cnTerminar = async () => {
       <p class="cn-sub">Todo cuadra: el inventario ya coincidía con lo que contaste, no se cambió ningún total.${gu ? `<br>Se guardó dónde está cada par (estantería y amarres) en ${gu} talla(s).` : ''}</p>
       <button class="cn-btn p" style="width:100%;margin-top:12px" onclick="window.cargarConteo()">Contar otro modelo</button></div>`
     cn = null
-  } catch (e) { toast(e.message); if (btn) { btn.disabled = false; btn.textContent = '✅ Todo cuadra: terminar' } }
+  } catch (e) { alert('No se pudo terminar el conteo: ' + e.message + ' (tu conteo sigue guardado, vuelve a intentarlo)'); if (btn) { btn.disabled = false; btn.textContent = '✅ Todo cuadra: terminar' } }
 }
 
 window._cnAplicar = async () => {
