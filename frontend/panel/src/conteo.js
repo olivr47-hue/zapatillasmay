@@ -196,7 +196,7 @@ window._cnSalir = () => { if (!cn || confirm('Lo contado ya está guardado. ¿Vo
 // ── Pantalla 3: revisar contra el ERP y aplicar ─────────────────────────────────────────────────────────────────────────────
 window._cnRevisar = async () => {
   try { cn.data = await api('/conteo/' + cn.id) } catch (e) { toast(e.message); return }   // trae también lo que contaron otras personas
-  cn.sinContar = cn.sinContar || 'cero'; cn.soloDif = cn.soloDif !== false
+  cn.sinContar = 'cero'; cn.soloDif = cn.soloDif !== false
   pantallaRevision()
 }
 
@@ -218,9 +218,7 @@ function pantallaRevision() {
   raiz().innerHTML = `<div class="cn-top"><div class="cn-bar1"><button class="cn-back" onclick="window._cnVolverContar()" aria-label="Volver">←</button>
       <div class="cn-nombre"><b>Revisar: ${esc(d.producto.nombre || '')}</b><small>${esc(d.producto.sku_interno || '')}</small></div></div></div>
     <div class="cn-kpis"><div class="cn-kpi"><b>${cambian.length}</b><small>Tallas cambian</small></div><div class="cn-kpi"><b style="color:#16a34a">+${mas}</b><small>Pares de más</small></div><div class="cn-kpi"><b style="color:#dc2626">−${menos}</b><small>Pares de menos</small></div></div>
-    ${sinTocar ? `<div class="cn-card"><b style="font-size:.9rem">${sinTocar} talla(s) sin contar</b><div class="cn-radio">
-      <label><input type="radio" name="cn-sc" value="cero" ${cn.sinContar === 'cero' ? 'checked' : ''} onchange="window._cnSinContar('cero')"><span><b>Ponerlas en 0 (no hay pares)</b><br><small>Lo normal: el inventario queda igual a lo que hay en físico. Si no encontraste esa talla, ya no existe.</small></span></label>
-      <label><input type="radio" name="cn-sc" value="igual" ${cn.sinContar === 'igual' ? 'checked' : ''} onchange="window._cnSinContar('igual')"><span><b>Dejarlas como están</b><br><small>Solo si NO contaste todo el modelo (por ejemplo, contaste un solo color).</small></span></label></div></div>` : ''}
+    ${sinTocar ? `<div class="cn-card" style="font-size:.85rem"><b>${sinTocar} talla(s) sin contar</b><br><small>Se ponen en 0: el inventario queda igual a lo que contaste. Si falta algo, regresa y cuéntalo antes de aplicar.</small></div>` : ''}
     <div class="cn-chips"><button class="cn-chip ${cn.soloDif ? 'on' : ''}" onclick="window._cnSoloDif(true)">Solo diferencias</button><button class="cn-chip ${!cn.soloDif ? 'on' : ''}" onclick="window._cnSoloDif(false)">Todas las tallas</button></div>
     ${Object.keys(porColor).length ? Object.entries(porColor).map(([c, fs]) => `<div class="cn-card"><b>${esc(c || 'Sin color')}</b><table class="cn-rev"><thead><tr><th style="text-align:left">Talla</th><th>ERP</th><th>Contado</th><th>Dif.</th></tr></thead><tbody>${fs.map(fila).join('')}</tbody></table></div>`).join('')
       : '<div class="cn-card" style="text-align:center;color:#16a34a;font-weight:700">✅ Sin diferencias: el ERP coincide con lo que contaste.</div>'}

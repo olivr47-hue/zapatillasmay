@@ -161,7 +161,7 @@ def conteo_aplicar(conteo_id: str, datos: dict, _staff=Depends(require_staff)):
         return JSONResponse(status_code=404, content={"error": "Conteo no encontrado"})
     if d["conteo"]["estado"] != "abierto":
         return JSONResponse(status_code=409, content={"error": "Este conteo ya se cerro"})
-    sin_contar = "cero" if str(datos.get("sin_contar") or "igual").lower() == "cero" else "igual"
+    sin_contar = "cero"   # el inventario es EXACTAMENTE lo contado: una talla que no se contó se pone en 0 (ya no existe la opcion de dejarla como esta)
     cambios = _plan(d, sin_contar)
     resumen = {"sin_contar": sin_contar, "tallas_cambian": len(cambios), "pares_mas": sum(c["dif"] for c in cambios if c["dif"] > 0),
                "pares_menos": -sum(c["dif"] for c in cambios if c["dif"] < 0), "sin_tocar": sum(1 for v in d["variantes"] if not v["tocada"])}
