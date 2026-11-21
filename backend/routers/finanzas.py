@@ -804,7 +804,7 @@ _GRUPOS_TU_UTILIDAD = [
     ("whatsapp", "WhatsApp (Maya y links)"),
     ("portal_solas", "Portal: clientas que se registraron solas"),
     ("clientes_nuevos", "Clientas nuevas que llegaron solas (pedidos capturados por ti o tu equipo)"),
-    ("tiktok", "TikTok (ventas capturadas con el cliente TikTok)"),
+    ("tiktok", "TikTok (pedidos que llegan solos al sistema y los capturados con el cliente TikTok)"),
     ("fb_marketplace", "Facebook Marketplace"),
     ("mostrador_sitio", "Punto de venta cobrado al precio del sitio (+$80)"),
 ]
@@ -827,7 +827,7 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
 
         def grupo(p):
             canal = (p.get('canal') or '').lower()
-            if origen.get(p.get('cliente_id')) == 'tiktok':
+            if origen.get(p.get('cliente_id')) == 'tiktok' or canal == 'tiktok':   # canal 'tiktok' = pedidos que el sistema importa solo (antes no entraban al desglose)
                 return "tiktok"
             if canal in ('web', 'online'):
                 return "tienda"
