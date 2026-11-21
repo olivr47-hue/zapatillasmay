@@ -502,6 +502,24 @@ def recibir_orden_existente(id: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+def _repartir_entrada(variante_id, sucursal_id, cantidad, a_estanteria):
+    """Despues de sumar `cantidad` pares al inventario (la regla de la base los pone en estanteria), deja en estanteria solo `a_estanteria`
+    y manda el resto a amarres. El total no cambia. Nunca deja negativos."""
+    a_est = max(0, min(int(a_estanteria or 0), int(cantidad)))
+    mover = int(cantidad) - a_est
+    if mover <= 0:
+        return
+    fila = (supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}&select=cant_estanteria,cant_amarres") or [None])[0]
+    if not fila:
+        return
+    est, am = int(fila.get("cant_estanteria") or 0), int(fila.get("cant_amarres") or 0)
+    mover = min(mover, est)
+    if mover <= 0:
+        return
+    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                   {"cant_estanteria": est - mover, "cant_amarres": am + mover})
+
+
 _RECIBIENDO = {}          # huella de la recepción -> momento en que empezó (candado contra dobles clics a la vez)
 _RECIBIENDO_LOCK = threading.Lock()
 _VENTANA_DUPLICADO_SEG = 180
@@ -605,6 +623,13 @@ def _recibir_mercancia_interno(datos: dict):
                 "cantidad_anterior": cantidad_anterior,
                 "motivo": f"Recepcion de mercancia - orden {orden_id}",
             })
+            # Reparto: si la pantalla manda «a_estanteria», solo esos pares suben a estantería y el resto se queda en amarres.
+            # Sin ese dato (otras pantallas), todo entra a estantería como siempre.
+            if i.get("a_estanteria") is not None:
+                try:
+                    _repartir_entrada(variante_id, sucursal_id, cantidad, int(i.get("a_estanteria") or 0))
+                except Exception as e_rep:
+                    print(f"[finanzas] reparto estanteria/amarres no guardado ({variante_id}): {e_rep}")
 
         return {"ok": True, "orden_id": orden_id, "total": total}
     except Exception as e:

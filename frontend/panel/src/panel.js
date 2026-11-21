@@ -8544,6 +8544,7 @@ window.mostrarRecibirMercancia = async () => {
         <div>
           <p style="font-size:0.85rem;color:#888">Total de pares recibidos</p>
           <p id="rec-pares" style="font-size:1.1rem;font-weight:700;color:#333">0</p>
+          <p style="font-size:0.78rem;color:#5f6b7a;margin-top:2px">📍 A estantería: <b id="rec-est-total">0</b> · se quedan en amarres: <b id="rec-am-total">0</b></p>
         </div>
         <div style="text-align:right">
           <p style="font-size:0.85rem;color:#888">Total estimado</p>
@@ -8621,7 +8622,8 @@ window.agregarProductoRecibir = (varianteId, productoId, nombre, talla, color, i
   } else {
     window._recibirItems.push({
       variante_id: varianteId, producto_id: productoId, nombre, talla, color, imagen,
-      cantidad: 1, costo_unitario: costoDefault || 0
+      cantidad: 1, costo_unitario: costoDefault || 0,
+      a_estanteria: 0   // todo llega a amarres; aquí se elige cuántos pares de esta talla suben a estantería
     })
   }
   renderListaRecibir()
@@ -8635,21 +8637,38 @@ window.renderListaRecibir = () => {
   const cont = document.getElementById('rec-lista')
   if (!cont) return
   const items = window._recibirItems || []
+  const barraAtajos = items.length === 0 ? '' : `
+    <div style="position:sticky;top:0;background:#fff;z-index:2;padding:8px 0;border-bottom:1px solid #eee;font-size:0.76rem;color:#5f6b7a">
+      <p style="margin:0 0 6px;font-weight:700">📍 ¿Cuántos pares de cada talla suben a estantería? Lo demás se queda en amarres.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span>Atajos:</span>
+        <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="recibirAtajoEstanteria(0)">Todo a amarres</button>
+        <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="recibirAtajoEstanteria(1)">1 corrida a estantería</button>
+        <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="recibirAtajoEstanteria(2)">2 corridas</button>
+        <span style="color:#9aa3af">(después puedes cambiar cada talla a mano)</span>
+      </div>
+    </div>`
   cont.innerHTML = items.length === 0
     ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:2rem 1rem">Busca un modelo a la izquierda y toca la talla para agregarlo</p>'
-    : items.map((item, idx) => `
-      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+    : barraAtajos + items.map((item, idx) => `
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap">
         ${item.imagen ? `<img src="${item.imagen}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8;flex-shrink:0">` : ''}
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:120px">
           <p style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.nombre}</p>
           <p style="font-size:0.72rem;color:#888">${item.color} · T${item.talla}</p>
         </div>
         <input type="number" min="1" value="${item.cantidad}" oninput="actualizarCantidadRecibir(${idx}, this.value)"
-               title="Cantidad" style="width:50px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
+               title="Cantidad que llegó" style="width:50px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
         <div style="display:flex;align-items:center;gap:2px">
           <span style="font-size:0.72rem;color:#888">$</span>
           <input type="number" step="0.01" min="0" value="${item.costo_unitario}" oninput="actualizarCostoRecibir(${idx}, this.value)"
                  title="Costo por par" style="width:62px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;background:#eef6ff;border:1px solid #cfe0f5;border-radius:8px;padding:3px 6px" title="Pares de esta talla que se acomodan en estantería; el resto queda en amarres">
+          <span style="font-size:0.68rem;color:#3b6aa5">A estant.</span>
+          <input type="number" min="0" max="${item.cantidad}" id="rec-est-${idx}" value="${item.a_estanteria || 0}" oninput="actualizarEstanteriaRecibir(${idx}, this.value)"
+                 style="width:44px;text-align:center;border:1px solid #bcd3ee;border-radius:6px;padding:3px;font-size:0.85rem">
+          <span style="font-size:0.68rem;color:#5f6b7a">amarres <b id="rec-am-${idx}">${Math.max(0, item.cantidad - (item.a_estanteria || 0))}</b></span>
         </div>
         <button onclick="eliminarItemRecibir(${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem">✕</button>
       </div>
@@ -8657,10 +8676,41 @@ window.renderListaRecibir = () => {
   actualizarTotalRecibir()
 }
 
+// Cuántos pares de esta talla suben a estantería (a mano). Nunca más de los que llegaron.
+window.actualizarEstanteriaRecibir = (idx, valor) => {
+  const item = window._recibirItems[idx]
+  if (!item) return
+  item.a_estanteria = Math.max(0, Math.min(parseInt(valor) || 0, item.cantidad || 0))
+  const am = document.getElementById('rec-am-' + idx)
+  if (am) am.textContent = Math.max(0, item.cantidad - item.a_estanteria)
+  actualizarTotalRecibir()
+}
+
+// Atajo: n corridas a estantería, por modelo y color. Una corrida = 1 par de cada talla (6 tallas con medios), o 1-2-2-1 si solo hay enteros 23-26.
+window.recibirAtajoEstanteria = (n) => {
+  const items = window._recibirItems || []
+  const grupos = {}
+  items.forEach(i => { (grupos[i.producto_id + '|' + i.color] = grupos[i.producto_id + '|' + i.color] || []).push(i) })
+  Object.values(grupos).forEach(g => {
+    const tallas = g.map(i => String(i.talla))
+    const soloEnteros = tallas.every(t => !String(t).includes('.')) && ['23', '24', '25', '26'].every(t => tallas.includes(t))
+    const patron = { '23': 1, '24': 2, '25': 2, '26': 1 }
+    g.forEach(i => {
+      const por_corrida = soloEnteros ? (patron[String(i.talla)] || 1) : 1
+      i.a_estanteria = n <= 0 ? 0 : Math.min(i.cantidad || 0, n * por_corrida)
+    })
+  })
+  renderListaRecibir()
+}
+
 window.actualizarCantidadRecibir = (idx, valor) => {
   const item = window._recibirItems[idx]
   if (!item) return
   item.cantidad = parseInt(valor) || 1
+  if ((item.a_estanteria || 0) > item.cantidad) item.a_estanteria = item.cantidad   // no pueden subir más de los que llegaron
+  const idx2 = window._recibirItems.indexOf(item)
+  const inEst = document.getElementById('rec-est-' + idx2); if (inEst) { inEst.max = item.cantidad; inEst.value = item.a_estanteria || 0 }
+  const am = document.getElementById('rec-am-' + idx2); if (am) am.textContent = Math.max(0, item.cantidad - (item.a_estanteria || 0))
   actualizarTotalRecibir()
 }
 
@@ -8684,6 +8734,10 @@ window.actualizarTotalRecibir = () => {
   const elPares = document.getElementById('rec-pares')
   if (el) el.textContent = '$' + total.toLocaleString('es-MX', { maximumFractionDigits: 0 })
   if (elPares) elPares.textContent = pares
+  const aEst = items.reduce((s, i) => s + Math.min(i.a_estanteria || 0, i.cantidad || 0), 0)
+  const elE = document.getElementById('rec-est-total'), elA = document.getElementById('rec-am-total')
+  if (elE) elE.textContent = aEst
+  if (elA) elA.textContent = Math.max(0, pares - aEst)
 }
 
 window.guardarRecibirMercancia = async () => {
@@ -8697,7 +8751,7 @@ window.guardarRecibirMercancia = async () => {
   if (!sucursal_id) { alert('Selecciona la sucursal'); return }
 
   const items = (window._recibirItems || [])
-    .map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad, costo_unitario: i.costo_unitario }))
+    .map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad, costo_unitario: i.costo_unitario, a_estanteria: Math.max(0, Math.min(i.a_estanteria || 0, i.cantidad || 0)) }))
     .filter(i => i.cantidad > 0)
   if (items.length === 0) { alert('Agrega al menos un producto con talla y cantidad'); return }
 
