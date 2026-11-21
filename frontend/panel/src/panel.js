@@ -4331,7 +4331,7 @@ async function _cargarDatosAnalisisPesados() {
 
         return `
         <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-flow:row wrap">
             ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8fafc">` : ''}
             <div style="flex:1">
               <p style="font-weight:700;font-size:0.88rem;color:#0f172a">${p.nombre}</p>
@@ -4661,7 +4661,7 @@ window._renderVariantesRapido = () => {
     const mx = Math.max(...top.map(v => v.total), 1)
     const win = top[0]
     return `<div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-flow:row wrap">
         ${p.imagen_principal ? `<img src="${_invEsc(p.imagen_principal)}" loading="lazy" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8fafc">` : ''}
         <div style="flex:1"><p style="font-weight:700;font-size:0.88rem;color:#0f172a">${_invEsc(p.nombre)}</p>
           <p style="font-size:0.7rem;color:#94a3b8">${p.variantes.filter(v => v.total > 0).length} de ${p.variantes.length} variantes con ventas</p></div>
@@ -7513,7 +7513,7 @@ window.renderInventario = () => {
           else { bg = '#e8f5e9'; colorTexto = '#2e7d32' }
 
           return `
-            <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;background:${bg};border-radius:10px;padding:8px 12px;border:1px solid ${colorTexto}30">
+            <div style="display:flex;flex-flow:row wrap;align-items:center;justify-content:space-between;background:${bg};border-radius:10px;padding:8px 12px;border:1px solid ${colorTexto}30">
               <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:44px">T${v.talla}</span>
               <div style="display:flex;align-items:center;gap:8px">
                 <button onclick="cambiarStockInventario('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo}, -1)"
@@ -7531,7 +7531,7 @@ window.renderInventario = () => {
 
         return `
           <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-flow:row wrap">
               ${fotoColor
                 ? `<img src="${fotoColor}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`
                 : `<div style="width:52px;height:52px;background:${colorHex};border-radius:8px;border:1px solid #eee;flex-shrink:0;opacity:0.7"></div>`}
@@ -7540,7 +7540,7 @@ window.renderInventario = () => {
                 <span style="font-size:0.9rem;font-weight:600;color:#333">${color}</span>
               </div>
               <button class="btn btn-secondary" style="margin-left:auto;padding:4px 10px;font-size:0.75rem;background:#eef6ff;border-color:#3b6aa5;color:#3b6aa5"
-                      onclick="abrirMoverUbic('${prod.id}','${encodeURIComponent(color)}','${suc.id}')">⇄ Mover amarres / estantería</button>
+                      title="Pasar pares de amarres a estantería (o al revés)" onclick="abrirMoverUbic('${prod.id}','${encodeURIComponent(color)}','${suc.id}')">⇄ Mover pares</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
               ${tallasHtml}
@@ -7611,7 +7611,7 @@ window.abrirMoverUbic = (productoId, colorEnc, sucursalId) => {
       <button id="mvu-d-estanteria" class="btn" onclick="mvuDesde('estanteria')" style="flex:1;font-size:0.8rem"></button>
     </div>
     <p style="font-size:0.78rem;color:#5f6b7a;margin:6px 0">Escribe cuántos pares de cada talla quieres pasar. El total de la talla no cambia.</p>
-    <div id="mvu-atajos" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div id="mvu-atajos" style="display:flex;gap:6px;flex-flow:row wrap;margin-bottom:8px"></div>
     <div id="mvu-filas"></div>
     <p id="mvu-resumen" style="font-size:0.85rem;font-weight:600;margin:10px 0 0"></p>
     <button id="mvu-guardar" class="btn btn-primary" onclick="mvuGuardar()" style="width:100%;margin-top:10px">Guardar movimiento</button>
@@ -8605,14 +8605,14 @@ window.mostrarRecibirMercancia = async () => {
 
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div class="table-card" style="padding:2rem;max-width:920px">
+    <div class="table-card" style="padding:clamp(12px,3vw,2rem);max-width:920px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
         <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>📥 Recibir mercancía</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Registra lo que llegó de un proveedor: sube el inventario y genera la cuenta por pagar automáticamente con la fecha de hoy.</p>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1rem">
         <div>
           <label class="form-label">Proveedor *</label>
           <select class="form-input" id="rec-proveedor" onchange="autocompletarDiasCredito()">
@@ -8643,7 +8643,7 @@ window.mostrarRecibirMercancia = async () => {
         <input class="form-input" id="rec-notas" placeholder="Ej: Remisión #1234">
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1.5rem">
         <div>
           <label class="form-label">Buscar modelo</label>
           <input class="form-input" id="rec-buscar" placeholder="🔍 Nombre o SKU..." oninput="buscarProductoRecibir(this.value)" autocomplete="off">
@@ -8755,7 +8755,7 @@ window.renderListaRecibir = () => {
   const barraAtajos = items.length === 0 ? '' : `
     <div style="position:sticky;top:0;background:#fff;z-index:2;padding:8px 0;border-bottom:1px solid #eee;font-size:0.76rem;color:#5f6b7a">
       <p style="margin:0 0 6px;font-weight:700">📍 ¿Cuántos pares de cada talla suben a estantería? Lo demás se queda en amarres.</p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;gap:6px;flex-flow:row wrap;align-items:center">
         <span>Atajos:</span>
         <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="recibirAtajoEstanteria(0)">Todo a amarres</button>
         <button class="btn btn-secondary" style="padding:3px 10px;font-size:0.74rem" onclick="recibirAtajoEstanteria(1)">1 corrida a estantería</button>
@@ -8766,7 +8766,7 @@ window.renderListaRecibir = () => {
   cont.innerHTML = items.length === 0
     ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:2rem 1rem">Busca un modelo a la izquierda y toca la talla para agregarlo</p>'
     : barraAtajos + items.map((item, idx) => `
-      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;flex-flow:row wrap">
         ${item.imagen ? `<img src="${item.imagen}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8;flex-shrink:0">` : ''}
         <div style="flex:1;min-width:120px">
           <p style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.nombre}</p>
@@ -34034,7 +34034,7 @@ window._pintarGastosFijos = async (container, sucursalId) => {
   caja.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <p style="font-weight:700;font-size:0.95rem;margin:0">🔁 Gastos fijos <span style="font-weight:400;color:#94a3b8;font-size:0.75rem">(renta, luz, sueldos… se registran solos cada mes)</span></p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;gap:6px;flex-flow:row wrap;align-items:center">
         <button class="btn btn-primary" style="padding:5px 12px;font-size:0.78rem" onclick="agregarGastoFijo('${sucursalId}')">＋ Agregar gasto fijo</button>
         <input type="month" id="gf-mes-contador" class="form-input" value="${mesDef}" style="max-width:150px;padding:4px 8px;font-size:0.78rem">
         <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="descargarContador('${sucursalId}','ventas')">📥 Ventas (Excel)</button>

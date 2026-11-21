@@ -49,7 +49,7 @@ function css() {
   .cn-pie{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #eee;padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;z-index:20}
   .cn-btn{flex:1;padding:14px;border-radius:14px;border:none;font-weight:800;font-size:1rem;cursor:pointer;background:#f3f3f3;color:#333}
   .cn-btn.p{background:#E91E8C;color:#fff;flex:2} .cn-btn.n{background:#111;color:#fff} .cn-btn:disabled{opacity:.5}
-  .cn-rev{width:100%;border-collapse:collapse;font-size:.9rem} .cn-rev th{font-size:.68rem;color:#888;text-transform:uppercase;text-align:center;padding:6px 2px;font-weight:700}
+  .cn-rev{width:100%;min-width:0 !important;border-collapse:collapse;font-size:.9rem} .cn-rev th{font-size:.68rem;color:#888;text-transform:uppercase;text-align:center;padding:6px 2px;font-weight:700}
   .cn-rev td{padding:9px 2px;border-bottom:1px solid #f1f1f1;text-align:center} .cn-rev td:first-child{text-align:left;font-weight:700}
   .cn-dif{font-weight:800} .cn-dif.mas{color:#16a34a} .cn-dif.menos{color:#dc2626} .cn-dif.cero{color:#bbb}
   .cn-sin{color:#bbb;font-size:.75rem}
