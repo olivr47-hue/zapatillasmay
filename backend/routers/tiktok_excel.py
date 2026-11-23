@@ -70,7 +70,7 @@ def _cargar_erp():
     """Productos activos + variantes + existencias del ERP, listos para cruzar con TikTok."""
     productos = supabase_get_all(
         "productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,imagen_principal,categoria")
-    variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla,foto_url,imagenes")
+    variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla,sku,foto_url,imagenes")
     inv = {}
     for i in supabase_get_all("inventario?select=variante_id,cantidad"):
         inv[i["variante_id"]] = inv.get(i["variante_id"], 0) + int(i.get("cantidad") or 0)

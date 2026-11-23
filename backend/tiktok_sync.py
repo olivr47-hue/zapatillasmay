@@ -304,6 +304,12 @@ def _variante_de_sku(sv, cargado):
     prod = next((p for p in productos if (p.get("sku_interno") or str(p["id"])) == clave), None)
     if not prod:
         return None
+    # 1) SKU del vendedor idéntico al SKU de una variante (M-BTN-0344-NEG-24 vs M-BTN-0344-NEGROC-24): sin ambigüedad.
+    #    Antes «NEG» coincidía con «Negro» y «Negro Croxa» a la vez y el pedido quedaba sin ligar (sin foto ni descuento de inventario).
+    sv_n = sv.strip().upper()
+    directas = [v for v in vars_por_prod.get(prod["id"], []) if (v.get("sku") or "").strip().upper() == sv_n]
+    if len(directas) == 1:
+        return directas[0]
     talla = _clave_talla(resto[-1])
     color = _clave_color("".join(resto[:-1]))
     cand = [v for v in vars_por_prod.get(prod["id"], []) if _clave_talla(v.get("talla")) == talla]
@@ -459,7 +465,7 @@ def hacer_sync_ventas_tiktok(forzar_sin_interruptor=False):
                 subtotal = total = sum(i["precio_unitario"] * i["cantidad"] for i in items)
             datos = {"tiktok_order_id": oid, "canal": "tiktok", "status": estado_erp, "tipo": "online", "total": total, "subtotal": subtotal,
                      "forma_pago": "tiktok", "nombre_cliente": "Comprador TikTok",
-                     "notas": f"Pedido generado automaticamente desde TikTok Shop (orden {oid})" + (" — falto ligar algun SKU al inventario: revisalo" if faltante else "")}
+                     "notas": f"Pedido generado automaticamente desde TikTok Shop (orden {oid})" + (" — falto ligar algun SKU al inventario: revisalo (SKU de TikTok: " + ", ".join((i.get("sku") or "sin SKU") for i in items if not i["variante_id"]) + ")" if faltante else "")}
             f = _iso(orden.get("create_time"))
             if f:
                 datos["created_at"] = f
