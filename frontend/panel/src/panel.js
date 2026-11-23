@@ -11733,8 +11733,7 @@ window.mostrarListaSurtido = () => {
     // (p. ej. «Negro» sirve para Negro y Negro Croxa). Va en su propio renglón con alerta para no confundirlo.
     const sinLigar = !i.variante_id && ['tiktok', 'shein', 'walmart', 'amazon', 'mercadolibre'].includes(p.canal)
     const k = `${nombre}|${color}|${talla}${sinLigar ? '|sin-ligar' : ''}`
-    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set(), foto: '', sinLigar }
-    if (!mapa[k].foto && i.foto_real) mapa[k].foto = i.foto_real
+    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set(), sinLigar }
     mapa[k].pares += Number(i.cantidad) || 0
     mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
   }))
@@ -11770,7 +11769,6 @@ window.mostrarListaSurtido = () => {
       const d = hecho(f)
       return `<div onclick="_surtidoMarcar(${i})" style="display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:2px solid ${d ? '#86efac' : '#e5e7eb'};background:${d ? '#f0fdf4' : '#fff'};margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;${d ? 'opacity:.7' : ''}">
         <div style="flex:none;width:32px;height:32px;border-radius:9px;border:2px solid ${d ? '#16a34a' : '#94a3b8'};background:${d ? '#16a34a' : '#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800">${d ? '✓' : ''}</div>
-        ${f.foto ? `<img src="${_e(f.foto)}" alt="" loading="lazy" style="flex:none;width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">` : ''}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:0.92rem;line-height:1.25;${d ? 'text-decoration:line-through;' : ''}">${_e(f.nombre)}</div>
           <div style="font-size:0.86rem;color:#334155;margin-top:3px">${f.color ? `<strong>${_e(f.color)}</strong>` : ''}${f.color && f.talla ? ' · ' : ''}${f.talla ? `<strong>Talla ${_e(f.talla)}</strong>` : ''}</div>
