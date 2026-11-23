@@ -124,6 +124,7 @@ function pantallaConteo() {
         <div class="cn-total"><b id="cn-tot">${totalContado()}</b><small>pares contados</small></div></div>
       <div class="cn-eti">¿Dónde estás contando?</div>
       <div class="cn-chips cn-ub" id="cn-ub"></div>
+      <div id="cn-falta" style="font-size:.78rem;margin:2px 0 6px"></div>
       ${cols.length > 1 ? '<div class="cn-eti">Color</div><div class="cn-chips" id="cn-col"></div>' : ''}</div>
     <div class="cn-grid" id="cn-grid"></div>
     <div class="cn-pie"><button class="cn-btn" onclick="window._cnDeshacer()">↶ Deshacer</button><button class="cn-btn p" onclick="window._cnRevisar()">Revisar y terminar →</button></div>`
@@ -134,6 +135,14 @@ function pintarChips() {
   const ub = document.getElementById('cn-ub'); if (!ub) return
   const porUb = (u) => cn.data.variantes.reduce((s, v) => s + (v.contado[u] || 0), 0)
   ub.innerHTML = Object.keys(UBIC).map(u => `<button class="cn-chip ${cn.ubic === u ? 'on' : ''}" onclick="window._cnUbic('${u}')">${UBIC[u]}<small>${porUb(u)}</small></button>`).join('')
+  // Se cuenta TODO el modelo de un jalón: Estantería y Amarres son obligatorios antes de revisar y terminar
+  const falta = document.getElementById('cn-falta')
+  if (falta) {
+    const fila = (u) => ubVisitada(u)
+      ? `<span style="color:#16a34a;font-weight:700">✅ ${UBIC[u]}${porUb(u) ? ' · ' + porUb(u) : ' · sin pares'}</span>`
+      : `<span style="color:#b45309;font-weight:700">⬜ ${UBIC[u]} sin contar</span> <button onclick="window._cnNoHay('${u}')" style="font:inherit;font-size:.74rem;padding:2px 8px;border-radius:99px;border:1px solid #d1d5db;background:#fff;cursor:pointer">No hay en ${UBIC[u].toLowerCase()}</button>`
+    falta.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${fila('estanteria')}${fila('amarres')}</div>`
+  }
   const co = document.getElementById('cn-col'); if (!co) return
   co.innerHTML = colores().map(c => {
     const n = cn.data.variantes.filter(v => v.color === c).reduce((s, v) => s + (v.contado[cn.ubic] || 0), 0)   // de la ubicación elegida
@@ -157,6 +166,13 @@ function pintarGrid() {
   g.innerHTML = cn.data.variantes.filter(v => v.color === cn.color).map(celdaHTML).join('')
 }
 
+// Una ubicación cuenta como revisada si ya se contó al menos un par ahí, o si se confirmó a mano que no hay nada
+const ubVisitada = (u) => !!(cn.noHay && cn.noHay[u]) || cn.data.variantes.some(v => (v.contado[u] || 0) > 0)
+window._cnNoHay = (u) => {
+  const antes = cn.data.variantes.reduce((s, v) => s + (v.erp || 0), 0)
+  if (!confirm(`¿Confirmas que NO hay pares de este modelo en ${UBIC[u].toLowerCase()}? (el sistema tiene ${antes} par(es) en total)`)) return
+  cn.noHay = Object.assign(cn.noHay || {}, { [u]: true }); pintarChips()
+}
 window._cnUbic = (u) => { cn.ubic = u; pintarChips(); pintarGrid() }
 window._cnColor = (btn) => { cn.color = btn.dataset.c; pintarChips(); pintarGrid() }
 
@@ -196,6 +212,12 @@ window._cnSalir = () => { if (!cn || confirm('Lo contado ya está guardado. ¿Vo
 // ── Pantalla 3: revisar contra el ERP y aplicar ─────────────────────────────────────────────────────────────────────────────
 window._cnRevisar = async () => {
   try { cn.data = await api('/conteo/' + cn.id) } catch (e) { toast(e.message); return }   // trae también lo que contaron otras personas
+  const sin = ['estanteria', 'amarres'].filter(u => !ubVisitada(u))
+  if (sin.length) {
+    cn.ubic = sin[0]; pantallaConteo()
+    alert(`Falta contar ${sin.map(u => UBIC[u].toUpperCase()).join(' y ')}. Cuenta todo el modelo de un jalón para que el inventario quede bien. Si ahí no hay pares, toca «No hay en…».`)
+    return
+  }
   cn.sinContar = 'cero'; cn.soloDif = cn.soloDif !== false
   pantallaRevision()
 }

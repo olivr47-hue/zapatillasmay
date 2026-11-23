@@ -7427,6 +7427,7 @@ async function cargarInventario() {
   <div style="margin-bottom:1.5rem">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <input class="form-input" id="inv-buscar" placeholder="🔍 Buscar por nombre o SKU..." style="flex:1;min-width:200px" oninput="renderInventario()">
+      <button class="btn btn-secondary" onclick="abrirAcomodo()" title="Qué reponer en estantería y qué amarres quedaron abiertos" style="font-weight:700">📦 Acomodo</button>
       <select class="form-input" id="inv-categoria" style="min-width:140px" onchange="renderInventario()">
         <option value="">Todas las categorias</option>
         ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
@@ -7698,7 +7699,91 @@ window.mvuGuardar = async () => {
     })
     cerrarMoverUbic()
     renderInventario()
+    if (window._acomodoRefrescar) window._acomodoRefrescar()
   } catch (e) { alert('Error de conexión'); g.disabled = false; g.textContent = 'Guardar movimiento' }
+}
+
+// ── 📦 Acomodo: indicadores, qué reponer en estantería (por corrida) y amarres que quedaron abiertos ──
+window.abrirAcomodo = async () => {
+  if (!window._invData) return
+  document.getElementById('acom-overlay')?.remove()
+  const ov = document.createElement('div')
+  ov.id = 'acom-overlay'
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9990;display:flex;align-items:center;justify-content:center;padding:12px'
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:92vh;overflow:auto;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0;font-size:1.05rem">📦 Acomodo de estantería y amarres</h3>
+      <button onclick="document.getElementById('acom-overlay').remove();window._acomodoRefrescar=null" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer">✕</button></div>
+    <div id="acom-cuerpo"><p style="color:#888">Cargando…</p></div></div>`
+  document.body.appendChild(ov)
+  window._acomodoRefrescar = () => pintarAcomodo()
+  pintarAcomodo()
+}
+async function pintarAcomodo() {
+  const cuerpo = document.getElementById('acom-cuerpo'); if (!cuerpo || !window._invData) return
+  const { sucursales, productos, variantes, inventario } = window._invData
+  const ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+  let alertas = []
+  try { const r = await fetch(API + '/inventario/alertas-ubicacion'); if (r.ok) alertas = await r.json() } catch (e) { /* sin alertas: se muestra el resto */ }
+  const vMap = new Map(variantes.map(v => [v.id, v])), pMap = new Map(productos.map(p => [p.id, p]))
+  const sMap = new Map(sucursales.map(s => [s.id, s]))
+  const filas = inventario.map(i => ({ i, v: vMap.get(i.variante_id) })).filter(x => x.v && x.v.activa !== false && (pMap.get(x.v.producto_id) || {}).activo)
+  const totEst = filas.reduce((s, x) => s + (x.i.cant_estanteria || 0), 0), totAm = filas.reduce((s, x) => s + (x.i.cant_amarres || 0), 0)
+  const grupo = (lista) => {
+    const g = {}
+    lista.forEach(x => {
+      const k = `${x.v.producto_id}|${x.v.color}|${x.i.sucursal_id}`
+      ;(g[k] = g[k] || { prodId: x.v.producto_id, color: x.v.color || '', sucId: x.i.sucursal_id, tallas: [] }).tallas.push(x)
+    })
+    Object.values(g).forEach(e => e.tallas.sort((a, b) => ORDEN.indexOf(a.v.talla) - ORDEN.indexOf(b.v.talla)))
+    return Object.values(g)
+  }
+  // 1) Tallas sin par en estantería pero con pares en amarres: hay que reponer
+  const reponer = grupo(filas.filter(x => !(x.i.cant_estanteria || 0) && (x.i.cant_amarres || 0) > 0)).sort((a, b) => b.tallas.length - a.tallas.length)
+  // 2) Amarres que se abrieron (salió un par en una venta): lo que quedó suelto de ese modelo y color
+  const conAlerta = new Set(alertas.map(a => a.variante_id))
+  const idsAlerta = new Set()
+  filas.filter(x => conAlerta.has(x.i.variante_id)).forEach(x => idsAlerta.add(`${x.v.producto_id}|${x.v.color}|${x.i.sucursal_id}`))
+  const abiertos = grupo(filas.filter(x => idsAlerta.has(`${x.v.producto_id}|${x.v.color}|${x.i.sucursal_id}`)))
+  window._acom = { reponer, abiertos, alertas }
+  const kpi = (n, t, c) => `<div style="flex:1;min-width:110px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;text-align:center"><div style="font-size:1.25rem;font-weight:800;color:${c || '#111'}">${n}</div><div style="font-size:0.68rem;color:#64748b">${t}</div></div>`
+  const nombre = (e) => `${_e(((pMap.get(e.prodId) || {}).nombre || '').split(' ').slice(0, 4).join(' '))} · ${_e(e.color)}${sucursales.length > 1 ? ` <span style="color:#94a3b8">(${_e((sMap.get(e.sucId) || {}).nombre || '')})</span>` : ''}`
+  const chips = (e) => e.tallas.map(x => `<span style="display:inline-block;margin:2px 4px 0 0;padding:2px 7px;border-radius:99px;background:#f1f5f9;font-size:0.72rem">T${_e(x.v.talla)} · est ${x.i.cant_estanteria || 0} · amarres <b>${x.i.cant_amarres || 0}</b></span>`).join('')
+  const bloqueReponer = reponer.length ? reponer.slice(0, 40).map((e, n) => `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:9px 10px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:0.85rem">${nombre(e)}</div><div>${chips(e)}</div>
+      <div style="display:flex;gap:6px;margin-top:7px"><button class="btn btn-primary" style="padding:5px 10px;font-size:0.74rem" onclick="acomUnaCorrida(${n})">Pasar 1 par de cada talla (${e.tallas.length})</button>
+      <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.74rem" onclick="abrirMoverUbic('${e.prodId}','${encodeURIComponent(e.color)}','${e.sucId}')">Elegir yo…</button></div></div>`).join('')
+      + (reponer.length > 40 ? `<p style="font-size:0.75rem;color:#94a3b8">Y ${reponer.length - 40} más.</p>` : '')
+    : '<p style="color:#16a34a;font-weight:700;margin:4px 0">✅ Todas las tallas con pares tienen al menos uno en estantería.</p>'
+  const bloqueAbiertos = abiertos.length ? abiertos.map((e, n) => {
+    const resto = e.tallas.reduce((s, x) => s + (x.i.cant_amarres || 0), 0)
+    return `<div style="border:1px solid #fed7aa;background:#fff7ed;border-radius:10px;padding:9px 10px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:0.85rem">${nombre(e)}</div>
+      <div style="font-size:0.76rem;color:#9a3412;margin:2px 0">${resto ? `Salió un par de un amarre. Quedan ${resto} par(es) sueltos en amarres: acomódalos en estantería.` : 'Ya no queda nada en amarres de este color.'}</div><div>${chips(e)}</div>
+      <div style="display:flex;gap:6px;margin-top:7px">${resto ? `<button class="btn btn-primary" style="padding:5px 10px;font-size:0.74rem" onclick="abrirMoverUbic('${e.prodId}','${encodeURIComponent(e.color)}','${e.sucId}')">Pasar el resto a estantería</button>` : ''}
+      <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.74rem" onclick="acomListo(${n})">Ya lo acomodé</button></div></div>`
+  }).join('') : '<p style="color:#16a34a;font-weight:700;margin:4px 0">✅ No hay amarres abiertos por acomodar.</p>'
+  cuerpo.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px">${kpi(totEst, 'Pares en estantería')}${kpi(totAm, 'Pares en amarres')}${kpi(reponer.reduce((s, e) => s + e.tallas.length, 0), 'Tallas por reponer', reponer.length ? '#b45309' : '#16a34a')}${kpi(abiertos.length, 'Amarres abiertos', abiertos.length ? '#b45309' : '#16a34a')}</div>
+    <p style="font-weight:700;margin:10px 0 4px">📂 Amarres abiertos</p>${bloqueAbiertos}
+    <p style="font-weight:700;margin:14px 0 4px">🔁 Reponer en estantería <span style="font-weight:400;font-size:0.74rem;color:#64748b">(tallas sin pares en estantería pero con pares en amarres)</span></p>${bloqueReponer}`
+}
+window.acomUnaCorrida = async (n) => {
+  const e = (window._acom || {}).reponer && window._acom.reponer[n]; if (!e) return
+  if (!confirm(`¿Pasar 1 par de cada talla (${e.tallas.length}) de amarres a estantería?`)) return
+  const items = e.tallas.map(x => ({ variante_id: x.v.id, cantidad: 1 }))
+  try {
+    const res = await fetch(API + '/inventario/mover-ubicacion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sucursal_id: e.sucId, desde: 'amarres', items }) })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { alert(d.error || 'No se pudo mover'); return }
+    e.tallas.forEach(x => { x.i.cant_amarres -= 1; x.i.cant_estanteria += 1; x.i.ubicacion_confirmada = true })
+    renderInventario(); pintarAcomodo()
+  } catch (err) { alert('Error de conexión') }
+}
+window.acomListo = async (n) => {
+  const e = (window._acom || {}).abiertos && window._acom.abiertos[n]; if (!e) return
+  try {
+    await fetch(API + '/inventario/alertas-ubicacion/atender', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ variante_ids: e.tallas.map(x => x.v.id) }) })
+  } catch (err) { /* se reintenta al tocar de nuevo */ }
+  pintarAcomodo()
 }
 
 window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, minimo, delta) => {
@@ -11320,7 +11405,7 @@ function _renderFilaPedido(p) {
     ? btn('🖨️ Guía', `_guiaMarketplace('${p.canal}','${_e(_gid)}',this)`, 'background:#fff7ed;border-color:#fb923c;color:#9a3412;font-weight:700') : ''
   const _itemsMkt = ['mercadolibre', 'shein', 'walmart', 'amazon', 'tiktok'].includes(p.canal) ? (p.pedido_items || []) : []
   const parPedido = _itemsMkt.length
-    ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => { const col = i.color_real || i.color, tal = i.talla_real || i.talla; return `👟 <strong>${_e(i.modelo_real || i.nombre || 'Producto')}</strong>${col ? ' · ' + _e(col) : ''}${tal ? ' · <strong>talla ' + _e(tal) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}` }).join('<br>')}</div>` : ''
+    ? `<div style="margin-top:6px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.76rem;line-height:1.4;max-width:320px;white-space:normal">${_itemsMkt.map(i => { const col = i.color_real || i.color, tal = i.talla_real || i.talla; return `👟 <strong>${_e(i.modelo_real || i.nombre || 'Producto')}</strong>${col ? ' · ' + _e(col) : ''}${tal ? ' · <strong>talla ' + _e(tal) + '</strong>' : ''} · ×${Number(i.cantidad) || 1}${i.en_amarres ? ' · <strong style="color:#9a3412">📦 en AMARRES</strong>' : ''}` }).join('<br>')}</div>` : ''
   let acciones = ''
   if (porEnviar) {
     acciones = `${btnGuia}
@@ -11736,7 +11821,8 @@ window.mostrarListaSurtido = () => {
     // (p. ej. «Negro» sirve para Negro y Negro Croxa). Va en su propio renglón con alerta para no confundirlo.
     const sinLigar = !i.variante_id && ['tiktok', 'shein', 'walmart', 'amazon', 'mercadolibre'].includes(p.canal)
     const k = `${nombre}|${color}|${talla}${sinLigar ? '|sin-ligar' : ''}`
-    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set(), sinLigar }
+    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set(), sinLigar, enAmarres: false }
+    if (i.en_amarres) mapa[k].enAmarres = true
     mapa[k].pares += Number(i.cantidad) || 0
     mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
   }))
@@ -11775,6 +11861,7 @@ window.mostrarListaSurtido = () => {
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:0.92rem;line-height:1.25;${d ? 'text-decoration:line-through;' : ''}">${_e(f.nombre)}</div>
           <div style="font-size:0.86rem;color:#334155;margin-top:3px">${f.color ? `<strong>${_e(f.color)}</strong>` : ''}${f.color && f.talla ? ' · ' : ''}${f.talla ? `<strong>Talla ${_e(f.talla)}</strong>` : ''}</div>
+          ${f.enAmarres ? '<div style="font-size:0.72rem;font-weight:800;color:#9a3412;background:#ffedd5;border-radius:6px;padding:2px 6px;margin-top:4px;display:inline-block">📦 Está en AMARRES</div>' : ''}
           ${f.sinLigar ? '<div style="font-size:0.72rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;display:inline-block">⚠ Material sin confirmar: revisa el SKU en el canal</div>' : ''}
           <div style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${_e(f.refs)}</div>
         </div>
@@ -12498,7 +12585,8 @@ window.verPedido = async (id) => {
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:0.85rem;margin:0 0 2px">${nombre}${color ? ' · ' + color : ''}${talla ? ' · T' + talla : ''}</p>
                   <p style="font-size:0.8rem;color:#888;margin:0">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
-                  ${!item.variante_id && p.canal && p.canal !== 'sucursal' ? '<p style="font-size:0.74rem;font-weight:700;color:#b45309;margin:4px 0 0">⚠ Sin ligar al inventario: el material (p. ej. Negro vs Negro Croxa) no está confirmado y no se descontó</p>' : ''}
+                  ${item.en_amarres ? '<p style="font-size:0.78rem;font-weight:800;color:#9a3412;background:#ffedd5;border-radius:6px;padding:3px 8px;margin:4px 0 0;display:inline-block">📦 Este par está en AMARRES: búscalo ahí (en estantería ya no había)</p>' : ''}
+                  ${!item.variante_id && p.canal && p.canal !== 'sucursal' ?'<p style="font-size:0.74rem;font-weight:700;color:#b45309;margin:4px 0 0">⚠ Sin ligar al inventario: el material (p. ej. Negro vs Negro Croxa) no está confirmado y no se descontó</p>' : ''}
                 </div>
                 <strong style="color:#E91E8C;font-size:1rem">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
               </div>

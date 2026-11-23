@@ -308,6 +308,18 @@ def _loop_links_cancelados():
             print(f"[links-cancelados] Error en loop: {e}")
         _time.sleep(5 * 60)
 
+def _loop_alertas_ubicacion():
+    """Cada 2 minutos: avisa al celular cuando una venta sacó un par de AMARRES (para saber dónde buscarlo y acomodar el resto)."""
+    _time.sleep(100)
+    while True:
+        try:
+            n = inventario.avisar_alertas_ubicacion()
+            if n:
+                print(f"[alertas-ubicacion] Avisos de pares que salieron de amarres: {n}")
+        except Exception as e:
+            print(f"[alertas-ubicacion] Error en loop: {e}")
+        _time.sleep(2 * 60)
+
 def _loop_novedades_wa():
     """Manda el siguiente lote (pocas clientas) de las campañas de novedades por WhatsApp que están en modo automático.
     Se revisa cada 5 min; el envío en sí respeta el horario de 9:00 a 21:00 y el intervalo de cada campaña."""
@@ -906,6 +918,9 @@ def _iniciar_hilos():
     t1b = threading.Thread(target=_loop_links_cancelados, daemon=True)
     t1b.start()
     print("[links-cancelados] Hilo que vence links de pedidos cancelados iniciado (cada 5 min)")
+    t1c = threading.Thread(target=_loop_alertas_ubicacion, daemon=True)
+    t1c.start()
+    print("[alertas-ubicacion] Hilo de avisos 'salió de amarres' iniciado (cada 2 min)")
     # TikTok Shop sync
     t2 = threading.Thread(target=_loop_tiktok_sync, daemon=True)
     t2.start()

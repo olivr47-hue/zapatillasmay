@@ -423,9 +423,41 @@ def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, c
         filas.sort(key=lambda r: r.get("confirmado_at") or r.get("created_at") or "", reverse=True)
         if not ligero:
             _marcar_modelo_real(filas)
+            _marcar_en_amarres(filas)
         return filas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _marcar_en_amarres(filas):
+    """A los renglones de pedidos por surtir les pone en_amarres=True cuando la venta sacó ese par de AMARRES (alerta abierta de esa talla,
+    creada alrededor de cuando entró el pedido). Así quien surte sabe dónde buscarlo. Si algo falla, la lista sale igual."""
+    try:
+        import datetime as _dt
+        abiertas = supabase_get_all("alertas_ubicacion?atendida_at=is.null&select=variante_id,created_at") or []
+        if not abiertas:
+            return
+        por_var = {}
+        for a in abiertas:
+            por_var.setdefault(a["variante_id"], []).append(a["created_at"])
+
+        def _t(s):
+            try:
+                return _dt.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+            except Exception:
+                return None
+        for p in filas:
+            if p.get("status") not in ("pagado", "confirmado"):
+                continue
+            t0 = _t(p.get("confirmado_at") or p.get("created_at"))
+            for i in p.get("pedido_items") or []:
+                for ts in por_var.get(i.get("variante_id"), []):
+                    t1 = _t(ts)
+                    if t0 and t1 and abs((t1 - t0).total_seconds()) <= 30 * 60:
+                        i["en_amarres"] = True
+                        break
+    except Exception as e:
+        print(f"[pedidos] marca en amarres no disponible: {e}")
 
 
 def _marcar_modelo_real(filas):

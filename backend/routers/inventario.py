@@ -217,6 +217,62 @@ def actualizar_inventario(datos: dict, _staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+def _atender_alertas_ubicacion(variante_ids):
+    """Marca como atendidas las alertas «salió un par de AMARRES» de esas variantes (ya se acomodó o se revisó)."""
+    ids = [v for v in variante_ids if v]
+    if not ids:
+        return
+    try:
+        import datetime as _dt
+        supabase_patch(f"alertas_ubicacion?atendida_at=is.null&variante_id=in.({','.join(ids)})",
+                       {"atendida_at": _dt.datetime.now(_dt.timezone.utc).isoformat()})
+    except Exception as e:
+        print(f"[inventario] no se pudieron cerrar las alertas de ubicacion: {e}")
+
+
+@router.post("/alertas-ubicacion/atender")
+def atender_alertas_ubicacion(datos: dict, _staff=Depends(require_staff)):
+    """El panel marca como «ya lo acomodé» las alertas de amarres abiertos de estas variantes. datos = {variante_ids: [...]}"""
+    _atender_alertas_ubicacion([str(x) for x in (datos.get("variante_ids") or [])])
+    return {"ok": True}
+
+
+@router.get("/alertas-ubicacion")
+def alertas_ubicacion(_staff=Depends(require_staff)):
+    """Alertas abiertas: pares que salieron de AMARRES en una venta/ajuste y falta acomodar el resto del amarre."""
+    try:
+        return supabase_get_all("alertas_ubicacion?atendida_at=is.null&select=id,variante_id,sucursal_id,pares,created_at&order=created_at.desc") or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:200]})
+
+
+def avisar_alertas_ubicacion():
+    """Notificacion al celular (una por tanda) cuando una venta sacó un par de AMARRES. Lo llama un hilo cada pocos minutos."""
+    filas = supabase_get_all("alertas_ubicacion?push_enviado_at=is.null&atendida_at=is.null&select=id,variante_id,pares&order=created_at.asc") or []
+    if not filas:
+        return 0
+    import datetime as _dt
+    ids = sorted({f["variante_id"] for f in filas})
+    info = {}
+    for k in range(0, len(ids), 60):
+        for v in supabase_get(f"variantes?id=in.({','.join(ids[k:k + 60])})&select=id,color,talla,productos(nombre)") or []:
+            nom = " ".join(str((v.get("productos") or {}).get("nombre") or "").split()[:1])
+            info[v["id"]] = f"{nom} {v.get('color') or ''} T{v.get('talla') or ''}".strip()
+    lineas = []
+    for f in filas:
+        t = info.get(f["variante_id"]) or "un modelo"
+        if t not in lineas:
+            lineas.append(t)
+    cuerpo = " · ".join(lineas[:3]) + (f" y {len(lineas) - 3} más" if len(lineas) > 3 else "")
+    from routers.push import enviar_push
+    enviar_push("📦 El par salió de AMARRES", f"{cuerpo}. Búscalo en amarres y acomoda el resto en estantería.", url="/?modulo=inventario", sitio="panel")
+    ahora = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    for k in range(0, len(filas), 60):
+        lote = ",".join(f["id"] for f in filas[k:k + 60])
+        supabase_patch(f"alertas_ubicacion?id=in.({lote})", {"push_enviado_at": ahora})
+    return len(filas)
+
+
 @router.post("/mover-ubicacion")
 def mover_ubicacion(datos: dict, _staff=Depends(require_staff)):
     """Pasa pares de AMARRES a ESTANTERIA (o al reves) eligiendo talla por talla. El total de la talla no cambia.
@@ -258,6 +314,8 @@ def mover_ubicacion(datos: dict, _staff=Depends(require_staff)):
             except Exception as e_mov:
                 print(f"[inventario] no se pudo registrar el traslado de ubicacion: {e_mov}")
         cache_invalidate_prefix(_CK)
+        if desde == "amarres":
+            _atender_alertas_ubicacion(list(pedidos))   # ya se acomodó lo que salió del amarre
         return {"ok": True, "movidos": sum(pedidos.values()), "tallas": len(pedidos)}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
