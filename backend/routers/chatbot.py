@@ -1992,6 +1992,15 @@ async def _procesar_webhook_whatsapp(datos: dict):
             guardar_conversacion(from_number, msg_sticker, None, "sticker", nombre_contacto)
             return {"status": "ok"}
 
+        # ── Reacción (👍 ❤️…) a un mensaje: se guarda con el emoji y el mensaje al que reaccionó, sin llamar a la IA ──
+        if tipo == "reaction":
+            rx = mensaje_data.get("reaction", {}) or {}
+            emoji_rx = (rx.get("emoji") or "").strip()
+            ref_rx = (rx.get("message_id") or "").strip()
+            _WAMID_ENTRANTE.set("")   # el id de ESTA reacción no es el de un mensaje que se pueda citar
+            guardar_conversacion(from_number, f"[Reacción] {emoji_rx}" + (f" |REF|{ref_rx}" if ref_rx else ""), None, "reaction", nombre_contacto)
+            return {"status": "ok"}
+
         # ── Ubicación entrante ───────────────────────────────────────
         if tipo == "location":
             loc  = mensaje_data.get("location", {})
@@ -2488,7 +2497,7 @@ def meta_suscripcion_activar():
     for a in (actuales.get("data") or []):
         if app.get("id") and str(a.get("id")) == str(app.get("id")):
             campos.update(a.get("subscribed_fields") or [])
-    campos.update({"messages", "messaging_postbacks", "message_echoes"})
+    campos.update({"messages", "messaging_postbacks", "message_echoes", "message_reactions"})
     res = _graph_meta(f"https://graph.facebook.com/v21.0/{pagina['id']}/subscribed_apps?subscribed_fields={','.join(sorted(campos))}"
                       f"&access_token={q}", metodo="POST")
     if res.get("error"):
@@ -2618,6 +2627,38 @@ async def _procesar_comentarios_meta(datos: dict):
         print(f"[meta webhook] Error procesando comentarios: {e}")
 
 
+def _guardar_adjuntos_meta(identificador, sender_id, prefijo, adjuntos, canal):
+    """Fotos, videos, audios y archivos que manda la clienta por Instagram/Messenger. Las fotos se copian a Storage (el enlace de Meta caduca);
+    lo demás se guarda con su enlace. Nunca rompe el webhook."""
+    import time as _t
+    for n, a in enumerate(adjuntos):
+        try:
+            tipo_a = (a.get("type") or "").lower()
+            url = ((a.get("payload") or {}).get("url") or "").strip()
+            if tipo_a == "image" and url:
+                pub = ""
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "ZapatillasMay/1.0"})
+                    with urllib.request.urlopen(req, timeout=20) as r:
+                        datos_img = r.read(10 * 1024 * 1024)
+                    pub = subir_imagen_storage(datos_img, f"{prefijo}_{sender_id}_{int(_t.time())}_{n}.jpg")
+                except Exception as e_img:
+                    print(f"[meta webhook] no se pudo copiar la foto: {e_img}")
+                guardar_conversacion(identificador, f"[Imagen] {pub or url}", None, "imagen", "", canal=canal)
+            elif tipo_a == "video" and url:
+                guardar_conversacion(identificador, "[Video]", None, "video", "", media_url=url, canal=canal)
+            elif tipo_a == "audio" and url:
+                guardar_conversacion(identificador, "[Audio de voz recibido]", None, "audio", "", media_url=url, canal=canal)
+            elif tipo_a == "file" and url:
+                guardar_conversacion(identificador, f"[Documento] archivo {url}", None, "documento", "", media_url=url, canal=canal)
+            elif url:
+                guardar_conversacion(identificador, f"[Adjunto: {tipo_a or 'otro'}] {url}", None, "texto", "", canal=canal)
+            else:
+                guardar_conversacion(identificador, f"[Adjunto: {tipo_a or 'otro'}]", None, "texto", "", canal=canal)
+        except Exception as e:
+            print(f"[meta webhook] adjunto no guardado: {e}")
+
+
 async def _procesar_webhook_meta(datos: dict):
     try:
         await _procesar_comentarios_meta(datos)
@@ -2628,6 +2669,18 @@ async def _procesar_webhook_meta(datos: dict):
 
         for entry in datos.get("entry", []):
             for evento in entry.get("messaging", []):
+                # Reacción (❤️ 👍…) de la clienta a un mensaje: se guarda con el emoji y el mensaje al que reaccionó
+                rx = evento.get("reaction")
+                if rx and not evento.get("message"):
+                    try:
+                        sender_rx = (evento.get("sender") or {}).get("id", "")
+                        if sender_rx:
+                            emoji_rx = "" if rx.get("action") == "unreact" else (rx.get("emoji") or "👍")
+                            ref_rx = rx.get("mid") or ""
+                            guardar_conversacion(f"{prefijo}:{sender_rx}", f"[Reacción] {emoji_rx}" + (f" |REF|{ref_rx}" if ref_rx else ""), None, "reaction", "", canal=canal)
+                    except Exception as e_rx:
+                        print(f"[meta webhook] reacción no guardada: {e_rx}")
+                    continue
                 mensaje_obj = evento.get("message") or {}
                 if mensaje_obj.get("is_echo"):
                     _eco_meta(evento, canal, prefijo)   # si lo escribió el equipo desde Meta, el chat pasa a control manual
@@ -2643,7 +2696,11 @@ async def _procesar_webhook_meta(datos: dict):
                 identificador = f"{prefijo}:{sender_id}"
 
                 if not texto:
-                    guardar_conversacion(identificador, "[Adjunto no soportado todavía]", None, "no_soportado", "", canal=canal)
+                    adjuntos = mensaje_obj.get("attachments") or []
+                    if adjuntos:
+                        _guardar_adjuntos_meta(identificador, sender_id, prefijo, adjuntos, canal)
+                    else:
+                        guardar_conversacion(identificador, "[Adjunto no soportado todavía]", None, "no_soportado", "", canal=canal)
                     continue
 
                 control = supabase_get(f"chats_control?telefono=eq.{identificador}&en_control=eq.true")

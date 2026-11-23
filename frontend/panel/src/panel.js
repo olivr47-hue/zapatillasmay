@@ -19619,6 +19619,15 @@ window._renderBurbujas = (chat) => {
       msgBody = vidSrc
         ? `<video src="${vidSrc}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
         : `<p style="color:#64748b;font-size:0.8rem">🎬 Video recibido</p>`
+    } else if (m.tipo === 'reaction') {
+      // Reacción de la clienta a un mensaje: "[Reacción] 👍 |REF|wamid" (las viejas solo decían "[reaction]")
+      const rm = String(m.mensaje || '').match(/^\[Reacci[oó]n\]\s*(.*?)\s*(?:\|REF\|(\S+))?$/)
+      const emoji = rm ? rm[1] : ''
+      const refId = rm ? rm[2] : ''
+      const refMsg = refId ? (chat.mensajes || []).find(x => x.wa_message_id === refId) : null
+      const refTxt = refMsg ? String(refMsg.mensaje || refMsg.respuesta || '').replace(/^\[.+?\]:\s*/, '').replace(/https?:\/\/\S+/g, '').trim().slice(0, 70) : ''
+      msgBody = `<p style="margin:0;font-size:1.5rem;line-height:1.2">${emoji ? esc(emoji) : '👍'}</p>
+        <p style="margin:2px 0 0;font-size:0.74rem;color:#64748b">Reaccionó${refTxt ? ' a: «' + esc(refTxt) + '»' : ' a un mensaje'}${rm && !emoji ? ' (quitó su reacción)' : ''}</p>`
     } else {
       msgBody = `<p style="word-break:break-word">${window._linkifyWA(textoLimpio)}</p>`
     }
@@ -19674,7 +19683,23 @@ window._renderBurbujas = (chat) => {
         </div>
       </div>` : ''
 
-    return rendered + botRendered
+    // Separador de fecha cuando cambia el día; y si la clienta vuelve a escribir tras varios días, se dice cuántos
+    let sepFecha = ''
+    if (_parsedAt) {
+      const dia = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      const ant = idx > 0 ? parseUTC(mensajesOrden[idx - 1].created_at) : null
+      if (!ant || dia(ant).getTime() !== dia(_parsedAt).getTime()) {
+        const hoyD = dia(new Date()), diasAtras = Math.round((hoyD - dia(_parsedAt)) / 86400000)
+        const etiqueta = diasAtras === 0 ? 'Hoy' : diasAtras === 1 ? 'Ayer'
+          : _parsedAt.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: _parsedAt.getFullYear() === hoyD.getFullYear() ? undefined : 'numeric' })
+        const hueco = ant ? Math.round((dia(_parsedAt) - dia(ant)) / 86400000) : 0
+        const vuelve = hueco >= 3 && !esSaliente
+          ? `<span style="display:block;margin-top:3px;font-size:0.68rem;color:#b45309;font-weight:700">↻ Volvió a escribir después de ${hueco} días (su mensaje anterior fue el ${ant.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })})</span>` : ''
+        sepFecha = `<div class="wa-sep-fecha" style="text-align:center;margin:12px 0 8px"><span style="display:inline-block;background:#e2e8f0;color:#475569;border-radius:99px;padding:3px 12px;font-size:0.72rem;font-weight:600;text-transform:capitalize">${esc(etiqueta)}</span>${vuelve}</div>`
+      }
+    }
+
+    return sepFecha + rendered + botRendered
   }).join('')
 }
 
