@@ -457,6 +457,65 @@ def _marcar_modelo_real(filas):
         print(f"[pedidos] modelo real no disponible: {e}")
 
 
+_COL_ORDEN_CANAL = {"tiktok": "tiktok_order_id", "shein": "shein_order_id", "mercadolibre": "ml_order_id", "walmart": "walmart_order_id", "amazon": "amazon_order_id"}
+
+
+@router.post("/guia-impresa")
+def registrar_guia_impresa(datos: dict = Body(...), staff=Depends(require_staff)):
+    """El panel avisa aquí cada vez que se saca la guía de un pedido de marketplace (el toque en «🖨️ Guía», que en TikTok también
+    prepara el envío). Queda en el historial del pedido para poder contar después cuántos pares se prepararon cada día."""
+    canal = str(datos.get("canal") or "").strip().lower()
+    orden = str(datos.get("order_id") or "").strip()
+    col = _COL_ORDEN_CANAL.get(canal)
+    if not col or not orden:
+        return JSONResponse(status_code=400, content={"error": "canal u orden invalidos"})
+    try:
+        filas = supabase_get(f"pedidos?{col}=eq.{_up.quote(orden)}&select=id&limit=1")
+        if not filas:
+            return JSONResponse(status_code=404, content={"error": "pedido no encontrado"})
+        supabase_post("pedido_historial", {"pedido_id": filas[0]["id"], "accion": "guia",
+                                           "detalle": f"Guía de {canal} sacada desde el panel", "usuario": "panel"})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:200]})
+
+
+@router.get("/guias-impresas")
+def guias_impresas(fecha: str = None, _staff=Depends(require_staff)):
+    """Pedidos a los que se les sacó la guía en un día (hora de México; por defecto hoy): un renglón por pedido, con canal y pares.
+    El panel lo filtra por plataforma."""
+    import datetime as _dt
+    try:
+        mx = _dt.timezone(_dt.timedelta(hours=-6))
+        dia = _dt.date.fromisoformat(fecha) if fecha else _dt.datetime.now(mx).date()
+        ini = _dt.datetime.combine(dia, _dt.time.min, tzinfo=mx).astimezone(_dt.timezone.utc)
+        fin = ini + _dt.timedelta(days=1)
+        hist = supabase_get_all(
+            f"pedido_historial?accion=eq.guia&created_at=gte.{_up.quote(ini.isoformat())}&created_at=lt.{_up.quote(fin.isoformat())}"
+            "&select=pedido_id,created_at&order=created_at.asc") or []
+        primera = {}
+        for h in hist:
+            primera.setdefault(h["pedido_id"], h["created_at"])
+        if not primera:
+            return {"fecha": dia.isoformat(), "pedidos": [], "pares_por_canal": {}}
+        ids = list(primera)
+        pedidos = []
+        for k in range(0, len(ids), 60):
+            lote = ",".join(ids[k:k + 60])
+            pedidos += supabase_get(f"pedidos?id=in.({lote})&select=id,canal,tiktok_order_id,shein_order_id,ml_order_id,pedido_items(cantidad,nombre,color,talla)") or []
+        salida, por_canal = [], {}
+        for p in pedidos:
+            pares = sum(int(i.get("cantidad") or 0) for i in p.get("pedido_items") or [])
+            ref = p.get("tiktok_order_id") or p.get("shein_order_id") or p.get("ml_order_id") or p["id"][:6].upper()
+            salida.append({"pedido_id": p["id"], "canal": p.get("canal"), "pares": pares, "ref": ref, "hora": primera.get(p["id"]),
+                           "items": [f"{i.get('nombre') or ''} {i.get('color') or ''} T{i.get('talla') or ''}".strip() for i in p.get("pedido_items") or []]})
+            por_canal[p.get("canal")] = por_canal.get(p.get("canal"), 0) + pares
+        salida.sort(key=lambda x: x["hora"] or "")
+        return {"fecha": dia.isoformat(), "pedidos": salida, "pares_por_canal": por_canal}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)[:200]})
+
+
 @router.get("/por-enviar-resumen")
 def por_enviar_resumen(_staff=Depends(require_staff)):
     """Solo id, cliente y total de los pedidos pagados online/marketplace pendientes de surtir (lo que

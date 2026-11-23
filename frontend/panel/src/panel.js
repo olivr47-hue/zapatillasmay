@@ -11403,6 +11403,8 @@ window._guiaMarketplace = async (canal, orderId, btn) => {
     const url = URL.createObjectURL(await res.blob())
     if (w) w.location.href = url; else window.location.href = url
     setTimeout(() => URL.revokeObjectURL(url), 120000)
+    // Queda registrado en el historial del pedido (para «Guías sacadas hoy»)
+    fetch(`${API}/pedidos/guia-impresa`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ canal, order_id: orderId }) }).catch(() => {})
   } catch (e) {
     if (w) w.close()
     alert('No se pudo obtener la guía: ' + e.message)
@@ -11575,6 +11577,7 @@ async function cargarPedidos() {
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-secondary" onclick="mostrarListaSurtido()">📋 Lista de surtido</button>
+            <button class="btn btn-secondary" onclick="mostrarGuiasImpresas()">🖨️ Guías sacadas</button>
             <button class="btn btn-secondary" onclick="mostrarGuiasLote()">🚚 Guías en lote</button>
             <button class="btn btn-secondary" onclick="mostrarFormLinkPago()" style="background:#ffe600;color:#333;border-color:#ffe600">💳 Crear link de pago</button>
             <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
@@ -11818,6 +11821,55 @@ window.mostrarListaSurtido = () => {
   document.body.appendChild(modal)
   pintar()
 }
+// ── Guías sacadas: cuántos pares se les sacó la guía (en TikTok = prepararon el envío) en un día, filtrable por plataforma ──
+window.mostrarGuiasImpresas = () => {
+  document.getElementById('modal-guias-impresas')?.remove()
+  const NOMBRES = { tiktok: 'TikTok', shein: 'SHEIN', mercadolibre: 'Mercado Libre', walmart: 'Walmart', amazon: 'Amazon' }
+  const hoy = new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10)   // día en México (UTC-6)
+  let datos = null, filtro = ''
+  const modal = document.createElement('div')
+  modal.id = 'modal-guias-impresas'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px'
+  modal.innerHTML = `<div style="background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow:auto;padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0;font-size:1.05rem">🖨️ Guías sacadas</h3><button onclick="document.getElementById('modal-guias-impresas').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Pedidos a los que se les sacó la guía desde el panel (en TikTok eso prepara el envío). Cuenta desde que se activó este registro.</p>
+    <input type="date" id="gi-fecha" value="${hoy}" max="${hoy}" style="padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:16px;font-family:inherit">
+    <div id="gi-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0"></div>
+    <div id="gi-cuerpo"><p style="color:#888">Cargando…</p></div></div>`
+  document.body.appendChild(modal)
+  const pintar = () => {
+    const chips = document.getElementById('gi-chips'), cuerpo = document.getElementById('gi-cuerpo')
+    if (!chips || !cuerpo || !datos) return
+    const por = datos.pares_por_canal || {}
+    const totalTodos = Object.values(por).reduce((s, n) => s + n, 0)
+    const chip = (v, txt) => `<button onclick="_giFiltro('${v}')" style="padding:6px 12px;border-radius:99px;border:1px solid ${filtro === v ? '#E91E8C' : '#d1d5db'};background:${filtro === v ? '#fce7f3' : '#fff'};font-weight:${filtro === v ? '700' : '500'};font-size:0.8rem;cursor:pointer;font-family:inherit">${txt}</button>`
+    chips.innerHTML = chip('', `Todas · ${totalTodos}`) + Object.keys(por).map(c => chip(c, `${NOMBRES[c] || c} · ${por[c]}`)).join('')
+    const lista = (datos.pedidos || []).filter(p => !filtro || p.canal === filtro)
+    const pares = lista.reduce((s, p) => s + p.pares, 0)
+    cuerpo.innerHTML = lista.length
+      ? `<div style="font-size:1.05rem;font-weight:800;margin-bottom:8px">${pares} par${pares === 1 ? '' : 'es'} · ${lista.length} pedido${lista.length === 1 ? '' : 's'}</div>` + lista.map(p => `<div style="display:flex;gap:10px;justify-content:space-between;padding:9px 10px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:6px">
+          <div style="min-width:0"><div style="font-size:0.8rem;font-weight:700">${_e(NOMBRES[p.canal] || p.canal || '')} · <span style="font-weight:500;color:#64748b">${_e(p.ref)}</span></div>
+          <div style="font-size:0.74rem;color:#475569;margin-top:2px">${(p.items || []).map(_e).join('<br>')}</div></div>
+          <div style="flex:none;text-align:right"><div style="font-weight:800">${p.pares}</div><div style="font-size:0.66rem;color:#94a3b8">${p.hora ? new Date(p.hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''}</div></div></div>`).join('')
+      : '<p style="color:#888;text-align:center;padding:1.2rem">No hay guías sacadas ese día.</p>'
+  }
+  window._giFiltro = (v) => { filtro = v; pintar() }
+  const cargar = async () => {
+    const f = document.getElementById('gi-fecha')?.value || hoy
+    try {
+      const r = await fetch(`${API}/pedidos/guias-impresas?fecha=${encodeURIComponent(f)}`)
+      datos = await r.json()
+      if (!r.ok) throw new Error(datos.error || r.status)
+      if (filtro && !(datos.pares_por_canal || {})[filtro]) filtro = ''
+      pintar()
+    } catch (e) {
+      const c = document.getElementById('gi-cuerpo'); if (c) c.innerHTML = `<p style="color:#b91c1c">No se pudo cargar: ${_e(String(e.message || e))}</p>`
+    }
+  }
+  document.getElementById('gi-fecha').addEventListener('change', cargar)
+  cargar()
+}
+
 window.imprimirListaSurtido = () => {
   const w = window.open('', '_blank')
   if (!w) { alert('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes.'); return }

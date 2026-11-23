@@ -496,6 +496,17 @@ def hacer_sync_ventas_tiktok(forzar_sin_interruptor=False):
                         avisar_venta_canal("tiktok", items, total, datos.get("created_at"))
                     except Exception:
                         pass
+                if faltante:
+                    # Aviso al celular: sin ligar no se descontó inventario y el material (p. ej. Negro vs Negro Croxa) no está confirmado
+                    try:
+                        from routers.push import enviar_push
+                        sin = [i for i in items if not i["variante_id"]]
+                        det = " · ".join(f"{' '.join(str(i['nombre']).split()[:2])} {i.get('color') or ''} T{i.get('talla') or '?'}".replace("  ", " ") for i in sin[:2])
+                        enviar_push("⚠️ Pedido de TikTok sin ligar al inventario",
+                                    f"{det}. No se descontó inventario y el material no está confirmado: abre el pedido y revisa el SKU.",
+                                    url="/?modulo=pedidos", sitio="panel")
+                    except Exception as e_push:
+                        print(f"[tiktok-ventas] no se pudo avisar el pedido sin ligar: {e_push}")
                 resultado["procesadas"] += 1
             except Exception as e:
                 resultado["errores"].append({"orden": oid, "error": str(e)[:200]})
