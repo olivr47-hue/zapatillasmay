@@ -445,14 +445,15 @@ def _marcar_modelo_real(filas):
         info = {}
         for k in range(0, len(ids), 80):
             lote = ",".join(ids[k:k + 80])
-            for v in supabase_get(f"variantes?id=in.({lote})&select=id,color,talla,productos(nombre)") or []:
+            for v in supabase_get(f"variantes?id=in.({lote})&select=id,color,talla,foto_url,productos(nombre,imagen_principal)") or []:
                 nombre = ((v.get("productos") or {}).get("nombre") or "").strip()
-                info[v["id"]] = (nombre.split(" ")[0] if nombre else "", v.get("color") or "", v.get("talla") or "")
+                foto = v.get("foto_url") or (v.get("productos") or {}).get("imagen_principal") or ""
+                info[v["id"]] = (nombre.split(" ")[0] if nombre else "", v.get("color") or "", v.get("talla") or "", foto)
         for p in filas:
             for i in p.get("pedido_items") or []:
                 d = info.get(i.get("variante_id"))
                 if d:
-                    i["modelo_real"], i["color_real"], i["talla_real"] = d
+                    i["modelo_real"], i["color_real"], i["talla_real"], i["foto_real"] = d
     except Exception as e:
         print(f"[pedidos] modelo real no disponible: {e}")
 

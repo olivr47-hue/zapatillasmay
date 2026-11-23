@@ -11729,8 +11729,12 @@ window.mostrarListaSurtido = () => {
   pedidos.forEach(p => (p.pedido_items || []).forEach(i => {
     const nombre = String(i.modelo_real || i.nombre || 'Producto').trim()
     const color = i.color_real || i.color || '', talla = i.talla_real || i.talla || ''
-    const k = `${nombre}|${color}|${talla}`
-    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set() }
+    // Renglón de marketplace que no se ligó a una variante del inventario: el color es solo el texto de TikTok/SHEIN
+    // (p. ej. «Negro» sirve para Negro y Negro Croxa). Va en su propio renglón con alerta para no confundirlo.
+    const sinLigar = !i.variante_id && ['tiktok', 'shein', 'walmart', 'amazon', 'mercadolibre'].includes(p.canal)
+    const k = `${nombre}|${color}|${talla}${sinLigar ? '|sin-ligar' : ''}`
+    if (!mapa[k]) mapa[k] = { nombre, color, talla, pares: 0, pedidos: new Set(), foto: '', sinLigar }
+    if (!mapa[k].foto && i.foto_real) mapa[k].foto = i.foto_real
     mapa[k].pares += Number(i.cantidad) || 0
     mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
   }))
@@ -11766,16 +11770,18 @@ window.mostrarListaSurtido = () => {
       const d = hecho(f)
       return `<div onclick="_surtidoMarcar(${i})" style="display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;border:2px solid ${d ? '#86efac' : '#e5e7eb'};background:${d ? '#f0fdf4' : '#fff'};margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;${d ? 'opacity:.7' : ''}">
         <div style="flex:none;width:32px;height:32px;border-radius:9px;border:2px solid ${d ? '#16a34a' : '#94a3b8'};background:${d ? '#16a34a' : '#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800">${d ? '✓' : ''}</div>
+        ${f.foto ? `<img src="${_e(f.foto)}" alt="" loading="lazy" style="flex:none;width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">` : ''}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:0.92rem;line-height:1.25;${d ? 'text-decoration:line-through;' : ''}">${_e(f.nombre)}</div>
-          <div style="font-size:0.86rem;color:#334155;margin-top:3px">${f.color ? _e(f.color) : ''}${f.color && f.talla ? ' · ' : ''}${f.talla ? `<strong>Talla ${_e(f.talla)}</strong>` : ''}</div>
+          <div style="font-size:0.86rem;color:#334155;margin-top:3px">${f.color ? `<strong>${_e(f.color)}</strong>` : ''}${f.color && f.talla ? ' · ' : ''}${f.talla ? `<strong>Talla ${_e(f.talla)}</strong>` : ''}</div>
+          ${f.sinLigar ? '<div style="font-size:0.72rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:2px 6px;margin-top:4px;display:inline-block">⚠ Material sin confirmar: revisa el SKU en el canal</div>' : ''}
           <div style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${_e(f.refs)}</div>
         </div>
         <div style="flex:none;text-align:center;min-width:48px;background:${f.pares > 1 ? '#fef3c7' : '#f1f5f9'};border-radius:10px;padding:6px 8px"><div style="font-size:1.25rem;font-weight:800;line-height:1.1">${f.pares}</div><div style="font-size:0.6rem;color:#64748b">${f.pares === 1 ? 'par' : 'pares'}</div></div>
       </div>`
     }).join('') : `<p style="color:#888;text-align:center;padding:1.5rem">${filas.length ? 'Nada coincide con la búsqueda.' : 'No hay pedidos por enviar.'}</p>`
     // Para imprimir: misma lista con casillas
-    const tabla = filas.length ? `<table style="width:100%;border-collapse:collapse;font-size:0.85rem"><thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th></th><th style="padding:6px">Modelo</th><th style="padding:6px">Color</th><th style="padding:6px">Talla</th><th style="padding:6px;text-align:right">Pares</th><th style="padding:6px">Pedidos</th></tr></thead><tbody>${filas.map(f => `<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px;font-size:1.1rem">${hecho(f) ? '☑' : '☐'}</td><td style="padding:6px">${_e(f.nombre)}</td><td style="padding:6px">${_e(f.color)}</td><td style="padding:6px">${_e(f.talla)}</td><td style="padding:6px;text-align:right;font-weight:700">${f.pares}</td><td style="padding:6px;color:#94a3b8;font-size:0.72rem">${_e(f.refs)}</td></tr>`).join('')}</tbody></table>` : ''
+    const tabla = filas.length ? `<table style="width:100%;border-collapse:collapse;font-size:0.85rem"><thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th></th><th style="padding:6px">Modelo</th><th style="padding:6px">Color</th><th style="padding:6px">Talla</th><th style="padding:6px;text-align:right">Pares</th><th style="padding:6px">Pedidos</th></tr></thead><tbody>${filas.map(f => `<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px;font-size:1.1rem">${hecho(f) ? '☑' : '☐'}</td><td style="padding:6px">${_e(f.nombre)}</td><td style="padding:6px">${_e(f.color)}${f.sinLigar ? ' <strong>⚠ sin confirmar</strong>' : ''}</td><td style="padding:6px">${_e(f.talla)}</td><td style="padding:6px;text-align:right;font-weight:700">${f.pares}</td><td style="padding:6px;color:#94a3b8;font-size:0.72rem">${_e(f.refs)}</td></tr>`).join('')}</tbody></table>` : ''
     window._surtidoHTML = `<h2 style="font-family:sans-serif">Lista de surtido — ${new Date().toLocaleDateString('es-MX')}</h2><p style="font-family:sans-serif;color:#555">${pedidos.length} pedidos · ${total} pares</p>${tabla}`
   }
   window._surtidoMarcar = (i) => {
@@ -12442,6 +12448,7 @@ window.verPedido = async (id) => {
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:0.85rem;margin:0 0 2px">${nombre}${color ? ' · ' + color : ''}${talla ? ' · T' + talla : ''}</p>
                   <p style="font-size:0.8rem;color:#888;margin:0">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
+                  ${!item.variante_id && p.canal && p.canal !== 'sucursal' ? '<p style="font-size:0.74rem;font-weight:700;color:#b45309;margin:4px 0 0">⚠ Sin ligar al inventario: el material (p. ej. Negro vs Negro Croxa) no está confirmado y no se descontó</p>' : ''}
                 </div>
                 <strong style="color:#E91E8C;font-size:1rem">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
               </div>
