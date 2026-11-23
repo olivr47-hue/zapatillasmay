@@ -1,9 +1,29 @@
-from fastapi import APIRouter
+import threading
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
 from cache import cache_get, cache_set, cache_invalidate, cache_invalidate_prefix, TTL_PUBLICO
+from security import require_staff
 
 router = APIRouter(prefix="/catalogos", tags=["Catálogos"])
+
+
+@router.post("/{catalogo_id}/actualizar-auto")
+def actualizar_catalogo_auto(catalogo_id: str, forzar: bool = True, _staff=Depends(require_staff)):
+    """Vuelve a armar este catálogo con lo que hay en stock (en segundo plano: tarda unos minutos). El resto del día se actualizan solos
+    cada madrugada si cambió algo."""
+    import catalogos_auto
+    cat = (supabase_get(f"catalogos?id=eq.{catalogo_id}&select=id,nombre,auto_activo") or [None])[0]
+    if not cat:
+        return JSONResponse(status_code=404, content={"error": "catalogo no encontrado"})
+    supabase_patch(f"catalogos?id=eq.{catalogo_id}", {"auto_activo": True})
+    threading.Thread(target=lambda: catalogos_auto.actualizar_todos(forzar=forzar, solo_id=catalogo_id), daemon=True).start()
+    return {"ok": True, "mensaje": f"Actualizando {cat.get('nombre')}: tarda unos minutos"}
+
+
+@router.get("/auto/estado")
+def estado_auto(_staff=Depends(require_staff)):
+    return supabase_get("catalogos?select=id,nombre,auto_activo,auto_at,auto_paginas&order=nombre.asc") or []
 
 
 def _invalidar_catalogo(catalogo_id: str = None):

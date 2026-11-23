@@ -320,6 +320,27 @@ def _loop_alertas_ubicacion():
             print(f"[alertas-ubicacion] Error en loop: {e}")
         _time.sleep(2 * 60)
 
+def _loop_catalogos_auto():
+    """Los catálogos del panel se arman solos con lo que hay en stock. Corre a las 4 am (hora de México) y SOLO regenera los que cambiaron;
+    la primera vez (catálogos que nunca se generaron solos) corre unos minutos después de arrancar."""
+    import catalogos_auto
+    _time.sleep(240)
+    ultimo_dia = None
+    while True:
+        try:
+            ahora = _dt_mx_ahora()
+            pendientes = supabase_get("catalogos?auto_activo=eq.true&auto_firma=is.null&select=id&limit=1") or []
+            if pendientes or (ahora.hour == 4 and ultimo_dia != ahora.date()):
+                ultimo_dia = ahora.date()
+                catalogos_auto.actualizar_todos()
+        except Exception as e:
+            print(f"[catalogos-auto] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
+def _dt_mx_ahora():
+    import datetime as _d
+    return _d.datetime.now(_d.timezone(_d.timedelta(hours=-6)))
+
 def _loop_novedades_wa():
     """Manda el siguiente lote (pocas clientas) de las campañas de novedades por WhatsApp que están en modo automático.
     Se revisa cada 5 min; el envío en sí respeta el horario de 9:00 a 21:00 y el intervalo de cada campaña."""
@@ -918,6 +939,9 @@ def _iniciar_hilos():
     t1b = threading.Thread(target=_loop_links_cancelados, daemon=True)
     t1b.start()
     print("[links-cancelados] Hilo que vence links de pedidos cancelados iniciado (cada 5 min)")
+    t1d = threading.Thread(target=_loop_catalogos_auto, daemon=True)
+    t1d.start()
+    print("[catalogos-auto] Hilo de catálogos automáticos iniciado (4 am, solo si cambió el stock)")
     t1c = threading.Thread(target=_loop_alertas_ubicacion, daemon=True)
     t1c.start()
     print("[alertas-ubicacion] Hilo de avisos 'salió de amarres' iniciado (cada 2 min)")
