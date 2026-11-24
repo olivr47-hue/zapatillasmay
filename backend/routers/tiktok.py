@@ -1014,13 +1014,21 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
         return JSONResponse(status_code=502, content={"error": "TikTok no entrego el catalogo", **(e0 or {})})
     cargado = _erp_cargado()
     cambios, sin_modelo, sin_cambio = [], [], 0
+    activos, con_modelo, ejemplos_api = 0, 0, []
+    estados = {}
     for tk in catalogo:
+        estados[tk.get("status")] = estados.get(tk.get("status"), 0) + 1
         if tk.get("status") != "ACTIVATE" or (producto_tiktok and str(tk.get("id")) != str(producto_tiktok)):
             continue
+        activos += 1
         prod, _vars = _producto_erp_de_tiktok(tk, cargado)
         if not prod:
             sin_modelo.append(str(tk.get("title") or tk.get("id"))[:60])
             continue
+        con_modelo += 1
+        if len(ejemplos_api) < 3:
+            sk0 = (tk.get("skus") or [{}])[0]
+            ejemplos_api.append({"titulo": str(tk.get("title") or "")[:40], "precio_api": sk0.get("price"), "precio_nuevo": precio_tiktok(prod)})
         nuevo = precio_tiktok(prod)
         if nuevo <= 0:
             continue
@@ -1040,6 +1048,7 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
             sin_cambio += 1
     cambios = cambios[:max(1, int(maximo))]
     resumen = {"productos_a_subir": len(cambios), "sin_cambio": sin_cambio, "sin_modelo_en_erp": sin_modelo[:20],
+               "diagnostico": {"productos_en_catalogo": len(catalogo), "por_estado": estados, "activos": activos, "con_modelo_en_erp": con_modelo, "ejemplos_api": ejemplos_api},
                "subida_promedio": round(sum(c["precio_nuevo"] - c["precio_actual"] for c in cambios) / len(cambios), 1) if cambios else 0,
                "muestra": [{k: c[k] for k in ("producto_tiktok", "titulo", "sku_erp", "precio_actual", "precio_nuevo")} for c in cambios[:12]]}
     if not confirmar:

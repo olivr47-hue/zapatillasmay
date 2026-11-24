@@ -25983,7 +25983,9 @@ window._tkPreciosVer = async (btn, idProducto) => {
       (d.muestra || []).map(f => `<tr>${_tkTd(_e(f.titulo))}${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(f.sku_erp || '')}</span>`)}${_tkTd('$' + f.precio_actual, true)}${_tkTd('$' + f.precio_nuevo, true, 'font-weight:700;color:#166534')}</tr>`), 'Todos los precios ya cumplen.')
     out.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:1rem">
       ${_tkStat((d.productos_a_subir || 0).toLocaleString('es-MX'), 'Productos que subirían', _TK_COLOR)}${_tkStat('$' + (d.subida_promedio || 0), 'Subida promedio', '#1d4ed8')}
-      ${_tkStat((d.sin_cambio || 0).toLocaleString('es-MX'), 'Ya cumplen', '#166534')}${_tkStat((d.sin_modelo_en_erp || []).length, 'Sin modelo en el ERP', '#888')}</div>
+      ${_tkStat((d.sin_cambio || 0).toLocaleString('es-MX'), 'Ya cumplen', '#166534')}${_tkStat((d.sin_modelo_en_erp || []).length, 'Sin modelo en el ERP', '#888')}
+      ${d.diagnostico ? `${_tkStat((d.diagnostico.activos || 0).toLocaleString('es-MX'), 'Activos en TikTok', '#888', `de ${d.diagnostico.productos_en_catalogo} en total`)}${_tkStat((d.diagnostico.con_modelo_en_erp || 0).toLocaleString('es-MX'), 'Ligados al ERP', '#888')}` : ''}</div>
+      ${d.diagnostico && d.diagnostico.ejemplos_api && d.diagnostico.ejemplos_api.length ? `<p style="font-size:0.72rem;color:#94a3b8;margin:0 0 0.8rem;word-break:break-all">Así entrega TikTok el precio: ${_e(JSON.stringify(d.diagnostico.ejemplos_api))}</p>` : ''}
       ${d.productos_a_subir ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.9rem">${_tkBtn('refresh', 'Probar con 1 producto', 'window._tkPreciosSubir(1, this)', 'warning')}${_tkBtn('refresh', 'Subir todos los precios ahora', 'window._tkPreciosSubir(0, this)', 'rosa')}</div><div id="tk-precios-res" style="margin-bottom:0.9rem"></div>` : ''}
       <h4 style="margin:0.4rem 0 6px;font-size:0.9rem">Primeros ${(d.muestra || []).length} cambios</h4>${tabla}`
   } catch (e) { out.innerHTML = _tkError(e) } finally { if (btn) { btn.innerHTML = orig; btn.disabled = false } }
