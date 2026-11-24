@@ -26002,6 +26002,21 @@ window._tkPreciosSubir = async (uno, btn) => {
     const r = await fetch(`${API}/tiktok/precios/actualizar?confirmar=true${uno ? '&producto_tiktok=' + encodeURIComponent(primero.producto_tiktok) : ''}`, { method: 'POST' })
     const x = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(x.error || x.detail || ('Error ' + r.status))
+    if (x.iniciado) {
+      // Subida larga: corre en el servidor y aquí se muestra el avance
+      btn.innerHTML = '⏳ Subiendo…'
+      for (;;) {
+        await new Promise(ok => setTimeout(ok, 4000))
+        let pr = {}
+        try { const rr = await fetch(`${API}/tiktok/precios/progreso`); pr = await rr.json().catch(() => ({})) } catch (e) { continue }
+        res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#eff6ff;color:#1e40af">⏳ ${pr.procesados || 0} de ${pr.total || x.total} productos${pr.total_fallos ? ` · ⚠️ ${pr.total_fallos} con error` : ''}</div>`
+        if (pr.estado === 'terminado') {
+          const fl = (pr.fallos || []).map(f => `${_e(f.titulo)}: ${_e(f.mensaje)} (${_e(f.codigo)})`).join('<br>')
+          res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${pr.total_fallos ? '#fef3c7' : '#f0fdf4'};color:${pr.total_fallos ? '#92400e' : '#166534'}">✅ ${pr.hechos} producto(s) actualizados en TikTok.${pr.total_fallos ? `<br>⚠️ ${pr.total_fallos} con error:<br>${fl}` : ''}</div>`
+          return
+        }
+      }
+    }
     const fallos = (x.fallos || []).map(f => `${_e(f.titulo)}: ${_e(f.mensaje)} (${_e(f.codigo)})`).join('<br>')
     res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${x.total_fallos ? '#fef3c7' : '#f0fdf4'};color:${x.total_fallos ? '#92400e' : '#166534'}">✅ ${x.productos_actualizados} producto(s) actualizados en TikTok.${x.total_fallos ? `<br>⚠️ ${x.total_fallos} con error:<br>${fallos}` : ''}</div>`
   } catch (e) { res.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }

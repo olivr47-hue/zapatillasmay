@@ -1009,9 +1009,18 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
         return err
     access, tienda = ctx
     cipher = tienda.get("cipher", "")
-    catalogo, e0 = _catalogo_tiktok(access, cipher, forzar=True)
-    if catalogo is None:
-        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el catalogo", **(e0 or {})})
+    if producto_tiktok:
+        # Un solo producto: se lee solo ese (rápido), sin bajar todo el catálogo
+        rp = _tiktok_api("GET", f"/product/202309/products/{producto_tiktok}", access, extra_params={"shop_cipher": cipher})
+        if rp.get("code") != 0:
+            return JSONResponse(status_code=502, content={"error": "TikTok no entrego el producto", "mensaje": rp.get("message")})
+        dp = rp.get("data") or {}
+        dp.setdefault("id", str(producto_tiktok))
+        catalogo = [dp]
+    else:
+        catalogo, e0 = _catalogo_tiktok(access, cipher, forzar=True)
+        if catalogo is None:
+            return JSONResponse(status_code=502, content={"error": "TikTok no entrego el catalogo", **(e0 or {})})
     cargado = _erp_cargado()
     cambios, sin_modelo, sin_cambio = [], [], 0
     activos, con_modelo, ejemplos_api = 0, 0, []
@@ -1053,18 +1062,46 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
                "muestra": [{k: c[k] for k in ("producto_tiktok", "titulo", "sku_erp", "precio_actual", "precio_nuevo")} for c in cambios[:12]]}
     if not confirmar:
         return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para subir los precios en TikTok"}
-    hechos, fallos = 0, []
-    for c in cambios:
-        body = {"skus": [{"id": s["id"], "price": s["price"]} for s in c["skus"]]}
-        r = _tiktok_api("POST", f"/product/202309/products/{c['producto_tiktok']}/prices/update", access, body=body, extra_params={"shop_cipher": cipher})
-        if r.get("code") == 0:
-            hechos += 1
-        else:
-            fallos.append({"producto_tiktok": c["producto_tiktok"], "titulo": c["titulo"], "codigo": r.get("code"), "mensaje": str(r.get("message"))[:160]})
-        time.sleep(0.25)
-    from cache import cache_set
-    cache_set("tiktok_catalogo", None, ttl=1)
-    return {**resumen, "hecho": True, "productos_actualizados": hechos, "fallos": fallos[:40], "total_fallos": len(fallos)}
+    def _aplicar(lista, prog):
+        for c in lista:
+            body = {"skus": [{"id": s["id"], "price": s["price"]} for s in c["skus"]]}
+            try:
+                r = _tiktok_api("POST", f"/product/202309/products/{c['producto_tiktok']}/prices/update", access, body=body, extra_params={"shop_cipher": cipher})
+            except Exception as ex:
+                r = {"code": -1, "message": str(ex)}
+            if r.get("code") == 0:
+                prog["hechos"] += 1
+            else:
+                prog["fallos"].append({"producto_tiktok": c["producto_tiktok"], "titulo": c["titulo"], "codigo": r.get("code"), "mensaje": str(r.get("message"))[:160]})
+            prog["procesados"] += 1
+            time.sleep(0.25)
+        prog["estado"] = "terminado"
+        from cache import cache_set
+        cache_set("tiktok_catalogo", None, ttl=1)
+
+    prog = _PRECIOS_PROG
+    if len(cambios) <= 3:
+        prog.update({"estado": "en_curso", "total": len(cambios), "procesados": 0, "hechos": 0, "fallos": []})
+        _aplicar(cambios, prog)
+        return {**resumen, "hecho": True, "productos_actualizados": prog["hechos"], "fallos": prog["fallos"][:40], "total_fallos": len(prog["fallos"])}
+    if prog.get("estado") == "en_curso":
+        return JSONResponse(status_code=409, content={"error": "Ya hay una subida de precios en curso: espera a que termine"})
+    prog.clear()
+    prog.update({"estado": "en_curso", "total": len(cambios), "procesados": 0, "hechos": 0, "fallos": []})
+    import threading
+    threading.Thread(target=_aplicar, args=(cambios, prog), daemon=True).start()
+    return {**resumen, "hecho": False, "iniciado": True, "total": len(cambios), "mensaje": "Subiendo en segundo plano; consulta /tiktok/precios/progreso"}
+
+
+_PRECIOS_PROG = {"estado": "libre", "total": 0, "procesados": 0, "hechos": 0, "fallos": []}
+
+
+@router.get("/precios/progreso")
+def tiktok_precios_progreso(_admin=Depends(require_admin)):
+    """Avance de la subida de precios que corre en segundo plano."""
+    p = _PRECIOS_PROG
+    return {"estado": p.get("estado"), "total": p.get("total"), "procesados": p.get("procesados"), "hechos": p.get("hechos"),
+            "total_fallos": len(p.get("fallos") or []), "fallos": (p.get("fallos") or [])[:40]}
 
 
 def _variantes_faltantes(d, prod, vs, inv):
