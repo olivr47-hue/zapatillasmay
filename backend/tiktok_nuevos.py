@@ -40,8 +40,10 @@ def _sku_vendedor(spu, color, talla):
 
 
 def _precio_tiktok(p):
-    """Precio de la tienda (panel +$80, salvo ofertas) +$65 que cubre el IVA que TikTok cobra sobre el precio publicado (igual que el Excel)."""
-    return float(p.get("precio_menudeo") or 0) + (0 if p.get("es_oferta") else 80) + 65
+    """Precio de TikTok: el de siempre (panel +$80 salvo ofertas, +$65 del IVA) o, si es mayor, el mínimo con el que TikTok deposita
+    precio de corrida + $70 con campaña de $30 y afiliado al 5% (ver tiktok_precios.py). Igual que el Excel."""
+    from tiktok_precios import precio_tiktok
+    return precio_tiktok(p)
 
 
 def _nombre_ok(nombre):

@@ -69,7 +69,7 @@ def _leer_subida(archivo: UploadFile) -> bytes:
 def _cargar_erp():
     """Productos activos + variantes + existencias del ERP, listos para cruzar con TikTok."""
     productos = supabase_get_all(
-        "productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,imagen_principal,categoria")
+        "productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,precio_corrida,es_oferta,imagen_principal,categoria")
     variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla,sku,foto_url,imagenes")
     inv = {}
     for i in supabase_get_all("inventario?select=variante_id,cantidad"):
@@ -285,8 +285,9 @@ def generar_nuevos(contenido: bytes, export_contenido: bytes) -> dict:
         nombre = (p.get("nombre") or p.get("sku_interno") or str(pid))[:500]
         desc = (p.get("descripcion") or nombre)[:500]
         spu = (p.get("sku_interno") or str(pid))[:200]
-        # precio de la tienda (panel + $80, salvo ofertas) + $65 extra porque TikTok cobra IVA sobre el precio publicado
-        precio = float(p.get("precio_menudeo") or 0) + (0 if p.get("es_oferta") else 80) + 65
+        # el de siempre (panel + $80 salvo ofertas, + $65 del IVA) o, si es mayor, el mínimo para ganar corrida + $70 en TikTok
+        from tiktok_precios import precio_tiktok
+        precio = precio_tiktok(p)
         img = _resize_cloudinary(p.get("imagen_principal") or "")
         extra = (imgs_extra(pid, img) + [""] * 8)[:8]
         pvars = vars_por_prod.get(pid, [])

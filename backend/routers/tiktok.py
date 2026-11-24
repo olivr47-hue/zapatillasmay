@@ -998,6 +998,66 @@ def tiktok_actualizar_fotos(producto_id: str, confirmar: bool = False, por_color
             "respuesta_tiktok": e.get("data")}
 
 
+@router.post("/precios/actualizar")
+def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = "", maximo: int = 400, _admin=Depends(require_admin)):
+    """ESCRIBE EN TIKTOK (solo SUBE precios de lista): pone en cada producto activo el precio de tiktok_precios.precio_tiktok (el de siempre o, si es
+    mayor, el mínimo para ganar precio de corrida + $70 con campaña de $30 y afiliado al 5%). Sin confirmar=true solo muestra qué cambiaría.
+    producto_tiktok=<id> limita a un producto (para probar). No toca el precio de CAMPAÑA: ese se edita en Marketing > Campañas."""
+    from tiktok_precios import precio_tiktok
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    catalogo, e0 = _catalogo_tiktok(access, cipher, forzar=True)
+    if catalogo is None:
+        return JSONResponse(status_code=502, content={"error": "TikTok no entrego el catalogo", **(e0 or {})})
+    cargado = _erp_cargado()
+    cambios, sin_modelo, sin_cambio = [], [], 0
+    for tk in catalogo:
+        if tk.get("status") != "ACTIVATE" or (producto_tiktok and str(tk.get("id")) != str(producto_tiktok)):
+            continue
+        prod, _vars = _producto_erp_de_tiktok(tk, cargado)
+        if not prod:
+            sin_modelo.append(str(tk.get("title") or tk.get("id"))[:60])
+            continue
+        nuevo = precio_tiktok(prod)
+        if nuevo <= 0:
+            continue
+        skus_cambio = []
+        for s in tk.get("skus") or []:
+            pr = s.get("price") or {}
+            try:
+                actual = float(pr.get("tax_exclusive_price") or pr.get("sale_price") or pr.get("amount") or 0)
+            except (TypeError, ValueError):
+                continue
+            if actual and nuevo > actual + 0.5 and pr.get("currency"):
+                skus_cambio.append({"id": s.get("id"), "actual": actual, "price": {"amount": str(int(nuevo)), "currency": pr.get("currency")}})
+        if skus_cambio:
+            cambios.append({"producto_tiktok": tk.get("id"), "titulo": str(tk.get("title") or "")[:60], "sku_erp": prod.get("sku_interno"),
+                            "precio_actual": min(c["actual"] for c in skus_cambio), "precio_nuevo": nuevo, "skus": skus_cambio})
+        else:
+            sin_cambio += 1
+    cambios = cambios[:max(1, int(maximo))]
+    resumen = {"productos_a_subir": len(cambios), "sin_cambio": sin_cambio, "sin_modelo_en_erp": sin_modelo[:20],
+               "subida_promedio": round(sum(c["precio_nuevo"] - c["precio_actual"] for c in cambios) / len(cambios), 1) if cambios else 0,
+               "muestra": [{k: c[k] for k in ("producto_tiktok", "titulo", "sku_erp", "precio_actual", "precio_nuevo")} for c in cambios[:12]]}
+    if not confirmar:
+        return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para subir los precios en TikTok"}
+    hechos, fallos = 0, []
+    for c in cambios:
+        body = {"skus": [{"id": s["id"], "price": s["price"]} for s in c["skus"]]}
+        r = _tiktok_api("POST", f"/product/202309/products/{c['producto_tiktok']}/prices/update", access, body=body, extra_params={"shop_cipher": cipher})
+        if r.get("code") == 0:
+            hechos += 1
+        else:
+            fallos.append({"producto_tiktok": c["producto_tiktok"], "titulo": c["titulo"], "codigo": r.get("code"), "mensaje": str(r.get("message"))[:160]})
+        time.sleep(0.25)
+    from cache import cache_set
+    cache_set("tiktok_catalogo", None, ttl=1)
+    return {**resumen, "hecho": True, "productos_actualizados": hechos, "fallos": fallos[:40], "total_fallos": len(fallos)}
+
+
 def _variantes_faltantes(d, prod, vs, inv):
     """Variantes del ERP con existencias que TikTok todavia no tiene como SKU: [(color, talla, cantidad, variante)]."""
     from routers.tiktok_excel import _clave_color, _clave_talla
