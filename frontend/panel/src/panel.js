@@ -25966,6 +25966,43 @@ async function _tkTabExistencias() {
     + _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div><h3 style="margin:0 0 3px;font-size:1rem">Ver qué cambiaría en TikTok</h3><p style="margin:0;font-size:0.82rem;color:#888">Solo lectura. Te muestra cuántos SKUs subirían o bajarían antes de tocar nada.</p></div>
       ${_tkBtn('search', 'Ver el plan', 'window._tkPlan(this)', 'primary')}</div><div id="tk-plan" style="margin-top:1rem"></div>`)
+    + _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div style="max-width:640px"><h3 style="margin:0 0 3px;font-size:1rem">Precios en TikTok: ganar corrida + $70</h3><p style="margin:0;font-size:0.82rem;color:#888">Sube el precio de lista de cada producto activo hasta el mínimo con el que TikTok te deposita <b>precio de corrida + $70</b>, aun con campaña de $30 y afiliado al 5%. <b>Solo sube</b> precios, nunca los baja. El precio de la campaña se cambia aparte, en Marketing › Campañas.</p></div>
+      ${_tkBtn('search', 'Ver qué subiría', 'window._tkPreciosVer(this)', 'primary')}</div><div id="tk-precios" style="margin-top:1rem"></div>`)
+}
+window._tkPreciosVer = async (btn, idProducto) => {
+  const out = document.getElementById('tk-precios'); const orig = btn ? btn.innerHTML : ''
+  if (btn) { btn.innerHTML = '⏳ Calculando…'; btn.disabled = true }
+  out.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Leyendo TikTok y el ERP (puede tardar un minuto)…</p>'
+  try {
+    const res = await fetch(`${API}/tiktok/precios/actualizar?confirmar=false${idProducto ? '&producto_tiktok=' + encodeURIComponent(idProducto) : ''}`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || d.detail || ('Error ' + res.status))
+    window._tkPreciosDatos = d
+    const tabla = _tkTabla([{ t: 'Producto' }, { t: 'SKU' }, { t: 'Hoy', der: true }, { t: 'Nuevo', der: true }],
+      (d.muestra || []).map(f => `<tr>${_tkTd(_e(f.titulo))}${_tkTd(`<span style="font-family:monospace;font-size:0.74rem">${_e(f.sku_erp || '')}</span>`)}${_tkTd('$' + f.precio_actual, true)}${_tkTd('$' + f.precio_nuevo, true, 'font-weight:700;color:#166534')}</tr>`), 'Todos los precios ya cumplen.')
+    out.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:1rem">
+      ${_tkStat((d.productos_a_subir || 0).toLocaleString('es-MX'), 'Productos que subirían', _TK_COLOR)}${_tkStat('$' + (d.subida_promedio || 0), 'Subida promedio', '#1d4ed8')}
+      ${_tkStat((d.sin_cambio || 0).toLocaleString('es-MX'), 'Ya cumplen', '#166534')}${_tkStat((d.sin_modelo_en_erp || []).length, 'Sin modelo en el ERP', '#888')}</div>
+      ${d.productos_a_subir ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.9rem">${_tkBtn('refresh', 'Probar con 1 producto', 'window._tkPreciosSubir(1, this)', 'warning')}${_tkBtn('refresh', 'Subir todos los precios ahora', 'window._tkPreciosSubir(0, this)', 'rosa')}</div><div id="tk-precios-res" style="margin-bottom:0.9rem"></div>` : ''}
+      <h4 style="margin:0.4rem 0 6px;font-size:0.9rem">Primeros ${(d.muestra || []).length} cambios</h4>${tabla}`
+  } catch (e) { out.innerHTML = _tkError(e) } finally { if (btn) { btn.innerHTML = orig; btn.disabled = false } }
+}
+window._tkPreciosSubir = async (uno, btn) => {
+  const d = window._tkPreciosDatos || {}; const res = document.getElementById('tk-precios-res')
+  const primero = (d.muestra || [])[0]
+  if (uno && !primero) return
+  const msg = uno ? `Vas a subir el precio SOLO de «${primero.titulo}» en TikTok: de $${primero.precio_actual} a $${primero.precio_nuevo}. ¿Confirmas?`
+    : `Vas a SUBIR el precio de ${d.productos_a_subir} productos en TikTok (promedio +$${d.subida_promedio}). Los precios de campaña NO cambian. ¿Confirmas?`
+  if (!confirm(msg)) return
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Subiendo…'; btn.disabled = true
+  try {
+    const r = await fetch(`${API}/tiktok/precios/actualizar?confirmar=true${uno ? '&producto_tiktok=' + encodeURIComponent(primero.producto_tiktok) : ''}`, { method: 'POST' })
+    const x = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(x.error || x.detail || ('Error ' + r.status))
+    const fallos = (x.fallos || []).map(f => `${_e(f.titulo)}: ${_e(f.mensaje)} (${_e(f.codigo)})`).join('<br>')
+    res.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${x.total_fallos ? '#fef3c7' : '#f0fdf4'};color:${x.total_fallos ? '#92400e' : '#166534'}">✅ ${x.productos_actualizados} producto(s) actualizados en TikTok.${x.total_fallos ? `<br>⚠️ ${x.total_fallos} con error:<br>${fallos}` : ''}</div>`
+  } catch (e) { res.innerHTML = _tkError(e) } finally { btn.innerHTML = orig; btn.disabled = false }
 }
 window._tkAutoCambiar = async (cual, valor) => {
   const q = cual === 'existencias' ? `existencias=${valor}` : `ventas=${valor}`
