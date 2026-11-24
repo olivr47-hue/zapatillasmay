@@ -1062,14 +1062,26 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
                "muestra": [{k: c[k] for k in ("producto_tiktok", "titulo", "sku_erp", "precio_actual", "precio_nuevo")} for c in cambios[:12]]}
     if not confirmar:
         return {**resumen, "hecho": False, "mensaje": "Vista previa. Pasa confirmar=true para subir los precios en TikTok"}
+    import datetime as _dtm
+    lote = _dtm.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+
     def _aplicar(lista, prog):
+        prog["lote"] = lote
         for c in lista:
             body = {"skus": [{"id": s["id"], "price": s["price"]} for s in c["skus"]]}
             try:
                 r = _tiktok_api("POST", f"/product/202309/products/{c['producto_tiktok']}/prices/update", access, body=body, extra_params={"shop_cipher": cipher})
             except Exception as ex:
                 r = {"code": -1, "message": str(ex)}
-            if r.get("code") == 0:
+            ok = r.get("code") == 0
+            # Respaldo de lo que había antes y lo que se puso, para poder regresar el precio si hace falta
+            try:
+                supabase_post("tiktok_precios_log", {"lote": lote, "producto_tiktok": str(c["producto_tiktok"]), "titulo": c["titulo"], "sku_erp": c.get("sku_erp"),
+                                                     "skus": c["skus"], "precio_anterior": c["precio_actual"], "precio_nuevo": c["precio_nuevo"],
+                                                     "estado": "ok" if ok else "error", "mensaje": None if ok else str(r.get("message"))[:200]})
+            except Exception as ex_log:
+                print(f"[tiktok-precios] no se pudo guardar el respaldo: {ex_log}")
+            if ok:
                 prog["hechos"] += 1
             else:
                 prog["fallos"].append({"producto_tiktok": c["producto_tiktok"], "titulo": c["titulo"], "codigo": r.get("code"), "mensaje": str(r.get("message"))[:160]})
@@ -1094,6 +1106,38 @@ def tiktok_actualizar_precios(confirmar: bool = False, producto_tiktok: str = ""
 
 
 _PRECIOS_PROG = {"estado": "libre", "total": 0, "procesados": 0, "hechos": 0, "fallos": []}
+
+
+@router.post("/precios/revertir")
+def tiktok_revertir_precios(lote: str = "", confirmar: bool = False, _admin=Depends(require_admin)):
+    """Regresa los precios de un lote (el último si no se indica) a lo que había ANTES, usando el respaldo tiktok_precios_log.
+    Sin confirmar=true solo dice cuántos productos regresaría."""
+    if not lote:
+        u = supabase_get("tiktok_precios_log?select=lote&order=created_at.desc&limit=1") or []
+        if not u:
+            return JSONResponse(status_code=404, content={"error": "No hay lotes de precios guardados"})
+        lote = u[0]["lote"]
+    filas = supabase_get_all(f"tiktok_precios_log?lote=eq.{lote}&estado=eq.ok&select=id,producto_tiktok,titulo,skus,precio_anterior,precio_nuevo") or []
+    if not confirmar:
+        return {"lote": lote, "productos_que_regresarian": len(filas), "muestra": [{"titulo": f["titulo"], "de": f["precio_nuevo"], "a": f["precio_anterior"]} for f in filas[:10]]}
+    ctx, err = _contexto_tienda()
+    if err:
+        return err
+    access, tienda = ctx
+    cipher = tienda.get("cipher", "")
+    hechos, fallos = 0, []
+    for f in filas:
+        skus = [{"id": s["id"], "price": {"amount": str(int(float(s["actual"]))), "currency": (s.get("price") or {}).get("currency", "MXN")}} for s in f["skus"]]
+        r = _tiktok_api("POST", f"/product/202309/products/{f['producto_tiktok']}/prices/update", access, body={"skus": skus}, extra_params={"shop_cipher": cipher})
+        if r.get("code") == 0:
+            hechos += 1
+            supabase_patch(f"tiktok_precios_log?id=eq.{f['id']}", {"estado": "revertido"})
+        else:
+            fallos.append({"titulo": f["titulo"], "codigo": r.get("code"), "mensaje": str(r.get("message"))[:120]})
+        time.sleep(0.25)
+    from cache import cache_set
+    cache_set("tiktok_catalogo", None, ttl=1)
+    return {"lote": lote, "revertidos": hechos, "fallos": fallos[:30]}
 
 
 @router.get("/precios/progreso")

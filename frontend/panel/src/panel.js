@@ -25968,7 +25968,19 @@ async function _tkTabExistencias() {
       ${_tkBtn('search', 'Ver el plan', 'window._tkPlan(this)', 'primary')}</div><div id="tk-plan" style="margin-top:1rem"></div>`)
     + _tkCard(`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div style="max-width:640px"><h3 style="margin:0 0 3px;font-size:1rem">Precios en TikTok: ganar corrida + $70</h3><p style="margin:0;font-size:0.82rem;color:#888">Sube el precio de lista de cada producto activo hasta el mínimo con el que TikTok te deposita <b>precio de corrida + $70</b>, aun con campaña de $30 y afiliado al 5%. <b>Solo sube</b> precios, nunca los baja. El precio de la campaña se cambia aparte, en Marketing › Campañas.</p></div>
-      ${_tkBtn('search', 'Ver qué subiría', 'window._tkPreciosVer(this)', 'primary')}</div><div id="tk-precios" style="margin-top:1rem"></div>`)
+      ${_tkBtn('search', 'Ver qué subiría', 'window._tkPreciosVer(this)', 'primary')}</div><div id="tk-precios" style="margin-top:1rem"></div>
+      <p style="margin:1rem 0 0;font-size:0.76rem;color:#94a3b8">Cada subida queda guardada con el precio de antes. <a href="#" onclick="window._tkPreciosRevertir();return false" style="color:#E91E8C">Regresar el último lote a su precio anterior</a></p>`)
+}
+window._tkPreciosRevertir = async () => {
+  try {
+    let r = await fetch(`${API}/tiktok/precios/revertir`, { method: 'POST' }); let d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || d.detail || ('Error ' + r.status))
+    if (!d.productos_que_regresarian) { alert('No hay productos por regresar en el último lote.'); return }
+    if (!confirm(`Se regresarán ${d.productos_que_regresarian} productos a su precio anterior (lote ${d.lote}). ¿Confirmas?`)) return
+    r = await fetch(`${API}/tiktok/precios/revertir?lote=${encodeURIComponent(d.lote)}&confirmar=true`, { method: 'POST' }); d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || d.detail || ('Error ' + r.status))
+    alert(`Listo: ${d.revertidos} producto(s) regresaron a su precio anterior.` + ((d.fallos || []).length ? `\n${d.fallos.length} con error.` : ''))
+  } catch (e) { alert('No se pudo regresar: ' + e.message) }
 }
 window._tkPreciosVer = async (btn, idProducto) => {
   const out = document.getElementById('tk-precios'); const orig = btn ? btn.innerHTML : ''
