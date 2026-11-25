@@ -62,9 +62,17 @@ def subir_comprobante(upload: UploadFile):
 # servidor ENTERO durante cada foto (varios segundos): las fotos de un producto se subían una por una y todo el sistema
 # se ponía lento mientras tanto. Como `def` corren en hilos y se pueden subir varias a la vez.
 @router.post("/subir")
-def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: bool = False, sombra: bool = True, _staff=Depends(require_staff)):
+def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: bool = False, sombra: bool = True, cuadrar: bool = False, _staff=Depends(require_staff)):
     contenido = archivo.file.read()
     extra = {}
+    if cuadrar and not limpiar:
+        # Foto que no es 1:1: se centra COMPLETA en un cuadrado (sin recortar) para que no se corte el zapato en la tienda, catálogos y marketplaces.
+        try:
+            from cuadrar_foto import cuadrar_foto
+            contenido, cambio = cuadrar_foto(contenido)
+            extra = {"cuadrada": bool(cambio)}
+        except Exception as e:
+            extra = {"cuadrada": False, "motivo": str(e)[:160]}
     if limpiar:
         # Foto de cámara -> fondo blanco parejo + zapato centrado (2000x2000). Si la foto no se presta (fondo no liso,
         # zapato en la orilla...) se sube ORIGINAL y se avisa el motivo: nunca se sube una foto dañada.

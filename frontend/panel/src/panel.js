@@ -10345,7 +10345,7 @@ async function subirImagenesVariantes() {
         try {
           const formData = new FormData()
           formData.append('archivo', archivo)
-          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+          const res = await fetch(API + '/imagenes/subir?cuadrar=true', { method: 'POST', body: formData })
           if (res.ok) { const data = await res.json(); if (data.url) url = data.url }
         } catch (e) {}
         if (!url && intento < 3) await new Promise(r => setTimeout(r, 1200))
