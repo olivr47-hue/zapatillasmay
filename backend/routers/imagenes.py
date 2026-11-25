@@ -91,17 +91,14 @@ def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: 
 def cuadrar_existentes(confirmar: bool = False, _staff=Depends(require_staff)):
     """Fotos YA subidas que no son 1:1: sin `confirmar` solo cuenta cuántas son; con `confirmar=true` sube una versión cuadrada de cada una
     (sin recortar) y cambia la dirección en variantes y productos. Corre en segundo plano: ver /imagenes/cuadrar-existentes/estado."""
-    from fotos_cuadradas import escanear, iniciar, ESTADO
-    if ESTADO["corriendo"]:
-        return JSONResponse(status_code=409, content={"error": "ya hay una corrección en curso", "estado": ESTADO})
-    r = escanear()
-    no = r["no_cuadradas"]
-    resumen = {"fotos_revisadas": r["fotos"], "sin_medir": r["sin_medir"], "no_cuadradas": len(no),
-               "verticales": sum(1 for d in no.values() if d[1] > d[0]), "horizontales": sum(1 for d in no.values() if d[0] > d[1])}
-    if not confirmar or not no:
-        return {"confirmado": False, **resumen}
-    iniciar(no)
-    return {"confirmado": True, "iniciado": True, **resumen}
+    from fotos_cuadradas import iniciar_escaneo, iniciar_correccion, ESTADO
+    if confirmar:
+        if not iniciar_correccion():
+            return JSONResponse(status_code=409, content={"error": "no hay una revisión lista o ya hay una corrección en curso"})
+        return {"iniciado": True}
+    if not iniciar_escaneo():
+        return JSONResponse(status_code=409, content={"error": "ya hay una revisión o corrección en curso", "fase": ESTADO["fase"]})
+    return {"iniciado": True}
 
 
 @router.get("/cuadrar-existentes/estado")

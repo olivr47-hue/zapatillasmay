@@ -23687,35 +23687,38 @@ async function cargarSEO() {
 
 // Fotos ya subidas que no son 1:1 (verticales/horizontales): se centran completas en un cuadrado, sin recortar. Primero cuenta, luego pide confirmar.
 window.cuadrarFotosExistentes = async () => {
+  const btn = document.querySelector('button[onclick="cuadrarFotosExistentes()"]')
+  const txt0 = btn ? btn.innerHTML : ''
+  const poner = (m) => { if (btn) btn.innerHTML = m }
+  const salir = () => { if (btn) { btn.disabled = false; btn.innerHTML = txt0 } }
+  const estado = async () => (await fetch(API + '/imagenes/cuadrar-existentes/estado')).json()
+  const esperar = (ms) => new Promise(r => setTimeout(r, ms))
   try {
-    const r = await fetch(API + '/imagenes/cuadrar-existentes', { method: 'POST' })
-    const d = await r.json()
-    if (!r.ok) { alert(d.error || 'No se pudo revisar las fotos'); return }
-    if (!d.no_cuadradas) { alert(`Revisé ${d.fotos_revisadas} fotos y todas ya son cuadradas.`); return }
-    if (!confirm(`Revisé ${d.fotos_revisadas} fotos. ${d.no_cuadradas} no son cuadradas (${d.verticales} verticales, ${d.horizontales} horizontales).
-
-Se subirá una versión cuadrada de cada una, completa y sin recortar, y se cambiará en los productos. Las originales no se borran y se puede deshacer.
-
-¿Corregirlas ahora?`)) return
-    const r2 = await fetch(API + '/imagenes/cuadrar-existentes?confirmar=true', { method: 'POST' })
-    const d2 = await r2.json()
-    if (!r2.ok) { alert(d2.error || 'No se pudo iniciar'); return }
-    const t0 = Date.now()
-    const vuelta = async () => {
-      const e = await (await fetch(API + '/imagenes/cuadrar-existentes/estado')).json()
-      if (e.terminado) {
-        alert(`Listo: ${e.hechas} fotos corregidas, ${e.filas_actualizadas} productos/variantes actualizados.` + (e.errores.length ? `
-
-Hubo ${e.errores.length} avisos (revisa la consola).` : ''))
-        if (e.errores.length) console.warn('cuadrar fotos', e.errores)
-        return
-      }
-      if (Date.now() - t0 > 900000) { alert('Sigue corriendo en segundo plano; vuelve a revisar en unos minutos.'); return }
-      setTimeout(vuelta, 4000)
+    if (btn) btn.disabled = true
+    poner('🔲 Revisando fotos…')
+    let r = await fetch(API + '/imagenes/cuadrar-existentes', { method: 'POST' })
+    if (!r.ok && r.status !== 409) { const d = await r.json().catch(() => ({})); alert(d.error || 'No se pudo revisar las fotos'); salir(); return }
+    // la revisión corre en segundo plano: se muestra el avance en el botón
+    let e = await estado()
+    while (e.fase === 'escaneando') {
+      poner('🔲 Revisando ' + (e.medidas_hechas || 0) + '/' + (e.medidas_total || '…'))
+      await esperar(2500); e = await estado()
     }
-    alert(`Corrigiendo ${d2.no_cuadradas} fotos en segundo plano. Te aviso cuando termine; puedes seguir trabajando.`)
-    vuelta()
-  } catch (e) { alert('No se pudo completar: ' + (e.message || e)) }
+    if (!e.escaneo) { alert('No se pudo revisar las fotos: ' + ((e.errores || [])[0] || 'sin detalle')); salir(); return }
+    const d = e.escaneo
+    if (!d.no_cuadradas) { alert('Revisé ' + d.fotos_revisadas + ' fotos y todas ya son cuadradas.'); salir(); return }
+    if (!confirm('Revisé ' + d.fotos_revisadas + ' fotos. ' + d.no_cuadradas + ' no son cuadradas (' + d.verticales + ' verticales, ' + d.horizontales + ' horizontales).\n\nSe subirá una versión cuadrada de cada una, completa y sin recortar, y se cambiará en los productos. Las originales no se borran y se puede deshacer.\n\n¿Corregirlas ahora?')) { salir(); return }
+    r = await fetch(API + '/imagenes/cuadrar-existentes?confirmar=true', { method: 'POST' })
+    if (!r.ok) { const d2 = await r.json().catch(() => ({})); alert(d2.error || 'No se pudo iniciar la corrección'); salir(); return }
+    e = await estado()
+    while (e.fase === 'corrigiendo') {
+      poner('🔲 Corrigiendo ' + (e.hechas || 0) + '/' + (e.total || '…'))
+      await esperar(3000); e = await estado()
+    }
+    alert('Listo: ' + e.hechas + ' fotos corregidas, ' + e.filas_actualizadas + ' productos/variantes actualizados.' + ((e.errores || []).length ? '\n\nHubo ' + e.errores.length + ' avisos (revisa la consola).' : ''))
+    if ((e.errores || []).length) console.warn('cuadrar fotos', e.errores)
+  } catch (err) { alert('No se pudo completar: ' + (err.message || err)) }
+  salir()
 }
 
 window._categoriaSubirImagen = async (categoria, file) => {
