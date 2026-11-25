@@ -62,7 +62,7 @@ def escanear() -> dict:
     ESTADO["medidas_total"] = len(urls)
     ESTADO["medidas_hechas"] = 0
     medidas = {}
-    with ThreadPoolExecutor(24) as ex:
+    with ThreadPoolExecutor(4) as ex:
         for u, d in ex.map(_medir, sorted(urls)):
             medidas[u] = d
             ESTADO["medidas_hechas"] += 1

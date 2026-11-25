@@ -16246,7 +16246,8 @@ window.guardarCarritoPOS = async (fromDrawer) => {
     if (!Array.isArray(itemsDestino)) itemsDestino = []
 
     // 3. Fusionar cada par del POS: si ya existe esa variante (mismo modo corrida/suelto) suma cantidad; si no, lo agrega
-    for (const item of window._posCarrito) {
+    const _snap = [...window._posCarrito]   // foto del carrito al pulsar Guardar
+    for (const item of _snap) {
       const esCorrida = !!item.es_corrida
       const ya = itemsDestino.find(ei => ei.variante_id === item.variante_id && (!!ei.es_corrida) === esCorrida)
       if (ya) {
@@ -16280,15 +16281,31 @@ window.guardarCarritoPOS = async (fromDrawer) => {
       body: JSON.stringify({ total: totalFinal, subtotal: totalFinal })
     })
 
-    // 5. Éxito — vaciar carrito y cliente para empezar de cero
-    window._posCarrito = []
+    // 5. Se VERIFICA contra lo que quedó guardado en el servidor: cada par del carrito debe estar (misma talla/color y cantidad suficiente).
+    //    Lo que no quedó guardado se conserva en el carrito del POS y se avisa; antes se vaciaba TODO el carrito aunque algo no se hubiera guardado.
+    const _guardados = Array.isArray(itemsFinales) ? itemsFinales : []
+    const _faltan = _snap.filter(it => {
+      const suma = _guardados.filter(g => g.variante_id === it.variante_id && (!!g.es_corrida) === (!!it.es_corrida)).reduce((n, g) => n + (parseInt(g.cantidad) || 0), 0)
+      return suma < (parseInt(it.cantidad) || 0)
+    })
+    const _paresGuardados = _snap.reduce((n, i) => n + (parseInt(i.cantidad) || 0), 0) - _faltan.reduce((n, i) => n + (parseInt(i.cantidad) || 0), 0)
+    const _paresEnCarrito = _guardados.reduce((n, i) => n + (parseInt(i.cantidad) || 0), 0)
+    // se quitan del carrito solo los pares que sí se guardaron; lo agregado durante el guardado y lo que faltó se queda
+    window._posCarrito = window._posCarrito.filter(x => !_snap.includes(x) || _faltan.includes(x))
     window._guardandoCarrito = false
+    btns.forEach(b => { b.disabled = false; if (b._txt) b.textContent = b._txt })
+    if (_faltan.length) {
+      renderCarritoPOS()
+      alert('⚠️ NO se guardaron todos los pares.\n\nSe guardaron ' + _paresGuardados + ' y faltaron ' + _faltan.reduce((n, i) => n + (parseInt(i.cantidad) || 0), 0) + ' (siguen en el carrito del POS, no los pierdas).\n\nVuelve a pulsar Guardar carrito para intentar de nuevo.')
+      return
+    }
     if (fromDrawer && typeof cerrarDrawerPOS === 'function') cerrarDrawerPOS()
-    if (typeof limpiarClientePOS === 'function') limpiarClientePOS()
+    if (!window._posCarrito.length && typeof limpiarClientePOS === 'function') limpiarClientePOS()
     renderCarritoPOS()
-    alert(existente
+    alert((existente
       ? 'Se agregó al carrito que ya tenía este cliente. Lo ves en la sección Carritos.'
       : 'Carrito guardado. Lo encuentras en la sección Carritos.')
+      + '\n\nSe guardaron ' + _paresGuardados + ' pares. El carrito de este cliente ya tiene ' + _paresEnCarrito + ' pares en total.')
   } catch(e) {
     window._guardandoCarrito = false
     // Solo cancelar si fue un pedido NUEVO (no tocar un carrito que ya existía)
