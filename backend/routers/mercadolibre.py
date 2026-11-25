@@ -1056,6 +1056,7 @@ _TIPO_CALZADO = {
     "sandalia": "Sandalia", "sandalias": "Sandalia",
     "tacon": "Tacón", "tacones": "Tacón",
     "botin": "Botín", "botines": "Botines",
+    "bota": "Bota", "botas": "Bota", "plataformas": "Plataforma",
     "flat": "Flat", "flats": "Flat",
     "balerina": "Balerina", "balerinas": "Balerina",
     "sneaker": "Tenis", "tenis": "Tenis",
@@ -1076,14 +1077,19 @@ _CATEGORY_ID = {
     # Publicar calzado cerrado como si fuera sandalia es justo lo que causó
     # que ML eliminara RX509 y RX1102 por categoría incorrecta.
     "tacon": "MLM193324",    "tacones":   "MLM193324",
-    # Botines y balerinas se quedan en Sandalias por ahora: no fueron parte
-    # de este arreglo (no tienen guía propia todavía).
-    "botin": "MLM192717",    "botines":   "MLM192717",
+    # Botas y botines van a su categoría real (2026-11-25): ML estaba avisando que
+    # las movería de Sandalias. Usan la guía estándar de ML 356657 (22 a 26.5 MX).
+    "bota": "MLM192062",     "botas":     "MLM192062",
+    "botin": "MLM192062",    "botines":   "MLM192062",
+    # Plataformas: se quedan en Sandalias (son sandalias de plataforma); si alguna es
+    # calzado cerrado, se elige la categoría a mano al publicar.
+    "plataforma": "MLM192717", "plataformas": "MLM192717",
     "flat":  "MLM193197",    "flats":     "MLM193197",
     "balerina": "MLM192717", "balerinas": "MLM192717",
     "tenis": "MLM6585",
 }
 _CATEGORY_DEFAULT = "MLM192717"
+_CATS_FABRIC_DESIGN = {"MLM193324", "MLM193197", "MLM192062"}   # categorías donde el diseño que agrupa es FABRIC_DESIGN
 
 # category_id → (value_id, value_name) de FOOTWEAR_TYPE válido en esa categoría.
 # Cada categoría acepta SOLO sus propios valores; mandar el texto equivocado
@@ -1189,6 +1195,7 @@ _SIZE_GRID_BASE = {
     "487994":  (23, 20),
     "9285411": (22, 11),
     "9285271": (22, 11),
+    "356657":  (22, 10),    # Botas y Botines (guía estándar de ML): 22 a 26.5 MX
 }
 
 
@@ -1314,6 +1321,10 @@ def _build_item(producto: dict, variante: dict, qty: int,
     # Solo existe en MLM192717 (categoría a la que siempre publicamos, salvo tenis).
     if category_id == "MLM192717":
         attrs.append({"id": "PATTERN_NAME", "value_name": "Liso"})
+    elif category_id in _CATS_FABRIC_DESIGN:
+        # En tacones, flats y botas el atributo que define la ficha es FABRIC_DESIGN (no PATTERN_NAME).
+        # Si no se manda fijo, ML lo infiere por foto y un mismo modelo se parte en varias agrupaciones.
+        attrs.append({"id": "FABRIC_DESIGN", "value_name": "Liso"})
     if fw:
         attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
     if grid_id:
@@ -1415,6 +1426,10 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
         attrs.append({"id": "HEEL_TYPE", "value_id": heel[0], "value_name": heel[1]})
     if category_id == "MLM192717":
         attrs.append({"id": "PATTERN_NAME", "value_name": "Liso"})
+    elif category_id in _CATS_FABRIC_DESIGN:
+        # En tacones, flats y botas el atributo que define la ficha es FABRIC_DESIGN (no PATTERN_NAME).
+        # Si no se manda fijo, ML lo infiere por foto y un mismo modelo se parte en varias agrupaciones.
+        attrs.append({"id": "FABRIC_DESIGN", "value_name": "Liso"})
     if fw:
         attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
     if grid_id:
