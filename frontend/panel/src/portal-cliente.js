@@ -3275,7 +3275,24 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
   // carrito muerto se seguiría reusando para siempre.
   const borrador = (Array.isArray(pedidosCrudos) ? pedidosCrudos : [])
     .find(p => p.notas === PC_BORRADOR_MARCA && (p.status === 'borrador' || p.status === 'apartado'))
-  if (!borrador) return
+  if (!borrador) {
+    // Ya no hay carrito activo en el servidor (la asesora cerró/entregó o canceló el pedido) pero ESTE dispositivo todavía guarda los
+    // pares en su memoria. Si lo local es idéntico a lo último que se sincronizó (no hay cambios pendientes del cliente), ese carrito ya
+    // quedó atendido: se vacía aquí. Antes se quedaba y, al sincronizar, se volvía a crear un pedido nuevo con los mismos pares
+    // («otra vez tengo pares en mi carrito del pedido anterior»). Solo si la lista de pedidos cargó bien (trae algún carrito-respaldo).
+    try {
+      const snap = localStorage.getItem(PC_CARRITO_SYNCED_KEY)
+      const hayRespaldos = (Array.isArray(pedidosCrudos) ? pedidosCrudos : []).some(p => p.notas === PC_BORRADOR_MARCA)
+      if (hayRespaldos && pc.carrito.length && snap !== null && snap === JSON.stringify(pc.carrito)) {
+        pc.carrito = []
+        pc._borradorServerId = null
+        localStorage.setItem(PC_CARRITO_KEY, '[]')
+        localStorage.setItem(PC_CARRITO_SYNCED_KEY, '[]')
+        if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
+      }
+    } catch {}
+    return
+  }
   pc._borradorServerId = borrador.id
 
   // Si el carrito local (cargado de localStorage al iniciar, ANTES de esta
