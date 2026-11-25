@@ -5333,6 +5333,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
             ${!mostrarInactivos && filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>` : ''}
             <button class="btn btn-secondary" onclick="abrirNovedadesModelos()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Elegir qué modelos salen en Novedades y con qué etiqueta (Nuevo / Resurtido)">✨ Novedades</button>
             <button class="btn btn-secondary" onclick="abrirFotosLimpias()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Elegir la foto donde se ve el zapato solo">📸 Fotos limpias</button>
+            <button class="btn btn-secondary" onclick="cuadrarFotosExistentes()" style="display:flex;align-items:center;gap:6px;font-weight:700" title="Centra en un cuadrado 1:1, sin recortar, las fotos verticales u horizontales que ya subiste">🔲 Cuadrar fotos</button>
             ${!mostrarInactivos ? `<button class="btn btn-secondary" onclick="abrirModelosSinFoto()" style="display:flex;align-items:center;gap:6px;font-weight:700;${activos.some(p => !(p.imagen_principal || '').trim()) ? 'color:#b45309;border-color:#fcd34d' : ''}" title="Modelos activos que no tienen foto principal (no se ven en el sitio)">🖼️ Sin foto (${activos.filter(p => !(p.imagen_principal || '').trim()).length})</button>` : ''}
              <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
           </div>
@@ -23682,6 +23683,39 @@ async function cargarSEO() {
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
   }
+}
+
+// Fotos ya subidas que no son 1:1 (verticales/horizontales): se centran completas en un cuadrado, sin recortar. Primero cuenta, luego pide confirmar.
+window.cuadrarFotosExistentes = async () => {
+  try {
+    const r = await fetch(API + '/imagenes/cuadrar-existentes', { method: 'POST' })
+    const d = await r.json()
+    if (!r.ok) { alert(d.error || 'No se pudo revisar las fotos'); return }
+    if (!d.no_cuadradas) { alert(`Revisé ${d.fotos_revisadas} fotos y todas ya son cuadradas.`); return }
+    if (!confirm(`Revisé ${d.fotos_revisadas} fotos. ${d.no_cuadradas} no son cuadradas (${d.verticales} verticales, ${d.horizontales} horizontales).
+
+Se subirá una versión cuadrada de cada una, completa y sin recortar, y se cambiará en los productos. Las originales no se borran y se puede deshacer.
+
+¿Corregirlas ahora?`)) return
+    const r2 = await fetch(API + '/imagenes/cuadrar-existentes?confirmar=true', { method: 'POST' })
+    const d2 = await r2.json()
+    if (!r2.ok) { alert(d2.error || 'No se pudo iniciar'); return }
+    const t0 = Date.now()
+    const vuelta = async () => {
+      const e = await (await fetch(API + '/imagenes/cuadrar-existentes/estado')).json()
+      if (e.terminado) {
+        alert(`Listo: ${e.hechas} fotos corregidas, ${e.filas_actualizadas} productos/variantes actualizados.` + (e.errores.length ? `
+
+Hubo ${e.errores.length} avisos (revisa la consola).` : ''))
+        if (e.errores.length) console.warn('cuadrar fotos', e.errores)
+        return
+      }
+      if (Date.now() - t0 > 900000) { alert('Sigue corriendo en segundo plano; vuelve a revisar en unos minutos.'); return }
+      setTimeout(vuelta, 4000)
+    }
+    alert(`Corrigiendo ${d2.no_cuadradas} fotos en segundo plano. Te aviso cuando termine; puedes seguir trabajando.`)
+    vuelta()
+  } catch (e) { alert('No se pudo completar: ' + (e.message || e)) }
 }
 
 window._categoriaSubirImagen = async (categoria, file) => {

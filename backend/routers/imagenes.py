@@ -87,6 +87,37 @@ def subir(archivo: UploadFile = File(...), carpeta: str = "productos", limpiar: 
     return resultado
 
 
+@router.post("/cuadrar-existentes")
+def cuadrar_existentes(confirmar: bool = False, _staff=Depends(require_staff)):
+    """Fotos YA subidas que no son 1:1: sin `confirmar` solo cuenta cuántas son; con `confirmar=true` sube una versión cuadrada de cada una
+    (sin recortar) y cambia la dirección en variantes y productos. Corre en segundo plano: ver /imagenes/cuadrar-existentes/estado."""
+    from fotos_cuadradas import escanear, iniciar, ESTADO
+    if ESTADO["corriendo"]:
+        return JSONResponse(status_code=409, content={"error": "ya hay una corrección en curso", "estado": ESTADO})
+    r = escanear()
+    no = r["no_cuadradas"]
+    resumen = {"fotos_revisadas": r["fotos"], "sin_medir": r["sin_medir"], "no_cuadradas": len(no),
+               "verticales": sum(1 for d in no.values() if d[1] > d[0]), "horizontales": sum(1 for d in no.values() if d[0] > d[1])}
+    if not confirmar or not no:
+        return {"confirmado": False, **resumen}
+    iniciar(no)
+    return {"confirmado": True, "iniciado": True, **resumen}
+
+
+@router.get("/cuadrar-existentes/estado")
+def cuadrar_existentes_estado(_staff=Depends(require_staff)):
+    from fotos_cuadradas import ESTADO
+    return ESTADO
+
+
+@router.post("/cuadrar-existentes/revertir")
+def cuadrar_existentes_revertir(confirmar: bool = False, _staff=Depends(require_staff)):
+    from fotos_cuadradas import revertir
+    if not confirmar:
+        return {"confirmado": False, "aviso": "con confirmar=true regresa las fotos a las originales"}
+    return revertir()
+
+
 @router.post("/limpiar-vista")
 def limpiar_vista(archivo: UploadFile = File(...), sombra: bool = True, _staff=Depends(require_staff)):
     """Limpia una foto (fondo blanco, zapato centrado 2000x2000) y la DEVUELVE para que el panel la muestre ANTES de subirla;
