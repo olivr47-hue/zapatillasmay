@@ -448,25 +448,57 @@ def _get_all_item_ids() -> list:
             break
     return all_ids
 
+_ITEMS_LOTE_CACHE: dict = {}   # {ids del lote: (momento, respuesta de ML)}: evita repetir consultas cuando se reintenta
+
 def _get_items_with_sku(all_ids: list) -> list:
     """Devuelve lista de line-items con item_id, variation_id (o None), title, status, qty, seller_sku.
     Publicaciones con variaciones (un solo item_id con varios colores/tallas) generan
     un line-item por variación, ya que el SELLER_SKU vive en la variación, no en el item."""
     items = []
+    _ATTR = "id,title,status,sub_status,available_quantity,attributes,variations"
     for i in range(0, len(all_ids), 20):
-        batch = ",".join(all_ids[i:i+20])
-        resp = None
-        for intento in (1, 2, 3):
-            try:
-                resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,sub_status,available_quantity,attributes,variations")
-                break
-            except HTTPException as e:
-                # MercadoLibre a veces contesta 403/429 «recurso obsoleto» cuando recibe muchas consultas seguidas: se espera y se reintenta
-                if e.status_code in (403, 429, 500, 502, 503) and intento < 3:
-                    time.sleep(2 * intento)
-                    continue
-                raise HTTPException(e.status_code, f"{e.detail} [lote {i // 20 + 1} de {(len(all_ids) + 19) // 20}]")
-        time.sleep(0.15)   # ritmo suave: 65 consultas seguidas pueden toparse con el limite de MercadoLibre
+        ids_lote = all_ids[i:i+20]
+        batch = ",".join(ids_lote)
+        ahora = time.time()
+        hit = _ITEMS_LOTE_CACHE.get(batch)
+        if hit and ahora - hit[0] < 180:
+            resp = hit[1]   # lote leído hace menos de 3 min: un reintento no vuelve a pedirlo
+        else:
+            resp = None
+            ultimo = None
+            # MercadoLibre contesta 403/429 «recurso obsoleto» cuando recibe muchas consultas seguidas: espera creciente (3, 6, 10, 15 s)
+            for intento in (1, 2, 3, 4, 5):
+                try:
+                    resp = ml_get(f"/items?ids={batch}&attributes={_ATTR}")
+                    break
+                except HTTPException as e:
+                    ultimo = e
+                    if e.status_code in (403, 429, 500, 502, 503) and intento < 5:
+                        time.sleep((3, 6, 10, 15)[intento - 1])
+                        continue
+                    break
+            if resp is None:
+                # Último recurso: pedir los items de este lote uno por uno (a veces el pedido múltiple es el que rechaza ML)
+                resp = []
+                try:
+                    for iid in ids_lote:
+                        for intento in (1, 2, 3):
+                            try:
+                                resp.append({"code": 200, "body": ml_get(f"/items/{iid}?attributes={_ATTR}")})
+                                break
+                            except HTTPException as e2:
+                                if e2.status_code in (403, 429, 500, 502, 503) and intento < 3:
+                                    time.sleep(3 * intento)
+                                    continue
+                                raise
+                        time.sleep(0.3)
+                except HTTPException as e3:
+                    raise HTTPException(e3.status_code, f"{e3.detail} [lote {i // 20 + 1} de {(len(all_ids) + 19) // 20}]")
+            _ITEMS_LOTE_CACHE[batch] = (time.time(), resp)
+            if len(_ITEMS_LOTE_CACHE) > 400:
+                for k in sorted(_ITEMS_LOTE_CACHE, key=lambda k: _ITEMS_LOTE_CACHE[k][0])[:100]:
+                    _ITEMS_LOTE_CACHE.pop(k, None)
+            time.sleep(0.4)   # ritmo suave entre lotes
         for entry in resp:
             if entry.get("code") != 200:
                 continue
