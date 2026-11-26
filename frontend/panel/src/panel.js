@@ -11848,13 +11848,13 @@ window.mostrarListaSurtido = () => {
   const LSP = 'zm_surtido_pedidos_hechos'
   let pedHechos = {}
   try { pedHechos = JSON.parse(localStorage.getItem(LSP) || '{}') || {} } catch (e) { pedHechos = {} }
-  const NOM_CANAL = { portal_mayoreo: 'Mayoreo · portal', sucursal: 'Sucursal', whatsapp: 'WhatsApp', web: 'Tienda en línea', mercadolibre: 'MercadoLibre', tiktok: 'TikTok', shein: 'SHEIN', walmart: 'Walmart', amazon: 'Amazon', fb_marketplace: 'Marketplace' }
+  const NOM_CANAL = { portal_mayoreo: 'Mayoreo · portal', portal: 'Mayoreo · portal', sucursal: 'Sucursal', whatsapp: 'WhatsApp', web: 'Tienda en línea', mercadolibre: 'MercadoLibre', tiktok: 'TikTok', shein: 'SHEIN', walmart: 'Walmart', amazon: 'Amazon', fb_marketplace: 'Marketplace' }
   const paresDe = (p) => (p.pedido_items || []).reduce((s, i) => s + (Number(i.cantidad) || 0), 0)
   const pedList = () => pedidos.map(p => ({
-    p, id: p.id, ref: '#' + String(p.id).slice(0, 6).toUpperCase(), pares: paresDe(p),
+    p, id: p.id, ref: '#' + String(p.id).replace(/^ped-/i, '').slice(0, 6).toUpperCase(), pares: paresDe(p),
     cliente: (p.clientes && p.clientes.nombre) || p.nombre_cliente || 'Cliente sin nombre',
     canal: NOM_CANAL[p.canal] || p.canal || '',
-    mayoreo: p.canal === 'portal_mayoreo' || (p.clientes && p.clientes.tipo === 'mayoreo'),
+    mayoreo: p.canal === 'portal_mayoreo' || p.canal === 'portal' || (p.clientes && p.clientes.tipo === 'mayoreo'),
     items: (p.pedido_items || []).filter(i => Number(i.cantidad) > 0).map(i => ({
       nombre: String(i.modelo_real || i.nombre || 'Producto').trim(), color: i.color_real || i.color || '', talla: i.talla_real || i.talla || '',
       cantidad: Number(i.cantidad) || 0, enAmarres: !!i.en_amarres, sinLigar: !i.variante_id && ['tiktok', 'shein', 'walmart', 'amazon', 'mercadolibre'].includes(p.canal),

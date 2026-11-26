@@ -4,6 +4,7 @@ import * as D from './demo-datos.js'
 import { registrarRutasExtra } from './demo-api-fin.js'
 import { registrarRutasMarketplace } from './demo-api-mp.js'
 import { registrarRutasOtros } from './demo-api-otros.js'
+import { registrarRutasNov } from './demo-api-nov.js'
 
 const db = {
   productos: D.PRODUCTOS, variantes: D.VARIANTES, inventario: D.INVENTARIO, clientes: D.CLIENTES, pedidos: D.PEDIDOS, sucursales: D.SUCURSALES,
@@ -148,6 +149,7 @@ ruta('GET', /^\/demo\/admin\/prospectos$/, () => [])
 registrarRutasExtra({ db, ruta: rutaPrio, q, num, mes, cerrado, nuevoId })
 registrarRutasMarketplace({ db, ruta: rutaPrio, nuevoId, foto: D.FOTO })
 registrarRutasOtros({ db, ruta: rutaPrio })
+registrarRutasNov({ db, ruta: rutaPrio, nuevoId, num, q })
 
 // ── Atención de la petición ──────────────────────────────────────────────────────────────────────────────────────
 export async function responderDemo(input, init) {
