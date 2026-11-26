@@ -84,7 +84,7 @@ export function registrarRutasNov({ db, ruta, nuevoId, num, q }) {
     const lista = [
       { pedido_id: 'g1', canal: 'tiktok', pares: 2, ref: '5767781234500', hora: iso(0, 9, 12), items: ['Botín Nora Negro T24', 'Tacón Aurora Nude T25'] },
       { pedido_id: 'g2', canal: 'mercadolibre', pares: 1, ref: '2000011122233', hora: iso(0, 9, 40), items: ['Sandalia Luna Nude T23'] },
-      { pedido_id: 'g3', canal: 'tiktok', pares: 1, ref: '5767781234512', hora: iso(0, 10, 5), items: ['Flat Brisa Rosa T25'] },
+      { pedido_id: 'g3', canal: 'tiktok', pares: 1, ref: '5767781234512', hora: iso(0, 10, 5), items: ['Flat Paloma Rosa T25'] },
       { pedido_id: 'g4', canal: 'shein', pares: 3, ref: 'GSH2400091', hora: iso(0, 10, 31), items: ['Tacón Aurora Negro T24', 'Tacón Aurora Negro T25', 'Tacón Aurora Negro T26'] },
       { pedido_id: 'g5', canal: 'amazon', pares: 1, ref: '114-2233441-009', hora: iso(0, 11, 2), items: ['Sandalia Luna Camel T24'] },
     ]

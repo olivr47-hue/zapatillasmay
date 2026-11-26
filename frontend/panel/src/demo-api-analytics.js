@@ -81,7 +81,7 @@ export function registrarRutasAnalytics({ ruta, db }) {
     por_origen: [
       { origen: 'Google (orgánico)', pedidos: 31, ventas: 19800, pct_ventas: 32, ticket: 639, top_modelos: [{ modelo: 'Tacón Aurora', pares: 9 }, { modelo: 'Botín Nora', pares: 7 }] },
       { origen: 'Directo', pedidos: 24, ventas: 15900, pct_ventas: 26, ticket: 662, top_modelos: [{ modelo: 'Sandalia Luna', pares: 8 }] },
-      { origen: 'Instagram', pedidos: 17, ventas: 10100, pct_ventas: 17, ticket: 594, top_modelos: [{ modelo: 'Flat Brisa', pares: 6 }] },
+      { origen: 'Instagram', pedidos: 17, ventas: 10100, pct_ventas: 17, ticket: 594, top_modelos: [{ modelo: 'Flat Paloma', pares: 6 }] },
       { origen: 'WhatsApp', pedidos: 14, ventas: 9200, pct_ventas: 15, ticket: 657, top_modelos: [{ modelo: 'Tacón Aurora', pares: 5 }] },
       { origen: 'Meta Ads', pedidos: 10, ventas: 6200, pct_ventas: 10, ticket: 620, top_modelos: [{ modelo: 'Botín Nora', pares: 4 }] },
     ],

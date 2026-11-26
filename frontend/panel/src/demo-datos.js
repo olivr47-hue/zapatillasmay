@@ -16,12 +16,12 @@ export const FOTO = (hex, emoji = '👠') => 'data:image/svg+xml;utf8,' + encode
 
 const COLORES = [['Negro', '#111111'], ['Nude', '#E8C4A0'], ['Camel', '#C19A6B'], ['Vino', '#722F37'], ['Blanco', '#F5F5F5'], ['Rosa', '#FF69B4'], ['Azul marino', '#001F5B'], ['Dorado', '#C8A951'], ['Rojo', '#CC0000'], ['Plateado', '#A8A8A8']]
 const CATS = [
-  { c: 'tacones', p: 'TAC', e: '👠', n: ['Tacón Aurora', 'Tacón Valentina', 'Tacón Elena', 'Tacón Regina', 'Tacón Camila', 'Tacón Sofía'], pr: [420, 560] },
-  { c: 'sandalias', p: 'SAN', e: '👡', n: ['Sandalia Brisa', 'Sandalia Luna', 'Sandalia Coral', 'Sandalia Marea', 'Sandalia Isla'], pr: [320, 450] },
-  { c: 'botines', p: 'BTN', e: '🥾', n: ['Botín Alba', 'Botín Ámbar', 'Botín Nora', 'Botín Dalia'], pr: [520, 680] },
-  { c: 'flats', p: 'FLT', e: '🩰', n: ['Flat Paloma', 'Flat Lirio', 'Flat Mía', 'Flat Jazmín'], pr: [280, 380] },
-  { c: 'plataformas', p: 'PLT', e: '👢', n: ['Plataforma Nube', 'Plataforma Estela', 'Plataforma Vera'], pr: [450, 600] },
-  { c: 'tenis', p: 'TEN', e: '👟', n: ['Tenis Ráfaga', 'Tenis Ola', 'Tenis Brisa Sport'], pr: [380, 520] },
+  { c: 'tacones', p: 'TAC', e: '👠', n: ['Tacón Aurora', 'Tacón Valentina', 'Tacón Elena', 'Tacón Regina', 'Tacón Camila'], pr: [420, 560] },
+  { c: 'sandalias', p: 'SAN', e: '👡', n: ['Sandalia Brisa', 'Sandalia Luna', 'Sandalia Coral'], pr: [320, 450] },
+  { c: 'botines', p: 'BTN', e: '🥾', n: ['Botín Alba', 'Botín Ámbar', 'Botín Nora'], pr: [520, 680] },
+  { c: 'botas', p: 'BOT', e: '🥾', n: ['Bota Dalia', 'Bota Marina'], pr: [640, 820] },
+  { c: 'flats', p: 'FLT', e: '🩰', n: ['Flat Paloma', 'Flat Lirio'], pr: [280, 380] },
+  { c: 'plataformas', p: 'PLT', e: '👢', n: ['Plataforma Nube', 'Plataforma Estela'], pr: [450, 600] },
 ]
 const PROVS = [
   { id: 'prov-1', nombre: 'Calzado Los Arcos', contacto: 'Mario Ibarra', telefono: '4771000001', email: 'ventas@losarcos.demo', ciudad: 'León, Gto.', dias_credito: 15 },
