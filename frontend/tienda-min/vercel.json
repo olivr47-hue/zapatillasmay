@@ -1,0 +1,122 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.zapatillasmay.mx" }],
+      "destination": "https://zapatillasmay.mx/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/zapatillas",
+      "destination": "/tacones",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(success|pedido-exitoso|pedido-pendiente|pedido-fallido|checkout|carrito)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "ALLOW-FROM https://portal.zapatillasmay.mx" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'self' https://portal.zapatillasmay.mx https://zapatillasmay-panel.vercel.app; object-src 'none'; base-uri 'self'" }
+      ]
+    },
+    {
+      "source": "/producto/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "ALLOW-FROM https://portal.zapatillasmay.mx" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'self' https://portal.zapatillasmay.mx https://zapatillasmay-panel.vercel.app; object-src 'none'; base-uri 'self'" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/producto/:slug", "destination": "https://zapatillasmay-production.up.railway.app/seo/producto/:slug" },
+    { "source": "/sitemap.xml",    "destination": "https://zapatillasmay-production.up.railway.app/sitemap.xml" },
+    { "source": "/robots.txt",     "destination": "https://zapatillasmay-production.up.railway.app/robots.txt" },
+    { "source": "/llms.txt",       "destination": "https://zapatillasmay-production.up.railway.app/llms.txt" },
+    { "source": "/feed.json",      "destination": "https://zapatillasmay-production.up.railway.app/feed.json" },
+    { "source": "/feed/google.xml",       "destination": "https://zapatillasmay-production.up.railway.app/feed/google.xml" },
+    { "source": "/feed/google-local.xml", "destination": "https://zapatillasmay-production.up.railway.app/feed/google-local.xml" },
+    { "source": "/feed/meta.xml",         "destination": "https://zapatillasmay-production.up.railway.app/feed/meta.xml" },
+    { "source": "/favicon.ico",          "destination": "https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_png/v1776836428/Proyecto_nuevo_wpdwus.png" },
+    { "source": "/apple-touch-icon.png",  "destination": "https://res.cloudinary.com/dybdtehhs/image/upload/w_180,h_180,c_pad,b_white,f_png/v1776836428/Proyecto_nuevo_wpdwus.png" },
+    { "source": "/logo.png",       "destination": "https://res.cloudinary.com/dybdtehhs/image/upload/w_512,h_512,c_fit,f_png/v1776836428/Proyecto_nuevo_wpdwus.png" },
+    { "source": "/mcp",            "destination": "https://zapatillasmay-production.up.railway.app/mcp" },
+    { "source": "/carrito",        "destination": "/carrito.html" },
+    { "source": "/catalogo",       "destination": "/catalogo.html" },
+    { "source": "/catalogo/:id",   "destination": "/catalogo.html" },
+    { "source": "/tacones",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones" },
+    { "source": "/sandalias",      "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/sandalias" },
+    { "source": "/botas",          "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/botas" },
+    { "source": "/botines",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/botines" },
+    { "source": "/flats",          "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/flats" },
+    { "source": "/plataformas",    "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/plataformas" },
+    { "source": "/tenis",          "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tenis" },
+    { "source": "/nina",           "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/nina" },
+    { "source": "/accesorios",     "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/accesorios" },
+    { "source": "/mayoreo",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/mayoreo" },
+    { "source": "/guias", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guias" },
+    { "source": "/guia-tacones-8-vs-10-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-tacones-8-vs-10-cm" },
+    { "source": "/guia-comprar-calzado-mayoreo-leon", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-comprar-calzado-mayoreo-leon" },
+    { "source": "/guia-tacon-aguja-o-bloque", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-tacon-aguja-o-bloque" },
+    { "source": "/guia-botas-o-botines", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-botas-o-botines" },
+    { "source": "/guia-sandalias-segun-ocasion", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-sandalias-segun-ocasion" },
+    { "source": "/guia-plataformas-como-elegir", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-plataformas-como-elegir" },
+    { "source": "/guia-como-elegir-tu-talla", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-como-elegir-tu-talla" },
+    { "source": "/guia-flats-como-elegir", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/guia-flats-como-elegir" },
+    { "source": "/envios",         "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/envios" },
+    { "source": "/nosotros",       "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/nosotros" },
+    { "source": "/contacto",       "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/contacto" },
+    { "source": "/tabla-tallas",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tabla-tallas" },
+    { "source": "/como-comprar",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/como-comprar" },
+    { "source": "/privacidad",     "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/privacidad" },
+    { "source": "/terminos",       "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/terminos" },
+    { "source": "/eliminacion-datos", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/eliminacion-datos" },
+    { "source": "/politica-de-devoluciones", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/politica-de-devoluciones" },
+    { "source": "/success",           "destination": "/success.html" },
+    { "source": "/pedido-exitoso",   "destination": "/success.html" },
+    { "source": "/pedido-pendiente", "destination": "/success.html" },
+    { "source": "/pedido-fallido",   "destination": "/success.html" },
+    { "source": "/checkout",       "destination": "/checkout.html" },
+    { "source": "/links",          "destination": "/links.html" },
+    { "source": "/ofertas",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/ofertas" },
+    { "source": "/tacones-de-5-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-5-cm" },
+    { "source": "/tacones-de-6-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-6-cm" },
+    { "source": "/tacones-de-7-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-7-cm" },
+    { "source": "/tacones-de-8-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-8-cm" },
+    { "source": "/tacones-de-9-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-9-cm" },
+    { "source": "/tacones-de-10-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-10-cm" },
+    { "source": "/tacones-de-11-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-11-cm" },
+    { "source": "/tacones-de-12-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-12-cm" },
+    { "source": "/tacones-de-13-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-13-cm" },
+    { "source": "/tacones-de-14-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-14-cm" },
+    { "source": "/tacones-de-6-a-8-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-6-a-8-cm" },
+    { "source": "/tacones-de-8-a-10-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-8-a-10-cm" },
+    { "source": "/tacones-de-10-a-13-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-10-a-13-cm" },
+    { "source": "/mi-cuenta",      "destination": "/mi-cuenta.html" },
+    { "source": "/vender",         "destination": "/vender.html" },
+    { "source": "/vendedor",       "destination": "/vendedor.html" },
+    { "source": "/marketplace",    "destination": "/marketplace.html" },
+    { "source": "/marketplace/:slug", "destination": "/marketplace-producto.html" },
+    { "source": "/((?!.*\\.).*)",   "destination": "/index.html" }
+  ]
+}

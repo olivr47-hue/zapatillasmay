@@ -4,22 +4,52 @@
     {
       "name": "panel",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5179"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5179"
+      ],
       "cwd": "frontend/panel",
       "port": 5179
     },
     {
       "name": "tienda",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "3001", "--directory", "frontend/tienda"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3001",
+        "--directory",
+        "frontend/tienda"
+      ],
       "port": 3001
     },
     {
       "name": "portal",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5180"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5180"
+      ],
       "cwd": "frontend/portal-cliente",
       "port": 5180
+    },
+    {
+      "name": "tienda-min",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3002",
+        "--directory",
+        "frontend/tienda-min"
+      ],
+      "port": 3002
     }
   ]
 }

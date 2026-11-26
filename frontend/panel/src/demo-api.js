@@ -5,6 +5,8 @@ import { registrarRutasExtra } from './demo-api-fin.js'
 import { registrarRutasMarketplace } from './demo-api-mp.js'
 import { registrarRutasOtros } from './demo-api-otros.js'
 import { registrarRutasNov } from './demo-api-nov.js'
+import { registrarRutasAnalytics } from './demo-api-analytics.js'
+import { registrarRutasFotos } from './demo-api-fotos.js'
 
 const db = {
   productos: D.PRODUCTOS, variantes: D.VARIANTES, inventario: D.INVENTARIO, clientes: D.CLIENTES, pedidos: D.PEDIDOS, sucursales: D.SUCURSALES,
@@ -150,6 +152,8 @@ registrarRutasExtra({ db, ruta: rutaPrio, q, num, mes, cerrado, nuevoId })
 registrarRutasMarketplace({ db, ruta: rutaPrio, nuevoId, foto: D.FOTO })
 registrarRutasOtros({ db, ruta: rutaPrio })
 registrarRutasNov({ db, ruta: rutaPrio, nuevoId, num, q })
+registrarRutasAnalytics({ db, ruta: rutaPrio })
+registrarRutasFotos({ db, ruta: rutaPrio, nuevoId, num, q })
 
 // ── Atención de la petición ──────────────────────────────────────────────────────────────────────────────────────
 export async function responderDemo(input, init) {
@@ -167,11 +171,11 @@ export async function responderDemo(input, init) {
   if (!ruta_.startsWith('/api')) return window.__fetchReal(input, init)   // imágenes, fuentes, etc.
   const [path, qs = ''] = ruta_.replace(/^\/api/, '').split('?')
   let body = {}
-  try { const raw = init && init.body; if (typeof raw === 'string') body = JSON.parse(raw) } catch (e) {}
+  try { const raw = init && init.body; if (typeof raw === 'string') body = JSON.parse(raw); else if (raw && typeof raw.get === 'function') body = { __form: raw } } catch (e) {}
   for (const [met, rx, fn] of R) {
     if (met !== metodo) continue
     const m = path.match(rx)
-    if (m) { try { await new Promise(r => setTimeout(r, 60)); return json(fn({ m, qs, body })) } catch (e) { console.warn('[demo]', path, e); return json({ error: 'Demo: ' + e.message }, 500) } }
+    if (m) { try { await new Promise(r => setTimeout(r, 60)); const out = await fn({ m, qs, body }); return out instanceof Response ? out : json(out) } catch (e) { console.warn('[demo]', path, e); return json({ error: 'Demo: ' + e.message }, 500) } }
   }
   if (metodo === 'GET') { console.info('[demo] sin dato para GET', path); return json([]) }
   return json({ ok: true, demo: true })

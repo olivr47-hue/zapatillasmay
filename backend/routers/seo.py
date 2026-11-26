@@ -11,6 +11,16 @@ import re
 import io
 import html as _html
 
+def _ruta_tienda(nombre: str) -> str:
+    """Ruta de un archivo de la tienda: usa la versión comprimida (frontend/tienda-min, la que se despliega) si existe y, si no, el código fuente."""
+    base = os.path.join(os.path.dirname(__file__), "..", "..", "frontend")
+    for carpeta in ("tienda-min", "tienda"):
+        ruta = os.path.abspath(os.path.join(base, carpeta, nombre))
+        if os.path.exists(ruta):
+            return ruta
+    return os.path.abspath(os.path.join(base, "tienda", nombre))
+
+
 router = APIRouter(tags=["SEO"])
 
 def _get_api_key():
@@ -267,7 +277,7 @@ def _producto_ssr_inner(sku: str, request: Request):
     template  = cache_get(cache_key)
     if template is None:
         # Intentar cargar localmente primero para reducir TTFB (~1ms vs ~500ms)
-        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "tienda", "producto.html"))
+        local_path = _ruta_tienda("producto.html")
         if os.path.exists(local_path):
             try:
                 with open(local_path, "r", encoding="utf-8") as f:
@@ -1024,7 +1034,7 @@ def pagina_ssr(slug: str):
     template = cache_get("tpl_index_html")
     if template is None:
         # Intentar cargar localmente primero para reducir TTFB (~1ms vs ~500ms)
-        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "tienda", "index.html"))
+        local_path = _ruta_tienda("index.html")
         if os.path.exists(local_path):
             try:
                 with open(local_path, "r", encoding="utf-8") as f:
