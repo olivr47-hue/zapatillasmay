@@ -36,7 +36,7 @@ if (_demo) {
   window.__zmInterno = true
   // la demo no muestra Marketplace ni Renta del sistema (son del negocio, no del sistema que se renta)
   const est = document.createElement('style')
-  est.textContent = '[data-modulo="marketplace"],[data-modulo="prospectos"],[data-modulo="editor-visual"]{display:none!important}'
+  est.textContent = '[data-modulo="marketplace"],[data-modulo="prospectos"],[data-modulo="editor-visual"]{display:none!important}#sidebar{padding-bottom:56px!important;box-sizing:border-box}#sidebar nav,#sidebar .sidebar-nav{padding-bottom:56px}'
   document.head.appendChild(est)
   // enlaces a los archivos reales del negocio (sitemap, feeds...) no se ofrecen en la demo
   const limpiarEnlaces = () => document.querySelectorAll('a[href*="zapatillasmay"]').forEach(a => { if (!a.closest('#zm-demo-banner')) { a.removeAttribute('href'); a.style.cursor = 'default' } })
@@ -54,5 +54,6 @@ if (_demo) {
   }
   if (document.body) poner(); else document.addEventListener('DOMContentLoaded', poner)
   setInterval(poner, 3000)
+  setInterval(() => { const x = document.getElementById('tk-precios'); if (x && x.parentElement) { const c = x.closest('div[style*="border-radius:14px"]'); if (c) c.style.display = 'none' } }, 800)
 }
 export default _demo

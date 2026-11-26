@@ -7,6 +7,7 @@ import { registrarRutasOtros } from './demo-api-otros.js'
 import { registrarRutasNov } from './demo-api-nov.js'
 import { registrarRutasAnalytics } from './demo-api-analytics.js'
 import { registrarRutasFotos } from './demo-api-fotos.js'
+import { registrarRutasIntegraciones } from './demo-api-integraciones.js'
 
 const db = {
   productos: D.PRODUCTOS, variantes: D.VARIANTES, inventario: D.INVENTARIO, clientes: D.CLIENTES, pedidos: D.PEDIDOS, sucursales: D.SUCURSALES,
@@ -154,6 +155,7 @@ registrarRutasOtros({ db, ruta: rutaPrio })
 registrarRutasNov({ db, ruta: rutaPrio, nuevoId, num, q })
 registrarRutasAnalytics({ db, ruta: rutaPrio })
 registrarRutasFotos({ db, ruta: rutaPrio, nuevoId, num, q })
+registrarRutasIntegraciones({ db, ruta: rutaPrio, num, q })
 
 // ── Atención de la petición ──────────────────────────────────────────────────────────────────────────────────────
 export async function responderDemo(input, init) {

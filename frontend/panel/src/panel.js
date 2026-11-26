@@ -3,6 +3,7 @@ import './redes.js'
 import './analytics.js'
 import './seo-paginas.js'
 import './fotos-limpias.js'
+import './temu.js'
 import './marketplace-admin.js'
 import './renta-admin.js'
 import './conexiones.js'
@@ -142,6 +143,7 @@ const modulos = [
   { id: 'walmart', icon: '🏬', label: 'Walmart', section: 'Integraciones', soloAdmin: true },
   { id: 'amazon', icon: '📦', label: 'Amazon', section: 'Integraciones', soloAdmin: true },
   { id: 'tiktok', icon: '🎵', label: 'TikTok Shop', section: 'Integraciones', soloAdmin: true },
+  { id: 'temu', icon: '🛍️', label: 'Temu', section: 'Integraciones', soloAdmin: true, soloDemo: true },
   { id: 'conexiones', icon: '🔌', label: 'Conexiones', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
@@ -162,7 +164,7 @@ if (!window._escWA) window._escWA = _e
 
 // ¿Puede esta persona ver Finanzas y los pagos a proveedores? (administrador con el permiso «ver Finanzas»; se quita desde Empleados)
 window._veFinanzas = () => window._empleadoActual?.rol === 'admin' && window._empleadoActual?.ver_finanzas !== false
-const _moduloPermitido = (m) => !!m && (window._empleadoActual?.rol === 'admin' || !m.soloAdmin) && (!m.soloFinanzas || window._veFinanzas())
+const _moduloPermitido = (m) => !!m && (window._empleadoActual?.rol === 'admin' || !m.soloAdmin) && (!m.soloFinanzas || window._veFinanzas()) && (!m.soloDemo || !!window.__ZM_DEMO)
 
 export function renderPanel() {
   const _savedModulo = (() => { try { return localStorage.getItem('zm_panel_modulo') } catch(e) { return null } })()
@@ -782,6 +784,7 @@ async function cargarModulo(id) {
     case 'walmart': await cargarWalmart(); break;
     case 'amazon': await cargarAmazon(); break;
     case 'tiktok': await cargarTikTok(); break;
+    case 'temu': await window.cargarTemu(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
     case 'correo': await cargarCorreoCorporativo(); break;
     case 'analytics':    await window.cargarAnalitica(); break;
