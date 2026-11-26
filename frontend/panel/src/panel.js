@@ -11842,11 +11842,63 @@ window.mostrarListaSurtido = () => {
   const guardar = () => { try { localStorage.setItem(LS, JSON.stringify(hechos)) } catch (e) {} }
   const hecho = f => hechos[f.k] === f.pares
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-  let q = '', ocultar = false
+  let q = '', ocultar = false, vista = 'modelo'
+
+  // ── Vista «Por pedido»: cada pedido por enviar con su propia lista de pares (desplegable). Se marca el pedido completo como surtido. ──
+  const LSP = 'zm_surtido_pedidos_hechos'
+  let pedHechos = {}
+  try { pedHechos = JSON.parse(localStorage.getItem(LSP) || '{}') || {} } catch (e) { pedHechos = {} }
+  const NOM_CANAL = { portal_mayoreo: 'Mayoreo · portal', sucursal: 'Sucursal', whatsapp: 'WhatsApp', web: 'Tienda en línea', mercadolibre: 'MercadoLibre', tiktok: 'TikTok', shein: 'SHEIN', walmart: 'Walmart', amazon: 'Amazon', fb_marketplace: 'Marketplace' }
+  const paresDe = (p) => (p.pedido_items || []).reduce((s, i) => s + (Number(i.cantidad) || 0), 0)
+  const pedList = () => pedidos.map(p => ({
+    p, id: p.id, ref: '#' + String(p.id).slice(0, 6).toUpperCase(), pares: paresDe(p),
+    cliente: (p.clientes && p.clientes.nombre) || p.nombre_cliente || 'Cliente sin nombre',
+    canal: NOM_CANAL[p.canal] || p.canal || '',
+    mayoreo: p.canal === 'portal_mayoreo' || (p.clientes && p.clientes.tipo === 'mayoreo'),
+    items: (p.pedido_items || []).filter(i => Number(i.cantidad) > 0).map(i => ({
+      nombre: String(i.modelo_real || i.nombre || 'Producto').trim(), color: i.color_real || i.color || '', talla: i.talla_real || i.talla || '',
+      cantidad: Number(i.cantidad) || 0, enAmarres: !!i.en_amarres, sinLigar: !i.variante_id && ['tiktok', 'shein', 'walmart', 'amazon', 'mercadolibre'].includes(p.canal),
+    })).sort((a, b) => a.nombre.localeCompare(b.nombre) || a.color.localeCompare(b.color) || (parseFloat(a.talla) || 0) - (parseFloat(b.talla) || 0)),
+  })).sort((a, b) => (b.mayoreo - a.mayoreo) || a.cliente.localeCompare(b.cliente))
+  const pedHecho = (x) => pedHechos[x.id] === x.pares
+  const pintarPorPedido = (lista, prog) => {
+    const todos = pedList()
+    const hechosN = todos.filter(pedHecho).length
+    const pct = todos.length ? Math.round(hechosN * 100 / todos.length) : 0
+    if (prog) prog.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:5px"><strong>${hechosN} de ${todos.length} pedido${todos.length === 1 ? '' : 's'} surtido${hechosN === 1 ? '' : 's'}</strong><span style="color:#64748b">${total} pares en total</span></div>
+      <div style="height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct === 100 ? '#16a34a' : '#2563eb'};transition:width .2s"></div></div>`
+    const nq = norm(q)
+    const vis = todos.filter(x => (!ocultar || !pedHecho(x)) && (!nq || norm(`${x.cliente} ${x.canal} ${x.ref} ${x.items.map(i => `${i.nombre} ${i.color} ${i.talla}`).join(' ')}`).includes(nq)))
+    lista.innerHTML = vis.length ? vis.map(x => {
+      const d = pedHecho(x)
+      return `<details style="border:2px solid ${d ? '#86efac' : (x.mayoreo ? '#c4b5fd' : '#e5e7eb')};background:${d ? '#f0fdf4' : '#fff'};border-radius:12px;margin-bottom:8px;${d ? 'opacity:.75' : ''}">
+        <summary style="list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:11px 12px;-webkit-tap-highlight-color:transparent">
+          <div onclick="event.stopPropagation();event.preventDefault();_surtidoPedidoMarcar('${x.id}')" style="flex:none;width:30px;height:30px;border-radius:9px;border:2px solid ${d ? '#16a34a' : '#94a3b8'};background:${d ? '#16a34a' : '#fff'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800">${d ? '✓' : ''}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:0.92rem;line-height:1.25;${d ? 'text-decoration:line-through;' : ''}">${_e(x.cliente)}</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:2px">${x.mayoreo ? '<span style="background:#ede9fe;color:#5b21b6;font-weight:700;border-radius:6px;padding:1px 6px;margin-right:6px">MAYOREO</span>' : ''}${_e(x.canal)} · ${_e(x.ref)}</div>
+          </div>
+          <div style="flex:none;text-align:center;min-width:48px;background:#f1f5f9;border-radius:10px;padding:6px 8px"><div style="font-size:1.2rem;font-weight:800;line-height:1.1">${x.pares}</div><div style="font-size:0.6rem;color:#64748b">${x.pares === 1 ? 'par' : 'pares'}</div></div>
+          <div style="flex:none;color:#94a3b8;font-size:0.9rem">▾</div>
+        </summary>
+        <div style="padding:2px 12px 12px 52px">
+          ${x.items.map(i => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
+              <div style="min-width:0"><div style="font-weight:600">${_e(i.nombre)}</div>
+              <div style="color:#334155">${i.color ? `<strong>${_e(i.color)}</strong>` : ''}${i.color && i.talla ? ' · ' : ''}${i.talla ? `<strong>Talla ${_e(i.talla)}</strong>` : ''}${!i.color && !i.talla ? '<span style="color:#b45309">sin color/talla</span>' : ''}</div>
+              ${i.enAmarres ? '<span style="font-size:0.7rem;font-weight:800;color:#9a3412;background:#ffedd5;border-radius:6px;padding:1px 6px;display:inline-block;margin-top:2px">📦 En AMARRES</span>' : ''}
+              ${i.sinLigar ? '<span style="font-size:0.7rem;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 6px;display:inline-block;margin-top:2px">⚠ material sin confirmar</span>' : ''}</div>
+              <div style="flex:none;font-weight:800">${i.cantidad}</div></div>`).join('')}
+        </div></details>`
+    }).join('') : `<p style="color:#888;text-align:center;padding:1.5rem">${todos.length ? 'Nada coincide con la búsqueda.' : 'No hay pedidos por enviar.'}</p>`
+    // Para imprimir: cada pedido con sus pares
+    window._surtidoHTML = `<h2 style="font-family:sans-serif">Surtido por pedido — ${new Date().toLocaleDateString('es-MX')}</h2><p style="font-family:sans-serif;color:#555">${todos.length} pedidos · ${total} pares</p>` +
+      todos.map(x => `<div style="font-family:sans-serif;margin-bottom:14px;page-break-inside:avoid"><h3 style="margin:0 0 4px;font-size:1rem">${pedHecho(x) ? '☑' : '☐'} ${_e(x.cliente)} <span style="font-weight:400;color:#666;font-size:0.8rem">· ${_e(x.canal)} · ${_e(x.ref)} · ${x.pares} par${x.pares === 1 ? '' : 'es'}</span></h3><table style="width:100%;border-collapse:collapse;font-size:0.85rem">${x.items.map(i => `<tr style="border-top:1px solid #ddd"><td style="padding:4px">${_e(i.nombre)}</td><td style="padding:4px">${_e(i.color)}</td><td style="padding:4px">${i.talla ? 'T' + _e(i.talla) : ''}</td><td style="padding:4px;text-align:right;font-weight:700">${i.cantidad}</td></tr>`).join('')}</table></div>`).join('')
+  }
 
   const pintar = () => {
     const lista = document.getElementById('sur-lista'), prog = document.getElementById('sur-prog')
     if (!lista) return
+    if (vista === 'pedido') { pintarPorPedido(lista, prog); return }
     const hechasN = filas.filter(hecho).length
     const paresHechos = filas.filter(hecho).reduce((s, f) => s + f.pares, 0)
     const pct = total ? Math.round(paresHechos * 100 / total) : 0
@@ -11881,8 +11933,27 @@ window.mostrarListaSurtido = () => {
   window._surtidoBuscar = (v) => { q = v || ''; pintar() }
   window._surtidoOcultar = (v) => { ocultar = !!v; pintar() }
   window._surtidoReiniciar = () => {
+    if (vista === 'pedido') {
+      if (!Object.keys(pedHechos).length || !confirm('¿Quitar todas las palomas de los pedidos y empezar de nuevo?')) return
+      pedHechos = {}; try { localStorage.setItem(LSP, '{}') } catch (e) {}; pintar(); return
+    }
     if (!Object.keys(hechos).length || !confirm('¿Quitar todas las palomas y empezar de nuevo?')) return
     hechos = {}; guardar(); pintar()
+  }
+  window._surtidoVista = (v) => {
+    vista = v === 'pedido' ? 'pedido' : 'modelo'
+    const on = 'flex:1;padding:8px 6px;border-radius:10px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit'
+    const off = 'flex:1;padding:8px 6px;border-radius:10px;border:2px solid #d1d5db;background:#fff;color:#334155;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit'
+    const a = document.getElementById('sur-tab-modelo'), b = document.getElementById('sur-tab-pedido')
+    if (a) a.style.cssText = vista === 'modelo' ? on : off
+    if (b) b.style.cssText = vista === 'pedido' ? on : off
+    pintar()
+  }
+  window._surtidoPedidoMarcar = (id) => {
+    const x = pedList().find(p => p.id === id); if (!x) return
+    if (pedHecho(x)) delete pedHechos[id]; else pedHechos[id] = x.pares
+    try { localStorage.setItem(LSP, JSON.stringify(pedHechos)) } catch (e) {}
+    pintar()
   }
 
   document.getElementById('modal-surtido')?.remove()
@@ -11894,8 +11965,12 @@ window.mostrarListaSurtido = () => {
       <div style="padding:14px 16px 10px;border-bottom:1px solid #eef0f3;flex:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:1.05rem">📋 Lista de surtido</h3><button onclick="document.getElementById('modal-surtido').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem">✕</button></div>
         <p style="font-size:0.74rem;color:#64748b;margin:0 0 10px">${pedidos.length} pedido${pedidos.length === 1 ? '' : 's'} por enviar. Toca un renglón cuando ya lo sacaste del almacén.</p>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button id="sur-tab-modelo" onclick="_surtidoVista('modelo')" style="flex:1;padding:8px 6px;border-radius:10px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">Por modelo</button>
+          <button id="sur-tab-pedido" onclick="_surtidoVista('pedido')" style="flex:1;padding:8px 6px;border-radius:10px;border:2px solid #d1d5db;background:#fff;color:#334155;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">Por pedido</button>
+        </div>
         <div id="sur-prog" style="margin-bottom:10px"></div>
-        <input type="search" placeholder="🔍 Buscar modelo, color, talla o pedido" oninput="_surtidoBuscar(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;font-family:inherit">
+        <input type="search" placeholder="🔍 Buscar cliente, modelo, color, talla o pedido" oninput="_surtidoBuscar(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;font-family:inherit">
         <label style="display:flex;align-items:center;gap:8px;margin-top:9px;font-size:0.8rem;color:#475569;cursor:pointer"><input type="checkbox" onchange="_surtidoOcultar(this.checked)" style="width:18px;height:18px"> Ocultar los ya surtidos</label>
       </div>
       <div id="sur-lista" style="flex:1;overflow:auto;padding:12px 16px;-webkit-overflow-scrolling:touch"></div>
