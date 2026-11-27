@@ -463,6 +463,36 @@ if (!window.fbq){
 // GA4 purchase: el backend lo envía via Measurement Protocol en el webhook.
 // No se dispara desde el frontend para evitar duplicados.
 
+// Meta Purchase desde el navegador (antes solo salía por el servidor, por eso Meta marcaba el evento como incompleto).
+// Lleva el mismo eventID que el servidor («<pedido>-Purchase») para que Meta junte los dos avisos en uno.
+;(function() {
+  if (!window.__zmPagoOk) return
+  if (localStorage.getItem('zm_consent') === 'rejected') return
+  const params    = new URLSearchParams(window.location.search)
+  const paymentId = params.get('payment_id') || params.get('collection_id') || ''
+  const status    = params.get('status') || params.get('collection_status') || ''
+  if (status && status !== 'approved') return
+  try {
+    if (paymentId && localStorage.getItem('zm_last_purchase') === paymentId) return
+    let valor = parseFloat(localStorage.getItem('zm_purchase_value') || '0') || 0
+    if (!valor) valor = parseFloat(params.get('transaction_amount') || params.get('total') || '0') || 0
+    if (!valor) return
+    let ids = []
+    try { ids = JSON.parse(localStorage.getItem('fbq_checkout_ids') || '[]') } catch(e) {}
+    const pid = localStorage.getItem('zm_checkout_pedido_id') || ''
+    const disparar = function(n) {
+      if (typeof fbq !== 'function') { if (n < 10) setTimeout(function() { disparar(n + 1) }, 500); return }
+      const datos = { value: valor, currency: 'MXN', content_type: 'product_group' }
+      if (ids.length) datos.content_ids = ids
+      if (pid) fbq('track', 'Purchase', datos, { eventID: pid + '-Purchase' })
+      else fbq('track', 'Purchase', datos)
+      if (paymentId) localStorage.setItem('zm_last_purchase', paymentId)
+      localStorage.removeItem('fbq_checkout_ids')
+    }
+    disparar(0)
+  } catch(e) {}
+})();
+
 // Pinterest Tag + checkout event (complementa la CAPI server-side)
 ;(function() {
   if (!window.__zmPagoOk) return
