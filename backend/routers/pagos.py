@@ -215,9 +215,18 @@ def enviar_evento_meta(event_name, pedido, payment):
         fn = nombre_parts[0] if nombre_parts else ""
         ln = nombre_parts[1] if len(nombre_parts) > 1 else ""
 
+        # IDs de producto en el mismo formato que el navegador y el catálogo (item_group_id = SKU del modelo, content_type product_group)
+        _sku_por_var = {}
+        try:
+            _vids = [str(i.get("variante_id")) for i in items if i.get("variante_id")]
+            if _vids:
+                for _v in supabase_get(f"variantes?id=in.({','.join(_vids)})&select=id,productos(sku_interno)") or []:
+                    _sku_por_var[str(_v.get("id"))] = ((_v.get("productos") or {}).get("sku_interno") or "")
+        except Exception as _e:
+            print(f"[CAPI] no se pudo resolver SKU de variantes: {_e}")
         contents = [
             {
-                "id": item.get("variante_id", ""),
+                "id": _sku_por_var.get(str(item.get("variante_id")), "") or item.get("variante_id", ""),
                 "quantity": item.get("cantidad", 1),
                 "item_price": float(item.get("precio_unitario", 0))
             }
@@ -261,7 +270,7 @@ def enviar_evento_meta(event_name, pedido, payment):
                         "currency": "MXN",
                         "value": total,
                         "contents": contents,
-                        "content_type": "product",
+                        "content_type": "product_group",
                         "order_id": pedido_id,
                         "num_items": sum(i.get("cantidad", 1) for i in items)
                     }
