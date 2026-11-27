@@ -114,6 +114,7 @@
     { "source": "/tacones-de-10-a-13-cm", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones-de-10-a-13-cm" },
     { "source": "/mi-cuenta",      "destination": "/mi-cuenta.html" },
     { "source": "/vender",         "destination": "/vender.html" },
+    { "source": "/sistema-para-zapaterias", "destination": "/sistema-para-zapaterias.html" },
     { "source": "/vendedor",       "destination": "/vendedor.html" },
     { "source": "/marketplace",    "destination": "/marketplace.html" },
     { "source": "/marketplace/:slug", "destination": "/marketplace-producto.html" },

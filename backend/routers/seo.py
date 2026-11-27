@@ -1593,6 +1593,7 @@ def sitemap():
             'https://zapatillasmay.mx/guia-como-elegir-tu-talla',
             'https://zapatillasmay.mx/guia-flats-como-elegir',
             'https://zapatillasmay.mx/vender',
+            'https://zapatillasmay.mx/sistema-para-zapaterias',
             'https://zapatillasmay.mx/marketplace',
         ]
         for cat in categorias:
