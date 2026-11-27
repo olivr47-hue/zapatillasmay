@@ -1349,6 +1349,59 @@ def demografia(dias: int = 30):
     return _con_cache(f"demografia:{dias}", _calc)
 
 
+_BUSQ_IGNORAR = {"talla", "tallas", "numero", "num", "para", "de", "del", "la", "las", "el", "los", "en", "dama", "damas", "mujer", "mujeres",
+                 "con", "y", "o", "un", "una", "cm", "baratas", "barata", "bonitas", "bonitos", "modelo", "modelos", "calzado", "zapatos", "zapato",
+                 # colores: viven en las variantes, no en el nombre del modelo
+                 "negro", "negra", "negros", "negras", "blanco", "blanca", "blancos", "blancas", "rojo", "roja", "rojos", "rojas", "cafe", "cafes",
+                 "azul", "azules", "rosa", "rosas", "verde", "verdes", "beige", "nude", "dorado", "dorada", "dorados", "doradas", "plateado", "plateada",
+                 "plata", "oro", "gris", "grises", "vino", "guinda", "morado", "morada", "amarillo", "amarilla", "naranja", "camel", "miel"}
+# Mismo criterio que el buscador de la tienda: «largas» = tubo alto / rodilla; «altas» igual; «cortas» = botines.
+_BUSQ_SINON = {"larg": ("larg", "alt", "tubo", "rodilla"), "alt": ("alt", "larg", "tubo", "rodilla"), "rodill": ("rodilla", "larg", "tubo"),
+               "cort": ("cort", "botin"), "bajit": ("baj",), "plataform": ("plataform",)}
+
+
+def _busq_norm(t: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", (t or "").lower()) if unicodedata.category(c) != "Mn")
+
+
+def _busq_raiz(w: str) -> str:
+    import re as _re
+    if len(w) > 4:
+        w = _re.sub(r"(es|s)$", "", w)
+    if len(w) > 4:
+        w = _re.sub(r"[aeo]$", "", w)
+    return w
+
+
+def _busq_vocab(textos: list) -> set:
+    import re as _re
+    return {w for tx in textos for w in _re.findall(r"[a-zñ]{4,}", tx)}
+
+
+def _busq_hay_modelos(termino: str, textos: list, vocab: set = None) -> int:
+    """Cuántos modelos responden a lo que escribió la clienta, con plurales y sinónimos como en la tienda.
+    Antes se exigía cada palabra tal cual en el nombre: «botas largas» salía como «sin resultados» aunque la tienda
+    sí mostraba 24 botas (los nombres dicen «larga» o «tubo alto»)."""
+    import re as _re
+    toks = [w for w in _re.split(r"[^a-z0-9ñ.]+", _busq_norm(termino)) if w]
+    claves = [w for w in toks if w not in _BUSQ_IGNORAR and not _re.fullmatch(r"\d+(\.\d)?", w)]
+    if not claves:
+        return len(textos)   # solo talla/color/relleno: la tienda lo resuelve con filtros, no es un hueco del catálogo
+    grupos = []
+    import difflib as _dl
+    for w in claves:
+        r = _busq_raiz(w)
+        g = _BUSQ_SINON.get(r) or _BUSQ_SINON.get(r[:4]) or (r,)
+        # Errores de dedo («sadalia», «tacn»): si la palabra no aparece en ningún modelo, se usa la más parecida del catálogo
+        if vocab and len(w) >= 4 and not any(sn in tx for sn in g for tx in textos[:400]):
+            cerca = _dl.get_close_matches(w, vocab, n=1, cutoff=0.75)
+            if cerca:
+                g = (_busq_raiz(cerca[0]),)
+        grupos.append(g)
+    return sum(1 for tx in textos if all(any(sn in tx for sn in g) for g in grupos))
+
+
 @router.get("/busquedas")
 def busquedas(dias: int = 30):
     """Lo que la gente escribe en el buscador de la tienda y si el catálogo lo tiene. (Se registra desde 2026-10-04.)"""
@@ -1365,17 +1418,17 @@ def busquedas(dias: int = 30):
         if not resp:
             return _error_ga({"terminos": []})
         try:
-            prods = supabase_get_all("productos?activo=eq.true&select=nombre,sku_interno,categoria") or []
+            prods = supabase_get_all("productos?activo=eq.true&select=nombre,sku_interno,categoria,descripcion") or []
         except Exception:
             prods = []
-        textos = [((p.get("nombre") or "") + " " + (p.get("sku_interno") or "") + " " + (p.get("categoria") or "")).lower() for p in prods]
+        textos = [_busq_norm((p.get("nombre") or "") + " " + (p.get("sku_interno") or "") + " " + (p.get("categoria") or "") + " " + (p.get("descripcion") or "")) for p in prods]
         terminos = []
+        vocab = _busq_vocab(textos) if textos else None
         for f in _filas(resp, ["searchTerm"], ["eventCount"]):
             t = (f["searchTerm"] or "").strip().lower()
             if not t or t == "(not set)":
                 continue
-            palabras = [w for w in t.split() if w]
-            hay = sum(1 for tx in textos if all(w in tx for w in palabras)) if textos else None
+            hay = _busq_hay_modelos(t, textos, vocab) if textos else None
             terminos.append({"termino": t, "busquedas": int(f["eventCount"]), "modelos": hay,
                              "sin_resultados": (hay == 0) if hay is not None else None})
         return {"configurado": True, "dias": dias, "terminos": terminos,
