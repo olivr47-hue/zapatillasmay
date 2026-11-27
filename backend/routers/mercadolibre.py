@@ -886,6 +886,45 @@ def _hacer_sync_ventas():
         _SYNC_VENTAS_LOCK.release()
 
 
+def _ml_cargos_orden(orden: dict):
+    """(comisión de ML, envío que paga el vendedor) de una orden. La comisión sale de sale_fee de cada artículo (porcentaje + cargo fijo);
+    el envío, del costo del envío para el vendedor. Devuelve None si no se pudo leer la comisión (así se reintenta después)."""
+    ois = orden.get("order_items") or []
+    if not ois or all(oi.get("sale_fee") is None for oi in ois):
+        return None
+    comision = sum(float(oi.get("sale_fee") or 0) * int(oi.get("quantity") or 1) for oi in ois)
+    envio = 0.0
+    sid = (orden.get("shipping") or {}).get("id")
+    if sid:
+        try:
+            c = ml_get(f"/shipments/{sid}/costs") or {}
+            envio = sum(float(x.get("cost") or 0) for x in (c.get("senders") or []) if isinstance(x, dict))
+        except Exception:
+            pass
+    return round(comision, 2), round(envio, 2)
+
+
+def _ml_completar_cargos(limite: int = 40):
+    """Guarda en pedidos de MercadoLibre la comisión y el envío del vendedor (para que «Tu utilidad» use lo que ML realmente paga,
+    no el precio de lista). Completa los pedidos que aún no lo tienen, los más recientes primero."""
+    hechos = 0
+    try:
+        pend = supabase_get(f"pedidos?canal=eq.mercadolibre&ml_comision=is.null&ml_order_id=not.is.null&select=id,ml_order_id&order=confirmado_at.desc.nullslast&limit={int(limite)}") or []
+        for p in pend:
+            try:
+                orden = ml_get(f"/orders/{p['ml_order_id']}")
+                cargos = _ml_cargos_orden(orden)
+                if cargos is None:
+                    continue
+                supabase_patch(f"pedidos?id=eq.{p['id']}", {"ml_comision": cargos[0], "ml_envio_vendedor": cargos[1]})
+                hechos += 1
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return hechos
+
+
 def _hacer_sync_ventas_inner():
     """
     Busca órdenes pagadas recientes en ML que no se hayan procesado todavía
@@ -981,13 +1020,16 @@ def _hacer_sync_ventas_inner():
                 }
                 if fecha_orden:
                     datos_pedido["created_at"] = fecha_orden
+                _cargos = _ml_cargos_orden(orden)
+                if _cargos is not None:
+                    datos_pedido["ml_comision"], datos_pedido["ml_envio_vendedor"] = _cargos
                 try:
                     pedido = supabase_post("pedidos", datos_pedido)
                 except Exception as e:
                     if "PGRST204" in str(e) or "schema cache" in str(e):
                         # Cache de esquema de Supabase desfasado para ml_order_id: insertar
                         # sin ese campo y completarlo despues con un PATCH.
-                        pedido_min = {k: v for k, v in datos_pedido.items() if k != "ml_order_id"}
+                        pedido_min = {k: v for k, v in datos_pedido.items() if k not in ("ml_order_id", "ml_comision", "ml_envio_vendedor")}
                         pedido = supabase_post("pedidos", pedido_min)
                         if pedido:
                             try:
@@ -1022,6 +1064,7 @@ def _hacer_sync_ventas_inner():
     except Exception as e:
         resultado["errores"].append({"error_general": str(e)})
 
+    resultado["cargos_completados"] = _ml_completar_cargos()
     return resultado
 
 

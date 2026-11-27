@@ -67,6 +67,19 @@ def _neto_tiktok(precio_cobrado: float) -> float:
     return deposito(float(precio_cobrado or 0), False) if precio_cobrado and float(precio_cobrado) > 0 else 0.0
 
 
+def _factor_ml(ids):
+    """{pedido_id: factor} de los pedidos de MercadoLibre con su comisión y envío ya guardados: factor = (total - comisión - envío del vendedor) / total.
+    «Tu utilidad» usa lo que ML paga (precio de lista x factor) en vez del precio de lista completo. Los que aún no tienen el dato quedan fuera."""
+    out = {}
+    ids = [i for i in ids if i]
+    for k in range(0, len(ids), 150):
+        for p in supabase_get(f"pedidos?id=in.({','.join(ids[k:k + 150])})&canal=eq.mercadolibre&ml_comision=not.is.null&select=id,total,ml_comision,ml_envio_vendedor") or []:
+            t = float(p.get('total') or 0)
+            if t > 0:
+                out[p['id']] = max(0.0, (t - float(p.get('ml_comision') or 0) - float(p.get('ml_envio_vendedor') or 0)) / t)
+    return out
+
+
 def _es_tiktok(canal, origen_cliente) -> bool:
     return (canal or '').lower() == 'tiktok' or origen_cliente == 'tiktok'
 
@@ -691,6 +704,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
         for _pid in _pedidos_a_precio_sitio([p for p in pedidos if not cuenta.get(p['id'])]):
             cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80): cuenta como venta que llega sola
         tt_ids = {p['id'] for p in pedidos if _es_tiktok(p.get('canal'), origenes.get(p.get('cliente_id')))}
+        _fml = _factor_ml([p['id'] for p in pedidos])   # MercadoLibre: lo que ML paga (menos comisión y envío)
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
             # En bloques y paginado: antes era UNA consulta con todos los ids en la URL (se
@@ -758,7 +772,7 @@ def reporte_financiero(sucursal_id: str, mes: str = None):
                 # solo lo que llega solo; y de SHEIN, únicamente los pares cuyo pago (costo que SHEIN le paga a la vendedora) deja utilidad sobre la corrida
                 if cuenta.get(item.get('pedido_id')) or (item.get('pedido_id') in shein_ids and precio_venta > corrida_u):
                     cmv_corrida += corrida_u * cantidad
-                    tu_ventas += (_neto_tiktok(precio_venta) * cantidad) if item.get('pedido_id') in tt_ids else subtotal_venta   # TikTok: lo que deposita, no lo que pagó el cliente
+                    tu_ventas += (_neto_tiktok(precio_venta) * cantidad) if item.get('pedido_id') in tt_ids else subtotal_venta * _fml.get(item.get('pedido_id'), 1.0)   # TikTok: lo que deposita, no lo que pagó el cliente
                 desglose_cmv.append({
                     'nombre':         nombre,
                     'sku':            sku,
@@ -874,12 +888,13 @@ def tu_utilidad_desglose(sucursal_id: str, mes: str = None):
             for pr in supabase_get(f"productos?id=in.({','.join(pids[k:k + 150])})&select=id,costo,precio_corrida,precio_menudeo") or []:
                 pmap[pr['id']] = pr
         _tt = {p['id'] for p in pedidos if grupo(p) == 'tiktok'}
+        _fml = _factor_ml(ids)   # MercadoLibre: lo que ML paga (menos comisión y envío)
         por_pedido = {}
         for i in items:
             cant = int(i.get('cantidad') or 0)
             d = por_pedido.setdefault(i['pedido_id'], {"venta": 0.0, "corrida": 0.0, "pares": 0})
             _pu = float(i.get('precio_unitario') or 0)
-            d["venta"] += (_neto_tiktok(_pu) if i['pedido_id'] in _tt else _pu) * cant   # TikTok: lo que deposita
+            d["venta"] += (_neto_tiktok(_pu) if i['pedido_id'] in _tt else _pu * _fml.get(i['pedido_id'], 1.0)) * cant   # TikTok: lo que deposita; ML: lo que ML paga
             d["corrida"] += _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida") * cant
             d["pares"] += cant
         acum = {k: {"pedidos": 0, "pares": 0, "cobrado": 0.0, "venta_productos": 0.0, "corrida": 0.0} for k, _ in _GRUPOS_TU_UTILIDAD}
@@ -992,6 +1007,7 @@ def estado_resultados(sucursal_id: str):
                 _cuenta[_pid] = True   # venta de mostrador cobrada al precio del sitio (+$80)
             _tt = {p['id'] for p in pedidos if _es_tiktok(p.get('canal'), _orig.get(p.get('cliente_id')))}
             ventas_prod = cmv = 0.0
+            _fml = _factor_ml(ids)
             if ids:
                 items = []
                 for _k in range(0, len(ids), 150):
@@ -1013,7 +1029,7 @@ def estado_resultados(sucursal_id: str):
                     _cu = _costo_unitario(pmap.get(vmap.get(i['variante_id']), {}), "corrida")
                     if not _cuenta.get(i.get('pedido_id')) and _pv <= _cu:
                         continue   # SHEIN: un par que no deja utilidad sobre la corrida no cuenta
-                    ventas_prod += (_neto_tiktok(_pv) if i.get('pedido_id') in _tt else _pv) * cant   # TikTok: lo que deposita
+                    ventas_prod += (_neto_tiktok(_pv) if i.get('pedido_id') in _tt else _pv * _fml.get(i.get('pedido_id'), 1.0)) * cant   # TikTok: lo que deposita
                     cmv += _cu * cant
             ext = _externas_rango(_ini, _fin)   # TikTok importado: suma a las utilidades, no a las ventas
             utilidad = ventas - gasto + ext["utilidad_real"]   # ventas − gastos (como estaba) + utilidad de lo importado de TikTok
