@@ -348,7 +348,12 @@ window.addEventListener('load', () => {
     // Si hay consentimiento pero los pixeles aun no cargan, esperar (cargarConfigSEO reintenta)
     if (consent && !window.fbq && !window.ttq) return
     if (pp.paymentId) localStorage.setItem('zm_last_purchase', pp.paymentId)
-    if (window.fbq) fbq('track', 'Purchase', { value: pp.valor, currency: 'MXN', content_type: 'product', content_ids: pp.ids })
+    // eventID = el mismo que manda el servidor (Conversions API: «<pedido>-Purchase»): así Meta junta los dos avisos de la misma compra en uno solo.
+    var _pidMeta = ''; try { _pidMeta = localStorage.getItem('zm_checkout_pedido_id') || '' } catch (e) {}
+    if (window.fbq) {
+      if (_pidMeta) fbq('track', 'Purchase', { value: pp.valor, currency: 'MXN', content_type: 'product', content_ids: pp.ids }, { eventID: _pidMeta + '-Purchase' })
+      else fbq('track', 'Purchase', { value: pp.valor, currency: 'MXN', content_type: 'product', content_ids: pp.ids })
+    }
     if (window.ttq) ttq.track('CompletePayment', { value: pp.valor, currency: 'MXN', contents: (pp.ids||[]).map(id=>({content_id:id})) })
     if (typeof gtag === 'function') gtag('event', 'purchase', { transaction_id: pp.paymentId || String(Date.now()), currency: 'MXN', value: pp.valor })
     try { localStorage.removeItem('fbq_checkout_ids'); localStorage.removeItem('zm_purchase_value') } catch(e){}
