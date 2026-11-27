@@ -719,9 +719,9 @@ select.form-input   { cursor:pointer; }
 
   .sidebar {
     transform:translateX(-100%);
-    box-shadow:8px 0 32px rgba(15,23,42,0.3);
+    box-shadow:none;
   }
-  .sidebar.open { transform:translateX(0); }
+  .sidebar.open { transform:translateX(0); box-shadow:8px 0 32px rgba(15,23,42,0.3); }
 
   .main { margin-left:0 !important; width:100% !important; height:100vh; overflow:hidden; }
   .hamburger { display:flex; }
@@ -1798,4 +1798,12 @@ td:last-child,  th:last-child  { padding-right:18px; }
   /* Pista visual de que la fila se desliza hacia los lados */
   #wa-canal-tabs, .wa-filters { -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); scroll-snap-type: x proximity; }
   #wa-canal-tabs .wa-estado-tab, .wa-filters .wa-pill { scroll-snap-align: start; }
+}
+
+
+/* Encabezados con título + botones (Pedidos...): en el celular el título ocupa su renglón y los botones el suyo */
+@media (max-width:640px) {
+  div.cab-movil, div.cab-movil > div { flex-wrap:wrap !important; overflow-x:visible !important; }
+  .cab-movil > div { flex:1 1 100% !important; min-width:0 !important; }
+  .cab-movil .btn { flex:1 1 auto; justify-content:center; }
 }

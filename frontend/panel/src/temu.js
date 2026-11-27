@@ -22,7 +22,7 @@ async function get(ruta) {
 
 window.cargarTemu = async () => {
   const content = document.getElementById('content')
-  content.innerHTML = `<div style="padding:1.5rem 2rem;max-width:1150px">
+  content.innerHTML = `<div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:1150px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
       <div style="width:32px;height:32px;border-radius:8px;background:${COLOR};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#fff;font-weight:800">T</div>
       <h2 style="margin:0;font-size:1.25rem">Temu</h2></div>
