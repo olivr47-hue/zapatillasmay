@@ -291,13 +291,13 @@
     </p>
   </main>
 <script>
-  // Novedades: 3 modelos con foto (destacados/nuevos primero). Si falla, el bloque queda oculto.
+  // Novedades: los 3 modelos más nuevos con existencias y foto. Si falla, el bloque queda oculto.
   (function () {
     var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] }) }
-    fetch('https://zapatillasmay-production.up.railway.app/productos/carrito?ids=')
+    fetch('https://zapatillasmay-production.up.railway.app/productos/recientes?n=3')
       .then(function (r) { return r.ok ? r.json() : Promise.reject() })
       .then(function (d) {
-        var l = (d.sugerencias || []).filter(function (p) { return p.imagen_principal && (p.slug || p.sku_interno) }).slice(0, 3)
+        var l = (Array.isArray(d) ? d : []).filter(function (p) { return p.imagen_principal && (p.slug || p.sku_interno) }).slice(0, 3)
         if (!l.length) return
         document.getElementById('nov').innerHTML = l.map(function (p) {
           var img = String(p.imagen_principal).replace('/upload/', '/upload/w_360,h_360,c_fill,f_auto,q_auto/')

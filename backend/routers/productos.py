@@ -349,6 +349,29 @@ def inicio_tienda(n: int = 60, credentials: HTTPAuthorizationCredentials = Depen
             "variantes": variantes, "inventario": inventario}
 
 
+@router.get("/recientes")
+def productos_recientes(n: int = 3):
+    """Los modelos MÁS NUEVOS (por fecha de alta) que se pueden comprar hoy: activos, con foto, sin los de uso interno
+    («oferta…») y con existencias. Es lo que muestra la página de links (/links). Solo campos públicos y mínimos."""
+    from routers.variantes import variantes_para_tienda
+    from routers.inventario import slim_filas
+    n = max(1, min(int(n or 3), 12))
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        data = cached
+    else:
+        data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
+        cache_set(_CK + "_all", data)
+    stock = {f.get("variante_id"): (f.get("cantidad") or 0) for f in slim_filas()}
+    con_stock = {v.get("producto_id") for v in variantes_para_tienda() if stock.get(v.get("id"), 0) > 0}
+    lista = [p for p in data
+             if p.get("activo") and p.get("id") in con_stock and (p.get("imagen_principal") or "").strip()
+             and not re.match(r"oferta", p.get("nombre") or "", re.I) and not re.match(r"oferta", p.get("slug") or "", re.I)]
+    lista.sort(key=lambda p: str(p.get("created_at") or ""), reverse=True)
+    return [{"nombre": p.get("nombre"), "slug": p.get("slug"), "sku_interno": p.get("sku_interno"),
+             "imagen_principal": p.get("imagen_principal")} for p in lista[:n]]
+
+
 @router.get("/{id}")
 def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     return _publico(supabase_get(f"productos?id=eq.{id}"), credentials)
